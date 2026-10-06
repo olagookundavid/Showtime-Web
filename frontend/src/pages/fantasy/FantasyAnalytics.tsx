@@ -13,6 +13,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { fantasyApi, type FantasyLineupPick } from "../../services/api";
 import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
+import { Button, Select } from "../../components/ui";
+import { DataTable } from "../../components/ui/DataTable";
 
 type AnalyticsTab =
   | "ownership"
@@ -145,11 +147,12 @@ export function FantasyAnalytics() {
           >
             Gameweek:
           </label>
-          <select
+          <Select
             id="analytics-gw"
+            tone="dark"
             value={selectedGwId}
             onChange={(e) => handleSelectGw(e.target.value)}
-            className="min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-4 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-sffl-red cursor-pointer w-full sm:w-auto"
+            className="w-full sm:w-auto"
           >
             {(gameweeks || []).map((gw) => (
               <option
@@ -160,7 +163,7 @@ export function FantasyAnalytics() {
                 Gameweek {gw.number} ({gw.status})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -277,66 +280,55 @@ export function FantasyAnalytics() {
 
       {/* Tab Navigation Controls */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-2 shadow-sm flex flex-wrap gap-1 sm:gap-2">
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant={selectedTab === "ownership" ? "navy" : "secondary"}
+          className="flex-1 sm:flex-none"
+          icon={UserGroupIcon}
           onClick={() => setSelectedTab("ownership")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
-            selectedTab === "ownership"
-              ? "bg-sffl-navy text-white shadow-sm"
-              : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
         >
-          <UserGroupIcon className="w-4 h-4 text-sffl-red" /> Most Owned
-        </button>
+          Most Owned
+        </Button>
 
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant={selectedTab === "top_scorers" ? "navy" : "secondary"}
+          className="flex-1 sm:flex-none"
+          icon={FireIcon}
           onClick={() => setSelectedTab("top_scorers")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
-            selectedTab === "top_scorers"
-              ? "bg-sffl-navy text-white shadow-sm"
-              : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
         >
-          <FireIcon className="w-4 h-4 text-amber-500" /> Top Scorers
-        </button>
+          Top Scorers
+        </Button>
 
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant={selectedTab === "club_points" ? "navy" : "secondary"}
+          className="flex-1 sm:flex-none"
+          icon={ShieldCheckIcon}
           onClick={() => setSelectedTab("club_points")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
-            selectedTab === "club_points"
-              ? "bg-sffl-navy text-white shadow-sm"
-              : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
         >
-          <ShieldCheckIcon className="w-4 h-4 text-emerald-500" /> Points by
-          Club
-        </button>
+          Points by Club
+        </Button>
 
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant={selectedTab === "dream_team" ? "navy" : "secondary"}
+          className="flex-1 sm:flex-none"
+          icon={SparklesIcon}
           onClick={() => setSelectedTab("dream_team")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
-            selectedTab === "dream_team"
-              ? "bg-sffl-navy text-white shadow-sm"
-              : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
         >
-          <SparklesIcon className="w-4 h-4 text-yellow-500" /> Dream Team
-        </button>
+          Dream Team
+        </Button>
 
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant={selectedTab === "differentials" ? "navy" : "secondary"}
+          className="flex-1 sm:flex-none"
+          icon={LightBulbIcon}
           onClick={() => setSelectedTab("differentials")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
-            selectedTab === "differentials"
-              ? "bg-sffl-navy text-white shadow-sm"
-              : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
         >
-          <LightBulbIcon className="w-4 h-4 text-indigo-400" /> Differentials
-        </button>
+          Differentials
+        </Button>
       </div>
 
       {/* Main Content Area */}
@@ -351,13 +343,9 @@ export function FantasyAnalytics() {
         ) : isError ? (
           <div className="py-16 text-center text-red-600 dark:text-red-400 text-sm">
             <p className="font-bold">Failed to load gameweek analytics.</p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="mt-3 min-h-11 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
-            >
+            <Button className="mt-3" size="sm" variant="secondary" onClick={() => refetch()}>
               Try again
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -384,110 +372,95 @@ export function FantasyAnalytics() {
                     No player ownership recorded for this gameweek yet.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50 dark:bg-gray-700/50 text-[11px] uppercase font-bold tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                        <tr>
-                          <th className="py-3 px-4 w-12 text-center">Rank</th>
-                          <th className="py-3 px-4">Player</th>
-                          <th className="py-3 px-4">Club</th>
-                          <th className="py-3 px-4">Price</th>
-                          <th className="py-3 px-4 min-w-35">Ownership</th>
-                          <th className="py-3 px-4 text-right">Points</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {report.most_owned.map((p, idx) => (
-                          <tr
-                            key={p.player_id}
-                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  <DataTable
+                    compact
+                    searchable={false}
+                    paginated={false}
+                    getRowId={(p) => p.player_id}
+                    data={report.most_owned}
+                    columns={[
+                      {
+                        header: "Player",
+                        className: "py-3.5 px-4",
+                        cell: (p) => (
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-5 shrink-0 text-center font-bold text-gray-500 text-xs">
+                              {report.most_owned.indexOf(p) + 1}
+                            </span>
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 border border-gray-200 dark:border-gray-600">
+                              {p.player_image ? (
+                                <img src={p.player_image} alt={p.player_name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-400">
+                                  {p.player_name.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
+                                <span className="truncate">{p.player_name}</span>
+                                <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                  {p.gender}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">{p.position}</p>
+                            </div>
+                          </div>
+                        ),
+                      },
+                      {
+                        header: "Club",
+                        className: "py-3.5 px-4",
+                        cell: (p) => (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+                            {p.team_logo && <img src={p.team_logo} alt={p.team_name} className="w-4 h-4 object-contain" />}
+                            {p.team_short_name || p.team_name || "—"}
+                          </span>
+                        ),
+                      },
+                      {
+                        header: "Price",
+                        className: "py-3.5 px-4 font-mono font-bold text-xs text-gray-600 dark:text-gray-300",
+                        cell: (p) => `₦${p.current_price.toFixed(1)}m`,
+                      },
+                      {
+                        header: "Ownership",
+                        className: "py-3.5 px-4 min-w-35",
+                        cell: (p) => (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold">
+                              <span className="text-sffl-navy dark:text-white font-mono">{p.ownership_percentage}%</span>
+                              <span className="text-[10px] text-gray-400">({p.ownership_count} teams)</span>
+                            </div>
+                            <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-sffl-navy dark:bg-sffl-red h-1.5 rounded-full"
+                                style={{ width: `${Math.min(100, p.ownership_percentage)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ),
+                      },
+                      {
+                        header: "Points",
+                        align: "right",
+                        className: "py-3.5 px-4",
+                        cell: (p) => (
+                          <span
+                            className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-mono font-black ${
+                              p.points > 0
+                                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+                                : p.points < 0
+                                  ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
+                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500"
+                            }`}
                           >
-                            <td className="py-3.5 px-4 text-center font-bold text-gray-500 text-xs">
-                              {idx + 1}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 border border-gray-200 dark:border-gray-600">
-                                  {p.player_image ? (
-                                    <img
-                                      src={p.player_image}
-                                      alt={p.player_name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-400">
-                                      {p.player_name.slice(0, 2).toUpperCase()}
-                                    </div>
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
-                                    <span>{p.player_name}</span>
-                                    <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                                      {p.gender}
-                                    </span>
-                                  </p>
-                                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                    {p.position}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
-                                {p.team_logo && (
-                                  <img
-                                    src={p.team_logo}
-                                    alt={p.team_name}
-                                    className="w-4 h-4 object-contain"
-                                  />
-                                )}
-                                {p.team_short_name || p.team_name || "—"}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono font-bold text-xs text-gray-600 dark:text-gray-300">
-                              ₦{p.current_price.toFixed(1)}m
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-xs font-bold">
-                                  <span className="text-sffl-navy dark:text-white font-mono">
-                                    {p.ownership_percentage}%
-                                  </span>
-                                  <span className="text-[10px] text-gray-400">
-                                    ({p.ownership_count} teams)
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                                  <div
-                                    className="bg-sffl-navy dark:bg-sffl-red h-1.5 rounded-full"
-                                    style={{
-                                      width: `${Math.min(100, p.ownership_percentage)}%`,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <span
-                                className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-mono font-black ${
-                                  p.points > 0
-                                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
-                                    : p.points < 0
-                                      ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
-                                      : "bg-gray-100 dark:bg-gray-700 text-gray-500"
-                                }`}
-                              >
-                                {p.points > 0
-                                  ? `+${p.points.toFixed(1)}`
-                                  : p.points.toFixed(1)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            {p.points > 0 ? `+${p.points.toFixed(1)}` : p.points.toFixed(1)}
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
                 )}
               </div>
             )}
@@ -515,19 +488,15 @@ export function FantasyAnalytics() {
                       { id: "RUSH", label: "Rushers" },
                       { id: "DEF", label: "Defenders" },
                     ].map((pos) => (
-                      <button
+                      <Button
                         key={pos.id}
-                        type="button"
-                        onClick={() => setPositionFilter(pos.id)}
+                        size="sm"
+                        variant={positionFilter === pos.id ? "navy" : "secondary"}
                         aria-pressed={positionFilter === pos.id}
-                        className={`min-h-11 px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
-                          positionFilter === pos.id
-                            ? "bg-sffl-navy text-white"
-                            : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600"
-                        }`}
+                        onClick={() => setPositionFilter(pos.id)}
                       >
                         {pos.label}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -537,94 +506,83 @@ export function FantasyAnalytics() {
                     No point scorers recorded for this filter yet.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50 dark:bg-gray-700/50 text-[11px] uppercase font-bold tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                        <tr>
-                          <th className="py-3 px-4 w-12 text-center">Rank</th>
-                          <th className="py-3 px-4">Player</th>
-                          <th className="py-3 px-4">Club</th>
-                          <th className="py-3 px-4">Price</th>
-                          <th className="py-3 px-4 text-center">Ownership</th>
-                          <th className="py-3 px-4 text-right">Points</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {filteredTopScorers.map((p, idx) => (
-                          <tr
-                            key={p.player_id}
-                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  <DataTable
+                    compact
+                    searchable={false}
+                    paginated={false}
+                    getRowId={(p) => p.player_id}
+                    data={filteredTopScorers}
+                    columns={[
+                      {
+                        header: "Player",
+                        className: "py-3.5 px-4",
+                        cell: (p) => (
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-5 shrink-0 text-center font-bold text-gray-500 text-xs">
+                              {filteredTopScorers.indexOf(p) + 1}
+                            </span>
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 border border-gray-200 dark:border-gray-600">
+                              {p.player_image ? (
+                                <img src={p.player_image} alt={p.player_name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-400">
+                                  {p.player_name.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
+                                <span className="truncate">{p.player_name}</span>
+                                <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                  {p.gender}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">{p.position}</p>
+                            </div>
+                          </div>
+                        ),
+                      },
+                      {
+                        header: "Club",
+                        className: "py-3.5 px-4",
+                        cell: (p) => (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+                            {p.team_logo && <img src={p.team_logo} alt={p.team_name} className="w-4 h-4 object-contain" />}
+                            {p.team_short_name || p.team_name || "—"}
+                          </span>
+                        ),
+                      },
+                      {
+                        header: "Price",
+                        className: "py-3.5 px-4 font-mono font-bold text-xs text-gray-600 dark:text-gray-300",
+                        cell: (p) => `₦${p.price.toFixed(1)}m`,
+                      },
+                      {
+                        header: "Ownership",
+                        align: "center",
+                        className: "py-3.5 px-4 font-mono text-xs font-bold text-gray-600 dark:text-gray-300",
+                        cell: (p) => `${p.ownership_percentage}%`,
+                      },
+                      {
+                        header: "Points",
+                        align: "right",
+                        className: "py-3.5 px-4",
+                        cell: (p) => (
+                          <span
+                            className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-mono font-black border ${
+                              p.points > 0
+                                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                : p.points < 0
+                                  ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
+                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 border-gray-200 dark:border-gray-600"
+                            }`}
                           >
-                            <td className="py-3.5 px-4 text-center font-bold text-gray-500 text-xs">
-                              {idx + 1}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 border border-gray-200 dark:border-gray-600">
-                                  {p.player_image ? (
-                                    <img
-                                      src={p.player_image}
-                                      alt={p.player_name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-400">
-                                      {p.player_name.slice(0, 2).toUpperCase()}
-                                    </div>
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
-                                    <span>{p.player_name}</span>
-                                    <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                                      {p.gender}
-                                    </span>
-                                  </p>
-                                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                    {p.position}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
-                                {p.team_logo && (
-                                  <img
-                                    src={p.team_logo}
-                                    alt={p.team_name}
-                                    className="w-4 h-4 object-contain"
-                                  />
-                                )}
-                                {p.team_short_name || p.team_name || "—"}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono font-bold text-xs text-gray-600 dark:text-gray-300">
-                              ₦{p.price.toFixed(1)}m
-                            </td>
-                            <td className="py-3.5 px-4 text-center font-mono text-xs font-bold text-gray-600 dark:text-gray-300">
-                              {p.ownership_percentage}%
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <span
-                                className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-mono font-black border ${
-                                  p.points > 0
-                                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                                    : p.points < 0
-                                      ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
-                                      : "bg-gray-100 dark:bg-gray-700 text-gray-500 border-gray-200 dark:border-gray-600"
-                                }`}
-                              >
-                                {p.points > 0
-                                  ? `+${p.points.toFixed(1)}`
-                                  : p.points.toFixed(1)}{" "}
-                                pts
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            {p.points > 0 ? `+${p.points.toFixed(1)}` : p.points.toFixed(1)} pts
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
                 )}
               </div>
             )}
@@ -647,82 +605,72 @@ export function FantasyAnalytics() {
                     No club points calculated for this gameweek yet.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50 dark:bg-gray-700/50 text-[11px] uppercase font-bold tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                        <tr>
-                          <th className="py-3 px-4 w-12 text-center">Rank</th>
-                          <th className="py-3 px-4">Club</th>
-                          <th className="py-3 px-4 text-center">
-                            Active Players
-                          </th>
-                          <th className="py-3 px-4 text-center">
-                            Avg / Player
-                          </th>
-                          <th className="py-3 px-4">Top Contributor</th>
-                          <th className="py-3 px-4 text-right">Total Points</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {report.club_points.map((c, idx) => (
-                          <tr
-                            key={c.club_id}
-                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                          >
-                            <td className="py-3.5 px-4 text-center font-bold text-gray-500 text-xs">
-                              {idx + 1}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-3">
-                                {c.club_logo ? (
-                                  <img
-                                    src={c.club_logo}
-                                    alt={c.club_name}
-                                    className="w-7 h-7 object-contain shrink-0"
-                                  />
-                                ) : (
-                                  <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-gray-500">
-                                    {c.club_name.slice(0, 2).toUpperCase()}
-                                  </div>
-                                )}
-                                <div>
-                                  <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm">
-                                    {c.club_name}
-                                  </p>
-                                  <p className="text-[11px] text-gray-400 font-mono">
-                                    {c.club_short_name}
-                                  </p>
-                                </div>
+                  <DataTable
+                    compact
+                    searchable={false}
+                    paginated={false}
+                    getRowId={(c) => c.club_id}
+                    data={report.club_points}
+                    columns={[
+                      {
+                        header: "Club",
+                        className: "py-3.5 px-4",
+                        cell: (c) => (
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-5 shrink-0 text-center font-bold text-gray-500 text-xs">
+                              {report.club_points.indexOf(c) + 1}
+                            </span>
+                            {c.club_logo ? (
+                              <img src={c.club_logo} alt={c.club_name} className="w-7 h-7 object-contain shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-gray-500 shrink-0">
+                                {c.club_name.slice(0, 2).toUpperCase()}
                               </div>
-                            </td>
-                            <td className="py-3.5 px-4 text-center font-mono font-bold text-xs text-gray-700 dark:text-gray-300">
-                              {c.active_player_count}
-                            </td>
-                            <td className="py-3.5 px-4 text-center font-mono font-bold text-xs text-gray-700 dark:text-gray-300">
-                              {c.average_points_per_player} pts
-                            </td>
-                            <td className="py-3.5 px-4 text-xs font-medium text-gray-600 dark:text-gray-300">
-                              {c.top_scorer_name ? (
-                                <span>
-                                  <strong className="text-gray-900 dark:text-white">
-                                    {c.top_scorer_name}
-                                  </strong>{" "}
-                                  ({c.top_scorer_points} pts)
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <span className="font-mono font-black text-sffl-red text-sm sm:text-base">
-                                {c.total_points.toFixed(1)} pts
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm truncate">{c.club_name}</p>
+                              <p className="text-[11px] text-gray-400 font-mono">{c.club_short_name}</p>
+                            </div>
+                          </div>
+                        ),
+                      },
+                      {
+                        header: "Active Players",
+                        align: "center",
+                        className: "py-3.5 px-4 font-mono font-bold text-xs text-gray-700 dark:text-gray-300",
+                        cell: (c) => c.active_player_count,
+                      },
+                      {
+                        header: "Avg / Player",
+                        align: "center",
+                        className: "py-3.5 px-4 font-mono font-bold text-xs text-gray-700 dark:text-gray-300",
+                        cell: (c) => `${c.average_points_per_player} pts`,
+                      },
+                      {
+                        header: "Top Contributor",
+                        className: "py-3.5 px-4 text-xs font-medium text-gray-600 dark:text-gray-300",
+                        cell: (c) =>
+                          c.top_scorer_name ? (
+                            <span>
+                              <strong className="text-gray-900 dark:text-white">{c.top_scorer_name}</strong>{" "}
+                              ({c.top_scorer_points} pts)
+                            </span>
+                          ) : (
+                            "—"
+                          ),
+                      },
+                      {
+                        header: "Total Points",
+                        align: "right",
+                        className: "py-3.5 px-4",
+                        cell: (c) => (
+                          <span className="font-mono font-black text-sffl-red text-sm sm:text-base">
+                            {c.total_points.toFixed(1)} pts
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
                 )}
               </div>
             )}

@@ -15,6 +15,7 @@ import {
     XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { Button, Field, Input, Select, Tabs, Textarea } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions, type RowAction } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -38,28 +39,12 @@ type PendingAction =
 const pts = (n?: number) => (n ? `${n.toLocaleString()} pts` : undefined);
 const playerName = (t: TransferData) => t.player?.name || 'Player';
 
-const tabClass = (active: boolean) =>
-    `min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
-        active
-            ? 'border-sffl-red text-sffl-red'
-            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-    }`;
-
-const fieldClass =
-    'w-full min-h-11 px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-sffl-red';
-const labelClass = 'block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1';
-const cancelButtonClass =
-    'flex-1 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-lg transition-colors border border-gray-200 dark:border-gray-600';
-const submitButtonClass =
-    'flex-1 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 shadow-sm';
-const headerButtonClass =
-    'inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 min-h-11 text-white font-bold text-sm rounded-lg shadow-md transition-colors';
-
+// The Cancel and submit pair for a form modal's footer.
 const FormButtons = ({ onCancel, onSubmit, disabled, label }: { onCancel: () => void; onSubmit: () => void; disabled?: boolean; label: string }) => (
-    <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-        <button type="button" onClick={onCancel} className={cancelButtonClass}>Cancel</button>
-        <button type="button" onClick={onSubmit} disabled={disabled} className={submitButtonClass}>{label}</button>
-    </div>
+    <>
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+        <Button onClick={onSubmit} disabled={disabled}>{label}</Button>
+    </>
 );
 
 const PlayerCell = ({ t }: { t: TransferData }) => (
@@ -466,17 +451,14 @@ export const TeamHeadTransfers: React.FC = () => {
                     body: (
                         <div className="space-y-3">
                             <ConfirmSummary rows={[['Player', playerName(transfer)], ['From', transfer.from_team?.name]]} />
-                            <label className="block">
-                                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                                    Review notes or counter-terms <span className="text-sffl-red">*</span>
-                                </span>
-                                <textarea
+                            <Field label={<>Review notes or counter-terms <span className="text-sffl-red">*</span></>} htmlFor="review-notes">
+                                <Textarea
+                                    id="review-notes"
                                     value={reviewNotes}
                                     onChange={e => setReviewNotes(e.target.value)}
                                     rows={3}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
                                 />
-                            </label>
+                            </Field>
                         </div>
                     ),
                 };
@@ -513,6 +495,9 @@ export const TeamHeadTransfers: React.FC = () => {
         if (!pendingAction) close();
     };
 
+    const bidOverBudget = budget ? bidValue > budget.remaining : false;
+    const requestOverBudget = budget ? requestPrice > budget.remaining : false;
+
     const windowCloses = windowStatus.data?.closes_at ? ` (closes ${new Date(windowStatus.data.closes_at).toLocaleDateString()})` : '';
 
     return (
@@ -522,18 +507,15 @@ export const TeamHeadTransfers: React.FC = () => {
                 subtitle="Trade, list and bid on players across the league."
                 actions={windowStatus.is_open && (
                     <>
-                        <button type="button" onClick={handleFetchContractsForListing} className={`${headerButtonClass} bg-sffl-red hover:bg-sffl-red/90`}>
-                            <TagIcon className="w-4 h-4" aria-hidden="true" />
+                        <Button className="w-full sm:w-auto" icon={TagIcon} onClick={handleFetchContractsForListing}>
                             List Player for Sale
-                        </button>
-                        <button type="button" onClick={handleOpenDirectSaleModal} className={`${headerButtonClass} bg-sffl-navy hover:bg-sffl-navy/90`}>
-                            <ArrowsRightLeftIcon className="w-4 h-4" aria-hidden="true" />
+                        </Button>
+                        <Button variant="navy" className="w-full sm:w-auto" icon={ArrowsRightLeftIcon} onClick={handleOpenDirectSaleModal}>
                             Direct Sale to Team
-                        </button>
-                        <button type="button" onClick={handleOpenRequestModal} className={`${headerButtonClass} bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600`}>
-                            <UserPlusIcon className="w-4 h-4" aria-hidden="true" />
+                        </Button>
+                        <Button variant="secondary" className="w-full sm:w-auto" icon={UserPlusIcon} onClick={handleOpenRequestModal}>
                             Request Player Transfer
-                        </button>
+                        </Button>
                     </>
                 )}
             />
@@ -580,20 +562,17 @@ export const TeamHeadTransfers: React.FC = () => {
             )}
 
             {/* Navigation Tabs */}
-            <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700">
-                <button type="button" onClick={() => setActiveTab('market')} aria-pressed={activeTab === 'market'} className={tabClass(activeTab === 'market')}>
-                    Transfer Market
-                </button>
-                <button type="button" onClick={() => setActiveTab('my-listings')} aria-pressed={activeTab === 'my-listings'} className={tabClass(activeTab === 'my-listings')}>
-                    My Listings ({myListings.length})
-                </button>
-                <button type="button" onClick={() => setActiveTab('incoming')} aria-pressed={activeTab === 'incoming'} className={tabClass(activeTab === 'incoming')}>
-                    Incoming Offers ({incomingTransfers.length})
-                </button>
-                <button type="button" onClick={() => setActiveTab('outgoing')} aria-pressed={activeTab === 'outgoing'} className={tabClass(activeTab === 'outgoing')}>
-                    Outgoing Proposals ({outgoingTransfers.length})
-                </button>
-            </div>
+            <Tabs
+                aria-label="Transfers"
+                items={[
+                    { value: 'market', label: 'Transfer Market' },
+                    { value: 'my-listings', label: `My Listings (${myListings.length})` },
+                    { value: 'incoming', label: `Incoming Offers (${incomingTransfers.length})` },
+                    { value: 'outgoing', label: `Outgoing Proposals (${outgoingTransfers.length})` },
+                ]}
+                value={activeTab}
+                onChange={setActiveTab}
+            />
 
             {/* Tab 1: Transfer Market */}
             {activeTab === 'market' && (
@@ -635,17 +614,17 @@ export const TeamHeadTransfers: React.FC = () => {
                                     </div>
 
                                     {windowStatus.is_open && t.from_team?.id !== budget?.team_id && (
-                                        <button
-                                            type="button"
+                                        <Button
+                                            variant="navy"
+                                            fullWidth
+                                            icon={BanknotesIcon}
                                             onClick={() => {
                                                 setSelectedListing(t);
                                                 setBidValue(t.asking_price || 1000000);
                                             }}
-                                            className="w-full inline-flex items-center justify-center gap-1.5 min-h-11 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-xs rounded-lg shadow transition-colors"
                                         >
-                                            <BanknotesIcon className="w-4 h-4" aria-hidden="true" />
                                             Place Bid
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             );
@@ -699,20 +678,18 @@ export const TeamHeadTransfers: React.FC = () => {
                                                     </div>
                                                     {b.status === 'PENDING' ? (
                                                         <div className="flex gap-2">
-                                                            <button
-                                                                type="button"
+                                                            <Button
+                                                                variant="success"
                                                                 onClick={() => setPendingAction({ kind: 'bidResponse', listing: t, bid: b, accept: true })}
-                                                                className="min-h-11 px-3 bg-green-500 text-white font-bold text-xs rounded-lg hover:bg-green-600 transition-colors"
                                                             >
                                                                 Accept Bid
-                                                            </button>
-                                                            <button
-                                                                type="button"
+                                                            </Button>
+                                                            <Button
+                                                                variant="danger"
                                                                 onClick={() => setPendingAction({ kind: 'bidResponse', listing: t, bid: b, accept: false })}
-                                                                className="min-h-11 px-3 bg-red-100 text-red-600 font-bold text-xs rounded-lg hover:bg-red-200 transition-colors"
                                                             >
                                                                 Reject
-                                                            </button>
+                                                            </Button>
                                                         </div>
                                                     ) : (
                                                         <span className={`px-2 py-0.5 rounded text-xs font-bold ${
@@ -759,7 +736,20 @@ export const TeamHeadTransfers: React.FC = () => {
             )}
 
             {/* Place Bid */}
-            <Modal open={!!selectedListing} onClose={closeUnlessConfirming(() => setSelectedListing(null))} title="Place Bid" maxWidth="md">
+            <Modal
+                open={!!selectedListing}
+                onClose={closeUnlessConfirming(() => setSelectedListing(null))}
+                title="Place Bid"
+                maxWidth="md"
+                footer={selectedListing && (
+                    <FormButtons
+                        onCancel={() => setSelectedListing(null)}
+                        onSubmit={submitBid}
+                        disabled={bidOverBudget}
+                        label="Submit Bid"
+                    />
+                )}
+            >
                 {selectedListing && (
                     <div className="space-y-4">
                         <div>
@@ -770,173 +760,175 @@ export const TeamHeadTransfers: React.FC = () => {
                             </p>
                         </div>
 
-                        <label className="block">
-                            <span className={labelClass}>Your Bid Amount (Points)</span>
-                            <input
+                        <Field
+                            label="Your Bid Amount (Points)"
+                            htmlFor="bid-amount"
+                            error={budget && bidOverBudget ? `Remaining Budget: ${budget.remaining.toLocaleString()} pts` : undefined}
+                            hint={budget && !bidOverBudget ? `Remaining Budget: ${budget.remaining.toLocaleString()} pts` : undefined}
+                        >
+                            <Input
+                                id="bid-amount"
                                 type="number"
                                 step="100000"
                                 min="100000"
                                 value={bidValue}
                                 onChange={e => setBidValue(parseInt(e.target.value, 10))}
-                                className={fieldClass}
+                                invalid={bidOverBudget}
                             />
-                            {budget && (
-                                <span className={`text-xs mt-1.5 block font-semibold ${bidValue > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
-                                    Remaining Budget: {budget.remaining.toLocaleString()} pts
-                                </span>
-                            )}
-                        </label>
-
-                        <FormButtons
-                            onCancel={() => setSelectedListing(null)}
-                            onSubmit={submitBid}
-                            disabled={budget ? bidValue > budget.remaining : false}
-                            label="Submit Bid"
-                        />
+                        </Field>
                     </div>
                 )}
             </Modal>
 
             {/* List Player for Sale */}
-            <Modal open={showListModal} onClose={closeUnlessConfirming(() => setShowListModal(false))} title="List Player for Sale" maxWidth="md">
+            <Modal
+                open={showListModal}
+                onClose={closeUnlessConfirming(() => setShowListModal(false))}
+                title="List Player for Sale"
+                maxWidth="md"
+                footer={<FormButtons onCancel={() => setShowListModal(false)} onSubmit={submitListing} disabled={!selectedContract} label="Publish Listing" />}
+            >
                 <div className="space-y-4">
-                    <label className="block">
-                        <span className={labelClass}>Select Player</span>
-                        <select
+                    <Field label="Select Player" htmlFor="listing-player">
+                        <Select
+                            id="listing-player"
                             value={selectedContract?.id || ''}
                             onChange={e => {
                                 const c = myContracts.find(mc => mc.id === e.target.value);
                                 setSelectedContract(c || null);
                                 if (c) setAskingPrice(c.player_value);
                             }}
-                            className={fieldClass}
                         >
                             <option value="">Choose an active player</option>
                             {myContracts.map(c => (
                                 <option key={c.id} value={c.id}>{c.player?.name} ({c.player?.position}) - Val: {c.player_value.toLocaleString()} pts</option>
                             ))}
-                        </select>
-                    </label>
+                        </Select>
+                    </Field>
 
-                    <label className="block">
-                        <span className={labelClass}>Asking Price (Points)</span>
-                        <input
+                    <Field label="Asking Price (Points)" htmlFor="listing-asking-price">
+                        <Input
+                            id="listing-asking-price"
                             type="number"
                             step="100000"
                             min="0"
                             value={askingPrice}
                             onChange={e => setAskingPrice(parseInt(e.target.value, 10))}
-                            className={fieldClass}
                         />
-                    </label>
-
-                    <FormButtons onCancel={() => setShowListModal(false)} onSubmit={submitListing} disabled={!selectedContract} label="Publish Listing" />
+                    </Field>
                 </div>
             </Modal>
 
             {/* Direct Sale */}
-            <Modal open={showDirectSaleModal} onClose={closeUnlessConfirming(() => setShowDirectSaleModal(false))} title="Propose Direct Sale" maxWidth="md">
-                <div className="space-y-4">
-                    <label className="block">
-                        <span className={labelClass}>Select Player to Sell</span>
-                        <select
-                            value={selectedContract?.id || ''}
-                            onChange={e => {
-                                const c = myContracts.find(mc => mc.id === e.target.value);
-                                setSelectedContract(c || null);
-                                if (c) setDirectSalePrice(c.player_value);
-                            }}
-                            className={fieldClass}
-                        >
-                            <option value="">Choose an active player</option>
-                            {myContracts.map(c => (
-                                <option key={c.id} value={c.id}>{c.player?.name} ({c.player?.position})</option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <label className="block">
-                        <span className={labelClass}>Target Buyer Team</span>
-                        <select value={directSaleTargetTeamId} onChange={e => setDirectSaleTargetTeamId(e.target.value)} className={fieldClass}>
-                            <option value="">Choose a target team</option>
-                            {allTeams.map(tm => (
-                                <option key={tm.id} value={tm.id}>{tm.name}</option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <label className="block">
-                        <span className={labelClass}>Agreed Sale Price (Points)</span>
-                        <input
-                            type="number"
-                            step="100000"
-                            min="0"
-                            value={directSalePrice}
-                            onChange={e => setDirectSalePrice(parseInt(e.target.value, 10))}
-                            className={fieldClass}
-                        />
-                    </label>
-
+            <Modal
+                open={showDirectSaleModal}
+                onClose={closeUnlessConfirming(() => setShowDirectSaleModal(false))}
+                title="Propose Direct Sale"
+                maxWidth="md"
+                footer={
                     <FormButtons
                         onCancel={() => setShowDirectSaleModal(false)}
                         onSubmit={submitDirectSale}
                         disabled={!selectedContract || !directSaleTargetTeamId}
                         label="Submit Sale Proposal"
                     />
+                }
+            >
+                <div className="space-y-4">
+                    <Field label="Select Player to Sell" htmlFor="direct-sale-player">
+                        <Select
+                            id="direct-sale-player"
+                            value={selectedContract?.id || ''}
+                            onChange={e => {
+                                const c = myContracts.find(mc => mc.id === e.target.value);
+                                setSelectedContract(c || null);
+                                if (c) setDirectSalePrice(c.player_value);
+                            }}
+                        >
+                            <option value="">Choose an active player</option>
+                            {myContracts.map(c => (
+                                <option key={c.id} value={c.id}>{c.player?.name} ({c.player?.position})</option>
+                            ))}
+                        </Select>
+                    </Field>
+
+                    <Field label="Target Buyer Team" htmlFor="direct-sale-team">
+                        <Select id="direct-sale-team" value={directSaleTargetTeamId} onChange={e => setDirectSaleTargetTeamId(e.target.value)}>
+                            <option value="">Choose a target team</option>
+                            {allTeams.map(tm => (
+                                <option key={tm.id} value={tm.id}>{tm.name}</option>
+                            ))}
+                        </Select>
+                    </Field>
+
+                    <Field label="Agreed Sale Price (Points)" htmlFor="direct-sale-price">
+                        <Input
+                            id="direct-sale-price"
+                            type="number"
+                            step="100000"
+                            min="0"
+                            value={directSalePrice}
+                            onChange={e => setDirectSalePrice(parseInt(e.target.value, 10))}
+                        />
+                    </Field>
                 </div>
             </Modal>
 
             {/* Transfer Request */}
-            <Modal open={showRequestModal} onClose={closeUnlessConfirming(() => setShowRequestModal(false))} title="Request Player Transfer" maxWidth="md">
+            <Modal
+                open={showRequestModal}
+                onClose={closeUnlessConfirming(() => setShowRequestModal(false))}
+                title="Request Player Transfer"
+                maxWidth="md"
+                footer={
+                    <FormButtons
+                        onCancel={() => setShowRequestModal(false)}
+                        onSubmit={submitRequest}
+                        disabled={!requestPlayerId || requestOverBudget}
+                        label="Send Transfer Request"
+                    />
+                }
+            >
                 <div className="space-y-4">
-                    <label className="block">
-                        <span className={labelClass}>Target Team</span>
-                        <select value={requestTargetTeamId} onChange={e => handleSelectTargetTeamForRequest(e.target.value)} className={fieldClass}>
+                    <Field label="Target Team" htmlFor="request-team">
+                        <Select id="request-team" value={requestTargetTeamId} onChange={e => handleSelectTargetTeamForRequest(e.target.value)}>
                             <option value="">Choose a team</option>
                             {allTeams.map(tm => (
                                 <option key={tm.id} value={tm.id}>{tm.name}</option>
                             ))}
-                        </select>
-                    </label>
+                        </Select>
+                    </Field>
 
-                    <label className="block">
-                        <span className={labelClass}>Select Target Player</span>
-                        <select
+                    <Field label="Select Target Player" htmlFor="request-player">
+                        <Select
+                            id="request-player"
                             value={requestPlayerId}
                             onChange={e => setRequestPlayerId(e.target.value)}
                             disabled={!requestTargetTeamId}
-                            className={fieldClass}
                         >
                             <option value="">Choose a player</option>
                             {targetTeamPlayers.map(p => (
                                 <option key={p.id} value={p.id}>{p.name} ({p.position})</option>
                             ))}
-                        </select>
-                    </label>
+                        </Select>
+                    </Field>
 
-                    <label className="block">
-                        <span className={labelClass}>Offered Transfer Value (Points)</span>
-                        <input
+                    <Field
+                        label="Offered Transfer Value (Points)"
+                        htmlFor="request-price"
+                        error={budget && requestOverBudget ? `Remaining Budget: ${budget.remaining.toLocaleString()} pts` : undefined}
+                        hint={budget && !requestOverBudget ? `Remaining Budget: ${budget.remaining.toLocaleString()} pts` : undefined}
+                    >
+                        <Input
+                            id="request-price"
                             type="number"
                             step="100000"
                             min="100000"
                             value={requestPrice}
                             onChange={e => setRequestPrice(parseInt(e.target.value, 10))}
-                            className={fieldClass}
+                            invalid={requestOverBudget}
                         />
-                        {budget && (
-                            <span className={`text-xs mt-1.5 block font-semibold ${requestPrice > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
-                                Remaining Budget: {budget.remaining.toLocaleString()} pts
-                            </span>
-                        )}
-                    </label>
-
-                    <FormButtons
-                        onCancel={() => setShowRequestModal(false)}
-                        onSubmit={submitRequest}
-                        disabled={!requestPlayerId || (budget ? requestPrice > budget.remaining : false)}
-                        label="Send Transfer Request"
-                    />
+                    </Field>
                 </div>
             </Modal>
 

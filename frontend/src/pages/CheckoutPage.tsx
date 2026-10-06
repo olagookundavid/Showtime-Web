@@ -31,6 +31,7 @@ import {
 import { LazyImage } from "../components/common/LazyImage";
 import { DiscountCodeInput } from "../components/discounts/DiscountCodeInput";
 import { formatVariantLabel } from "../utils/storeStock";
+import { Button, Checkbox, Field, Input, Textarea } from "../components/ui";
 import { Spinner } from "../components/ui/Spinner";
 
 export const CheckoutPage = () => {
@@ -472,141 +473,116 @@ export const CheckoutPage = () => {
 
               <form onSubmit={handleFormSubmit} className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">
-                      Recipient Name
-                    </label>
-                    <input
+                  <Field label="Recipient Name" htmlFor="checkout-recipient">
+                    <Input
+                      id="checkout-recipient"
                       required
                       type="text"
                       value={shippingForm.recipient_name}
                       onChange={(e) =>
                         updateField("recipient_name", e.target.value)
                       }
-                      className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                       placeholder="e.g. David Oh"
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">
-                      Email Address
-                    </label>
-                    <input
+                  </Field>
+                  <Field label="Email Address" htmlFor="checkout-email">
+                    <Input
+                      id="checkout-email"
                       required
                       type="email"
                       value={shippingForm.email}
                       onChange={(e) => updateField("email", e.target.value)}
-                      className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                       placeholder="e.g. david@gmail.com"
                     />
-                  </div>
+                  </Field>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">
-                      Phone Number
-                    </label>
-                    <input
+                  <Field label="Phone Number" htmlFor="checkout-phone">
+                    <Input
+                      id="checkout-phone"
                       required
                       type="text"
                       value={shippingForm.phone}
                       onChange={(e) => updateField("phone", e.target.value)}
-                      className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                       placeholder="e.g. +234..."
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">
-                      Country
-                    </label>
-                    <input
+                  </Field>
+                  <Field label="Country" htmlFor="checkout-country">
+                    <Input
+                      id="checkout-country"
                       readOnly
                       type="text"
                       value={shippingForm.country}
-                      className="w-full px-3 py-2 text-sm border rounded-xl bg-gray-50 dark:bg-gray-700/30 dark:border-gray-700 dark:text-gray-400 outline-none cursor-not-allowed"
                     />
-                  </div>
+                  </Field>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className="col-span-2 sm:col-span-1 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">
-                      State
-                    </label>
-                    <input
+                  <Field label="State" htmlFor="checkout-state" className="col-span-2 sm:col-span-1">
+                    <Input
+                      id="checkout-state"
                       required
                       type="text"
                       value={shippingForm.state}
                       onChange={(e) => updateField("state", e.target.value)}
-                      className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                       placeholder="e.g. Lagos"
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">
-                      City
-                    </label>
-                    <input
+                  </Field>
+                  <Field label="City" htmlFor="checkout-city">
+                    <Input
+                      id="checkout-city"
                       required
                       type="text"
                       value={shippingForm.city}
                       onChange={(e) => updateField("city", e.target.value)}
-                      className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                       placeholder="e.g. Lekki"
                     />
-                  </div>
-                  <div className="col-span-2 sm:col-span-1 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">
-                      Postal Code
-                    </label>
-                    <input
+                  </Field>
+                  <Field label="Postal Code" htmlFor="checkout-postal" className="col-span-2 sm:col-span-1">
+                    <Input
+                      id="checkout-postal"
                       type="text"
                       value={shippingForm.postal_code}
                       onChange={(e) =>
                         updateField("postal_code", e.target.value)
                       }
-                      className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                       placeholder="e.g. 100001"
                     />
-                  </div>
+                  </Field>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">
-                    Street Address
-                  </label>
-                  <textarea
+                <Field label="Street Address" htmlFor="checkout-street">
+                  <Textarea
+                    id="checkout-street"
                     required
                     rows={2}
                     value={shippingForm.street_address}
                     onChange={(e) =>
                       updateField("street_address", e.target.value)
                     }
-                    className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                     placeholder="Detailed street name, apartment details, building number..."
                   />
-                </div>
+                </Field>
 
                 {isAuthenticated && !selectedSavedAddressId && (
-                  <label className="flex items-center gap-2 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={saveAddress}
-                      onChange={(e) => setSaveAddress(e.target.checked)}
-                      className="w-5 h-5 shrink-0 accent-sffl-red"
-                    />
-                    Save this address for next time
-                  </label>
+                  <Checkbox
+                    label="Save this address for next time"
+                    checked={saveAddress}
+                    onChange={(e) => setSaveAddress(e.target.checked)}
+                  />
                 )}
 
-                <button
+                <Button
                   type="submit"
-                  className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 bg-sffl-navy hover:bg-sffl-red text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-colors shadow-lg"
+                  variant="navy"
+                  size="lg"
+                  fullWidth
+                  icon={ArrowRightIcon}
+                  iconPosition="right"
                 >
                   Continue to Invoice & Payment
-                  <ArrowRightIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                </button>
+                </Button>
               </form>
             </div>
           ) : (
@@ -727,11 +703,10 @@ export const CheckoutPage = () => {
                                 a pre-ticked box isn't consent. */}
               {newsletterEnabled && !isSubmitting && (
                 <label className="flex items-start gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    className="mt-0.5"
                     checked={joinNewsletter}
                     onChange={(e) => setJoinNewsletter(e.target.checked)}
-                    className="mt-0.5 w-5 h-5 shrink-0 accent-sffl-red cursor-pointer"
                   />
                   <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
                     <span className="font-black text-sffl-navy dark:text-white uppercase tracking-wider">
@@ -755,21 +730,23 @@ export const CheckoutPage = () => {
                 />
               ) : (
                 <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="flex-1"
                     onClick={() => setCheckoutStep(1)}
-                    className="flex-1 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-colors border"
                   >
                     Back
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="flex-2"
+                    icon={ArrowRightIcon}
+                    iconPosition="right"
                     onClick={handlePayNow}
-                    className="flex-2 min-h-11 inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-xl hover:shadow-sffl-red/20"
                   >
                     {totalAmount === 0 ? "Complete Order" : "Pay With Paystack"}
-                    <ArrowRightIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

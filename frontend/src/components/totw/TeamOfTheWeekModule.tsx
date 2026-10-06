@@ -15,6 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { formatStatNumber } from "../../utils/formatters";
+import { Button, ButtonLink, Select } from "../ui";
 
 const isPlayerOfTheWeek = (totw: TeamOfTheWeek, player: TOTWPlayer): boolean =>
   Boolean(
@@ -143,22 +144,27 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
           <div className="flex items-center gap-2">
             {(showDetailsLink ?? showArchiveLink) && (
-              <Link
+              <ButtonLink
                 to={totw?.id ? `/totw/${totw.id}` : "/totw"}
-                className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 transition-all hover:scale-[1.02] shadow-sm shrink-0"
+                variant="secondary"
+                tone="dark"
+                size="sm"
+                icon={ChevronRightIcon}
+                iconPosition="right"
+                className="shrink-0"
               >
-                <span>View All Details</span>
-                <ChevronRightIcon className="w-3.5 h-3.5" />
-              </Link>
+                View All Details
+              </ButtonLink>
             )}
             {archive.length > 1 && (
-              <select
+              <Select
                 value={totw.id}
                 onChange={(e) => {
                   setSelectedTotwId(e.target.value);
                   onSelectEdition?.(e.target.value);
                 }}
-                className="flex-1 sm:flex-none min-w-0 w-full sm:w-auto sm:max-w-60 min-h-11 bg-[#112D4E] text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 focus:outline-none focus:border-sffl-red"
+                tone="dark"
+                className="flex-1 sm:flex-none min-w-0 w-full sm:w-auto sm:max-w-60"
                 aria-label="Select Gameday"
               >
                 {archive.map((item) => (
@@ -167,7 +173,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                     {item.headline ? `— ${item.headline}` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
             <span className="shrink-0 bg-sffl-red text-white text-[11px] md:text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-md shadow-sm">
               {totw.week_title || "Week"}
@@ -279,7 +285,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   {/* Floating POTW Star Badge */}
                   {isPOTW && (
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-linear-to-r from-amber-400 via-yellow-300 to-amber-500 text-sffl-navy text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-pulse">
-                      <span>⭐</span>
+                      <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
                       <span>POTW</span>
                     </div>
                   )}
@@ -364,14 +370,14 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
           {/* Phones: card full width with the arrows side by side below it. */}
           <div className="grid grid-cols-2 sm:grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2 md:gap-4">
             {/* Prev Button */}
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
+            <Button
+              tone="dark"
+              variant="secondary"
+              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 px-0 border border-white/20 shadow-md"
+              icon={ChevronLeftIcon}
               aria-label="Previous player"
-            >
-              <ChevronLeftIcon className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
+              onClick={handlePrev}
+            />
 
             {/* Active Player Card */}
             <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden rounded-2xl bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[170px_minmax(0,1fr)] min-h-42.5">
@@ -513,14 +519,14 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             </article>
 
             {/* Next Button */}
-            <button
-              type="button"
-              onClick={handleNext}
-              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
+            <Button
+              tone="dark"
+              variant="secondary"
+              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 px-0 border border-white/20 shadow-md"
+              icon={ChevronRightIcon}
               aria-label="Next player"
-            >
-              <ChevronRightIcon className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
+              onClick={handleNext}
+            />
           </div>
 
           {/* Position dots: a progress indicator only. The pins on the pitch

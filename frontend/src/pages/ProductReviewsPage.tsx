@@ -22,6 +22,7 @@ import {
 import { StarRating } from "../components/store/StarRating";
 import { Loader } from "../components/ui/Loader";
 import { BackButton } from "../components/common/BackButton";
+import { Button, Field, Input, Select, Textarea } from "../components/ui";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../components/ui/ConfirmSummary";
 
@@ -227,19 +228,19 @@ export const ProductReviewsPage = () => {
             <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-gray-300">
               All Reviews
             </h2>
-            <select
+            <Select
               value={sort}
               onChange={(e) => {
                 setSort(e.target.value as ReviewSort);
                 setPage(1);
               }}
               aria-label="Sort reviews"
-              className="min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white"
+              className="w-auto"
             >
               <option value="newest">Newest</option>
               <option value="highest">Highest rated</option>
               <option value="lowest">Lowest rated</option>
-            </select>
+            </Select>
           </div>
 
           {loadingReviews ? (
@@ -268,8 +269,10 @@ export const ProductReviewsPage = () => {
                         )}
                       </div>
                       {isAdmin && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          icon={TrashIcon}
                           onClick={() =>
                             setPendingDelete({
                               id: r.id,
@@ -277,11 +280,9 @@ export const ProductReviewsPage = () => {
                               title: r.title || undefined,
                             })
                           }
-                          className="inline-flex items-center gap-1.5 min-h-11 text-[11px] font-black uppercase tracking-wider text-red-600 hover:text-white hover:bg-red-600 border border-red-200 dark:border-red-900 px-3 py-1 rounded transition-colors"
                         >
-                          <TrashIcon className="w-4 h-4" aria-hidden="true" />
                           Admin · Delete
-                        </button>
+                        </Button>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 font-bold flex-wrap">
@@ -311,29 +312,30 @@ export const ProductReviewsPage = () => {
 
               {totalPages > 1 && (
                 <div className="flex justify-between items-center gap-2 pt-4 border-t dark:border-gray-700">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={ChevronLeftIcon}
+                    aria-label="Previous page"
                     disabled={page === 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    aria-label="Previous page"
-                    className="inline-flex items-center gap-1.5 min-h-11 min-w-11 justify-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                   >
-                    <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
                     <span className="hidden sm:inline">Previous</span>
-                  </button>
+                  </Button>
                   <span className="text-xs text-gray-500 font-bold">
                     Page {page} of {totalPages}
                   </span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={ChevronRightIcon}
+                    iconPosition="right"
+                    aria-label="Next page"
                     disabled={page >= totalPages}
                     onClick={() => setPage((p) => p + 1)}
-                    aria-label="Next page"
-                    className="inline-flex items-center gap-1.5 min-h-11 min-w-11 justify-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                   >
                     <span className="hidden sm:inline">Next</span>
-                    <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
-                  </button>
+                  </Button>
                 </div>
               )}
             </>
@@ -370,32 +372,26 @@ export const ProductReviewsPage = () => {
                   <StarRating value={rating} onChange={setRating} size="lg" />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black uppercase text-gray-500 tracking-wider block">
-                    Headline (optional)
-                  </label>
-                  <input
+                <Field label="Headline (optional)" htmlFor="review-title">
+                  <Input
+                    id="review-title"
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Fits great, fast delivery"
                     maxLength={120}
-                    className="w-full min-h-11 px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                   />
-                </div>
+                </Field>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black uppercase text-gray-500 tracking-wider block">
-                    Review (optional)
-                  </label>
-                  <textarea
+                <Field label="Review (optional)" htmlFor="review-body">
+                  <Textarea
+                    id="review-body"
                     rows={5}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="What did you like or dislike? How was the fit and material?"
-                    className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40 resize-y leading-relaxed"
                   />
-                </div>
+                </Field>
 
                 {formError && (
                   <div
@@ -414,17 +410,13 @@ export const ProductReviewsPage = () => {
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full min-h-11 bg-sffl-red hover:bg-red-700 text-white py-3 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md disabled:opacity-50"
-                >
+                <Button type="submit" fullWidth size="lg" loading={submitting}>
                   {submitting
                     ? "Saving…"
                     : myReview
                       ? "Update Review"
                       : "Submit Review"}
-                </button>
+                </Button>
 
                 <div className="flex items-start gap-2 bg-sffl-navy/5 dark:bg-sffl-navy/30 border border-sffl-navy/15 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-sffl-navy dark:text-gray-200 leading-relaxed">
                   <InformationCircleIcon

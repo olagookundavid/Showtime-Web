@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { IconButton } from "./IconButton";
 
 interface ImageLightboxProps {
   src: string;
@@ -35,14 +36,14 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       data-dialog
       onClick={onClose}
     >
-      <button
-        type="button"
+      <IconButton
+        icon={XMarkIcon}
+        label="Close image"
+        variant="secondary"
+        tone="dark"
+        className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 rounded-full z-101"
         onClick={onClose}
-        aria-label="Close image"
-        className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 p-2 min-h-11 min-w-11 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-101"
-      >
-        <XMarkIcon className="w-8 h-8" aria-hidden="true" />
-      </button>
+      />
 
       <div
         className="relative max-w-full max-h-full flex items-center justify-center animate-in zoom-in-95 duration-300"

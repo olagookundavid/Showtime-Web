@@ -4,6 +4,7 @@ import { useFont } from '../../contexts/FontContext';
 import { CheckCircleIcon, ArrowPathIcon, SparklesIcon, SwatchIcon } from '@heroicons/react/24/outline';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button } from '../../components/ui';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 type PendingAction = { kind: 'set'; fontId: string; fontName: string; category: string } | { kind: 'reset' };
@@ -78,15 +79,15 @@ export const AdminSettings = () => {
                 title="App Settings"
                 subtitle="Choose the app-wide font. It changes every page for every visitor."
                 actions={
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
+                        icon={ArrowPathIcon}
                         onClick={() => setPendingAction({ kind: 'reset' })}
                         disabled={isSaving || busy}
-                        className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-sffl-navy dark:text-white font-bold text-xs md:text-sm rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95 border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:hover:scale-100"
+                        className="flex-1 md:flex-initial"
                     >
-                        <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
                         Reset to Georgia
-                    </button>
+                    </Button>
                 }
             />
 
@@ -119,18 +120,14 @@ export const AdminSettings = () => {
             <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">Category Filter:</span>
                 {categories.map(cat => (
-                    <button
+                    <Button
                         key={cat}
-                        type="button"
+                        variant={selectedCategory === cat ? 'primary' : 'secondary'}
                         aria-pressed={selectedCategory === cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-4 min-h-11 text-xs font-bold rounded-xl transition-all duration-200 ${selectedCategory === cat
-                                ? 'bg-sffl-red text-white shadow-md'
-                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-                            }`}
                     >
                         {cat}
-                    </button>
+                    </Button>
                 ))}
             </div>
 
@@ -206,24 +203,15 @@ export const AdminSettings = () => {
 
                             {/* Activate Action */}
                             <div className="pt-2">
-                                <button
-                                    type="button"
+                                <Button
+                                    fullWidth
+                                    variant={isActive ? 'secondary' : 'primary'}
+                                    icon={isActive ? CheckCircleIcon : undefined}
                                     onClick={() => setPendingAction({ kind: 'set', fontId: font.id, fontName: font.name, category: font.category })}
                                     disabled={isActive || isSaving || busy}
-                                    className={`w-full min-h-11 py-3 px-4 rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-60 ${isActive
-                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
-                                            : 'bg-sffl-navy hover:bg-sffl-red text-white shadow-md hover:shadow-lg active:scale-95'
-                                        }`}
                                 >
-                                    {isActive ? (
-                                        <>
-                                            <CheckCircleIcon className="w-5 h-5 text-emerald-500" aria-hidden="true" />
-                                            Currently Applied App Font
-                                        </>
-                                    ) : (
-                                        `Activate ${font.name} App-Wide`
-                                    )}
-                                </button>
+                                    {isActive ? 'Currently Applied App Font' : `Activate ${font.name} App-Wide`}
+                                </Button>
                             </div>
                         </div>
                     );

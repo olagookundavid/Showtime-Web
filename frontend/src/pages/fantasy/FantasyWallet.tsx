@@ -12,8 +12,8 @@ import {
     InformationCircleIcon,
     BuildingLibraryIcon,
     ArrowRightIcon,
-    ArrowPathIcon,
 } from '@heroicons/react/24/outline';
+import { Button, Field, Input, Textarea } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Spinner } from '../../components/ui/Spinner';
@@ -290,11 +290,13 @@ export function FantasyWallet() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase block mb-1">
-                                        Amount (₦ Naira)
-                                    </label>
-                                    <input
+                                <Field
+                                    label="Amount (₦ Naira)"
+                                    htmlFor="payout-amount"
+                                    hint={`Minimum ${formatKobo(wallet.min_payout_kobo)} · Available ${formatKobo(wallet.balance_kobo)}`}
+                                >
+                                    <Input
+                                        id="payout-amount"
                                         type="number"
                                         inputMode="decimal"
                                         min={0}
@@ -302,83 +304,65 @@ export function FantasyWallet() {
                                         value={form.amountNaira}
                                         onChange={(e) => setForm({ ...form, amountNaira: e.target.value })}
                                         placeholder="e.g. 5000"
-                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
-                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                        Minimum {formatKobo(wallet.min_payout_kobo)} · Available{' '}
-                                        {formatKobo(wallet.balance_kobo)}
-                                    </p>
-                                </div>
+                                </Field>
 
-                                <div>
-                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase block mb-1">
-                                        Bank Name
-                                    </label>
-                                    <input
+                                <Field label="Bank Name" htmlFor="payout-bank">
+                                    <Input
+                                        id="payout-bank"
                                         type="text"
                                         value={form.bankName}
                                         onChange={(e) => setForm({ ...form, bankName: e.target.value })}
                                         placeholder="e.g. Guaranty Trust Bank"
-                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
-                                </div>
+                                </Field>
 
-                                <div>
-                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase block mb-1">
-                                        Account Number
-                                    </label>
-                                    <input
+                                <Field label="Account Number" htmlFor="payout-account-number">
+                                    <Input
+                                        id="payout-account-number"
                                         type="text"
                                         inputMode="numeric"
                                         value={form.accountNumber}
                                         onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
                                         placeholder="10-digit NUBAN"
                                         maxLength={20}
-                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm font-mono tracking-wider text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
-                                </div>
+                                </Field>
 
-                                <div>
-                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase block mb-1">
-                                        Account Name
-                                    </label>
-                                    <input
+                                <Field label="Account Name" htmlFor="payout-account-name">
+                                    <Input
+                                        id="payout-account-name"
                                         type="text"
                                         value={form.accountName}
                                         onChange={(e) => setForm({ ...form, accountName: e.target.value })}
                                         placeholder="Exactly as your bank has it"
-                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
-                                </div>
+                                </Field>
 
-                                <div>
-                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase block mb-1">
-                                        Anything We Should Know? (Optional)
-                                    </label>
-                                    <textarea
+                                <Field
+                                    label="Anything We Should Know? (Optional)"
+                                    htmlFor="payout-notes"
+                                    hint={`${form.userNotes.length} / 500`}
+                                >
+                                    <Textarea
+                                        id="payout-notes"
                                         value={form.userNotes}
                                         onChange={(e) => setForm({ ...form, userNotes: e.target.value.slice(0, 500) })}
                                         rows={3}
                                         maxLength={500}
                                         placeholder="Anything you want us to know about this transfer."
-                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red resize-none"
                                     />
-                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 text-right">
-                                        {form.userNotes.length} / 500
-                                    </p>
-                                </div>
+                                </Field>
 
-                                <button
-                                    type="button"
-                                    onClick={() => requestMutation.mutate()}
+                                <Button
+                                    fullWidth
+                                    size="lg"
+                                    loading={requestMutation.isPending}
                                     disabled={!canSubmit}
-                                    className="w-full min-h-11 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white font-black text-xs uppercase transition active:scale-95 disabled:active:scale-100 shadow-md cursor-pointer disabled:cursor-not-allowed"
+                                    onClick={() => requestMutation.mutate()}
                                 >
-                                    {requestMutation.isPending && (
-                                        <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
-                                    )}
                                     {requestMutation.isPending ? 'Sending request…' : 'Request Payout'}
-                                </button>
+                                </Button>
 
                                 {disabledReason && (
                                     <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
@@ -436,13 +420,9 @@ export function FantasyWallet() {
                                             </div>
 
                                             {p.status === 'PENDING' && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCancelTarget(p)}
-                                                    className="min-h-11 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-sffl-red border border-gray-200 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200 transition cursor-pointer"
-                                                >
+                                                <Button variant="secondary" size="sm" onClick={() => setCancelTarget(p)}>
                                                     Cancel Request
-                                                </button>
+                                                </Button>
                                             )}
                                         </div>
 
@@ -477,24 +457,24 @@ export function FantasyWallet() {
                                     {payoutsPaged?.total ?? 0} requests
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setPayoutsPage((p) => Math.max(1, p - 1))}
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
                                         disabled={payoutsPage <= 1}
-                                        className="min-h-11 px-4 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        onClick={() => setPayoutsPage((p) => Math.max(1, p - 1))}
                                     >
                                         Prev
-                                    </button>
-                                    <button
-                                        type="button"
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled={payoutsPage >= (payoutsPaged?.total_pages ?? 1)}
                                         onClick={() =>
                                             setPayoutsPage((p) => Math.min(payoutsPaged?.total_pages ?? 1, p + 1))
                                         }
-                                        disabled={payoutsPage >= (payoutsPaged?.total_pages ?? 1)}
-                                        className="min-h-11 px-4 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
                                         Next
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         )}

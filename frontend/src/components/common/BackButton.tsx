@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { Button } from '../ui';
 
 export interface BackButtonProps {
     /** Fallback URL if opened directly or without in-app navigation history */
@@ -18,7 +19,7 @@ export interface BackButtonProps {
 export function BackButton({
     fallback = '/',
     label = 'Back',
-    className = 'inline-flex items-center gap-1.5 min-h-11 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer py-1',
+    className = '',
     children,
 }: BackButtonProps) {
     const navigate = useNavigate();
@@ -38,14 +39,15 @@ export function BackButton({
     };
 
     return (
-        <button
-            type="button"
-            onClick={handleBack}
+        <Button
+            variant="link"
+            size="sm"
+            icon={ArrowLeftIcon}
             className={className}
             aria-label={typeof children === 'string' ? children : label}
+            onClick={handleBack}
         >
-            <ArrowLeftIcon className="w-3.5 h-3.5 shrink-0" />
-            <span>{children || label}</span>
-        </button>
+            {children || label}
+        </Button>
     );
 }

@@ -30,7 +30,9 @@ import {
 } from "../../hooks/useFantasyLeaderboard";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 import { BackButton } from "../../components/common/BackButton";
+import { Button, ButtonLink, IconButton, Select } from "../../components/ui";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { DataTable } from "../../components/ui/DataTable";
 import { Spinner } from "../../components/ui/Spinner";
 import { formatStatDecimal } from "../../utils/formatters";
 
@@ -238,14 +240,15 @@ export function FantasyLeaderboard() {
           {/* Gameweek Filter */}
           <div className="flex flex-wrap items-center gap-2">
             {leavableLeague && (
-              <button
-                type="button"
+              <Button
+                tone="dark"
+                variant="secondary"
+                size="sm"
+                icon={ArrowRightStartOnRectangleIcon}
                 onClick={() => setConfirmLeave(true)}
-                className="inline-flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-black uppercase tracking-wider text-gray-200 hover:bg-red-600 hover:border-red-600 hover:text-white transition cursor-pointer"
               >
-                <ArrowRightStartOnRectangleIcon className="w-3.5 h-3.5" /> Leave
-                League
-              </button>
+                Leave League
+              </Button>
             )}
             <label
               htmlFor="leaderboard-gw-filter"
@@ -253,14 +256,15 @@ export function FantasyLeaderboard() {
             >
               Filter:
             </label>
-            <select
+            <Select
               id="leaderboard-gw-filter"
+              tone="dark"
               value={selectedGWId}
               onChange={(e) => {
                 setSelectedGWId(e.target.value);
                 resetPaging();
               }}
-              className="min-w-0 min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
+              className="min-w-0"
             >
               <option value="" className="text-gray-900 bg-white">
                 Season Overall
@@ -274,13 +278,14 @@ export function FantasyLeaderboard() {
                   Gameweek {gw.number}
                 </option>
               ))}
-            </select>
-            <Link
+            </Select>
+            <ButtonLink
               to={`/fantasy/analytics${selectedGWId ? `?gw=${selectedGWId}` : ""}`}
-              className="inline-flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider transition shadow-sm cursor-pointer"
+              size="sm"
+              icon={ChartBarIcon}
             >
-              <ChartBarIcon className="w-3.5 h-3.5" /> Weekly Report
-            </Link>
+              Weekly Report
+            </ButtonLink>
           </div>
         </div>
       </div>
@@ -294,32 +299,24 @@ export function FantasyLeaderboard() {
           </h2>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => selectScope(OVERALL)}
+          <Button
+            size="sm"
+            variant={scope === OVERALL ? "navy" : "secondary"}
             aria-pressed={scope === OVERALL}
-            className={`min-h-11 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-              scope === OVERALL
-                ? "bg-sffl-navy text-white shadow-sm"
-                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-            }`}
+            onClick={() => selectScope(OVERALL)}
           >
             Overall
-          </button>
+          </Button>
           {leagueOptions.map((o) => (
-            <button
+            <Button
               key={o.id}
-              type="button"
-              onClick={() => selectScope(o.id)}
+              size="sm"
+              variant={scope === o.id ? "navy" : "secondary"}
               aria-pressed={scope === o.id}
-              className={`min-h-11 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                scope === o.id
-                  ? "bg-sffl-navy text-white shadow-sm"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-              }`}
+              onClick={() => selectScope(o.id)}
             >
               {o.name}
-            </button>
+            </Button>
           ))}
         </div>
         {leagueOptions.length === 0 && (
@@ -351,14 +348,9 @@ export function FantasyLeaderboard() {
             </p>
           </div>
           {canJumpToMe && (
-            <button
-              type="button"
-              onClick={jumpToMe}
-              className="min-h-11 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition shadow-sm cursor-pointer"
-            >
-              <MapPinIcon className="w-3.5 h-3.5" /> Jump to my rank{" "}
-              {effectiveRank > 0 ? `(#${effectiveRank})` : ""}
-            </button>
+            <Button size="sm" variant="secondary" icon={MapPinIcon} onClick={jumpToMe}>
+              Jump to my rank {effectiveRank > 0 ? `(#${effectiveRank})` : ""}
+            </Button>
           )}
         </div>
 
@@ -373,152 +365,121 @@ export function FantasyLeaderboard() {
             Nothing more to show on this page.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-700/50 text-[11px] uppercase font-bold tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                <tr>
-                  <th className="py-3.5 px-4 w-16 text-center">Rank</th>
-                  <th className="py-3.5 px-4">Team &amp; Manager</th>
-                  {showGWColumn && (
-                    <th className="py-3.5 px-4 text-right">GW Points</th>
-                  )}
-                  <th className="py-3.5 px-4 text-right">Total Points</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {/* 1. The first thing: Row with your position */}
-                {myEntry && effectiveRank > 0 && (
-                  <tr
-                    onClick={() =>
-                      myEntry.team_id && setInspectingTeamId(myEntry.team_id)
-                    }
-                    className="bg-emerald-50/90 dark:bg-emerald-950/40 border-b-2 border-emerald-500/30 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/50 transition cursor-pointer group"
-                  >
-                    <td className="py-3.5 px-4 text-center">
+          <>
+            {myEntry && effectiveRank > 0 && (
+              <p className="px-4 py-1.5 bg-gray-100/70 dark:bg-gray-700/50 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Table Rankings • Page {safePage}
+              </p>
+            )}
+            <DataTable
+              compact
+              searchable={false}
+              paginated={false}
+              getRowId={(r) => r.key}
+              onRowClick={(r) => {
+                if (r.teamId) setInspectingTeamId(r.teamId);
+              }}
+              data={[
+                // Your own squad is pinned above the page, whatever its rank.
+                ...(myEntry && effectiveRank > 0
+                  ? [
+                      {
+                        key: "pinned",
+                        pinned: true,
+                        isMe: true,
+                        rank: effectiveRank,
+                        teamId: myEntry.team_id ?? null,
+                        teamName: myEntry.team_name || "My Squad",
+                        manager: myEntry.user_name || user?.name || "You",
+                        gwPoints: myEntry.gw_points,
+                        totalPoints: myEntry.total_points,
+                      },
+                    ]
+                  : []),
+                ...rows.map((entry, idx) => ({
+                  key: entry?.team_id ?? `row-${idx}`,
+                  pinned: false,
+                  isMe: isRowMe(entry),
+                  rank: num(entry?.rank) > 0 ? num(entry.rank) : fallbackRankAt(idx),
+                  teamId: entry?.team_id ?? null,
+                  teamName: entry?.team_name || "Unnamed squad",
+                  manager: entry?.user_name || "—",
+                  gwPoints: entry?.gw_points,
+                  totalPoints: entry?.total_points,
+                })),
+              ]}
+              rowClassName={(r) =>
+                r.pinned
+                  ? "bg-emerald-50/90 dark:bg-emerald-950/40 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/50"
+                  : r.isMe
+                    ? "bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-950/50"
+                    : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }
+              columns={[
+                {
+                  header: "Team & Manager",
+                  className: "py-3.5 px-4",
+                  cell: (r) => (
+                    <div className="flex items-center gap-3 min-w-0">
                       <span
-                        className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black shadow-xs ring-2 ring-emerald-500/40 ${rankBadgeClass(effectiveRank)}`}
+                        className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black shrink-0 ${rankBadgeClass(r.rank)}${r.pinned ? " ring-2 ring-emerald-500/40 shadow-xs" : ""}`}
                       >
-                        {effectiveRank}
+                        {r.rank > 0 ? r.rank : "—"}
                       </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-sffl-red transition-colors flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                            <span className="wrap-break-word">{myEntry.team_name || "My Squad"}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-gray-900 dark:text-white text-sm flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                          <span className="wrap-break-word">{r.teamName}</span>
+                          {r.pinned ? (
                             <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white tracking-wider shadow-xs">
                               Your Position
                             </span>
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {myEntry.user_name || user?.name || "You"}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
+                          ) : (
+                            r.isMe && (
+                              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                                You
+                              </span>
+                            )
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{r.manager}</p>
+                      </div>
+                      {r.teamId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0"
+                          icon={EyeIcon}
+                          aria-label={r.pinned ? "View your lineup" : `View ${r.teamName}'s squad`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (myEntry.team_id) setInspectingTeamId(myEntry.team_id);
+                            setInspectingTeamId(r.teamId!);
                           }}
-                          aria-label="View your lineup"
-                          className="shrink-0 inline-flex items-center justify-center gap-1 min-h-11 min-w-11 px-2 rounded-lg text-[11px] text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
                         >
-                          <EyeIcon className="w-4 h-4" aria-hidden="true" />
-                          <span className="hidden sm:inline">View Lineup</span>
-                        </button>
-                      </div>
-                    </td>
-                    {showGWColumn && (
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-700 dark:text-gray-300">
-                        {pts(myEntry.gw_points)}
-                      </td>
-                    )}
-                    <td className="py-3.5 px-4 text-right font-mono font-black text-sffl-red text-base">
-                      {pts(myEntry.total_points)} pts
-                    </td>
-                  </tr>
-                )}
-
-                {/* Divider indicator between your pinned position and the table */}
-                {myEntry && effectiveRank > 0 && (
-                  <tr className="bg-gray-100/70 dark:bg-gray-700/50 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
-                    <td colSpan={showGWColumn ? 4 : 3} className="py-1.5 px-4">
-                      Table Rankings • Page {safePage}
-                    </td>
-                  </tr>
-                )}
-
-                {/* 2. Then the first 10 (or current page 10) */}
-                {rows.map((entry, idx) => {
-                  const rank =
-                    num(entry?.rank) > 0
-                      ? num(entry.rank)
-                      : fallbackRankAt(idx);
-                  const isMe = isRowMe(entry);
-                  return (
-                    <tr
-                      key={entry?.team_id ?? `row-${idx}`}
-                      onClick={() =>
-                        entry?.team_id && setInspectingTeamId(entry.team_id)
-                      }
-                      className={`transition cursor-pointer group ${
-                        isMe
-                          ? "bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-950/50"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                      }`}
-                    >
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black shrink-0 ${rankBadgeClass(rank)}`}
-                        >
-                          {rank > 0 ? rank : "—"}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-sffl-red transition-colors flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                              <span className="wrap-break-word">{entry?.team_name || "Unnamed squad"}</span>
-                              {isMe && (
-                                <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                                  You
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {entry?.user_name || "—"}
-                            </p>
-                          </div>
-                          {entry?.team_id && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setInspectingTeamId(entry.team_id!);
-                              }}
-                              aria-label={`View ${entry.team_name || "this team"}'s squad`}
-                              className="shrink-0 inline-flex items-center justify-center gap-1 min-h-11 min-w-11 px-2 rounded-lg text-[11px] text-gray-500 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors"
-                            >
-                              <EyeIcon className="w-4 h-4" aria-hidden="true" />
-                              <span className="hidden sm:inline">View Team</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      {showGWColumn && (
-                        <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-700 dark:text-gray-300">
-                          {pts(entry?.gw_points)}
-                        </td>
+                          <span className="hidden sm:inline">{r.pinned ? "View Lineup" : "View Team"}</span>
+                        </Button>
                       )}
-                      <td className="py-3.5 px-4 text-right font-mono font-black text-sffl-red text-base">
-                        {pts(entry?.total_points)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  ),
+                },
+                ...(showGWColumn
+                  ? [
+                      {
+                        header: "GW Points",
+                        align: "right" as const,
+                        className: "py-3.5 px-4 font-mono font-bold text-gray-700 dark:text-gray-300",
+                        cell: (r: { gwPoints?: number | null }) => pts(r.gwPoints),
+                      },
+                    ]
+                  : []),
+                {
+                  header: "Total Points",
+                  align: "right",
+                  className: "py-3.5 px-4 font-mono font-black text-sffl-red text-base",
+                  cell: (r) => (r.pinned ? `${pts(r.totalPoints)} pts` : pts(r.totalPoints)),
+                },
+              ]}
+            />
+          </>
         )}
 
         {/* Pagination */}
@@ -529,42 +490,34 @@ export function FantasyLeaderboard() {
               {total > 0 ? ` • ${total.toLocaleString()} total managers` : ""}
             </span>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <IconButton
+                variant="secondary"
+                icon={ChevronDoubleLeftIcon}
+                label="First page"
+                disabled={safePage === 1}
                 onClick={() => goToPage(1)}
+              />
+              <IconButton
+                variant="secondary"
+                icon={ChevronLeftIcon}
+                label="Previous page"
                 disabled={safePage === 1}
-                aria-label="First page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
-              >
-                <ChevronDoubleLeftIcon className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
                 onClick={() => goToPage(safePage - 1)}
-                disabled={safePage === 1}
-                aria-label="Previous page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
+              />
+              <IconButton
+                variant="secondary"
+                icon={ChevronRightIcon}
+                label="Next page"
+                disabled={safePage >= totalPages}
                 onClick={() => goToPage(safePage + 1)}
+              />
+              <IconButton
+                variant="secondary"
+                icon={ChevronDoubleRightIcon}
+                label="Last page"
                 disabled={safePage >= totalPages}
-                aria-label="Next page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
-              >
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
                 onClick={() => goToPage(totalPages)}
-                disabled={safePage >= totalPages}
-                aria-label="Last page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
-              >
-                <ChevronDoubleRightIcon className="w-4 h-4" />
-              </button>
+              />
             </div>
           </div>
         )}

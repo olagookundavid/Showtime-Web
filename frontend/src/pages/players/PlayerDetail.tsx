@@ -28,6 +28,7 @@ import { BadgeImage } from "../../components/common/BadgeImage";
 import { CrownIcon } from "../../components/icons/CrownIcon";
 import { SproutIcon } from "../../components/icons/SproutIcon";
 import { formatStatNumber } from "../../utils/formatters";
+import { Button, Field, Select } from "../../components/ui";
 import { Modal } from "../../components/ui/Modal";
 
 const StatCard = ({
@@ -403,40 +404,27 @@ export const PlayerDetail = () => {
             </h2>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-col gap-2 w-full sm:w-45">
-                <div className="flex flex-col gap-1 w-full">
-                  <label
-                    htmlFor="player-stats-competition"
-                    className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
-                  >
-                    Competition
-                  </label>
-                  <select
-                    id="player-stats-competition"
-                    value={compId}
-                    onChange={(e) => handleCompChange(e.target.value)}
-                    className="min-h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all"
-                  >
-                    <option value="">All Competitions</option>
-                    {dropdownComps.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div
-                className={`flex flex-col gap-1 w-full sm:w-auto sm:min-w-35 transition-opacity duration-300 ${!compId ? "opacity-40" : "opacity-100"}`}
-              >
-                <label
-                  htmlFor="player-stats-match-day"
-                  className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+              <Field label="Competition" htmlFor="player-stats-competition" className="w-full sm:w-45">
+                <Select
+                  id="player-stats-competition"
+                  value={compId}
+                  onChange={(e) => handleCompChange(e.target.value)}
                 >
-                  Match Day
-                </label>
-                <select
+                  <option value="">All Competitions</option>
+                  {dropdownComps.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field
+                label="Match Day"
+                htmlFor="player-stats-match-day"
+                className={`w-full sm:w-auto sm:min-w-35 transition-opacity duration-300 ${!compId ? "opacity-40" : "opacity-100"}`}
+              >
+                <Select
                   id="player-stats-match-day"
                   value={matchDate}
                   onChange={(e) => {
@@ -446,7 +434,6 @@ export const PlayerDetail = () => {
                     params.delete("match");
                     setSearchParams(params, { replace: true });
                   }}
-                  className="min-h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all disabled:cursor-not-allowed"
                   disabled={!compId}
                 >
                   <option value="">Full Season</option>
@@ -459,8 +446,8 @@ export const PlayerDetail = () => {
                       })}
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Field>
             </div>
           </div>
         </div>
@@ -492,68 +479,54 @@ export const PlayerDetail = () => {
 
               {/* View Switcher: List vs Grid */}
               <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl border border-gray-200 dark:border-gray-600 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setStatViewMode("list")}
+                <Button
+                  size="sm"
+                  variant={statViewMode === "list" ? "secondary" : "ghost"}
+                  icon={ListBulletIcon}
                   aria-pressed={statViewMode === "list"}
-                  className={`flex items-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    statViewMode === "list"
-                      ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
+                  onClick={() => setStatViewMode("list")}
                 >
-                  <ListBulletIcon className="w-4 h-4" aria-hidden="true" />
-                  <span>List</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatViewMode("grid")}
+                  List
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statViewMode === "grid" ? "secondary" : "ghost"}
+                  icon={Squares2X2Icon}
                   aria-pressed={statViewMode === "grid"}
-                  className={`flex items-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    statViewMode === "grid"
-                      ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
+                  onClick={() => setStatViewMode("grid")}
                 >
-                  <Squares2X2Icon className="w-4 h-4" aria-hidden="true" />
-                  <span>Grid</span>
-                </button>
+                  Grid
+                </Button>
               </div>
             </div>
 
             {/* Category Filter Pills */}
             {statCategories.length > 1 && (
               <div className="flex items-center gap-1.5 overflow-x-auto pb-4 mb-4 scrollbar-thin">
-                <button
-                  type="button"
-                  onClick={() => setSelectedStatCategory("ALL")}
+                <Button
+                  size="sm"
+                  variant={selectedStatCategory === "ALL" ? "navy" : "secondary"}
+                  className="shrink-0"
                   aria-pressed={selectedStatCategory === "ALL"}
-                  className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    selectedStatCategory === "ALL"
-                      ? "bg-sffl-navy text-white dark:bg-sffl-red shadow-xs"
-                      : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
-                  }`}
+                  onClick={() => setSelectedStatCategory("ALL")}
                 >
                   All Stats ({positionStats.length})
-                </button>
+                </Button>
                 {statCategories.map((cat) => {
                   const count = positionStats.filter(
                     (s) => s.category === cat,
                   ).length;
                   return (
-                    <button
+                    <Button
                       key={cat}
-                      type="button"
-                      onClick={() => setSelectedStatCategory(cat)}
+                      size="sm"
+                      variant={selectedStatCategory === cat ? "navy" : "secondary"}
+                      className="shrink-0"
                       aria-pressed={selectedStatCategory === cat}
-                      className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                        selectedStatCategory === cat
-                          ? "bg-sffl-navy text-white dark:bg-sffl-red shadow-xs"
-                          : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
-                      }`}
+                      onClick={() => setSelectedStatCategory(cat)}
                     >
                       {cat} ({count})
-                    </button>
+                    </Button>
                   );
                 })}
               </div>

@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  PencilSquareIcon,
+  StarIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import {
   getAdminSeasonGraphics,
   upsertSeasonGraphic,
@@ -12,10 +23,20 @@ import {
   type Player,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
-import { ImageUploadField } from "../../components/ui";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
+import { Button, Field, IconButton, ImageUploadField, Input } from "../../components/ui";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 type Cat = "offense" | "defense";
 type GraphicState = { image_url: string; mobile_image_url: string };
+
+// Every MVP change waits for the confirm dialog first.
+type PendingAction =
+  | { kind: "add" }
+  | { kind: "move"; mvp: SeasonMVP; direction: "up" | "down" }
+  | { kind: "toggle"; mvp: SeasonMVP }
+  | { kind: "delete"; mvp: SeasonMVP };
 
 export const AdminSeason = () => {
   const queryClient = useQueryClient();
@@ -86,6 +107,8 @@ export const AdminSeason = () => {
   const [error, setError] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const { data: playerResults, isLoading: searching } = useQuery({
     queryKey: ["seasonPlayerSearch", search],
@@ -157,22 +180,106 @@ export const AdminSeason = () => {
     refreshMVPs();
   };
 
+  const handleToggle = async (mvp: SeasonMVP) => {
+    await updateSeasonMVP(mvp.id, { is_active: !mvp.is_active });
+    refreshMVPs();
+  };
+
   const handleDeleteMVP = async (id: string) => {
     await deleteSeasonMVP(id);
     refreshMVPs();
   };
 
+  // Runs once the admin confirms. The add flow reports its own error inline;
+  // anything else is reported with a toast, and the dialog always closes.
+  const confirmPendingAction = async () => {
+    const action = pendingAction;
+    if (!action) return;
+    setBusy(true);
+    try {
+      if (action.kind === "add") await handleAddMVP();
+      else if (action.kind === "move") await handleMove(action.mvp, action.direction);
+      else if (action.kind === "toggle") await handleToggle(action.mvp);
+      else await handleDeleteMVP(action.mvp.id);
+    } catch {
+      toast.error("That change didn't save. Please try again.");
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  };
+
+  const dialog = (() => {
+    switch (pendingAction?.kind) {
+      case "add":
+        return {
+          title: "Add this MVP?",
+          description: "They will appear on the homepage in the last position.",
+          confirmLabel: "Add MVP",
+          tone: "info" as const,
+          icon: StarIcon,
+          body: (
+            <ConfirmSummary rows={[
+              ["Player", selected?.name],
+              ["Label", label.trim()],
+            ]} />
+          ),
+        };
+      case "move":
+        return {
+          title: `Move this MVP ${pendingAction.direction}?`,
+          description: "The order on the homepage changes straight away.",
+          confirmLabel: "Move MVP",
+          tone: "info" as const,
+          icon: pendingAction.direction === "up" ? ArrowUpIcon : ArrowDownIcon,
+          body: (
+            <ConfirmSummary rows={[
+              ["Player", pendingAction.mvp.player_name],
+              ["Label", pendingAction.mvp.label],
+            ]} />
+          ),
+        };
+      case "toggle":
+        return {
+          title: pendingAction.mvp.is_active
+            ? "Hide this MVP on the homepage?"
+            : "Show this MVP on the homepage?",
+          description: undefined,
+          confirmLabel: pendingAction.mvp.is_active ? "Hide MVP" : "Show MVP",
+          tone: "warning" as const,
+          icon: pendingAction.mvp.is_active ? EyeSlashIcon : EyeIcon,
+          body: (
+            <ConfirmSummary rows={[
+              ["Player", pendingAction.mvp.player_name],
+              ["Label", pendingAction.mvp.label],
+            ]} />
+          ),
+        };
+      case "delete":
+        return {
+          title: "Delete this MVP?",
+          description: "This action cannot be undone.",
+          confirmLabel: "Delete MVP",
+          tone: "warning" as const,
+          icon: TrashIcon,
+          body: (
+            <ConfirmSummary rows={[
+              ["Player", pendingAction.mvp.player_name],
+              ["Label", pendingAction.mvp.label],
+            ]} />
+          ),
+        };
+      default:
+        return null;
+    }
+  })();
+
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="text-3xl font-black text-sffl-navy dark:text-white">
-          Team of the Season
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Two graphics (Offense &amp; Defense) plus a curated list of MVPs shown
-          on the homepage.
-        </p>
-      </div>
+      <DashboardPageHeader
+        title="Team of the Season"
+        subtitle="Two graphics (Offense & Defense) plus a curated list of MVPs shown on the homepage."
+      />
 
       {/* Graphics */}
       <section className="space-y-4">
@@ -227,25 +334,26 @@ export const AdminSeason = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div ref={searchRef} className="md:col-span-2 relative">
-              <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
-                Player
-              </label>
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSelected(null);
-                  setSearch(e.target.value);
-                  setShowDropdown(true);
-                }}
-                onFocus={() => {
-                  if (search.trim().length >= 2) setShowDropdown(true);
-                }}
-                placeholder="Search player by name…"
-                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red"
-              />
+              <Field label="Player" htmlFor="mvp-player-search">
+                <Input
+                  id="mvp-player-search"
+                  value={search}
+                  autoComplete="off"
+                  onChange={(e) => {
+                    setSelected(null);
+                    setSearch(e.target.value);
+                    setShowDropdown(true);
+                  }}
+                  onFocus={() => {
+                    if (search.trim().length >= 2) setShowDropdown(true);
+                  }}
+                  placeholder="Search player by name…"
+                />
+              </Field>
               {selected && (
-                <p className="mt-1 text-xs text-green-600 dark:text-green-400 font-bold">
-                  ✓ Selected: {selected.name}
+                <p className="mt-1 inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-bold">
+                  <CheckIcon className="w-4 h-4" aria-hidden="true" />
+                  Selected: {selected.name}
                 </p>
               )}
               {showDropdown && search.trim().length >= 2 && (
@@ -262,6 +370,7 @@ export const AdminSeason = () => {
                     foundPlayers.map((p) => (
                       <button
                         key={p.id}
+                        type="button"
                         onClick={() => {
                           setSelected(p);
                           setSearch(p.name);
@@ -293,28 +402,25 @@ export const AdminSeason = () => {
                 </div>
               )}
             </div>
-            <div>
-              <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
-                Label
-              </label>
-              <input
+            <Field label="Label" htmlFor="mvp-label">
+              <Input
+                id="mvp-label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="e.g. Offensive MVP"
-                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red"
               />
-            </div>
+            </Field>
           </div>
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
-          <button
-            onClick={handleAddMVP}
+          <Button
+            onClick={() => setPendingAction({ kind: "add" })}
             disabled={adding || !selected || !label.trim()}
-            className="px-4 py-2 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:bg-red-700 disabled:opacity-50 transition"
+            loading={adding}
           >
-            {adding ? "Adding…" : "Add MVP"}
-          </button>
+            Add MVP
+          </Button>
         </div>
 
         {/* List */}
@@ -329,7 +435,7 @@ export const AdminSeason = () => {
             {mvps.map((mvp, idx) => (
               <div
                 key={mvp.id}
-                className={`flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl border p-3 ${mvp.is_active ? "border-gray-100 dark:border-gray-700" : "border-yellow-300 dark:border-yellow-700"}`}
+                className={`flex flex-wrap items-center gap-3 bg-white dark:bg-gray-800 rounded-xl border p-3 ${mvp.is_active ? "border-gray-100 dark:border-gray-700" : "border-yellow-300 dark:border-yellow-700"}`}
               >
                 {mvp.player_image ? (
                   <img
@@ -346,49 +452,59 @@ export const AdminSeason = () => {
                   <p className="font-black text-sffl-navy dark:text-white truncate">
                     {mvp.player_name}
                   </p>
-                  <p className="text-xs text-sffl-red font-bold uppercase tracking-wide">
-                    ★ {mvp.label}
+                  <p className="inline-flex items-center gap-1 text-xs text-sffl-red font-bold uppercase tracking-wide">
+                    <StarIcon className="w-3 h-3" aria-hidden="true" />
+                    {mvp.label}
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleMove(mvp, "up")}
-                    disabled={idx === 0}
-                    className="px-2 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-xs font-bold disabled:opacity-30"
-                    title="Move up"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => handleMove(mvp, "down")}
-                    disabled={idx === mvps.length - 1}
-                    className="px-2 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-xs font-bold disabled:opacity-30"
-                    title="Move down"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    onClick={() =>
-                      updateSeasonMVP(mvp.id, {
-                        is_active: !mvp.is_active,
-                      }).then(refreshMVPs)
-                    }
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-700"
+                  <IconButton
+                    icon={ArrowUpIcon}
+                    label="Move up"
+                    variant="secondary"
+                    disabled={idx === 0 || busy}
+                    onClick={() => setPendingAction({ kind: "move", mvp, direction: "up" })}
+                  />
+                  <IconButton
+                    icon={ArrowDownIcon}
+                    label="Move down"
+                    variant="secondary"
+                    disabled={idx === mvps.length - 1 || busy}
+                    onClick={() => setPendingAction({ kind: "move", mvp, direction: "down" })}
+                  />
+                  <Button
+                    variant="secondary"
+                    icon={mvp.is_active ? EyeSlashIcon : EyeIcon}
+                    onClick={() => setPendingAction({ kind: "toggle", mvp })}
                   >
                     {mvp.is_active ? "Hide" : "Show"}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteMVP(mvp.id)}
-                    className="px-3 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    icon={TrashIcon}
+                    onClick={() => setPendingAction({ kind: "delete", mvp })}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title={dialog?.title ?? ""}
+        description={dialog?.description}
+        body={dialog?.body}
+        confirmLabel={dialog?.confirmLabel ?? "Confirm"}
+        tone={dialog?.tone ?? "info"}
+        icon={dialog?.icon ?? PencilSquareIcon}
+        pending={busy || adding}
+        onConfirm={confirmPendingAction}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   );
 };

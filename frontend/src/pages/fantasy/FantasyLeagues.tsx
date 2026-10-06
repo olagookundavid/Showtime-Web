@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import {
   TrophyIcon,
@@ -15,7 +15,6 @@ import {
   BanknotesIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import {
   fantasyApi,
@@ -26,7 +25,9 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader } from "../../components/ui/Loader";
 import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
+import { Button, ButtonLink, Field, IconButton, Input } from "../../components/ui";
 import { Modal } from "../../components/ui/Modal";
+import { DataTable } from "../../components/ui/DataTable";
 import { Spinner } from "../../components/ui/Spinner";
 import { rankBadgeClass } from "../../hooks/useFantasyLeaderboard";
 
@@ -431,8 +432,9 @@ export function FantasyLeagues() {
           </div>
 
           <div className="flex flex-col min-[400px]:flex-row gap-3 w-full md:w-auto">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              icon={KeyIcon}
               onClick={() => {
                 if (!isAuthenticated) {
                   navigate("/login?redirect=/fantasy/leagues");
@@ -440,12 +442,11 @@ export function FantasyLeagues() {
                 }
                 setShowJoinModal(true);
               }}
-              className="min-h-11 justify-center px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md cursor-pointer"
             >
-              <KeyIcon className="w-3.5 h-3.5 text-yellow-400" /> Join via Code
-            </button>
-            <button
-              type="button"
+              Join via Code
+            </Button>
+            <Button
+              icon={PlusIcon}
               onClick={() => {
                 if (!isAuthenticated) {
                   navigate("/login?redirect=/fantasy/leagues");
@@ -453,10 +454,9 @@ export function FantasyLeagues() {
                 }
                 setShowCreateModal(true);
               }}
-              className="min-h-11 justify-center px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30 cursor-pointer"
             >
-              <PlusIcon className="w-4 h-4" /> Create League
-            </button>
+              Create League
+            </Button>
           </div>
         </div>
       </div>
@@ -495,14 +495,14 @@ export function FantasyLeagues() {
                           </span>
                         )}
                         {num(l.entry_fee) > 0 && (
-                          <button
-                            type="button"
+                          <Button
+                            variant="warning"
+                            size="sm"
+                            icon={TrophyIcon}
                             onClick={() => openTermsForLeague(l)}
-                            className="min-h-11 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition inline-flex items-center gap-1 cursor-pointer"
                           >
-                            <TrophyIcon className="w-3 h-3 text-amber-500" aria-hidden="true" />
-                            <span>Sharing Formula</span>
-                          </button>
+                            Sharing Formula
+                          </Button>
                         )}
                       </div>
                       <h3 className="text-base font-bold text-gray-900 dark:text-white mt-1.5 wrap-break-word">
@@ -517,12 +517,15 @@ export function FantasyLeagues() {
                       </p>
                     </div>
 
-                    <Link
+                    <ButtonLink
                       to={`/fantasy/leaderboard/${l.id}`}
-                      className="min-h-11 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center justify-center gap-1 transition shadow-sm"
+                      variant="secondary"
+                      size="sm"
+                      icon={ArrowRightIcon}
+                      iconPosition="right"
                     >
-                      Standings <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                    </Link>
+                      Standings
+                    </ButtonLink>
                   </div>
                 ))}
               </div>
@@ -576,14 +579,14 @@ export function FantasyLeagues() {
                           </span>
                         )}
                         {fee > 0 && (
-                          <button
-                            type="button"
+                          <Button
+                            variant="warning"
+                            size="sm"
+                            icon={TrophyIcon}
                             onClick={() => openTermsForLeague(l)}
-                            className="min-h-11 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition inline-flex items-center gap-1 cursor-pointer"
                           >
-                            <TrophyIcon className="w-3 h-3 text-amber-500" aria-hidden="true" />
-                            <span>Sharing Formula</span>
-                          </button>
+                            Sharing Formula
+                          </Button>
                         )}
                       </div>
                       <h3 className="text-base font-bold text-gray-900 dark:text-white mt-1.5 wrap-break-word">
@@ -595,29 +598,33 @@ export function FantasyLeagues() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                      <Link
+                      <ButtonLink
                         to={`/fantasy/leaderboard/${l.id}`}
-                        className="min-h-11 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center justify-center gap-1 transition shadow-sm"
+                        variant="secondary"
+                        size="sm"
+                        icon={ArrowRightIcon}
+                        iconPosition="right"
                       >
-                        Standings <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                      </Link>
+                        Standings
+                      </ButtonLink>
 
                       {joined ? (
                         <span className="min-h-11 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs font-black uppercase flex items-center gap-1.5">
                           <CheckBadgeIcon className="w-4 h-4" /> Joined
                         </span>
                       ) : full ? (
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
                           disabled
+                          icon={LockClosedIcon}
                           title="This league has reached its member limit"
-                          className="min-h-11 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 text-xs font-black uppercase flex items-center gap-1.5 cursor-not-allowed"
                         >
-                          <LockClosedIcon className="w-4 h-4" /> Full
-                        </button>
+                          Full
+                        </Button>
                       ) : (
-                        <button
-                          type="button"
+                        <Button
+                          icon={PlusIcon}
+                          loading={pending}
                           onClick={() => openTermsForLeague(l)}
                           disabled={joinMutation.isPending}
                           title={
@@ -625,15 +632,9 @@ export function FantasyLeagues() {
                               ? `Entry fee ${formatKobo(fee)} — you'll see the full terms before paying`
                               : "See the league terms before joining"
                           }
-                          className="min-h-11 px-4 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white text-xs font-black uppercase flex items-center gap-1.5 transition active:scale-95 shadow-md cursor-pointer"
                         >
-                          {pending ? (
-                            <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
-                          ) : (
-                            <PlusIcon className="w-4 h-4" aria-hidden="true" />
-                          )}
                           {fee > 0 ? `Join • ${formatKobo(fee)}` : "Join Free"}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -649,24 +650,24 @@ export function FantasyLeagues() {
                 {publicTotalPages} · {publicLeaguesPaged?.total ?? 0} leagues
               </span>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPublicPage((p) => Math.max(1, p - 1))}
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={publicPage <= 1}
-                  className="min-h-11 px-4 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={() => setPublicPage((p) => Math.max(1, p - 1))}
                 >
                   Prev
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={publicPage >= publicTotalPages}
                   onClick={() =>
                     setPublicPage((p) => Math.min(publicTotalPages, p + 1))
                   }
-                  disabled={publicPage >= publicTotalPages}
-                  className="min-h-11 px-4 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -685,26 +686,26 @@ export function FantasyLeagues() {
               Enter the 6-character private invite code provided by your league
               commissioner.
             </p>
-            <input
+            <Input
               type="text"
               value={inviteCodeInput}
               onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
               placeholder="e.g. ABC123"
               aria-label="Invite code"
               maxLength={8}
-              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-center text-xl font-mono font-black tracking-widest text-sffl-navy dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red mb-4 uppercase"
+              className="mb-4"
             />
-            <button
-              type="button"
+            <Button
+              size="lg"
+              fullWidth
               onClick={() => {
                 setShowJoinModal(false);
                 setTermsTarget({ inviteCode: inviteCodeInput.trim() });
               }}
               disabled={!inviteCodeInput.trim() || joinMutation.isPending}
-              className="w-full min-h-11 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
             >
               Continue
-            </button>
+            </Button>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 text-center">
               You'll see the league's terms before anything is joined or paid.
             </p>
@@ -719,60 +720,44 @@ export function FantasyLeagues() {
         maxWidth="md"
       >
             <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
-                  League Name
-                </label>
-                <input
+              <Field label="League Name" htmlFor="create-league-name">
+                <Input
+                  id="create-league-name"
                   type="text"
                   value={createForm.name}
                   onChange={(e) =>
                     setCreateForm({ ...createForm, name: e.target.value })
                   }
                   placeholder="e.g. Lagos Flag Masters"
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
-                  Privacy Type
-                </label>
+              <Field label="Privacy Type">
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
+                  <Button
+                    size="md"
+                    variant={createForm.type === "PUBLIC" ? "navy" : "secondary"}
                     onClick={() =>
                       setCreateForm({ ...createForm, type: "PUBLIC" })
                     }
-                    className={`min-h-11 p-2.5 rounded-xl border text-xs font-bold uppercase transition ${
-                      createForm.type === "PUBLIC"
-                        ? "bg-sffl-navy text-white border-sffl-navy shadow-sm"
-                        : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
-                    }`}
                   >
                     Public
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    size="md"
+                    variant={createForm.type === "PRIVATE" ? "navy" : "secondary"}
                     onClick={() =>
                       setCreateForm({ ...createForm, type: "PRIVATE" })
                     }
-                    className={`min-h-11 p-2.5 rounded-xl border text-xs font-bold uppercase transition ${
-                      createForm.type === "PRIVATE"
-                        ? "bg-sffl-navy text-white border-sffl-navy shadow-sm"
-                        : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
-                    }`}
                   >
                     Private (Code Only)
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
-                  Entry Fee (₦ Naira, 0 for Free)
-                </label>
-                <input
+              <Field label="Entry Fee (₦ Naira, 0 for Free)" htmlFor="create-league-fee">
+                <Input
+                  id="create-league-fee"
                   type="number"
                   value={createForm.entryFeeNaira}
                   onChange={(e) =>
@@ -781,15 +766,12 @@ export function FantasyLeagues() {
                       entryFeeNaira: Math.max(0, parseInt(e.target.value) || 0),
                     })
                   }
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
-                  Max Managers (0 for Unlimited)
-                </label>
-                <input
+              <Field label="Max Managers (0 for Unlimited)" htmlFor="create-league-max">
+                <Input
+                  id="create-league-max"
                   type="number"
                   min={0}
                   value={createForm.maxMembers}
@@ -799,9 +781,8 @@ export function FantasyLeagues() {
                       maxMembers: Math.max(0, parseInt(e.target.value) || 0),
                     })
                   }
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                 />
-              </div>
+              </Field>
 
               {/* ── Prize split ─────────────────────────────── */}
               <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4">
@@ -854,62 +835,56 @@ export function FantasyLeagues() {
                             <span className="w-14 shrink-0 text-xs font-black uppercase text-gray-700 dark:text-gray-200">
                               {ordinal(i + 1)}
                             </span>
-                            <div className="relative flex-1 min-w-0">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                step="0.5"
-                                value={row}
-                                onChange={(e) => setPrizeRow(i, e.target.value)}
-                                placeholder="0"
-                                aria-label={`${ordinal(i + 1)} place share, percent`}
-                                className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl py-2 pl-3 pr-7 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                              />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 dark:text-gray-500">
-                                %
-                              </span>
-                            </div>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.5"
+                              value={row}
+                              onChange={(e) => setPrizeRow(i, e.target.value)}
+                              placeholder="0"
+                              aria-label={`${ordinal(i + 1)} place share, percent`}
+                              className="flex-1 min-w-0"
+                              action={
+                                <span className="pr-3 text-xs font-bold text-gray-400 dark:text-gray-500">
+                                  %
+                                </span>
+                              }
+                            />
                             {showIllustration && (
                               <span className="w-full sm:w-24 order-last sm:order-0 shrink-0 text-right text-xs font-bold text-gray-700 dark:text-gray-200 tabular-nums">
                                 {formatKobo(rowKobo)}
                               </span>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => removePrizeRow(i)}
+                            <IconButton
+                              variant="danger"
+                              icon={TrashIcon}
+                              label={`Remove ${ordinal(i + 1)} place`}
                               disabled={(prizeRows ?? []).length <= 1}
-                              title={
-                                (prizeRows ?? []).length <= 1
-                                  ? "At least one paying position is required"
-                                  : `Remove ${ordinal(i + 1)} place`
-                              }
-                              aria-label={`Remove ${ordinal(i + 1)} place`}
-                              className="min-h-11 min-w-11 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/40 text-gray-500 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed transition shrink-0"
-                            >
-                              <TrashIcon className="w-4 h-4" aria-hidden="true" />
-                            </button>
+                              onClick={() => removePrizeRow(i)}
+                            />
                           </div>
                         );
                       })}
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={PlusIcon}
                         onClick={addPrizeRow}
                         disabled={(prizeRows ?? []).length >= 20}
-                        className="min-h-11 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed transition"
                       >
-                        <PlusIcon className="w-3.5 h-3.5" aria-hidden="true" /> Add Position
-                      </button>
-                      <button
-                        type="button"
+                        Add Position
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setPrizeRows(DEFAULT_PRIZE_ROWS)}
-                        className="min-h-11 px-2 text-[11px] font-bold uppercase text-gray-500 dark:text-gray-400 hover:text-sffl-red transition"
                       >
                         Reset 50 / 30 / 20
-                      </button>
+                      </Button>
                     </div>
 
                     {splitError ? (
@@ -944,21 +919,19 @@ export function FantasyLeagues() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => createMutation.mutate()}
+              <Button
+                size="lg"
+                fullWidth
+                className="mt-2"
+                loading={createMutation.isPending}
                 disabled={
                   !createForm.name.trim() ||
-                  !!splitError ||
-                  createMutation.isPending
+                  !!splitError
                 }
-                className="w-full min-h-11 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition mt-2 shadow-md cursor-pointer"
+                onClick={() => createMutation.mutate()}
               >
-                {createMutation.isPending && (
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
-                )}
                 {createMutation.isPending ? "Creating league…" : "Confirm & Create"}
-              </button>
+              </Button>
             </div>
       </Modal>
 
@@ -985,13 +958,14 @@ export function FantasyLeagues() {
                     {previewErrorMessage}
                   </p>
                 </div>
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
                   onClick={() => setTermsTarget(null)}
-                  className="w-full min-h-11 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase transition"
                 >
                   Close
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1167,77 +1141,61 @@ export function FantasyLeagues() {
                         </span>
                       </div>
 
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="border-b border-gray-200 dark:border-gray-700 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-700/30">
-                              <th className="py-2 px-3">Position</th>
-                              <th className="py-2 px-3">Formula Share</th>
-                              <th className="py-2 px-3 text-right">
-                                Current Prize
-                              </th>
-                              {previewMaxMembers > 0 && (
-                                <th className="py-2 px-3 text-right">
-                                  At Max Cap
-                                </th>
-                              )}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-xs">
-                            {activePrizeStructure.map((t, i) => {
-                              const rankNum = num(t?.rank) || i + 1;
-                              const pct = num(t?.percent);
-                              const currentAmount = num(t?.amount_kobo);
-                              const projectedTierAmount =
-                                previewMaxMembers > 0
-                                  ? Math.round(
-                                      (projectedMaxPoolKobo * pct) / 100,
-                                    )
-                                  : 0;
-
+                      <DataTable
+                        compact
+                        searchable={false}
+                        paginated={false}
+                        getRowId={(t) => `tier-${num(t?.rank) || activePrizeStructure.indexOf(t) + 1}`}
+                        data={activePrizeStructure}
+                        columns={[
+                          {
+                            header: "Position",
+                            className: "py-2.5 px-3 font-bold text-gray-900 dark:text-white text-xs",
+                            cell: (t) => {
+                              const rankNum = num(t?.rank) || activePrizeStructure.indexOf(t) + 1;
                               return (
-                                <tr
-                                  key={`tier-${rankNum}`}
-                                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                                >
-                                  <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-white">
-                                    <div className="flex items-center gap-1.5">
-                                      <span
-                                        aria-hidden="true"
-                                        className={`inline-flex items-center justify-center w-6 h-6 shrink-0 rounded-full text-[11px] font-black ${rankBadgeClass(rankNum)}`}
-                                      >
-                                        {rankNum}
-                                      </span>
-                                      <span
-                                        className={
-                                          rankNum === 1
-                                            ? "text-sffl-navy dark:text-white font-black"
-                                            : ""
-                                        }
-                                      >
-                                        {ordinal(rankNum)} Place
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="py-2.5 px-3">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-gray-100 dark:bg-gray-700 text-sffl-navy dark:text-gray-100 border border-gray-200 dark:border-gray-600">
-                                      {fmtPercent(pct)}
-                                    </span>
-                                  </td>
-                                  <td className="py-2.5 px-3 text-right font-bold text-gray-900 dark:text-white tabular-nums">
-                                    {formatKobo(currentAmount)}
-                                  </td>
-                                  {previewMaxMembers > 0 && (
-                                    <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
-                                      {formatKobo(projectedTierAmount)}
-                                    </td>
-                                  )}
-                                </tr>
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    aria-hidden="true"
+                                    className={`inline-flex items-center justify-center w-6 h-6 shrink-0 rounded-full text-[11px] font-black ${rankBadgeClass(rankNum)}`}
+                                  >
+                                    {rankNum}
+                                  </span>
+                                  <span className={rankNum === 1 ? "text-sffl-navy dark:text-white font-black" : ""}>
+                                    {ordinal(rankNum)} Place
+                                  </span>
+                                </div>
                               );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                            },
+                          },
+                          {
+                            header: "Formula Share",
+                            className: "py-2.5 px-3 text-xs",
+                            cell: (t) => (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-gray-100 dark:bg-gray-700 text-sffl-navy dark:text-gray-100 border border-gray-200 dark:border-gray-600">
+                                {fmtPercent(num(t?.percent))}
+                              </span>
+                            ),
+                          },
+                          {
+                            header: "Current Prize",
+                            align: "right",
+                            className: "py-2.5 px-3 text-xs font-bold text-gray-900 dark:text-white tabular-nums",
+                            cell: (t) => formatKobo(num(t?.amount_kobo)),
+                          },
+                          ...(previewMaxMembers > 0
+                            ? [
+                                {
+                                  header: "At Max Cap",
+                                  align: "right" as const,
+                                  className: "py-2.5 px-3 text-xs font-black text-emerald-600 dark:text-emerald-400 tabular-nums",
+                                  cell: (t: (typeof activePrizeStructure)[number]) =>
+                                    formatKobo(Math.round((projectedMaxPoolKobo * num(t?.percent)) / 100)),
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
 
                       <div className="px-3.5 py-2 bg-gray-50 dark:bg-gray-700/40 border-t border-gray-200 dark:border-gray-700 text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-2">
                         <InformationCircleIcon className="w-4 h-4 shrink-0 text-sffl-red mt-0.5" />
@@ -1276,62 +1234,61 @@ export function FantasyLeagues() {
                   {previewBlocked ? (
                     <>
                       {previewStandingsId && (
-                        <Link
+                        <ButtonLink
                           to={`/fantasy/leaderboard/${previewStandingsId}`}
+                          variant="secondary"
+                          size="lg"
+                          className="flex-1"
                           onClick={() => setTermsTarget(null)}
-                          className="flex-1 min-h-11 flex items-center justify-center py-3 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 font-black text-xs uppercase text-center transition"
                         >
                           View Standings
-                        </Link>
+                        </ButtonLink>
                       )}
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="lg"
+                        className="flex-1"
                         onClick={() => setTermsTarget(null)}
-                        className="flex-1 min-h-11 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase transition cursor-pointer"
                       >
                         Close
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <>
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="lg"
                         onClick={() => setTermsTarget(null)}
-                        className="min-h-11 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase transition cursor-pointer"
                       >
                         Cancel
-                      </button>
+                      </Button>
                       {!isAuthenticated ? (
-                        <button
-                          type="button"
+                        <Button
+                          size="lg"
+                          className="flex-1"
                           onClick={() => {
                             setTermsTarget(null);
                             navigate("/login?redirect=/fantasy/leagues");
                           }}
-                          className="flex-1 min-h-11 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase transition shadow-md cursor-pointer text-center"
                         >
                           {previewIsPaid
                             ? `Log In to Pay ${formatKobo(previewFee)} & Join`
                             : "Log In to Join"}
-                        </button>
+                        </Button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={confirmJoin}
+                        <Button
+                          size="lg"
+                          className="flex-1"
+                          loading={joinMutation.isPending}
                           disabled={joinMutation.isPending}
-                          className="flex-1 min-h-11 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
+                          onClick={confirmJoin}
                         >
-                          {joinMutation.isPending ? (
-                            <>
-                              <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
-                              Joining…
-                            </>
-                          ) : previewIsPaid ? (
-                            `Pay ${formatKobo(previewFee)} & Join`
-                          ) : (
-                            "Join League"
-                          )}
-                        </button>
+                          {joinMutation.isPending
+                            ? "Joining…"
+                            : previewIsPaid
+                              ? `Pay ${formatKobo(previewFee)} & Join`
+                              : "Join League"}
+                        </Button>
                       )}
                     </>
                   )}

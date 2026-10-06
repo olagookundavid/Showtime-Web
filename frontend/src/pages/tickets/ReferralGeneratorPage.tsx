@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeftIcon,
-  ArrowPathIcon,
   BoltIcon,
   CheckIcon,
   EnvelopeIcon,
@@ -15,6 +14,7 @@ import {
   lookupReferrals,
   type ReferralResponse,
 } from "../../services/api";
+import { Button, Field, Input } from "../../components/ui";
 
 export const ReferralGeneratorPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"generate" | "lookup">("generate");
@@ -134,32 +134,24 @@ export const ReferralGeneratorPage: React.FC = () => {
 
       {/* Tab Control */}
       <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl mb-6 border border-gray-200/50 dark:border-gray-700/50">
-        <button
-          type="button"
-          onClick={() => setActiveTab("generate")}
+        <Button
+          className="flex-1"
+          variant={activeTab === "generate" ? "secondary" : "ghost"}
+          icon={TicketIcon}
           aria-pressed={activeTab === "generate"}
-          className={`flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-2 py-2.5 text-xs font-bold rounded-lg transition-all ${
-            activeTab === "generate"
-              ? "bg-white dark:bg-gray-700 text-sffl-navy dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
+          onClick={() => setActiveTab("generate")}
         >
-          <TicketIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
           Generate Code
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("lookup")}
+        </Button>
+        <Button
+          className="flex-1"
+          variant={activeTab === "lookup" ? "secondary" : "ghost"}
+          icon={MagnifyingGlassIcon}
           aria-pressed={activeTab === "lookup"}
-          className={`flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-2 py-2.5 text-xs font-bold rounded-lg transition-all ${
-            activeTab === "lookup"
-              ? "bg-white dark:bg-gray-700 text-sffl-navy dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
+          onClick={() => setActiveTab("lookup")}
         >
-          <MagnifyingGlassIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
           Look Up Code
-        </button>
+        </Button>
       </div>
 
       {/* Content Container */}
@@ -171,37 +163,32 @@ export const ReferralGeneratorPage: React.FC = () => {
                 <h3 className="text-base font-bold text-gray-900 dark:text-white">
                   Create your referral link
                 </h3>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Your Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
+                <Field
+                  label={<>Your Full Name <span className="text-red-500">*</span></>}
+                  htmlFor="referral-name"
+                >
+                  <Input
+                    id="referral-name"
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className="w-full min-w-0 min-h-11 px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Email Address{" "}
-                    <span className="text-gray-400 font-normal ml-1">
-                      (optional)
-                    </span>
-                  </label>
-                  <input
+                </Field>
+                <Field
+                  label={<>Email Address <span className="text-gray-400 font-normal ml-1">(optional)</span></>}
+                  htmlFor="referral-email"
+                  hint="If provided, we will send your code and link via email."
+                >
+                  <Input
+                    id="referral-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. john@example.com"
-                    className="w-full min-w-0 min-h-11 px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
                   />
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    If provided, we will send your code and link via email.
-                  </p>
-                </div>
+                </Field>
 
                 {genError && (
                   <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-xs font-medium border border-red-200/50 dark:border-red-800/30">
@@ -209,26 +196,15 @@ export const ReferralGeneratorPage: React.FC = () => {
                   </div>
                 )}
 
-                <button
+                <Button
                   type="submit"
-                  disabled={generating}
-                  className="w-full min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-2.5 rounded-lg text-sm transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                  fullWidth
+                  size="lg"
+                  icon={BoltIcon}
+                  loading={generating}
                 >
-                  {generating ? (
-                    <>
-                      <ArrowPathIcon
-                        className="w-4 h-4 animate-spin"
-                        aria-hidden="true"
-                      />
-                      Generating…
-                    </>
-                  ) : (
-                    <>
-                      <BoltIcon className="w-4 h-4" aria-hidden="true" />
-                      Generate Referral Code
-                    </>
-                  )}
-                </button>
+                  {generating ? "Generating…" : "Generate Referral Code"}
+                </Button>
               </form>
             ) : (
               <div className="space-y-6 text-center animate-fade-in">
@@ -260,26 +236,22 @@ export const ReferralGeneratorPage: React.FC = () => {
                     Share this ticket link:
                   </span>
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <input
+                    <Input
                       type="text"
                       readOnly
                       aria-label="Your referral link"
                       value={getReferralLink(generatedCode.code)}
-                      className="w-full min-w-0 min-h-11 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-mono select-all outline-none"
+                      className="flex-1 min-w-0"
                     />
-                    <button
-                      type="button"
+                    <Button
+                      className="shrink-0"
+                      variant={copied ? "success" : "navy"}
                       onClick={() =>
                         handleCopy(getReferralLink(generatedCode.code))
                       }
-                      className={`min-h-11 font-bold px-4 py-1.5 rounded text-xs transition shrink-0 shadow-sm ${
-                        copied
-                          ? "bg-green-600 text-white hover:bg-green-700"
-                          : "bg-sffl-navy text-white hover:bg-slate-800"
-                      }`}
                     >
                       {copied ? "Copied!" : "Copy Link"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
@@ -299,13 +271,9 @@ export const ReferralGeneratorPage: React.FC = () => {
                   </p>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => setGeneratedCode(null)}
-                  className="min-h-11 px-2 text-xs text-gray-500 hover:text-sffl-red font-bold underline"
-                >
+                <Button variant="link" size="sm" onClick={() => setGeneratedCode(null)}>
                   Generate another code
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -315,38 +283,30 @@ export const ReferralGeneratorPage: React.FC = () => {
               <h3 className="text-base font-bold text-gray-900 dark:text-white">
                 Search existing referral codes
               </h3>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                  Enter Registered Name <span className="text-red-500">*</span>
-                </label>
+              <Field
+                label={<>Enter Registered Name <span className="text-red-500">*</span></>}
+                htmlFor="lookup-name"
+              >
                 <div className="flex flex-col min-[400px]:flex-row gap-2">
-                  <input
+                  <Input
+                    id="lookup-name"
                     type="text"
                     required
                     value={searchName}
                     onChange={(e) => setSearchName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className="w-full min-w-0 min-h-11 px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
+                    className="flex-1 min-w-0"
                   />
-                  <button
+                  <Button
                     type="submit"
-                    disabled={lookingUp}
-                    className="min-h-11 bg-sffl-navy hover:bg-slate-800 text-white font-bold px-6 py-2 rounded-lg text-xs transition disabled:opacity-50 shrink-0 shadow-sm flex items-center justify-center gap-1.5"
+                    variant="navy"
+                    className="shrink-0"
+                    loading={lookingUp}
                   >
-                    {lookingUp ? (
-                      <>
-                        <ArrowPathIcon
-                          className="w-4 h-4 animate-spin"
-                          aria-hidden="true"
-                        />
-                        Searching…
-                      </>
-                    ) : (
-                      "Search"
-                    )}
-                  </button>
+                    {lookingUp ? "Searching…" : "Search"}
+                  </Button>
                 </div>
-              </div>
+              </Field>
 
               {lookupError && (
                 <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-300 p-3 rounded-lg text-xs font-medium border border-amber-200/50 dark:border-amber-900/30">
@@ -378,19 +338,15 @@ export const ReferralGeneratorPage: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        <button
-                          type="button"
+                        <Button
+                          variant={copiedIndex === idx ? "success" : "primary"}
+                          size="sm"
                           onClick={() =>
                             handleCopy(getReferralLink(rc.code), idx)
                           }
-                          className={`min-h-11 px-4 py-1 rounded text-xs font-bold transition shadow-sm ${
-                            copiedIndex === idx
-                              ? "bg-green-600 text-white hover:bg-green-700"
-                              : "bg-sffl-red text-white hover:bg-[#A52323]"
-                          }`}
                         >
                           {copiedIndex === idx ? "Copied!" : "Copy Link"}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}

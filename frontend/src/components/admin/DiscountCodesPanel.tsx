@@ -17,6 +17,7 @@ import {
     type DiscountCode,
     type DiscountTarget,
 } from '../../services/api';
+import { Button, Checkbox, Field, IconButton, Input, Modal, Select } from '../ui';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { Spinner } from '../ui/Spinner';
@@ -56,8 +57,6 @@ const emptyForm: FormState = {
 
 type PendingAction = { kind: 'save' } | { kind: 'delete'; code: DiscountCode };
 
-const fieldClass = 'w-full min-h-11 px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red';
-const iconButtonClass = 'min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 transition-colors';
 
 const AUDIENCE_LABEL: Record<DiscountAudience, string> = {
     all: 'Everyone',
@@ -275,14 +274,9 @@ export const DiscountCodesPanel = () => {
                         One code can cover several products and ticket tiers, each with its own amount off.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={openCreate}
-                    className="inline-flex items-center justify-center gap-2 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold px-4 rounded-xl text-xs uppercase tracking-wider transition-colors"
-                >
-                    <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                <Button icon={PlusIcon} onClick={openCreate}>
                     New Code
-                </button>
+                </Button>
             </div>
 
             {isLoading ? (
@@ -319,22 +313,18 @@ export const DiscountCodesPanel = () => {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0 -my-2 -mr-2">
-                                        <button
-                                            type="button"
+                                        <IconButton
+                                            variant="ghost"
+                                            icon={PencilSquareIcon}
+                                            label={`Edit ${c.code}`}
                                             onClick={() => openEdit(c)}
-                                            className={`${iconButtonClass} hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700`}
-                                            aria-label={`Edit ${c.code}`}
-                                        >
-                                            <PencilSquareIcon className="w-5 h-5" aria-hidden="true" />
-                                        </button>
-                                        <button
-                                            type="button"
+                                        />
+                                        <IconButton
+                                            variant="danger"
+                                            icon={TrashIcon}
+                                            label={`Delete ${c.code}`}
                                             onClick={() => setPendingAction({ kind: 'delete', code: c })}
-                                            className={`${iconButtonClass} hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20`}
-                                            aria-label={`Delete ${c.code}`}
-                                        >
-                                            <TrashIcon className="w-5 h-5" aria-hidden="true" />
-                                        </button>
+                                        />
                                     </div>
                                 </div>
 
@@ -395,107 +385,86 @@ export const DiscountCodesPanel = () => {
                 </div>
             )}
 
-            {showEditor && (
-                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={closeEditor}>
-                    <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
-                            <h3 className="text-lg font-black text-sffl-navy dark:text-white min-w-0 wrap-break-word">
-                                {editing ? `Edit ${editing.code}` : 'New Discount Code'}
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={closeEditor}
-                                aria-label="Close"
-                                className={`${iconButtonClass} shrink-0 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700`}
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-
-                        <div className="p-4 sm:p-5 space-y-5 overflow-y-auto overscroll-contain flex-1 min-h-0">
+            <Modal
+                open={showEditor}
+                onClose={closeEditor}
+                title={editing ? `Edit ${editing.code}` : 'New Discount Code'}
+                maxWidth="2xl"
+                footer={
+                    <>
+                        <Button variant="secondary" size="lg" className="flex-1" onClick={closeEditor}>
+                            Cancel
+                        </Button>
+                        <Button size="lg" className="flex-2" loading={saveMutation.isPending} onClick={handleSave}>
+                            {editing ? 'Save Changes' : 'Create Code'}
+                        </Button>
+                    </>
+                }
+            >
+                        <div className="space-y-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 uppercase mb-1.5">
-                                        Code *
-                                    </label>
-                                    <input
+                                <Field label="Code *" htmlFor="discount-code" hint="Customers can type it in any case.">
+                                    <Input
+                                        id="discount-code"
                                         value={form.code}
                                         onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
                                         placeholder="SHOWTIME10"
-                                        className={`${fieldClass} font-mono uppercase tracking-wider`}
                                     />
-                                    <p className="text-[11px] text-gray-400 mt-1">
-                                        Customers can type it in any case.
-                                    </p>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 uppercase mb-1.5">
-                                        Internal note
-                                    </label>
-                                    <input
+                                </Field>
+                                <Field label="Internal note" htmlFor="discount-note">
+                                    <Input
+                                        id="discount-note"
                                         value={form.description}
                                         onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                                         placeholder="Launch week promo"
-                                        className={fieldClass}
                                     />
-                                </div>
+                                </Field>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.limitUses}
-                                            onChange={e => setForm(p => ({ ...p, limitUses: e.target.checked }))}
-                                            className="w-4 h-4 accent-sffl-red"
-                                        />
-                                        Limit uses
-                                    </label>
-                                    <input
+                                    <Checkbox
+                                        label="Limit uses"
+                                        checked={form.limitUses}
+                                        onChange={e => setForm(p => ({ ...p, limitUses: e.target.checked }))}
+                                    />
+                                    <Input
                                         type="number"
                                         min={1}
+                                        aria-label="Maximum uses"
                                         value={form.maxUses}
                                         onChange={e => setForm(p => ({ ...p, maxUses: e.target.value }))}
                                         disabled={!form.limitUses}
                                         placeholder="Unlimited"
-                                        className={`${fieldClass} disabled:opacity-50`}
                                     />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.hasExpiry}
-                                            onChange={e => setForm(p => ({ ...p, hasExpiry: e.target.checked }))}
-                                            className="w-4 h-4 accent-sffl-red"
-                                        />
-                                        Set expiry
-                                    </label>
-                                    <input
+                                    <Checkbox
+                                        label="Set expiry"
+                                        checked={form.hasExpiry}
+                                        onChange={e => setForm(p => ({ ...p, hasExpiry: e.target.checked }))}
+                                    />
+                                    <Input
                                         type="datetime-local"
+                                        aria-label="Expiry date and time"
                                         value={form.expiresAt}
                                         onChange={e => setForm(p => ({ ...p, expiresAt: e.target.value }))}
                                         disabled={!form.hasExpiry}
-                                        className={`${fieldClass} disabled:opacity-50`}
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">
-                                        Who can use it
-                                    </label>
-                                    <select
+                                <Field label="Who can use it" htmlFor="discount-audience">
+                                    <Select
+                                        id="discount-audience"
                                         value={form.audience}
                                         onChange={e => setForm(p => ({ ...p, audience: e.target.value as DiscountAudience }))}
-                                        className={fieldClass}
                                     >
                                         <option value="all">Everyone (guests + signed in)</option>
                                         <option value="authenticated">Signed-in customers only</option>
                                         <option value="guest">Guest checkouts only</option>
-                                    </select>
-                                </div>
+                                    </Select>
+                                </Field>
                             </div>
 
                             <label className="flex items-center justify-between gap-4 p-3.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 cursor-pointer">
@@ -505,11 +474,9 @@ export const DiscountCodesPanel = () => {
                                         Turn off to pause the code without deleting it.
                                     </span>
                                 </div>
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     checked={form.isActive}
                                     onChange={e => setForm(p => ({ ...p, isActive: e.target.checked }))}
-                                    className="w-5 h-5 shrink-0 accent-sffl-red"
                                 />
                             </label>
 
@@ -554,23 +521,21 @@ export const DiscountCodesPanel = () => {
                                                     </div>
                                                     <div className="flex items-center gap-1.5 shrink-0">
                                                         <span className="text-xs font-bold text-gray-400">₦</span>
-                                                        <input
+                                                        <Input
                                                             type="number"
                                                             min={1}
                                                             value={i.amount_off}
                                                             onChange={e => setItemAmount(key, e.target.value)}
                                                             placeholder="0"
                                                             aria-label={`Amount off ${i.name}`}
-                                                            className="w-24 min-h-11 px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                                            className="w-24"
                                                         />
-                                                        <button
-                                                            type="button"
+                                                        <IconButton
+                                                            variant="danger"
+                                                            icon={XMarkIcon}
+                                                            label={`Remove ${i.name}`}
                                                             onClick={() => removeTarget(key)}
-                                                            className={`${iconButtonClass} hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20`}
-                                                            aria-label={`Remove ${i.name}`}
-                                                        >
-                                                            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-                                                        </button>
+                                                        />
                                                     </div>
                                                 </div>
                                             );
@@ -579,14 +544,13 @@ export const DiscountCodesPanel = () => {
                                 )}
 
                                 <div className="border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
-                                    <div className="relative border-b border-gray-100 dark:border-gray-700">
-                                        <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
-                                        <input
+                                    <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+                                        <Input
                                             value={targetSearch}
+                                            icon={MagnifyingGlassIcon}
                                             onChange={e => setTargetSearch(e.target.value)}
                                             placeholder="Search products and ticket tiers to add"
                                             aria-label="Search products and ticket tiers"
-                                            className="w-full min-h-11 pl-9 pr-3 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none"
                                         />
                                     </div>
                                     <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
@@ -633,26 +597,7 @@ export const DiscountCodesPanel = () => {
                             )}
                         </div>
 
-                        <div className="flex flex-col-reverse sm:flex-row gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 bg-gray-50 dark:bg-gray-800/90">
-                            <button
-                                type="button"
-                                onClick={closeEditor}
-                                className="flex-1 min-h-11 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm transition-colors border border-gray-200 dark:border-gray-600"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSave}
-                                disabled={saveMutation.isPending}
-                                className="flex-2 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm transition-colors disabled:opacity-50 shadow-sm"
-                            >
-                                {editing ? 'Save Changes' : 'Create Code'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            </Modal>
 
             <ConfirmDialog
                 open={pendingAction !== null}

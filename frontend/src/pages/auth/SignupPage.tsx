@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowPathIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { CheckIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
 import { useReturnUrl, withReturnUrl } from "../../hooks/useReturnUrl";
+import { Button, Field, Input } from "../../components/ui";
 
 export const SignupPage = () => {
   const [name, setName] = useState("");
@@ -75,72 +76,53 @@ export const SignupPage = () => {
 
         {/* Signup Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-              Full Name
-            </label>
-            <input
+          <Field label="Full Name" htmlFor="signup-name">
+            <Input
+              id="signup-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
               placeholder="John Doe"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-              Email Address
-            </label>
-            <input
+          <Field label="Email Address" htmlFor="signup-email">
+            <Input
+              id="signup-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
               placeholder="you@example.com"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-              Password
-            </label>
-            <input
+          <Field label="Password" htmlFor="signup-password">
+            <Input
+              id="signup-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
               placeholder="••••••••"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-              Confirm Password
-            </label>
-            <input
+          <Field label="Confirm Password" htmlFor="signup-confirm-password">
+            <Input
+              id="signup-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
               placeholder="••••••••"
             />
-          </div>
+          </Field>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full min-h-11 inline-flex items-center justify-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {loading && (
-              <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />
-            )}
+          <Button type="submit" fullWidth size="lg" loading={loading}>
             {loading ? "Creating account…" : "Create Account"}
-          </button>
+          </Button>
         </form>
 
         {/* Benefits */}

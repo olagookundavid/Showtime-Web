@@ -16,6 +16,7 @@ import { useCart } from "../../contexts/CartContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { NotificationBell } from "../common/NotificationBell";
 import { getInitials } from "../../utils/formatters";
+import { IconButton } from "../ui";
 
 type Menu = "league" | "stats" | "awards" | "store" | "user";
 
@@ -380,20 +381,13 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               )}
             </Link>
 
-            <button
-              type="button"
+            <IconButton
+              tone="dark"
+              variant="ghost"
+              icon={isDarkMode ? SunIcon : MoonIcon}
+              label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
               onClick={toggleDarkMode}
-              aria-label={
-                isDarkMode ? "Switch to light mode" : "Switch to dark mode"
-              }
-              className="min-h-11 min-w-11 flex items-center justify-center cursor-pointer text-white hover:text-sffl-red transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
-            >
-              {isDarkMode ? (
-                <SunIcon className="w-6 h-6" aria-hidden="true" />
-              ) : (
-                <MoonIcon className="w-6 h-6" aria-hidden="true" />
-              )}
-            </button>
+            />
 
             {/* Notifications (e.g. a Player of the Week vote opening) for signed-in fans */}
             {isAuthenticated && <NotificationBell onDark />}
@@ -520,30 +514,22 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               )}
             </Link>
 
-            <button
-              type="button"
+            <IconButton
+              tone="dark"
+              variant="ghost"
+              icon={isDarkMode ? SunIcon : MoonIcon}
+              label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
               onClick={toggleDarkMode}
-              aria-label={
-                isDarkMode ? "Switch to light mode" : "Switch to dark mode"
-              }
-              className="min-h-11 min-w-11 flex items-center justify-center cursor-pointer text-white hover:text-sffl-red transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
-            >
-              {isDarkMode ? (
-                <SunIcon className="w-6 h-6" aria-hidden="true" />
-              ) : (
-                <MoonIcon className="w-6 h-6" aria-hidden="true" />
-              )}
-            </button>
+            />
 
             {/* Mobile Menu Button - More icon */}
-            <button
-              type="button"
+            <IconButton
+              tone="dark"
+              variant="ghost"
+              icon={Bars3Icon}
+              label="Open navigation menu"
               onClick={onMoreClick}
-              className="min-h-11 min-w-11 flex items-center justify-center text-white hover:text-sffl-red transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg"
-              aria-label="Open navigation menu"
-            >
-              <Bars3Icon className="w-6 h-6" aria-hidden="true" />
-            </button>
+            />
           </div>
         </div>
       </div>

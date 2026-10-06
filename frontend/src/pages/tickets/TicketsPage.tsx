@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import {
@@ -14,10 +13,10 @@ import {
   type DiscountPreview,
 } from "../../services/api";
 import { DiscountCodeInput } from "../../components/discounts/DiscountCodeInput";
+import { Button, Checkbox, Field, IconButton, Input, Modal } from "../../components/ui";
 import { Spinner } from "../../components/ui/Spinner";
 import { FootballIcon } from "../../components/icons/FootballIcon";
 import {
-  ArrowPathIcon,
   CalendarDaysIcon,
   CreditCardIcon,
   LockClosedIcon,
@@ -26,7 +25,6 @@ import {
   PlusIcon,
   SparklesIcon,
   TicketIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
   newsletterEnabled,
@@ -258,21 +256,22 @@ export const TicketsPage = () => {
             Access Code?
           </p>
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value)}
               placeholder="CODE"
               aria-label="Access code"
-              className="min-w-0 min-h-11 px-3 py-1.5 rounded-lg bg-white/20 text-white placeholder-gray-400 border border-white/30 focus:outline-none focus:ring-1 focus:ring-white/50 w-full md:w-48 uppercase text-xs"
+              className="min-w-0 flex-1 md:flex-none md:w-48"
             />
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="md"
+              className="shrink-0"
               onClick={() => setAppliedCode(accessCode.trim())}
-              className="shrink-0 min-h-11 bg-white text-sffl-navy font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition shadow-sm"
             >
               Apply
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -445,13 +444,13 @@ export const TicketsPage = () => {
                                 )}
                               </div>
                             )}
-                            <button
-                              onClick={() => openPurchaseModal(eventDay, tier)}
+                            <Button
+                              fullWidth
                               disabled={isSoldOut}
-                              className="w-full min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black py-2 md:py-3 rounded-lg text-sm transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() => openPurchaseModal(eventDay, tier)}
                             >
                               {isSoldOut ? "Sold Out" : "Buy Now"}
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       );
@@ -465,35 +464,41 @@ export const TicketsPage = () => {
       )}
 
       {/* Purchase Modal */}
-      {selectedTier &&
-        selectedEventDay &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn"
-            data-dialog
-            onClick={closePurchaseModal}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div
-              className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700 my-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0 flex items-center justify-between">
-                <h3 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                  Purchase Tickets
-                </h3>
-                <button
-                  type="button"
-                  onClick={closePurchaseModal}
-                  aria-label="Close"
-                  className="min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white"
-                >
-                  <XMarkIcon className="w-6 h-6" aria-hidden="true" />
-                </button>
-              </div>
-
-              <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+      {selectedTier && selectedEventDay && (
+        <Modal
+          open
+          onClose={closePurchaseModal}
+          title="Purchase Tickets"
+          maxWidth="lg"
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="flex-1"
+                disabled={purchasing}
+                onClick={closePurchaseModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1"
+                loading={purchasing}
+                icon={ticketTotal === 0 ? TicketIcon : CreditCardIcon}
+                disabled={purchasing || !email || !name || !phone.trim()}
+                onClick={handlePurchase}
+              >
+                {purchasing
+                  ? "Processing…"
+                  : ticketTotal === 0
+                    ? "Get Free Ticket"
+                    : "Pay with Paystack"}
+              </Button>
+            </>
+          }
+        >
+              <div className="space-y-4">
                 {/* Event Info */}
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                   <div className="font-bold text-sffl-navy dark:text-white wrap-break-word">
@@ -519,126 +524,102 @@ export const TicketsPage = () => {
 
                 {/* Auth Toggle */}
                 {userProfile && (
-                  <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg border border-blue-100 dark:border-blue-800">
-                    <input
-                      type="checkbox"
-                      id="useAccountEmail"
+                  <div className="bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg border border-blue-100 dark:border-blue-800">
+                    <Checkbox
+                      label={<span className="text-blue-800 dark:text-blue-300">Use my account information</span>}
                       checked={useAccountEmail}
                       onChange={(e) => setUseAccountEmail(e.target.checked)}
-                      className="w-5 h-5 shrink-0 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
                     />
-                    <label
-                      htmlFor="useAccountEmail"
-                      className="flex-1 min-h-11 flex items-center text-xs font-bold text-blue-800 dark:text-blue-300 cursor-pointer"
-                    >
-                      Use my account information
-                    </label>
                   </div>
                 )}
 
                 {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
+                <Field
+                  label={<>Full Name <span className="text-red-500">*</span></>}
+                  htmlFor="ticket-name"
+                >
+                  <Input
+                    id="ticket-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className={`w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? "opacity-60 cursor-not-allowed bg-gray-50" : ""}`}
                     required
                     disabled={useAccountEmail}
                   />
-                </div>
+                </Field>
 
                 {/* Email */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
+                <Field
+                  label={<>Email Address <span className="text-red-500">*</span></>}
+                  htmlFor="ticket-email"
+                  hint="Your ticket will be sent to this email"
+                >
+                  <Input
+                    id="ticket-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. example@mail.com"
-                    className={`w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? "opacity-60 cursor-not-allowed bg-gray-50" : ""}`}
                     required
                     disabled={useAccountEmail}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Your ticket will be sent to this email
-                  </p>
-                </div>
+                </Field>
 
                 {/* Phone */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number <span className="text-sffl-red ml-1">*</span>
-                  </label>
-                  <input
+                <Field
+                  label={<>Phone Number <span className="text-sffl-red ml-1">*</span></>}
+                  htmlFor="ticket-phone"
+                  hint="We may call you regarding your ticket"
+                >
+                  <Input
+                    id="ticket-phone"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="e.g. +234..."
-                    className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    We may call you regarding your ticket
-                  </p>
-                </div>
+                </Field>
 
                 {/* Referral Code */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Referral Code{" "}
-                    <span className="text-gray-500 font-normal ml-1">
-                      (optional)
-                    </span>
-                  </label>
-                  <input
+                <Field
+                  label={<>Referral Code <span className="text-gray-500 font-normal ml-1">(optional)</span></>}
+                  htmlFor="ticket-referral"
+                  hint="If you were referred, enter the referrer's code"
+                >
+                  <Input
+                    id="ticket-referral"
                     type="text"
                     value={referralCode}
                     onChange={(e) => setReferralCode(e.target.value)}
                     placeholder="SFFL-XXXX"
-                    className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none uppercase"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    If you were referred, enter the referrer's code
-                  </p>
-                </div>
+                </Field>
 
                 {/* Quantity */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Quantity
-                  </label>
+                <Field label="Quantity">
                   <div className="flex items-center gap-4">
-                    <button
-                      type="button"
+                    <IconButton
+                      variant="secondary"
+                      icon={MinusIcon}
+                      label="Decrease quantity"
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      aria-label="Decrease quantity"
-                      className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-11 h-11 flex items-center justify-center rounded-lg"
-                    >
-                      <MinusIcon className="w-5 h-5" aria-hidden="true" />
-                    </button>
+                    />
                     <span
                       className="font-bold text-xl w-12 text-center dark:text-white"
                       aria-live="polite"
                     >
                       {quantity}
                     </span>
-                    <button
-                      type="button"
+                    <IconButton
+                      variant="secondary"
+                      icon={PlusIcon}
+                      label="Increase quantity"
                       onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                      aria-label="Increase quantity"
-                      className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-11 h-11 flex items-center justify-center rounded-lg"
-                    >
-                      <PlusIcon className="w-5 h-5" aria-hidden="true" />
-                    </button>
+                    />
                   </div>
-                </div>
+                </Field>
 
                 {/* Discount code — hidden on free tiers, where
                                 there is nothing left to take off. */}
@@ -695,11 +676,10 @@ export const TicketsPage = () => {
                                 a pre-ticked box isn't consent. */}
                 {newsletterEnabled && (
                   <label className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 cursor-pointer">
-                    <input
-                      type="checkbox"
+                    <Checkbox
+                      className="mt-0.5"
                       checked={joinNewsletter}
                       onChange={(e) => setJoinNewsletter(e.target.checked)}
-                      className="mt-0.5 w-5 h-5 shrink-0 accent-sffl-red cursor-pointer"
                     />
                     <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
                       <span className="font-bold text-gray-800 dark:text-white">
@@ -711,47 +691,6 @@ export const TicketsPage = () => {
                     </span>
                   </label>
                 )}
-              </div>
-
-              {/* Buttons */}
-              <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700 shrink-0 bg-gray-50/90 dark:bg-gray-800/90 space-y-3">
-                <div className="flex flex-col-reverse sm:flex-row gap-3">
-                  <button
-                    type="button"
-                    onClick={closePurchaseModal}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-bold py-3 rounded-lg transition min-h-11"
-                    disabled={purchasing}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handlePurchase}
-                    disabled={purchasing || !email || !name || !phone.trim()}
-                    className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-11"
-                  >
-                    {purchasing ? (
-                      <>
-                        <ArrowPathIcon
-                          className="w-5 h-5 animate-spin"
-                          aria-hidden="true"
-                        />
-                        Processing…
-                      </>
-                    ) : ticketTotal === 0 ? (
-                      <>
-                        <TicketIcon className="w-5 h-5" aria-hidden="true" />
-                        Get Free Ticket
-                      </>
-                    ) : (
-                      <>
-                        <CreditCardIcon className="w-5 h-5" aria-hidden="true" />
-                        Pay with Paystack
-                      </>
-                    )}
-                  </button>
-                </div>
-
                 <p className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 text-center">
                   {ticketTotal === 0 ? (
                     <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -763,10 +702,8 @@ export const TicketsPage = () => {
                     : "You will be redirected to Paystack for secure payment"}
                 </p>
               </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+        </Modal>
+      )}
     </div>
   );
 };

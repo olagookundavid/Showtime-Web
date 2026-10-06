@@ -10,6 +10,7 @@ import {
   type Match,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
+import { Field, Select } from "../../components/ui";
 import { StandingsTable } from "../../components/matches/StandingsTable";
 import { BracketView } from "../../components/matches/BracketView";
 import { MatchCard } from "../../components/matches/MatchCard";
@@ -204,18 +205,12 @@ export const StandingsPage = () => {
         {competitions.length > 0 && (
           <div className="w-full md:w-auto flex flex-col md:flex-row md:items-end gap-3">
             <div className="flex-1 w-full md:min-w-65">
-              <label
-                htmlFor="standings-competition"
-                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
-              >
-                Competition
-              </label>
-              <div className="relative">
-                <select
+              <Field label="Competition" htmlFor="standings-competition" tone="dark">
+                <Select
                   id="standings-competition"
+                  tone="dark"
                   value={selectedCompetitionId}
                   onChange={(e) => handleCompetitionChange(e.target.value)}
-                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                 >
                   {dropdownComps.map((c) => (
                     <option
@@ -229,11 +224,8 @@ export const StandingsPage = () => {
                         : ""}
                     </option>
                   ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
-                </div>
-              </div>
+                </Select>
+              </Field>
             </div>
           </div>
         )}

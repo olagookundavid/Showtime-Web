@@ -10,7 +10,6 @@ import {
     PencilSquareIcon,
     PlusIcon,
     TrashIcon,
-    XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
     getAdminProducts,
@@ -32,6 +31,7 @@ import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, Checkbox, Field, Input, Modal, Select, Textarea } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
@@ -67,10 +67,6 @@ const FAILURE: Record<PendingAction['kind'], string> = {
     addMethod: 'Failed to create payment method',
     toggleMethod: 'Failed to toggle payment method',
 };
-
-const dateInputClass = 'min-h-11 px-3 py-1.5 border border-gray-300 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-blue-500';
-const formInputClass = 'w-full min-h-11 px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-sffl-red focus:border-sffl-red outline-none transition-all text-gray-900 dark:text-white';
-const formLabelClass = 'text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider';
 
 export const AdminInventory = () => {
     const queryClient = useQueryClient();
@@ -423,22 +419,17 @@ export const AdminInventory = () => {
             )}
 
             {/* Tabs */}
-            <div className="flex gap-2 overflow-x-auto whitespace-nowrap border-b dark:border-gray-700 pb-2 scrollbar-hide">
-                {TABS.map(({ key, label, icon: Icon }) => (
-                    <button
+            <div className="flex flex-wrap gap-2 border-b dark:border-gray-700 pb-3">
+                {TABS.map(({ key, label, icon }) => (
+                    <Button
                         key={key}
-                        type="button"
+                        variant={activeTab === key ? 'navy' : 'secondary'}
+                        icon={icon}
                         onClick={() => setActiveTab(key)}
                         aria-pressed={activeTab === key}
-                        className={`inline-flex items-center gap-1.5 px-4 min-h-11 text-sm font-bold rounded-t-lg transition-colors ${
-                            activeTab === key
-                                ? 'bg-sffl-navy text-white'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
                     >
-                        <Icon className="w-4 h-4" aria-hidden="true" />
                         {label}
-                    </button>
+                    </Button>
                 ))}
             </div>
 
@@ -457,14 +448,9 @@ export const AdminInventory = () => {
                     itemsPerPage={PRODUCT_PAGE_SIZE}
                     emptyMessage="No products found."
                     headerActions={
-                        <button
-                            type="button"
-                            onClick={handleOpenAdd}
-                            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto bg-sffl-navy text-white px-4 min-h-11 rounded-lg text-sm font-bold hover:bg-blue-900 transition-colors shadow-sm"
-                        >
-                            <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                        <Button variant="navy" icon={PlusIcon} onClick={handleOpenAdd} className="w-full sm:w-auto">
                             Add Product
-                        </button>
+                        </Button>
                     }
                 />
             )}
@@ -484,17 +470,15 @@ export const AdminInventory = () => {
                     emptyMessage="No sales recorded yet."
                     headerActions={
                         <>
-                            <label className="flex items-center gap-2 text-sm font-bold dark:text-gray-300">
-                                From
-                                <input type="date" value={salesFromDate} onChange={e => setSalesFromDate(e.target.value)} className={dateInputClass} />
-                            </label>
-                            <label className="flex items-center gap-2 text-sm font-bold dark:text-gray-300">
-                                To
-                                <input type="date" value={salesToDate} onChange={e => setSalesToDate(e.target.value)} className={dateInputClass} />
-                            </label>
-                            <button type="button" onClick={handleApplySalesFilter} className="px-4 min-h-11 bg-sffl-navy text-white text-sm font-bold rounded-lg hover:bg-blue-900 transition-colors shadow-sm">
+                            <Field label="From" htmlFor="sales-from">
+                                <Input id="sales-from" type="date" value={salesFromDate} onChange={e => setSalesFromDate(e.target.value)} className="sm:w-44" />
+                            </Field>
+                            <Field label="To" htmlFor="sales-to">
+                                <Input id="sales-to" type="date" value={salesToDate} onChange={e => setSalesToDate(e.target.value)} className="sm:w-44" />
+                            </Field>
+                            <Button variant="navy" onClick={handleApplySalesFilter} className="w-full sm:w-auto">
                                 Apply Filter
-                            </button>
+                            </Button>
                         </>
                     }
                 />
@@ -504,28 +488,31 @@ export const AdminInventory = () => {
             {activeTab === 'REPORTS' && (
                 <div className="space-y-4">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                        <div className="flex flex-wrap items-center gap-4 w-full">
-                            <span className="font-bold text-gray-700 dark:text-gray-200">Report Period:</span>
-                            <select
-                                value={reportPeriod}
-                                onChange={(e) => setReportPeriod(e.target.value as typeof reportPeriod)}
-                                aria-label="Report period"
-                                className="w-full sm:w-auto min-h-11 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white"
-                            >
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
-                                <option value="custom">Custom Date Range</option>
-                            </select>
+                        <div className="flex flex-wrap items-end gap-4 w-full">
+                            <Field label="Report Period" htmlFor="report-period" className="w-full sm:w-56">
+                                <Select
+                                    id="report-period"
+                                    value={reportPeriod}
+                                    onChange={(e) => setReportPeriod(e.target.value as typeof reportPeriod)}
+                                >
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="custom">Custom Date Range</option>
+                                </Select>
+                            </Field>
 
                             {reportPeriod === 'custom' && (
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <input type="date" value={reportFromDate} onChange={e => setReportFromDate(e.target.value)} aria-label="From date" className={dateInputClass} />
-                                    <span className="dark:text-gray-300">to</span>
-                                    <input type="date" value={reportToDate} onChange={e => setReportToDate(e.target.value)} aria-label="To date" className={dateInputClass} />
-                                    <button type="button" onClick={handleApplyReportFilter} className="px-4 min-h-11 bg-sffl-navy text-white text-sm font-bold rounded-lg hover:bg-blue-900 transition-colors shadow-sm">
+                                <div className="flex flex-wrap items-end gap-2">
+                                    <Field label="From" htmlFor="report-from">
+                                        <Input id="report-from" type="date" value={reportFromDate} onChange={e => setReportFromDate(e.target.value)} className="sm:w-44" />
+                                    </Field>
+                                    <Field label="To" htmlFor="report-to">
+                                        <Input id="report-to" type="date" value={reportToDate} onChange={e => setReportToDate(e.target.value)} className="sm:w-44" />
+                                    </Field>
+                                    <Button variant="navy" onClick={handleApplyReportFilter}>
                                         Apply Filter
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
                         </div>
@@ -614,25 +601,25 @@ export const AdminInventory = () => {
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 dark:border-gray-700">
                         <h2 className="text-xl font-bold text-sffl-navy dark:text-white mb-6">Payment Methods Configuration</h2>
                         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                            <input
+                            <Input
                                 type="text"
                                 value={newPaymentMethod}
                                 onChange={(e) => setNewPaymentMethod(e.target.value)}
                                 placeholder="Add new payment method (e.g., POS, Transfer, Cash)"
                                 aria-label="New payment method"
-                                className="flex-1 min-w-0 min-h-11 px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                className="flex-1"
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') requestAddMethod();
                                 }}
                             />
-                            <button
-                                type="button"
+                            <Button
+                                variant="navy"
                                 onClick={requestAddMethod}
                                 disabled={busy || !newPaymentMethod.trim()}
-                                className="px-6 min-h-11 bg-sffl-navy text-white rounded-lg font-bold hover:bg-blue-900 transition-colors shadow-sm disabled:opacity-50"
+                                className="shrink-0"
                             >
                                 Add Method
-                            </button>
+                            </Button>
                         </div>
 
                         {loadingPMs ? <Loader /> : (
@@ -640,17 +627,13 @@ export const AdminInventory = () => {
                                 {paymentMethods.map((pm: PaymentMethod) => (
                                     <div key={pm.id} className="flex justify-between items-center gap-3 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600">
                                         <span className="font-semibold text-gray-800 dark:text-white min-w-0 wrap-break-word">{pm.name}</span>
-                                        <button
-                                            type="button"
+                                        <Button
+                                            variant={pm.is_active ? 'success' : 'danger'}
                                             onClick={() => setPendingAction({ kind: 'toggleMethod', method: pm })}
-                                            className={`shrink-0 px-4 min-h-11 rounded-full text-xs font-bold ${
-                                                pm.is_active
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400'
-                                            } transition-colors`}
+                                            className="shrink-0 rounded-full"
                                         >
                                             {pm.is_active ? 'Active' : 'Disabled'}
-                                        </button>
+                                        </Button>
                                     </div>
                                 ))}
                                 {paymentMethods.length === 0 && (
@@ -666,115 +649,89 @@ export const AdminInventory = () => {
 
             {/* Add/Edit Product Modal */}
             {(isAdding || isEditing) && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 overflow-hidden bg-black/70 backdrop-blur-sm" data-dialog onClick={handleCloseForm}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="px-4 sm:px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 shrink-0 flex justify-between items-center gap-3">
-                            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                                {isEditing ? 'Edit Physical Product' : 'Add Physical Product'}
-                            </h2>
-                            <button
-                                type="button"
-                                onClick={handleCloseForm}
-                                aria-label="Close"
-                                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={requestSaveProduct} className="flex flex-col flex-1 overflow-hidden min-h-0">
-                            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                                <div className="space-y-1">
-                                    <label className={formLabelClass}>Product Name</label>
-                                    <input
+                <Modal
+                    open
+                    onClose={handleCloseForm}
+                    title={isEditing ? 'Edit Physical Product' : 'Add Physical Product'}
+                    maxWidth="md"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={handleCloseForm} className="flex-1">
+                                Cancel
+                            </Button>
+                            <Button type="submit" form="inventory-product-form" disabled={busy} className="flex-1">
+                                {isEditing ? 'Save Changes' : 'Create Product'}
+                            </Button>
+                        </>
+                    }
+                >
+                        <form id="inventory-product-form" onSubmit={requestSaveProduct}>
+                            <div className="space-y-4">
+                                <Field label="Product Name" htmlFor="product-name">
+                                    <Input
+                                        id="product-name"
                                         required
                                         type="text"
                                         placeholder="Official Match Ball, Training Bibs"
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className={formInputClass}
                                     />
-                                </div>
+                                </Field>
 
-                                <div className="space-y-1">
-                                    <label className={formLabelClass}>Description</label>
-                                    <textarea
+                                <Field label="Description" htmlFor="product-description">
+                                    <Textarea
+                                        id="product-description"
                                         value={formData.description}
                                         onChange={e => setFormData({ ...formData, description: e.target.value })}
                                         rows={2}
-                                        className={`${formInputClass} resize-none`}
                                     />
-                                </div>
+                                </Field>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="space-y-1">
-                                        <label className={formLabelClass}>Price (₦)</label>
-                                        <input
+                                    <Field label="Price (₦)" htmlFor="product-price">
+                                        <Input
+                                            id="product-price"
                                             required
                                             type="number"
                                             min="0"
                                             value={formData.price}
                                             onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
-                                            className={formInputClass}
                                         />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={formLabelClass}>Quantity</label>
-                                        <input
+                                    </Field>
+                                    <Field label="Quantity" htmlFor="product-quantity">
+                                        <Input
+                                            id="product-quantity"
                                             required
                                             type="number"
                                             min="0"
                                             value={formData.quantity}
                                             onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                                            className={formInputClass}
                                         />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={formLabelClass}>Threshold</label>
-                                        <input
+                                    </Field>
+                                    <Field label="Threshold" htmlFor="product-threshold">
+                                        <Input
+                                            id="product-threshold"
                                             required
                                             type="number"
                                             min="0"
                                             value={formData.threshold}
                                             onChange={e => setFormData({ ...formData, threshold: Number(e.target.value) })}
-                                            className={formInputClass}
                                         />
-                                    </div>
+                                    </Field>
                                 </div>
 
-                                <div className="flex items-center gap-2 pt-2">
-                                    <input
-                                        type="checkbox"
+                                <div className="pt-2">
+                                    <Checkbox
                                         id="is_active"
+                                        label="Active Stock Item"
                                         checked={formData.is_active}
                                         onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                                        className="w-4 h-4 text-sffl-red bg-gray-100 border-gray-300 rounded focus:ring-sffl-red dark:bg-gray-700 dark:border-gray-600"
                                     />
-                                    <label htmlFor="is_active" className="flex items-center min-h-11 text-sm font-medium text-gray-900 dark:text-gray-300 select-none cursor-pointer">
-                                        Active Stock Item
-                                    </label>
                                 </div>
                             </div>
 
-                            <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row gap-3 bg-gray-50 dark:bg-gray-800/90">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseForm}
-                                    className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold transition-colors min-h-11"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={busy}
-                                    className="flex-1 px-4 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold transition-colors shadow-sm min-h-11 disabled:opacity-50"
-                                >
-                                    {isEditing ? 'Save Changes' : 'Create Product'}
-                                </button>
-                            </div>
                         </form>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <ConfirmDialog

@@ -1,10 +1,18 @@
 import { Loader } from '../../components/ui/Loader';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import {
+    ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, FolderIcon, PencilSquareIcon, PlusIcon, TrashIcon,
+} from '@heroicons/react/24/outline';
 import {
     getGallery, createGallery, updateGallery, deleteGallery, getCompetitions,
     type Gallery, type CreateGalleryPayload, type Competition,
 } from '../../services/api';
+import { Button, Field, Input, Modal, Select } from '../../components/ui';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 interface FormData {
     competition_id: string;
@@ -13,6 +21,9 @@ interface FormData {
     players_photo_url: string;
     fans_photo_url: string;
 }
+
+// Saves and deletes go through the confirm dialog first.
+type PendingAction = { kind: 'save' } | { kind: 'delete'; gallery: Gallery };
 
 const emptyForm: FormData = { competition_id: '', game_week: '', date: '', players_photo_url: '', fans_photo_url: '' };
 const PAGE_SIZE = 9;
@@ -43,7 +54,8 @@ export const AdminGallery = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState<FormData>(emptyForm);
     const [saving, setSaving] = useState(false);
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
     useEffect(() => { setPage(1); }, [filterComp]);
 
@@ -76,37 +88,97 @@ export const AdminGallery = () => {
             };
             if (editingId) await updateGallery(editingId, payload);
             else await createGallery(payload);
+            toast.success(editingId ? 'Gallery updated' : 'Gallery created');
             queryClient.invalidateQueries({ queryKey: ['adminGalleries'] });
             setShowModal(false);
-        } catch (err) { console.error(err); alert('Failed to save gallery'); }
-        setSaving(false);
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to save gallery');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = async (id: string) => {
+        setDeleting(true);
         try {
             await deleteGallery(id);
+            toast.success('Gallery deleted');
             queryClient.invalidateQueries({ queryKey: ['adminGalleries'] });
-            setDeleteConfirm(null);
-        } catch (err) { console.error(err); alert('Failed to delete'); }
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to delete gallery');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    // The handlers report their own errors, so the dialog always closes afterwards.
+    const confirmPendingAction = async () => {
+        if (!pendingAction) return;
+        if (pendingAction.kind === 'save') await handleSave();
+        else await handleDelete(pendingAction.gallery.id);
+        setPendingAction(null);
     };
 
     const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
 
+    const competitionName = (id: string) => competitions.find(c => c.id === id)?.name || 'None';
+
+    const dialog = pendingAction?.kind === 'delete'
+        ? {
+            title: 'Delete this gallery?',
+            description: 'This action cannot be undone.',
+            confirmLabel: 'Delete Gallery',
+            tone: 'warning' as const,
+            icon: TrashIcon,
+            body: (
+                <ConfirmSummary rows={[
+                    ['Game week', pendingAction.gallery.game_week],
+                    ['Date', pendingAction.gallery.date],
+                    ['Competition', pendingAction.gallery.competition?.name || 'None'],
+                ]} />
+            ),
+        }
+        : {
+            title: editingId ? 'Save changes to this gallery?' : 'Create this gallery?',
+            description: undefined,
+            confirmLabel: editingId ? 'Save Changes' : 'Create Gallery',
+            tone: 'info' as const,
+            icon: editingId ? PencilSquareIcon : CheckCircleIcon,
+            body: (
+                <ConfirmSummary rows={[
+                    ['Competition', competitionName(form.competition_id)],
+                    ['Game week', form.game_week],
+                    ['Date', form.date],
+                    ['Players folder', form.players_photo_url],
+                    ['Fans folder', form.fans_photo_url],
+                ]} />
+            ),
+        };
+
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Gallery Management</h1>
-                <div className="flex flex-wrap items-center gap-2">
-                    <select
-                        value={filterComp}
-                        onChange={(e) => setFilterComp(e.target.value)}
-                        className="min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm font-medium"
-                    >
-                        <option value={ALL}>All competitions</option>
-                        {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Gallery</button>
-                </div>
+            <DashboardPageHeader
+                title="Gallery"
+                subtitle="Photo folders for each game week, linked to their competition."
+                actions={
+                    <Button icon={PlusIcon} onClick={openCreate} className="w-full sm:w-auto">
+                        Add Gallery
+                    </Button>
+                }
+            />
+
+            <div>
+                <Select
+                    aria-label="Filter by competition"
+                    value={filterComp}
+                    onChange={(e) => setFilterComp(e.target.value)}
+                    className="w-full sm:w-72"
+                >
+                    <option value={ALL}>All competitions</option>
+                    {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
             </div>
 
             {loading ? (
@@ -119,7 +191,9 @@ export const AdminGallery = () => {
                                 <div className="p-5 flex-1">
                                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100 dark:border-gray-700">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-xl">📁</div>
+                                            <div className="w-10 h-10 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-sffl-navy dark:text-white">
+                                                <FolderIcon className="w-5 h-5" aria-hidden="true" />
+                                            </div>
                                             <div>
                                                 <h3 className="font-bold text-lg text-sffl-navy dark:text-white leading-tight">{g.game_week}</h3>
                                                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{g.date}</span>
@@ -159,26 +233,34 @@ export const AdminGallery = () => {
                                 </div>
                                 <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
                                     <div className="flex gap-2">
-                                        <button onClick={() => openEdit(g)} className="flex-1 text-center px-4 py-2 min-h-[44px] bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-lg shadow-sm hover:shadow-md font-bold text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95">Edit</button>
-                                        <button onClick={() => setDeleteConfirm(g.id)} className="flex-1 text-center px-4 py-2 min-h-[44px] bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 rounded-lg shadow-sm hover:shadow-md font-bold text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>
+                                        <Button variant="secondary" onClick={() => openEdit(g)} className="flex-1">Edit</Button>
+                                        <Button variant="danger" onClick={() => setPendingAction({ kind: 'delete', gallery: g })} className="flex-1">Delete</Button>
                                     </div>
                                 </div>
                             </div>
                         ))}
                         {galleries.length === 0 && (
                             <div className="col-span-full text-center py-20 text-gray-400">
-                                <div className="text-5xl mb-4">📁</div>
+                                <FolderIcon className="w-12 h-12 mx-auto mb-4" aria-hidden="true" />
                                 <p className="font-medium">No galleries yet. Click "Add Gallery" to create one.</p>
                             </div>
                         )}
                     </div>
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             <p className="text-sm text-gray-500 dark:text-gray-400">Page {page} of {totalPages}</p>
-                            <div className="flex gap-2">
-                                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">← Prev</button>
-                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => { const s = Math.max(1, Math.min(page - 2, totalPages - 4)); const p = s + i; if (p > totalPages) return null; return <button key={p} onClick={() => setPage(p)} className={`px-4 py-2 min-h-[44px] rounded-lg font-bold text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 ${p === page ? 'bg-sffl-red text-white shadow-sm border-transparent' : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'}`}>{p}</button>; })}
-                                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">Next →</button>
+                            <div className="flex flex-wrap gap-2">
+                                <Button variant="secondary" icon={ArrowLeftIcon} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>
+                                    Prev
+                                </Button>
+                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => { const s = Math.max(1, Math.min(page - 2, totalPages - 4)); const p = s + i; if (p > totalPages) return null; return (
+                                    <Button key={p} variant={p === page ? 'primary' : 'secondary'} onClick={() => setPage(p)} aria-current={p === page ? 'page' : undefined}>
+                                        {p}
+                                    </Button>
+                                ); })}
+                                <Button variant="secondary" icon={ArrowRightIcon} iconPosition="right" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                                    Next
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -186,47 +268,57 @@ export const AdminGallery = () => {
             )}
 
             {showModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
-                            <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Gallery' : 'New Gallery'}</h2>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
-                        </div>
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Competition</label>
-                                <select value={form.competition_id} onChange={e => set('competition_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px]">
-                                    <option value="">— None —</option>
+                <Modal
+                    open
+                    onClose={() => setShowModal(false)}
+                    title={editingId ? 'Edit Gallery' : 'New Gallery'}
+                    maxWidth="lg"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+                            <Button onClick={() => setPendingAction({ kind: 'save' })} disabled={saving} loading={saving}>
+                                {editingId ? 'Update Gallery' : 'Create Gallery'}
+                            </Button>
+                        </>
+                    }
+                >
+                    <div className="space-y-4">
+                            <Field label="Competition" htmlFor="gallery-competition">
+                                <Select id="gallery-competition" value={form.competition_id} onChange={e => set('competition_id', e.target.value)}>
+                                    <option value="">None</option>
                                     {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
+                                </Select>
+                            </Field>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Game Week *</label><input type="text" value={form.game_week} onChange={e => set('game_week', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. Week 5 or Custom Day" /></div>
-                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Date *</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" /></div>
+                                <Field label="Game Week *" htmlFor="gallery-game-week">
+                                    <Input id="gallery-game-week" type="text" value={form.game_week} onChange={e => set('game_week', e.target.value)} placeholder="e.g. Week 5 or Custom Day" />
+                                </Field>
+                                <Field label="Date *" htmlFor="gallery-date">
+                                    <Input id="gallery-date" type="date" value={form.date} onChange={e => set('date', e.target.value)} />
+                                </Field>
                             </div>
-                            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Players Folder Link *</label><input type="url" value={form.players_photo_url} onChange={e => set('players_photo_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-sffl-red" placeholder="https://drive.google.com/..." /></div>
-                            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Fans Folder Link *</label><input type="url" value={form.fans_photo_url} onChange={e => set('fans_photo_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-sffl-red" placeholder="https://drive.google.com/..." /></div>
+                            <Field label="Players Folder Link *" htmlFor="gallery-players-url">
+                                <Input id="gallery-players-url" type="url" value={form.players_photo_url} onChange={e => set('players_photo_url', e.target.value)} placeholder="https://drive.google.com/..." />
+                            </Field>
+                            <Field label="Fans Folder Link *" htmlFor="gallery-fans-url">
+                                <Input id="gallery-fans-url" type="url" value={form.fans_photo_url} onChange={e => set('fans_photo_url', e.target.value)} placeholder="https://drive.google.com/..." />
+                            </Field>
                         </div>
-                        <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/90">
-                            <button onClick={() => setShowModal(false)} className="px-5 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-200 transition-colors">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 min-h-[44px] bg-sffl-red text-sm text-white font-bold rounded-xl shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update Gallery' : 'Create Gallery'}</button>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
-            {deleteConfirm && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" data-dialog onClick={() => setDeleteConfirm(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Gallery?</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
-                        <div className="flex justify-end gap-2">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 min-h-[44px] bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 transition-colors">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm shadow-sm transition-colors">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={dialog.title}
+                description={dialog.description}
+                body={dialog.body}
+                confirmLabel={dialog.confirmLabel}
+                tone={dialog.tone}
+                icon={dialog.icon}
+                pending={saving || deleting}
+                onConfirm={confirmPendingAction}
+                onCancel={() => setPendingAction(null)}
+            />
         </div>
     );
 };

@@ -8,9 +8,7 @@ import { getApiErrorMessage } from '../../utils/apiError';
 import { ROLE_LABELS } from '../../components/dashboard/dashboardNav';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-
-const inputClass =
-    'w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 min-h-11 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors text-sm font-semibold';
+import { Button, Field, Input } from '../../components/ui';
 
 export const MyProfilePage = () => {
     const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
@@ -60,56 +58,37 @@ export const MyProfilePage = () => {
                     Account Details
                 </div>
 
-                <div>
-                    <label htmlFor="profile-email" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Email
-                    </label>
-                    <input
-                        id="profile-email"
-                        type="email"
-                        value={user?.email ?? ''}
-                        disabled
-                        className={`${inputClass} opacity-60 cursor-not-allowed`}
-                    />
-                </div>
+                <Field label="Email" htmlFor="profile-email">
+                    <Input id="profile-email" type="email" value={user?.email ?? ''} disabled />
+                </Field>
 
-                <div>
-                    <label htmlFor="profile-fullname" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Full Name *
-                    </label>
-                    <input
+                <Field label="Full Name *" htmlFor="profile-fullname">
+                    <Input
                         id="profile-fullname"
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className={inputClass}
                         placeholder="Full Name"
                     />
-                </div>
+                </Field>
 
-                <div>
-                    <label htmlFor="profile-phone" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Phone
-                    </label>
-                    <input
+                <Field label="Phone" htmlFor="profile-phone">
+                    <Input
                         id="profile-phone"
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className={inputClass}
                         placeholder="Phone Number"
                     />
-                </div>
+                </Field>
 
                 <div className="flex justify-end">
-                    <button
-                        type="button"
-                        onClick={() => setConfirming(true)}
+                    <Button
                         disabled={!dirty || !fullName.trim()}
-                        className="px-5 py-2.5 min-h-11 bg-sffl-red hover:bg-red-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => setConfirming(true)}
                     >
                         Save Changes
-                    </button>
+                    </Button>
                 </div>
             </div>
 

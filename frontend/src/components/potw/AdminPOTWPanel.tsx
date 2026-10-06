@@ -25,6 +25,7 @@ import {
     type POTWPoll,
     type TOTWPlayer,
 } from '../../services/api';
+import { Button, Field, Input, Select } from '../ui';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { POTWCountdown } from './POTWCountdown';
@@ -323,15 +324,14 @@ export const AdminPOTWPanel = ({ totwId, canManage }: AdminPOTWPanelProps) => {
                                 label="Voting closes in"
                                 onElapsed={() => void queryClient.invalidateQueries({ queryKey: potwPollQueryKey(totwId) })}
                             />
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
+                                icon={StopCircleIcon}
                                 disabled={!canManage}
                                 onClick={() => setAction({ kind: 'endNow' })}
-                                className="inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
                             >
-                                <StopCircleIcon className="w-5 h-5" aria-hidden="true" />
                                 End voting now
-                            </button>
+                            </Button>
                         </div>
                     )}
 
@@ -394,41 +394,37 @@ export const AdminPOTWPanel = ({ totwId, canManage }: AdminPOTWPanelProps) => {
 
                     {/* ── Voting window ────────────────────────────── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label className="block">
-                            <span className="text-sm font-black text-gray-900 dark:text-white">Voting opens</span>
-                            <span className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Leave empty to open as soon as you save.</span>
-                            <input
+                        <Field label="Voting opens" htmlFor="potw-opens" hint="Leave empty to open as soon as you save.">
+                            <Input
+                                id="potw-opens"
                                 type="datetime-local"
                                 value={opensAt}
                                 disabled={!canManage || poll?.status === 'open' || poll?.status === 'closed'}
                                 onChange={(e) => setOpensAt(e.target.value)}
-                                className="w-full min-h-11 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm text-gray-900 dark:text-white disabled:opacity-60"
                             />
-                        </label>
-                        <label className="block">
-                            <span className="text-sm font-black text-gray-900 dark:text-white">Voting closes</span>
-                            <span className="block text-xs text-gray-500 dark:text-gray-400 mb-1">The countdown fans see runs to this time.</span>
-                            <input
+                        </Field>
+                        <Field label="Voting closes" htmlFor="potw-closes" hint="The countdown fans see runs to this time.">
+                            <Input
+                                id="potw-closes"
                                 type="datetime-local"
                                 value={closesAt}
                                 disabled={!canManage}
                                 onChange={(e) => setClosesAt(e.target.value)}
-                                className="w-full min-h-11 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm text-gray-900 dark:text-white disabled:opacity-60"
                             />
-                        </label>
+                        </Field>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Run for:</span>
                         {DURATIONS.map(([label, hours]) => (
-                            <button
+                            <Button
                                 key={label}
-                                type="button"
+                                size="sm"
+                                variant="secondary"
                                 disabled={!canManage}
                                 onClick={() => setDuration(hours)}
-                                className="min-h-11 px-3 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
                             >
                                 {label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                     {poll?.status === 'closed' && poll.winner_source !== 'ADMIN' && (
@@ -439,29 +435,26 @@ export const AdminPOTWPanel = ({ totwId, canManage }: AdminPOTWPanelProps) => {
 
                     <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-700 pt-4">
                         {poll ? (
-                            <button
-                                type="button"
+                            <Button
+                                variant="danger"
+                                icon={TrashIcon}
                                 disabled={!canManage}
                                 onClick={() => setAction({ kind: 'delete' })}
-                                className="inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
                             >
-                                <TrashIcon className="w-5 h-5" aria-hidden="true" />
                                 Delete vote
-                            </button>
+                            </Button>
                         ) : (
                             <span />
                         )}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             {formError && canManage && <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">{formError}</span>}
-                            <button
-                                type="button"
+                            <Button
                                 disabled={!canManage || Boolean(formError)}
                                 title={canManage ? undefined : 'View-only access to Team of the Week'}
                                 onClick={() => setAction({ kind: 'save' })}
-                                className="inline-flex items-center justify-center gap-1.5 min-h-11 px-5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-sm font-black text-white shadow-md disabled:opacity-50"
                             >
                                 {poll ? 'Save vote changes' : 'Start fan vote'}
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
@@ -480,12 +473,12 @@ export const AdminPOTWPanel = ({ totwId, canManage }: AdminPOTWPanelProps) => {
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
-                                <select
+                                <Select
                                     value={overridePick}
                                     disabled={!canManage}
                                     onChange={(e) => setOverridePick(e.target.value)}
                                     aria-label="Player to make Player of the Week"
-                                    className="min-h-11 flex-1 min-w-0 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm text-gray-900 dark:text-white"
+                                    className="flex-1 min-w-0"
                                 >
                                     <option value="">Choose a player from this lineup</option>
                                     {lineup.map((p) => (
@@ -494,25 +487,25 @@ export const AdminPOTWPanel = ({ totwId, canManage }: AdminPOTWPanelProps) => {
                                             {nominees.includes(p.player_id) ? ' (nominee)' : ''}
                                         </option>
                                     ))}
-                                </select>
-                                <button
-                                    type="button"
+                                </Select>
+                                <Button
+                                    variant="navy"
+                                    className="shrink-0"
                                     disabled={!canManage || !overridePick}
                                     onClick={() => setAction({ kind: 'override', playerId: overridePick })}
-                                    className="inline-flex items-center justify-center min-h-11 px-4 rounded-xl bg-sffl-navy text-sm font-bold text-white disabled:opacity-50"
                                 >
                                     Set as Player of the Week
-                                </button>
+                                </Button>
                                 {isOverridden && (
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
+                                        className="shrink-0"
+                                        icon={ArrowUturnLeftIcon}
                                         disabled={!canManage}
                                         onClick={() => setAction({ kind: 'clearOverride' })}
-                                        className="inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
                                     >
-                                        <ArrowUturnLeftIcon className="w-5 h-5" aria-hidden="true" />
                                         Use the fan vote
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </div>

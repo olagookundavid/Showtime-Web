@@ -7,7 +7,6 @@ import {
   UsersIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  XMarkIcon,
   MagnifyingGlassIcon,
   RocketLaunchIcon,
   SparklesIcon,
@@ -32,6 +31,7 @@ import {
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import type { ComponentType, SVGProps } from "react";
 import { FemaleIcon } from "../../components/icons/FemaleIcon";
+import { Button, Field, Input, Select } from "../../components/ui";
 import { Modal } from "../../components/ui/Modal";
 import { Spinner } from "../../components/ui/Spinner";
 import {
@@ -1773,51 +1773,39 @@ export function FantasySquadBuilder() {
             }}
             className="mt-6 space-y-4"
           >
-            <div>
-              <label
-                htmlFor="join-team-name-input"
-                className="block text-xs font-black uppercase text-gray-500 dark:text-gray-400 mb-1.5 tracking-wider"
-              >
-                Team Name (3–40 characters)
-              </label>
-              <input
+            <Field
+              label="Team Name (3–40 characters)"
+              htmlFor="join-team-name-input"
+              hint={
+                trimmedJoin.length === 0
+                  ? "Team names must be unique across the season."
+                  : joinValid
+                    ? `${trimmedJoin.length}/40 characters • Must be unique in this season`
+                    : "Team name must be between 3 and 40 characters."
+              }
+            >
+              <Input
                 id="join-team-name-input"
                 type="text"
                 value={joinTeamNameInput || initialDefault}
                 onChange={(e) => setJoinTeamNameInput(e.target.value)}
                 placeholder="e.g. Lagos Blitz"
                 maxLength={40}
-                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3.5 text-base font-bold text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red transition-all"
               />
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
-                {trimmedJoin.length === 0
-                  ? "Team names must be unique across the season."
-                  : joinValid
-                    ? `${trimmedJoin.length}/40 characters • Must be unique in this season`
-                    : "Team name must be between 3 and 40 characters."}
-              </p>
-            </div>
+            </Field>
 
-            <button
+            <Button
               type="submit"
-              disabled={!joinValid || joinMutation.isPending}
-              className="w-full min-h-11 py-3.5 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase tracking-wider transition shadow-md cursor-pointer flex items-center justify-center gap-2"
+              size="lg"
+              fullWidth
+              variant="primary"
+              disabled={!joinValid}
+              loading={joinMutation.isPending}
+              icon={RocketLaunchIcon}
+              iconPosition="right"
             >
-              {joinMutation.isPending ? (
-                <>
-                  <ArrowPathIcon
-                    className="w-4 h-4 animate-spin"
-                    aria-hidden="true"
-                  />
-                  <span>Entering Season…</span>
-                </>
-              ) : (
-                <>
-                  <span>Confirm Name &amp; Start Building</span>
-                  <RocketLaunchIcon className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              {joinMutation.isPending ? "Entering Season…" : "Confirm Name & Start Building"}
+            </Button>
           </form>
         </div>
       </div>
@@ -1912,22 +1900,19 @@ export function FantasySquadBuilder() {
               <span className="min-w-0 wrap-break-word text-base sm:text-2xl font-black italic tracking-tight text-white uppercase drop-shadow-sm">
                 {teamName || getDefaultTeamName(user?.name)}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={PencilSquareIcon}
                 onClick={() => {
                   setEditModalNameInput(
                     teamName || getDefaultTeamName(user?.name),
                   );
                   setShowEditNameModal(true);
                 }}
-                className="inline-flex items-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold border border-white/20 transition cursor-pointer shadow-sm"
               >
-                <PencilSquareIcon
-                  className="w-3.5 h-3.5 text-gray-300"
-                  aria-hidden="true"
-                />
-                <span>Edit Name</span>
-              </button>
+                Edit Name
+              </Button>
             </div>
           </div>
 
@@ -2352,13 +2337,9 @@ export function FantasySquadBuilder() {
 
             {/* Footer */}
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setActionSlot(null)}
-                className="min-h-11 px-4 py-2 rounded-xl bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-600 transition cursor-pointer"
-              >
+              <Button variant="secondary" size="sm" onClick={() => setActionSlot(null)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -2409,29 +2390,19 @@ export function FantasySquadBuilder() {
             )}
           </div>
 
-          <button
+          <Button
+            size="lg"
+            variant={isPublished ? "success" : "primary"}
+            className="w-full lg:w-auto shrink-0"
+            disabled={!calculations.isValid}
+            loading={saveMutation.isPending}
+            icon={RocketLaunchIcon}
             onClick={() => persistSquad(squad, { publish: true })}
-            disabled={!calculations.isValid || saveMutation.isPending}
-            className={`w-full lg:w-auto shrink-0 px-7 py-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 ${
-              !calculations.isValid
-                ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600"
-                : isPublished
-                  ? "bg-white dark:bg-gray-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 cursor-pointer"
-                  : "bg-sffl-red hover:bg-[#A52323] text-white shadow-lg shadow-sffl-red/30 cursor-pointer"
-            }`}
           >
-            {saveMutation.isPending ? (
-              <ArrowPathIcon
-                className="w-4 h-4 animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <RocketLaunchIcon className="w-4 h-4" />
-            )}
             {isPublished
               ? "Republish changes"
               : `Publish Lineup (${calculations.filledCount}/14)`}
-          </button>
+          </Button>
         </div>
 
         {/* The requirements, live, directly under the button that is
@@ -2535,15 +2506,16 @@ export function FantasySquadBuilder() {
           {mySquad &&
             mySquad.squad_size < mySquad.squad_max &&
             !marketClosed && (
-              <button
+              <Button
+                size="sm"
+                icon={PlusCircleIcon}
                 onClick={() => {
                   setShowBenchMarket(true);
                   setMarketSearch("");
                 }}
-                className="px-3.5 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-sm"
               >
-                <PlusCircleIcon className="w-3.5 h-3.5" /> Add Reserve
-              </button>
+                Add Reserve
+              </Button>
             )}
         </div>
 
@@ -2553,17 +2525,19 @@ export function FantasySquadBuilder() {
             {mySquad &&
               mySquad.squad_size < mySquad.squad_max &&
               !marketClosed && (
-                <button
-                  type="button"
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="ml-2"
+                  icon={ArrowRightIcon}
+                  iconPosition="right"
                   onClick={() => {
                     setShowBenchMarket(true);
                     setMarketSearch("");
                   }}
-                  className="ml-2 inline-flex items-center gap-1 min-h-11 text-sffl-red font-bold hover:underline cursor-pointer"
                 >
                   Sign bench depth
-                  <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
+                </Button>
               )}
           </div>
         ) : (
@@ -2685,41 +2659,38 @@ export function FantasySquadBuilder() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                     {isReserveInactive || isClubReserve ? (
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         disabled
                         title={
                           isClubReserve
                             ? "On their club's reserve list — can sit on the bench but not start"
                             : "Cannot start an inactive or deleted player"
                         }
-                        className="min-h-11 px-3.5 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 font-black text-[10px] uppercase tracking-wider cursor-not-allowed border border-gray-300 dark:border-gray-600"
                       >
                         {isClubReserve ? "Bench only" : "Inactive"}
-                      </button>
+                      </Button>
                     ) : (
                       hasOpenSlot && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="success"
+                          size="sm"
                           onClick={() => handleStartReserve(p)}
-                          className="min-h-11 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider transition cursor-pointer shadow-sm"
                         >
                           Start
-                        </button>
+                        </Button>
                       )
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setConfirmSell(p)}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={MinusCircleIcon}
                       disabled={!!marketClosed}
-                      className="min-h-11 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-600 hover:text-white text-gray-700 dark:text-gray-200 font-black text-[10px] uppercase flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      onClick={() => setConfirmSell(p)}
                     >
-                      <MinusCircleIcon
-                        className="w-3.5 h-3.5"
-                        aria-hidden="true"
-                      />{" "}
                       Sell {formatFantasyPrice(p.sell_price)}
-                    </button>
+                    </Button>
                     {marketClosed && (
                       <span className="w-full text-[10px] text-gray-500 dark:text-gray-400">
                         Selling is paused while the market is closed.
@@ -2737,84 +2708,61 @@ export function FantasySquadBuilder() {
                 PLAYER SELECTION MODAL (For starting 14 slots)
             ────────────────────────────────────────────────────────────────── */}
       {activeModalSlot && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none"
-          data-dialog
+        <Modal
+          open
+          onClose={() => {
+            setActiveModalSlot(null);
+            setMarketTeamFilter("");
+            setMarketGenderFilter("");
+          }}
+          title={activeModalSlot.label}
+          subtitle={`Selecting for ${activeModalSlot.slot}`}
+          maxWidth="2xl"
         >
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
-            {/* Modal Header */}
-            <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between gap-3 shrink-0">
-              <div className="min-w-0">
-                <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">
-                  Selecting for {activeModalSlot.slot}
-                </span>
-                <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                  {activeModalSlot.label}
-                </h3>
-                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                    {formatPositions(activeModalSlot.allowedPositions)}
-                  </span>
-                  {activeModalSlot.requiredGender && (
-                    <span
-                      className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
-                        activeModalSlot.requiredGender === "F"
-                          ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
-                          : "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
-                      }`}
-                    >
-                      {activeModalSlot.requiredGender === "F"
-                        ? "Women only"
-                        : "Men only"}
-                    </span>
-                  )}
-                  {/* Liquid transfer funds available for signing players */}
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                    {formatFantasyPrice(mySquad?.bank ?? 0)} in bank
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setActiveModalSlot(null);
-                  setMarketTeamFilter("");
-                  setMarketGenderFilter("");
-                }}
-                type="button"
-                aria-label="Close player list"
-                className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition cursor-pointer"
+          {/* Slot rules and funds */}
+          <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+              {formatPositions(activeModalSlot.allowedPositions)}
+            </span>
+            {activeModalSlot.requiredGender && (
+              <span
+                className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
+                  activeModalSlot.requiredGender === "F"
+                    ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+                    : "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                }`}
               >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
+                {activeModalSlot.requiredGender === "F"
+                  ? "Women only"
+                  : "Men only"}
+              </span>
+            )}
+            {/* Liquid transfer funds available for signing players */}
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+              {formatFantasyPrice(mySquad?.bank ?? 0)} in bank
+            </span>
+          </div>
 
             {/* Search Bar & Sort Filters */}
             <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 space-y-2.5">
               <div className="flex flex-col min-[400px]:flex-row gap-2">
                 <div className="relative flex-1 min-w-0">
-                  <label htmlFor="slot-player-search" className="sr-only">
-                    Search by player name
-                  </label>
-                  <MagnifyingGlassIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
+                  <Input
                     id="slot-player-search"
                     type="text"
+                    icon={MagnifyingGlassIcon}
                     value={marketSearch}
                     onChange={(e) => setMarketSearch(e.target.value)}
                     placeholder="Search by player name..."
                     aria-label="Search by player name"
-                    className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                   />
                 </div>
-                <label htmlFor="slot-team-filter" className="sr-only">
-                  Filter by team
-                </label>
-                <select
+                <Select
                   id="slot-team-filter"
                   value={marketTeamFilter}
                   onChange={(e) => setMarketTeamFilter(e.target.value)}
                   aria-label="Filter by team"
-                  className="w-full min-[400px]:w-auto min-[400px]:max-w-38 min-h-11 shrink-0 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                  className="w-full min-[400px]:w-auto min-[400px]:max-w-38 shrink-0"
                 >
                   <option value="">All teams</option>
                   {marketTeams.map((t) => (
@@ -2822,11 +2770,8 @@ export function FantasySquadBuilder() {
                       {t.name}
                     </option>
                   ))}
-                </select>
-                <label htmlFor="slot-gender-filter" className="sr-only">
-                  Filter by gender
-                </label>
-                <select
+                </Select>
+                <Select
                   id="slot-gender-filter"
                   value={activeModalSlot.requiredGender || marketGenderFilter}
                   disabled={!!activeModalSlot.requiredGender}
@@ -2834,7 +2779,7 @@ export function FantasySquadBuilder() {
                     setMarketGenderFilter(e.target.value as "" | "F" | "M")
                   }
                   aria-label="Filter by gender"
-                  className="w-full min-[400px]:w-auto min-[400px]:max-w-34 min-h-11 shrink-0 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full min-[400px]:w-auto min-[400px]:max-w-34 shrink-0"
                 >
                   {activeModalSlot.requiredGender ? (
                     <option value={activeModalSlot.requiredGender}>
@@ -2849,7 +2794,7 @@ export function FantasySquadBuilder() {
                       <option value="M">Men</option>
                     </>
                   )}
-                </select>
+                </Select>
               </div>
 
               {/* Sort Chips */}
@@ -2858,20 +2803,17 @@ export function FantasySquadBuilder() {
                   Sort:
                 </span>
                 {MARKET_SORT_OPTIONS.map((opt) => (
-                  <button
+                  <Button
                     key={opt.key}
-                    type="button"
-                    onClick={() => setMarketSort(opt.key)}
+                    size="sm"
+                    variant={marketSort === opt.key ? "navy" : "secondary"}
+                    className="shrink-0"
+                    icon={opt.icon}
                     aria-pressed={marketSort === opt.key}
-                    className={`min-h-11 px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1 cursor-pointer ${
-                      marketSort === opt.key
-                        ? "bg-sffl-navy text-white dark:bg-sffl-red dark:text-white shadow-sm"
-                        : "bg-white dark:bg-gray-700/70 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600"
-                    }`}
+                    onClick={() => setMarketSort(opt.key)}
                   >
-                    <opt.icon className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>{opt.label}</span>
-                  </button>
+                    {opt.label}
+                  </Button>
                 ))}
               </div>
             </div>
@@ -2967,7 +2909,9 @@ export function FantasySquadBuilder() {
                               </span>
                             )}
                           </div>
-                          <button
+                          <Button
+                            size="sm"
+                            variant="success"
                             onClick={() =>
                               handleSelectPlayer({
                                 player_id: p.player_id,
@@ -3000,16 +2944,10 @@ export function FantasySquadBuilder() {
                                   ? "You can only have a maximum of 1 All-Rounder in defence"
                                   : undefined
                             }
-                            className={`shrink-0 min-h-11 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
-                              isAlreadyPicked ||
-                              clubExceededForOwned ||
-                              defAllrounderExceededForOwned
-                                ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                : "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm"
-                            }`}
+                            className="shrink-0"
                           >
                             {isAlreadyPicked ? "Picked" : "Field"}
-                          </button>
+                          </Button>
                         </div>
                       );
                     })
@@ -3178,7 +3116,9 @@ export function FantasySquadBuilder() {
                           {/* Signing and fielding in one action: a
                                                     manager opening this slot wants the player in
                                                     it, not merely in the squad. */}
-                          <button
+                          <Button
+                            size="sm"
+                            variant="primary"
                             onClick={() => buyAndSelect(p)}
                             disabled={
                               isAlreadyPicked ||
@@ -3205,24 +3145,11 @@ export function FantasySquadBuilder() {
                                           ? "Not enough in the bank"
                                           : undefined
                             }
-                            className={`mt-1 min-h-11 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
-                              isAlreadyPicked ||
-                              !affordable ||
-                              squadFull ||
-                              clubExceeded ||
-                              defAllrounderExceeded ||
-                              mktClosed ||
-                              p.price <= 0
-                                ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                : "bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm"
-                            }`}
+                            className="mt-1"
+                            loading={buyMutation.isPending}
                           >
-                            {isAlreadyPicked
-                              ? "Picked"
-                              : buyMutation.isPending
-                                ? "Signing…"
-                                : "Sign & field"}
-                          </button>
+                            {isAlreadyPicked ? "Picked" : "Sign & field"}
+                          </Button>
                         </div>
                       </div>
                     );
@@ -3236,78 +3163,54 @@ export function FantasySquadBuilder() {
                 </>
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ──────────────────────────────────────────────────────────────────
                 BENCH MARKET MODAL (for signing reserve depth)
             ────────────────────────────────────────────────────────────────── */}
       {showBenchMarket && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none"
-          data-dialog
+        <Modal
+          open
+          onClose={() => {
+            setShowBenchMarket(false);
+            setMarketSearch("");
+            setMarketTeamFilter("");
+            setBenchPositionFilter("");
+            setMarketGenderFilter("");
+          }}
+          title="Add Reserve Player"
+          subtitle="Sign for Bench"
+          maxWidth="2xl"
         >
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between gap-3 shrink-0">
-              <div className="min-w-0">
-                <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">
-                  Sign for Bench
-                </span>
-                <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                  Add Reserve Player
-                </h3>
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 mt-1 inline-block">
-                  {formatFantasyPrice(mySquad?.bank ?? 0)} to spend ·{" "}
-                  {mySquad?.squad_size ?? 0}/{mySquad?.squad_max ?? 19} squad
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setShowBenchMarket(false);
-                  setMarketSearch("");
-                  setMarketTeamFilter("");
-                  setBenchPositionFilter("");
-                  setMarketGenderFilter("");
-                }}
-                type="button"
-                aria-label="Close player list"
-                className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition cursor-pointer"
-              >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
+            <span className="mb-4 inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+              {formatFantasyPrice(mySquad?.bank ?? 0)} to spend ·{" "}
+              {mySquad?.squad_size ?? 0}/{mySquad?.squad_max ?? 19} squad
+            </span>
 
             <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 space-y-2.5">
               <div className="flex gap-2">
-                <div className="relative flex-1 min-w-0">
-                  <label htmlFor="bench-player-search" className="sr-only">
-                    Search for a player
-                  </label>
-                  <MagnifyingGlassIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
+                <div className="flex-1 min-w-0">
+                  <Input
                     id="bench-player-search"
                     type="text"
+                    icon={MagnifyingGlassIcon}
                     value={marketSearch}
                     onChange={(e) => setMarketSearch(e.target.value)}
                     placeholder="Search for a player..."
                     aria-label="Search for a player"
-                    className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                   />
                 </div>
               </div>
 
               {/* Role, Team & Gender Filters */}
               <div className="flex flex-col min-[480px]:flex-row gap-2">
-                <label htmlFor="bench-role-filter" className="sr-only">
-                  Filter by role
-                </label>
-                <select
+                <Select
                   id="bench-role-filter"
                   value={benchPositionFilter}
                   onChange={(e) => setBenchPositionFilter(e.target.value)}
                   aria-label="Filter by role"
-                  className="flex-1 min-w-0 min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                  className="flex-1"
                 >
                   <option value="">All roles</option>
                   {marketPositions.map((pos) => (
@@ -3315,16 +3218,13 @@ export function FantasySquadBuilder() {
                       {pos}
                     </option>
                   ))}
-                </select>
-                <label htmlFor="bench-team-filter" className="sr-only">
-                  Filter by team
-                </label>
-                <select
+                </Select>
+                <Select
                   id="bench-team-filter"
                   value={marketTeamFilter}
                   onChange={(e) => setMarketTeamFilter(e.target.value)}
                   aria-label="Filter by team"
-                  className="flex-1 min-w-0 min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                  className="flex-1"
                 >
                   <option value="">All teams</option>
                   {marketTeams.map((t) => (
@@ -3332,23 +3232,20 @@ export function FantasySquadBuilder() {
                       {t.name}
                     </option>
                   ))}
-                </select>
-                <label htmlFor="bench-gender-filter" className="sr-only">
-                  Filter by gender
-                </label>
-                <select
+                </Select>
+                <Select
                   id="bench-gender-filter"
                   value={marketGenderFilter}
                   onChange={(e) =>
                     setMarketGenderFilter(e.target.value as "" | "F" | "M")
                   }
                   aria-label="Filter by gender"
-                  className="flex-1 min-w-0 min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                  className="flex-1"
                 >
                   <option value="">All genders</option>
                   <option value="F">Women</option>
                   <option value="M">Men</option>
-                </select>
+                </Select>
               </div>
 
               {/* Sort Chips */}
@@ -3357,20 +3254,17 @@ export function FantasySquadBuilder() {
                   Sort:
                 </span>
                 {MARKET_SORT_OPTIONS.map((opt) => (
-                  <button
+                  <Button
                     key={opt.key}
-                    type="button"
-                    onClick={() => setMarketSort(opt.key)}
+                    size="sm"
+                    variant={marketSort === opt.key ? "navy" : "secondary"}
+                    className="shrink-0"
+                    icon={opt.icon}
                     aria-pressed={marketSort === opt.key}
-                    className={`min-h-11 px-3 py-1 rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1 cursor-pointer ${
-                      marketSort === opt.key
-                        ? "bg-sffl-navy text-white dark:bg-sffl-red dark:text-white shadow-sm"
-                        : "bg-white dark:bg-gray-700/70 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600"
-                    }`}
+                    onClick={() => setMarketSort(opt.key)}
                   >
-                    <opt.icon className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>{opt.label}</span>
-                  </button>
+                    {opt.label}
+                  </Button>
                 ))}
               </div>
             </div>
@@ -3477,7 +3371,10 @@ export function FantasySquadBuilder() {
                         >
                           {formatFantasyPrice(p.price)}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          className="mt-1"
                           onClick={() => buyForBench(p.player_id)}
                           disabled={
                             !affordable ||
@@ -3485,22 +3382,17 @@ export function FantasySquadBuilder() {
                             buyMutation.isPending ||
                             p.price <= 0
                           }
-                          className={`mt-1 min-h-11 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
-                            !affordable || squadFull || p.price <= 0
-                              ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                              : "bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm"
-                          }`}
+                          loading={buyMutation.isPending}
                         >
-                          {buyMutation.isPending ? "Signing…" : "Sign"}
-                        </button>
+                          Sign
+                        </Button>
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ──────────────────────────────────────────────────────────────────
@@ -3531,13 +3423,9 @@ export function FantasySquadBuilder() {
               {violationModal.message}
             </p>
             <div className="flex justify-end mt-5">
-              <button
-                type="button"
-                onClick={() => setViolationModal(null)}
-                className="min-h-11 px-4 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase transition cursor-pointer"
-              >
+              <Button size="sm" onClick={() => setViolationModal(null)}>
                 OK
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -3608,14 +3496,19 @@ export function FantasySquadBuilder() {
                 );
               })()}
 
-            <div>
-              <label
-                htmlFor="edit-team-name-modal-input"
-                className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1"
-              >
-                Team Name (3–40 characters)
-              </label>
-              <input
+            <Field
+              label="Team Name (3–40 characters)"
+              htmlFor="edit-team-name-modal-input"
+              hint={
+                editModalNameInput.trim().length === 0
+                  ? "Team names must be unique across the season."
+                  : editModalNameInput.trim().length >= 3 &&
+                      editModalNameInput.trim().length <= 40
+                    ? `${editModalNameInput.trim().length}/40 characters • Must be unique in this season`
+                    : "Must be between 3 and 40 characters."
+              }
+            >
+              <Input
                 id="edit-team-name-modal-input"
                 type="text"
                 value={editModalNameInput}
@@ -3623,43 +3516,28 @@ export function FantasySquadBuilder() {
                 placeholder="Enter unique team name..."
                 maxLength={40}
                 autoFocus
-                className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
               />
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
-                {editModalNameInput.trim().length === 0
-                  ? "Team names must be unique across the season."
-                  : editModalNameInput.trim().length >= 3 &&
-                      editModalNameInput.trim().length <= 40
-                    ? `${editModalNameInput.trim().length}/40 characters • Must be unique in this season`
-                    : "Must be between 3 and 40 characters."}
-              </p>
-            </div>
+            </Field>
 
             <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                className="flex-1"
                 onClick={() => setShowEditNameModal(false)}
-                className="flex-1 min-h-11 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-bold text-xs uppercase dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600 transition cursor-pointer"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                className="flex-1"
+                loading={renameMutation.isPending}
                 disabled={
                   editModalNameInput.trim().length < 3 ||
-                  editModalNameInput.trim().length > 40 ||
-                  renameMutation.isPending
+                  editModalNameInput.trim().length > 40
                 }
-                className="flex-1 min-h-11 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer flex items-center justify-center gap-2"
               >
-                {renameMutation.isPending && (
-                  <ArrowPathIcon
-                    className="w-4 h-4 animate-spin"
-                    aria-hidden="true"
-                  />
-                )}
                 {renameMutation.isPending ? "Saving…" : "Save Name"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -3693,18 +3571,37 @@ function SellConfirmation({
   const after = have - 1;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none"
-      data-dialog
+    <Modal
+      open
+      onClose={onCancel}
+      title={`Sell ${player.name}?`}
+      maxWidth="md"
+      footer={
+        <>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="flex-1"
+            disabled={pending}
+            onClick={onCancel}
+          >
+            Keep {player.name.split(" ")[0]}
+          </Button>
+          <Button
+            size="lg"
+            className="flex-1"
+            icon={BanknotesIcon}
+            loading={pending}
+            onClick={onConfirm}
+          >
+            {pending
+              ? "Selling…"
+              : `Sell for ${formatFantasyPrice(player.sell_price)}`}
+          </Button>
+        </>
+      }
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white w-full max-w-md rounded-2xl md:rounded-3xl p-4 sm:p-6 shadow-2xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] overflow-y-auto"
-      >
-        <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase wrap-break-word">
-          Sell {player.name}?
-        </h3>
+      <div>
         <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
           You'll get{" "}
           <span className="font-black text-emerald-600 dark:text-emerald-400">
@@ -3789,35 +3686,7 @@ function SellConfirmation({
           </div>
         )}
 
-        <div className="flex flex-col-reverse sm:flex-row gap-2 pt-5">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={pending}
-            className="flex-1 min-h-11 py-3 rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600 font-bold text-xs uppercase disabled:opacity-50 transition cursor-pointer shadow-sm"
-          >
-            Keep {player.name.split(" ")[0]}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={pending}
-            className="flex-1 min-h-11 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-1.5"
-          >
-            {pending ? (
-              <ArrowPathIcon
-                className="w-4 h-4 animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <BanknotesIcon className="w-4 h-4" aria-hidden="true" />
-            )}
-            {pending
-              ? "Selling…"
-              : `Sell for ${formatFantasyPrice(player.sell_price)}`}
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

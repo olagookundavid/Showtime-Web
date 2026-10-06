@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { getOrderByReference, verifyStorePayment } from "../services/api";
 import { Loader } from "../components/ui/Loader";
+import { Button, ButtonLink } from "../components/ui";
 import { OrderLifecycleStepper } from "../components/store/OrderLifecycleStepper";
 import { useCart } from "../contexts/CartContext";
 
@@ -98,12 +99,9 @@ export const OrderConfirmationPage = () => {
         <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
           {error}
         </p>
-        <Link
-          to="/store"
-          className="inline-flex items-center justify-center min-h-11 bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow-md"
-        >
+        <ButtonLink to="/store" variant="navy" size="lg">
           Back to Store
-        </Link>
+        </ButtonLink>
       </div>
     );
   }
@@ -149,13 +147,15 @@ export const OrderConfirmationPage = () => {
               : "Your payment could not be completed"}
         </p>
         {!isPaid && !isPending && (
-          <Link
+          <ButtonLink
             to="/store/cart"
-            className="inline-flex items-center gap-1.5 min-h-11 mt-5 bg-white text-sffl-red hover:bg-gray-100 px-6 py-2.5 rounded-full font-black uppercase tracking-wider text-xs shadow-md transition"
+            variant="navy"
+            tone="dark"
+            icon={ArrowLeftIcon}
+            className="mt-5 uppercase tracking-wider"
           >
-            <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
             Try Again
-          </Link>
+          </ButtonLink>
         )}
       </div>
 
@@ -321,21 +321,24 @@ export const OrderConfirmationPage = () => {
 
       {/* Print & Back actions */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 print:hidden">
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="lg"
+          icon={PrinterIcon}
+          className="w-full sm:w-auto"
           onClick={handlePrint}
-          className="w-full sm:w-auto min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 px-8 py-3 rounded-full font-bold transition flex items-center justify-center gap-2 shadow"
         >
-          <PrinterIcon className="w-5 h-5" aria-hidden="true" />
           Print Invoice
-        </button>
-        <Link
+        </Button>
+        <ButtonLink
           to="/store"
-          className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center gap-2 bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow"
+          variant="navy"
+          size="lg"
+          icon={ArrowLeftIcon}
+          className="w-full sm:w-auto"
         >
-          <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
           Back to Store
-        </Link>
+        </ButtonLink>
       </div>
     </div>
   );

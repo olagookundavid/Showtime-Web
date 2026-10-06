@@ -12,12 +12,11 @@ import {
   type Player,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
-import { LightboxImage, Spinner } from "../../components/ui";
+import { Field, LightboxImage, Select, Spinner } from "../../components/ui";
 import { FootballIcon } from "../../components/icons/FootballIcon";
 import { CrownIcon } from "../../components/icons/CrownIcon";
 import {
   ArrowRightIcon,
-  ChevronDownIcon,
   ShieldCheckIcon,
   TrophyIcon,
 } from "@heroicons/react/24/outline";
@@ -129,18 +128,13 @@ export const PlayersPage = () => {
         {/* Team Filter - Condensed */}
         {teams.length > 0 && (
           <div className="w-full md:w-auto">
-            <label
-              htmlFor="players-team-filter"
-              className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
-            >
-              Filter by Team
-            </label>
-            <div className="relative">
-              <select
+            <Field label="Filter by Team" htmlFor="players-team-filter" tone="dark">
+              <Select
                 id="players-team-filter"
+                tone="dark"
                 value={selectedTeamId}
                 onChange={(e) => handleTeamChange(e.target.value)}
-                className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm md:min-w-65 cursor-pointer hover:bg-white/20 transition-colors"
+                className="md:min-w-65"
               >
                 <option value="" className="text-black bg-white">
                   All Teams
@@ -154,11 +148,8 @@ export const PlayersPage = () => {
                     {t.name}
                   </option>
                 ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
-              </div>
-            </div>
+              </Select>
+            </Field>
           </div>
         )}
       </div>

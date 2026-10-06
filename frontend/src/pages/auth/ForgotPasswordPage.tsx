@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeftIcon, ArrowPathIcon, EnvelopeIcon, KeyIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, EnvelopeIcon, KeyIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Button, Field, IconButton, Input } from '../../components/ui';
 
 type Step = 'email' | 'otp' | 'password' | 'success';
 
@@ -122,18 +123,17 @@ export const ForgotPasswordPage = () => {
 
                 {/* Back Button */}
                 {step !== 'success' && (
-                    <button
-                        type="button"
+                    <IconButton
+                        variant="ghost"
+                        icon={ArrowLeftIcon}
+                        label={step === 'email' ? 'Back to login' : 'Back to the previous step'}
+                        className="absolute top-2 left-2 sm:top-4 sm:left-4"
                         onClick={() => {
                             if (step === 'email') navigate('/login');
                             else if (step === 'otp') setStep('email');
                             else if (step === 'password') setStep('otp');
                         }}
-                        aria-label={step === 'email' ? 'Back to login' : 'Back to the previous step'}
-                        className="absolute top-2 left-2 sm:top-4 sm:left-4 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-sffl-red transition-colors"
-                    >
-                        <ArrowLeftIcon className="w-5 h-5" aria-hidden="true" />
-                    </button>
+                    />
                 )}
 
                 {/* Step 1: Email */}
@@ -148,28 +148,20 @@ export const ForgotPasswordPage = () => {
                         </div>
 
                         <form onSubmit={handleSendOTP} className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                    Email Address
-                                </label>
-                                <input
+                            <Field label="Email Address" htmlFor="forgot-email">
+                                <Input
+                                    id="forgot-email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
                                     placeholder="you@example.com"
                                 />
-                            </div>
+                            </Field>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {loading && <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />}
+                            <Button type="submit" fullWidth size="lg" loading={loading}>
                                 {loading ? 'Sending…' : 'Send Reset Code'}
-                            </button>
+                            </Button>
                         </form>
                     </div>
                 )}
@@ -203,22 +195,19 @@ export const ForgotPasswordPage = () => {
                             </div>
 
                             <div className="space-y-4">
-                                <button
-                                    type="submit"
-                                    className="w-full min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                >
+                                <Button type="submit" fullWidth size="lg">
                                     Verify Code
-                                </button>
-                                
+                                </Button>
+
                                 <div className="text-center">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="link"
+                                        size="sm"
                                         onClick={handleResend}
                                         disabled={resendTimer > 0 || loading}
-                                        className="min-h-11 px-2 text-sm font-bold text-sffl-red hover:underline disabled:text-gray-400 disabled:no-underline transition-colors"
                                     >
                                         {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </form>
@@ -237,42 +226,31 @@ export const ForgotPasswordPage = () => {
                         </div>
 
                         <form onSubmit={handleResetPassword} className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                    New Password
-                                </label>
-                                <input
+                            <Field label="New Password" htmlFor="new-password">
+                                <Input
+                                    id="new-password"
                                     type="password"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
                                     placeholder="••••••••"
                                 />
-                            </div>
+                            </Field>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                    Confirm Password
-                                </label>
-                                <input
+                            <Field label="Confirm Password" htmlFor="confirm-new-password">
+                                <Input
+                                    id="confirm-new-password"
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
                                     placeholder="••••••••"
                                 />
-                            </div>
+                            </Field>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full min-h-11 inline-flex items-center justify-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
-                            >
-                                {loading && <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />}
+                            <Button type="submit" fullWidth size="lg" loading={loading}>
                                 {loading ? 'Resetting…' : 'Reset Password'}
-                            </button>
+                            </Button>
                         </form>
                     </div>
                 )}

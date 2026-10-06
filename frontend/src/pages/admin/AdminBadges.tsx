@@ -27,15 +27,16 @@ import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
+import { Button, Field, IconButton, Input, Modal, Select, Textarea } from "../../components/ui";
 import { BadgeImage } from "../../components/common/BadgeImage";
 import { getApiErrorMessage } from "../../utils/apiError";
 import {
+  CheckIcon,
   PlusIcon,
   TrashIcon,
   PencilSquareIcon,
   CheckCircleIcon,
   MagnifyingGlassIcon,
-  XMarkIcon,
   GiftIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
@@ -214,13 +215,6 @@ const FAILURE: Record<PendingAction["kind"], string> = {
   revoke: "Failed to revoke award.",
   backfill: "Failed to run MVP backfill.",
 };
-
-const fieldLabelClass =
-  "block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1";
-const fieldClass =
-  "w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red";
-const closeButtonClass =
-  "shrink-0 min-h-11 min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer";
 
 export const AdminBadges = () => {
   const queryClient = useQueryClient();
@@ -651,13 +645,6 @@ export const AdminBadges = () => {
   const systemBadges = badges.filter((b) => b.is_system);
   const customBadges = badges.filter((b) => !b.is_system);
 
-  const tabClass = (active: boolean) =>
-    `px-4 min-h-11 text-xs font-black uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
-      active
-        ? "bg-sffl-red text-white shadow-sm"
-        : "bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-    }`;
-
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in pb-16">
       <DashboardPageHeader
@@ -665,36 +652,32 @@ export const AdminBadges = () => {
         subtitle="Manage player accolades, MVP counters, Team of the Week/Season badges, and custom league honors."
         actions={
           <>
-            <button
-              type="button"
+            <Button
+              variant="warning"
+              icon={SparklesIcon}
               onClick={() => setPendingAction({ kind: "backfill" })}
               disabled={busy || !canManage}
-              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               title={canManage ? "Scan finished 2026 matches and award MVP badges to players" : "View-only access to Badges"}
+              className="w-full sm:w-auto"
             >
-              <SparklesIcon className="w-4 h-4" />
-              <span>
-                {busy && pendingAction?.kind === "backfill"
-                  ? "Backfilling…"
-                  : "Backfill 2026 MVPs"}
-              </span>
-            </button>
-            <button
-              type="button"
+              {busy && pendingAction?.kind === "backfill" ? "Backfilling…" : "Backfill 2026 MVPs"}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={GiftIcon}
               onClick={() => openAwardModal()}
-              className="px-4 min-h-11 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-sffl-navy dark:text-white border border-gray-300 dark:border-gray-600 font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto"
             >
-              <GiftIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
-              <span>Award Badge</span>
-            </button>
-            <button
-              type="button"
+              Award Badge
+            </Button>
+            <Button
+              variant="primary"
+              icon={PlusIcon}
               onClick={openCreateBadge}
-              className="px-4 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto"
             >
-              <PlusIcon className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
-              <span>Create Badge</span>
-            </button>
+              Create Badge
+            </Button>
           </>
         }
       />
@@ -738,22 +721,20 @@ export const AdminBadges = () => {
 
       {/* Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-        <button
-          type="button"
+        <Button
+          variant={activeTab === "catalog" ? "primary" : "secondary"}
           onClick={() => setActiveTab("catalog")}
           aria-pressed={activeTab === "catalog"}
-          className={tabClass(activeTab === "catalog")}
         >
           Badge Catalog ({badges.length})
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={activeTab === "awards" ? "primary" : "secondary"}
           onClick={() => setActiveTab("awards")}
           aria-pressed={activeTab === "awards"}
-          className={tabClass(activeTab === "awards")}
         >
           Award History & Log ({awards.length})
-        </button>
+        </Button>
       </div>
 
       {/* ── CATALOG TAB ────────────────────────────────────────────── */}
@@ -804,38 +785,23 @@ export const AdminBadges = () => {
                       CODE: {b.code}
                     </span>
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => openAwardModal(b.id)}
-                        className="inline-flex items-center gap-1.5 px-3 min-h-11 text-xs font-bold text-sffl-red bg-red-50 dark:bg-red-950/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
-                      >
-                        <GiftIcon className="w-4 h-4" aria-hidden="true" />
+                      <Button variant="secondary" icon={GiftIcon} size="sm" onClick={() => openAwardModal(b.id)}>
                         Award
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <IconButton
+                        icon={PencilSquareIcon}
+                        label={`Edit ${b.name}`}
                         onClick={() => openEditBadge(b)}
-                        className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-700 cursor-pointer"
-                        aria-label={`Edit ${b.name}`}
-                      >
-                        <PencilSquareIcon
-                          className="w-5 h-5"
-                          aria-hidden="true"
-                        />
-                      </button>
+                      />
                       {!b.is_system && (
-                        <button
-                          type="button"
+                        <IconButton
+                          icon={TrashIcon}
+                          variant="danger"
+                          label={`Delete ${b.name}`}
                           disabled={!canManage}
                           title={canManage ? undefined : "View-only access to Badges"}
-                          onClick={() =>
-                            setPendingAction({ kind: "deleteBadge", badge: b })
-                          }
-                          className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                          aria-label={`Delete ${b.name}`}
-                        >
-                          <TrashIcon className="w-5 h-5" aria-hidden="true" />
-                        </button>
+                          onClick={() => setPendingAction({ kind: "deleteBadge", badge: b })}
+                        />
                       )}
                     </div>
                   </div>
@@ -860,40 +826,38 @@ export const AdminBadges = () => {
 
       {/* ── CREATE / EDIT BADGE MODAL ──────────────────────────────── */}
       {showBadgeModal && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fade-in"
-          data-dialog
-          onClick={() => setShowBadgeModal(false)}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
-              <div>
-                <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                  {editingBadge ? "Edit Badge" : "Create Badge"}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Select an official Showtime badge design or upload custom
-                  artwork
-                </p>
-              </div>
-              <button
-                onClick={() => setShowBadgeModal(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg cursor-pointer"
+        <Modal
+          open
+          onClose={() => setShowBadgeModal(false)}
+          title={editingBadge ? "Edit Badge" : "Create Badge"}
+          subtitle="Select an official Showtime badge design or upload custom artwork"
+          maxWidth="2xl"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowBadgeModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={requestSaveBadge}
+                disabled={
+                  busy ||
+                  !badgeForm.name.trim() ||
+                  !(badgeForm.icon || "").trim() ||
+                  (!editingBadge && !badgeForm.code.trim())
+                }
               >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 md:p-6 space-y-5 overflow-y-auto flex-1">
+                {editingBadge ? "Save Changes" : "Create Badge"}
+              </Button>
+            </>
+          }
+        >
+            <div className="space-y-5">
               {/* ── Official Badge Presets Gallery ──────────────── */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
                     Official Showtime Badges (Click to Select) *
-                  </label>
+                  </span>
                   <span className="text-[11px] text-gray-500 dark:text-gray-400">
                     10 official emblems
                   </span>
@@ -944,8 +908,8 @@ export const AdminBadges = () => {
                           {preset.name}
                         </span>
                         {isSelected && (
-                          <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-sffl-navy flex items-center justify-center text-[10px] font-black shadow-xs">
-                            ✓
+                          <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-sffl-navy flex items-center justify-center shadow-xs">
+                            <CheckIcon className="w-3 h-3 stroke-[3]" aria-hidden="true" />
                           </div>
                         )}
                       </button>
@@ -998,11 +962,9 @@ export const AdminBadges = () => {
               {/* ── Badge Metadata ─────────────────────────────── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-gray-100 dark:border-gray-700">
                 {!editingBadge && (
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                      Badge Code (Unique ID) *
-                    </label>
-                    <input
+                  <Field label="Badge Code (Unique ID) *" htmlFor="badge-code">
+                    <Input
+                      id="badge-code"
                       type="text"
                       placeholder="e.g. GAME_MVP"
                       value={badgeForm.code}
@@ -1014,36 +976,30 @@ export const AdminBadges = () => {
                             .replace(/\s+/g, "_"),
                         }))
                       }
-                      className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-sffl-red"
+                      className="font-mono"
                     />
-                  </div>
+                  </Field>
                 )}
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                    Badge Name *
-                  </label>
-                  <input
+                <Field label="Badge Name *" htmlFor="badge-name">
+                  <Input
+                    id="badge-name"
                     type="text"
                     placeholder="e.g. Game MVP"
                     value={badgeForm.name}
                     onChange={(e) =>
                       setBadgeForm((p) => ({ ...p, name: e.target.value }))
                     }
-                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
                   />
-                </div>
+                </Field>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                    Category
-                  </label>
-                  <select
+                <Field label="Category" htmlFor="badge-category">
+                  <Select
+                    id="badge-category"
                     value={badgeForm.category}
                     onChange={(e) =>
                       setBadgeForm((p) => ({ ...p, category: e.target.value }))
                     }
-                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
                   >
                     <option value="Honors">Honors</option>
                     <option value="Match Honor">Match Honor</option>
@@ -1054,14 +1010,12 @@ export const AdminBadges = () => {
                     <option value="Defence">Defence</option>
                     <option value="Milestone">Milestone</option>
                     <option value="Special">Special Award</option>
-                  </select>
-                </div>
+                  </Select>
+                </Field>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                    Color Theme
-                  </label>
-                  <select
+                <Field label="Color Theme" htmlFor="badge-color">
+                  <Select
+                    id="badge-color"
                     value={badgeForm.color_scheme}
                     onChange={(e) =>
                       setBadgeForm((p) => ({
@@ -1069,91 +1023,55 @@ export const AdminBadges = () => {
                         color_scheme: e.target.value,
                       }))
                     }
-                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
                   >
                     {COLOR_SCHEMES.map((cs) => (
                       <option key={cs.value} value={cs.value}>
                         {cs.label}
                       </option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
               </div>
 
-              <div>
-                <label className={fieldLabelClass}>Description</label>
-                <textarea
+              <Field label="Description" htmlFor="badge-description">
+                <Textarea
+                  id="badge-description"
                   rows={2}
                   placeholder="Describe the criteria or achievement required for this honor..."
                   value={badgeForm.description}
                   onChange={(e) =>
                     setBadgeForm((p) => ({ ...p, description: e.target.value }))
                   }
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sffl-red"
                 />
-              </div>
+              </Field>
             </div>
 
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowBadgeModal(false)}
-                className="px-4 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={requestSaveBadge}
-                disabled={
-                  busy ||
-                  !badgeForm.name.trim() ||
-                  !(badgeForm.icon || "").trim() ||
-                  (!editingBadge && !badgeForm.code.trim())
-                }
-                className="px-5 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md cursor-pointer disabled:opacity-50"
-              >
-                {editingBadge ? "Save Changes" : "Create Badge"}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── MANUAL AWARD MODAL ─────────────────────────────────────── */}
       {showAwardModal && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fade-in"
-          data-dialog
-          onClick={() => setShowAwardModal(false)}
+        <Modal
+          open
+          onClose={() => setShowAwardModal(false)}
+          title="Award Badge to Player"
+          subtitle="Increments the player's accolade counter and logs audit record"
+          maxWidth="lg"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowAwardModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={requestAward} disabled={busy || !selectedPlayer || !awardBadgeId}>
+                Award Honor
+              </Button>
+            </>
+          }
         >
-          <div
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 shrink-0">
-              <div className="min-w-0">
-                <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                  Award Badge to Player
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Increments the player's accolade counter and logs audit record
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAwardModal(false)}
-                aria-label="Close"
-                className={closeButtonClass}
-              >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+            <div className="space-y-4">
               {/* Player Selector */}
               <div>
-                <label className={fieldLabelClass}>Target Player *</label>
+                <span className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">Target Player *</span>
                 {selectedPlayer ? (
                   <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
                     <div className="flex items-center gap-3 min-w-0">
@@ -1180,30 +1098,20 @@ export const AdminBadges = () => {
                         </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlayer(null)}
-                      className="shrink-0 px-2 min-h-11 text-xs font-bold text-sffl-red hover:underline cursor-pointer"
-                    >
+                    <Button variant="link" size="sm" onClick={() => setSelectedPlayer(null)} className="shrink-0">
                       Change
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="relative">
-                      <MagnifyingGlassIcon
-                        className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        aria-hidden="true"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Search player name"
-                        aria-label="Search player name"
-                        value={playerSearchQuery}
-                        onChange={(e) => setPlayerSearchQuery(e.target.value)}
-                        className="w-full min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg pl-9 pr-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red"
-                      />
-                    </div>
+                    <Input
+                      type="text"
+                      placeholder="Search player name"
+                      aria-label="Search player name"
+                      icon={MagnifyingGlassIcon}
+                      value={playerSearchQuery}
+                      onChange={(e) => setPlayerSearchQuery(e.target.value)}
+                    />
                     <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
                       {loadingPlayers ? (
                         <Spinner size="sm" className="py-4" />
@@ -1236,14 +1144,11 @@ export const AdminBadges = () => {
               </div>
 
               {/* Badge Selection */}
-              <div>
-                <label className={fieldLabelClass}>
-                  Honor / Badge to Award *
-                </label>
-                <select
+              <Field label="Honor / Badge to Award *" htmlFor="award-badge">
+                <Select
+                  id="award-badge"
                   value={awardBadgeId}
                   onChange={(e) => setAwardBadgeId(e.target.value)}
-                  className={fieldClass}
                 >
                   <option value="">Select Badge</option>
                   {badges.map((b) => (
@@ -1251,7 +1156,7 @@ export const AdminBadges = () => {
                       {b.name} ({b.code})
                     </option>
                   ))}
-                </select>
+                </Select>
                 {selectedBadge && (
                   <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 mt-2">
                     <div className="w-10 h-10 p-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0 shadow-xs">
@@ -1271,16 +1176,15 @@ export const AdminBadges = () => {
                     </div>
                   </div>
                 )}
-              </div>
+              </Field>
 
               {/* Context: Competition & Season */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className={fieldLabelClass}>Competition</label>
-                  <select
+                <Field label="Competition" htmlFor="award-competition">
+                  <Select
+                    id="award-competition"
                     value={awardCompId}
                     onChange={(e) => setAwardCompId(e.target.value)}
-                    className={`${fieldClass} text-xs`}
                   >
                     <option value="">None / General</option>
                     {competitions.map((c) => (
@@ -1288,29 +1192,25 @@ export const AdminBadges = () => {
                         {c.name}
                       </option>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={fieldLabelClass}>Season Year</label>
-                  <input
+                  </Select>
+                </Field>
+                <Field label="Season Year" htmlFor="award-season">
+                  <Input
+                    id="award-season"
                     type="text"
                     value={awardSeason}
                     onChange={(e) => setAwardSeason(e.target.value)}
                     placeholder="2026"
-                    className={`${fieldClass} text-xs`}
                   />
-                </div>
+                </Field>
               </div>
 
               {/* Optional Event Day */}
-              <div>
-                <label className={fieldLabelClass}>
-                  Linked Event Day (Optional)
-                </label>
-                <select
+              <Field label="Linked Event Day (Optional)" htmlFor="award-event-day">
+                <Select
+                  id="award-event-day"
                   value={awardEventDayId}
                   onChange={(e) => setAwardEventDayId(e.target.value)}
-                  className={`${fieldClass} text-xs`}
                 >
                   <option value="">None</option>
                   {eventDays.map((ed) => (
@@ -1319,57 +1219,36 @@ export const AdminBadges = () => {
                       {new Date(ed.date).toLocaleDateString()})
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Field>
 
               {/* Count & Reason */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className={fieldLabelClass}>Add Count</label>
-                  <input
+                <Field label="Add Count" htmlFor="award-count">
+                  <Input
+                    id="award-count"
                     type="number"
                     min="1"
                     value={awardCount}
                     onChange={(e) =>
                       setAwardCount(parseInt(e.target.value) || 1)
                     }
-                    className={`${fieldClass} text-xs text-center`}
+                    className="text-center"
                   />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={fieldLabelClass}>
-                    Award Reason / Citation
-                  </label>
-                  <input
+                </Field>
+                <Field label="Award Reason / Citation" htmlFor="award-reason" className="sm:col-span-2">
+                  <Input
+                    id="award-reason"
                     type="text"
                     placeholder="e.g. 5 Touchdown performance"
                     value={awardReason}
                     onChange={(e) => setAwardReason(e.target.value)}
-                    className={`${fieldClass} text-xs`}
                   />
-                </div>
+                </Field>
               </div>
             </div>
 
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowAwardModal(false)}
-                className="px-4 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={requestAward}
-                disabled={busy || !selectedPlayer || !awardBadgeId}
-                className="px-5 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md cursor-pointer disabled:opacity-50"
-              >
-                Award Honor
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       <ConfirmDialog

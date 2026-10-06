@@ -1,8 +1,6 @@
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  XMarkIcon,
   ArrowTopRightOnSquareIcon,
   SparklesIcon,
   UserIcon,
@@ -13,7 +11,13 @@ import {
 } from "@heroicons/react/24/outline";
 import { FemaleIcon } from "../icons/FemaleIcon";
 import { MaleIcon } from "../icons/MaleIcon";
-import { fantasyApi, formatFantasyPrice } from "../../services/api";
+import { Button, Modal } from "../ui";
+import { DataTable, type Column } from "../ui/DataTable";
+import {
+  fantasyApi,
+  formatFantasyPrice,
+  type PlayerPriceHistoryItem,
+} from "../../services/api";
 import { formatStatDecimal, formatStatNumber } from "../../utils/formatters";
 
 export interface FantasyPlayerModalData {
@@ -79,24 +83,56 @@ const POSITION_STYLES: Record<string, { bg: string; text: string }> = {
   "All-Rounder": { bg: "bg-cyan-400", text: "text-cyan-950" },
 };
 
+// The price history table on the profile. Module-level, so it is not rebuilt on each render.
+const HISTORY_COLUMNS: Column<PlayerPriceHistoryItem>[] = [
+  {
+    header: "Event",
+    cell: (row) => <span className="font-bold text-gray-900 dark:text-white">{row.gameweek_label}</span>,
+    className: "px-3 py-2 text-[11px] whitespace-nowrap",
+  },
+  {
+    header: "Price",
+    sortable: true,
+    sortValue: (row) => row.price,
+    cell: (row) => <span className="font-black text-gray-900 dark:text-white">{formatFantasyPrice(row.price)}</span>,
+    className: "px-3 py-2 text-[11px] whitespace-nowrap",
+  },
+  {
+    header: "Change",
+    sortable: true,
+    sortValue: (row) => row.change,
+    cell: (row) => {
+      if (row.gameweek_number === 0) return <span className="text-gray-400 text-[10px]">Base</span>;
+      if (row.change > 0)
+        return <span className="text-emerald-600 dark:text-emerald-400 font-bold">+{formatFantasyPrice(row.change)}</span>;
+      if (row.change < 0)
+        return <span className="text-red-600 dark:text-red-400 font-bold">{formatFantasyPrice(row.change)}</span>;
+      return <span className="text-gray-400">0.0m</span>;
+    },
+    className: "px-3 py-2 text-[11px] whitespace-nowrap",
+  },
+  {
+    header: "Method",
+    align: "right",
+    cell: (row) =>
+      row.is_overridden ? (
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400">
+          <ScaleIcon className="w-3 h-3" aria-hidden="true" /> Committee
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-gray-500 dark:text-gray-400">
+          <BoltIcon className="w-3 h-3 text-yellow-500" aria-hidden="true" /> Form
+        </span>
+      ),
+    className: "px-3 py-2 text-[11px] whitespace-nowrap",
+  },
+];
+
 export function FantasyPlayerModal({
   isOpen,
   onClose,
   player,
 }: FantasyPlayerModalProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (isOpen) {
-      window.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, onClose]);
 
   const { data: breakdownData, isLoading: loadingBreakdown } = useQuery({
     queryKey: ["playerFantasyBreakdown", player?.playerId, player?.gameweekId],
@@ -146,51 +182,27 @@ export function FantasyPlayerModal({
       : (breakdownData?.selected_by_pct ?? priceHistoryData?.selected_by_pct);
 
   return (
-    <div
-      data-dialog
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] overflow-y-auto transition-[padding] duration-300 motion-reduce:transition-none"
-    >
-      {/* Click outside backdrop */}
-      <div className="fixed inset-0" onClick={onClose} />
-
-      <div
-        className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[calc(100dvh-var(--chrome-h,0px)-2rem)] z-10 animate-in fade-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header Banner */}
-        <div className="bg-sffl-navy text-white p-4 md:p-6 flex items-start justify-between gap-3 border-b border-white/10 shrink-0">
-          <div className="min-w-0 flex-1">
-            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-white/15 text-gray-200 inline-block mb-1.5">
-              Fantasy Player Profile
-            </span>
-            <h2 className="text-xl md:text-2xl font-black italic tracking-tight truncate text-white">
-              {player.playerName}
-            </h2>
-            <div className="flex items-center gap-2 mt-1 text-xs text-gray-300">
-              {player.teamLogo && (
-                <img
-                  src={player.teamLogo}
-                  alt=""
-                  className="w-4 h-4 rounded-full object-contain bg-white/10 p-0.5"
-                />
-              )}
-              <span className="font-semibold truncate">
-                {player.teamName || player.teamShortName || "Independent"}
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white transition cursor-pointer shrink-0"
-            aria-label="Close dialog"
+    <Modal
+      open
+      onClose={onClose}
+      title={player.playerName}
+      subtitle={`Fantasy Player Profile • ${player.teamName || player.teamShortName || "Independent"}`}
+      maxWidth="md"
+      footer={
+        <>
+          <Link
+            to={`/players/${player.playerId}`}
+            className="inline-flex items-center gap-1.5 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:text-sffl-red transition sm:mr-auto"
           >
-            <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-          </button>
-        </div>
+            View Full Season Stats{" "}
+            <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" aria-hidden="true" />
+          </Link>
+          <Button variant="secondary" className="uppercase tracking-wider" onClick={onClose}>
+            Close
+          </Button>
+        </>
+      }
+    >
 
         {/* Hero / Avatar Card */}
         <div className="p-5 md:p-6 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/70 dark:bg-gray-800/40 flex items-center gap-4">
@@ -499,62 +511,14 @@ export function FantasyPlayerModal({
             ) : priceHistoryData?.history &&
               priceHistoryData.history.length > 0 ? (
               <div className="space-y-2">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
-                      <tr>
-                        <th className="pb-1.5 font-bold">Event</th>
-                        <th className="pb-1.5 font-bold">Price</th>
-                        <th className="pb-1.5 font-bold">Change</th>
-                        <th className="pb-1.5 font-bold text-right">Method</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                      {priceHistoryData.history.map((row, idx) => (
-                        <tr
-                          key={row.gameweek_id || `hist-${idx}`}
-                          className="text-[11px]"
-                        >
-                          <td className="py-1.5 font-bold text-gray-900 dark:text-white">
-                            {row.gameweek_label}
-                          </td>
-                          <td className="py-1.5 font-black text-gray-900 dark:text-white">
-                            {formatFantasyPrice(row.price)}
-                          </td>
-                          <td className="py-1.5">
-                            {row.gameweek_number === 0 ? (
-                              <span className="text-gray-400 text-[10px]">
-                                Base
-                              </span>
-                            ) : row.change > 0 ? (
-                              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                +{formatFantasyPrice(row.change)}
-                              </span>
-                            ) : row.change < 0 ? (
-                              <span className="text-red-600 dark:text-red-400 font-bold">
-                                {formatFantasyPrice(row.change)}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">0.0m</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 text-right">
-                            {row.is_overridden ? (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400">
-                                <ScaleIcon className="w-3 h-3" /> Committee
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-gray-500 dark:text-gray-400">
-                                <BoltIcon className="w-3 h-3 text-yellow-500" />{" "}
-                                Form
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  data={priceHistoryData.history}
+                  columns={HISTORY_COLUMNS}
+                  searchable={false}
+                  paginated={false}
+                  compact
+                  getRowId={(row) => String(row.gameweek_id || row.gameweek_label)}
+                />
               </div>
             ) : (
               <p className="text-xs text-gray-500 py-2 text-center">
@@ -564,28 +528,6 @@ export function FantasyPlayerModal({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <Link
-            to={`/players/${player.playerId}`}
-            className="inline-flex items-center gap-1.5 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:text-sffl-red transition"
-          >
-            View Full Season Stats{" "}
-            <ArrowTopRightOnSquareIcon
-              className="w-3.5 h-3.5"
-              aria-hidden="true"
-            />
-          </Link>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 px-4 py-2 rounded-xl bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-black uppercase tracking-wider transition cursor-pointer"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -10,7 +10,8 @@ import {
   type PlayerStat,
   type GamePlay,
 } from "../../services/api";
-import { LightboxImage } from "../ui";
+import { Button, LightboxImage } from "../ui";
+import { DataTable } from "../ui/DataTable";
 import {
   BoltIcon,
   ChartBarIcon,
@@ -631,76 +632,74 @@ export const MatchSummaryTab = ({
             </div>
 
             {/* Halves Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700 font-bold uppercase text-[10px]">
-                    <th className="py-2 text-left">Team</th>
-                    <th className="py-2 text-center w-12">1H</th>
-                    <th className="py-2 text-center w-12">2H</th>
-                    <th className="py-2 text-right w-12 font-black text-sffl-navy dark:text-white">
-                      FT
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-semibold">
-                  <tr>
-                    <td className="py-3 flex items-center gap-2 text-sffl-navy dark:text-gray-200 font-black truncate max-w-35">
-                      {homeTeam?.logo ? (
-                        <img
-                          src={homeTeam.logo}
-                          alt={homeTeam.name}
-                          className="w-5 h-5 object-contain shrink-0"
-                        />
+            <DataTable
+              compact
+              searchable={false}
+              paginated={false}
+              getRowId={(r) => r.key}
+              data={[
+                {
+                  key: "home",
+                  name: homeTeam?.name || "Home",
+                  logo: homeTeam?.logo,
+                  initials: homeTeam?.short_name?.slice(0, 2) || "H",
+                  badge: "bg-sffl-navy",
+                  h1: periodScores.home1H,
+                  h2: periodScores.home2H,
+                  ft: periodScores.homeFT,
+                  ftClass: "text-sffl-navy dark:text-white",
+                },
+                {
+                  key: "away",
+                  name: awayTeam?.name || "Away",
+                  logo: awayTeam?.logo,
+                  initials: awayTeam?.short_name?.slice(0, 2) || "A",
+                  badge: "bg-sffl-red",
+                  h1: periodScores.away1H,
+                  h2: periodScores.away2H,
+                  ft: periodScores.awayFT,
+                  ftClass: "text-sffl-red dark:text-red-400",
+                },
+              ]}
+              columns={[
+                {
+                  header: "Team",
+                  className: "px-3 py-3 text-xs font-semibold",
+                  cell: (r) => (
+                    <span className="flex items-center gap-2 min-w-0 font-black text-sffl-navy dark:text-gray-200">
+                      {r.logo ? (
+                        <img src={r.logo} alt={r.name} className="w-5 h-5 object-contain shrink-0" />
                       ) : (
-                        <span className="w-5 h-5 rounded-full bg-sffl-navy text-white text-[9px] flex items-center justify-center font-black">
-                          {homeTeam?.short_name?.slice(0, 2) || "H"}
+                        <span
+                          className={`w-5 h-5 rounded-full ${r.badge} text-white text-[9px] flex items-center justify-center font-black shrink-0`}
+                        >
+                          {r.initials}
                         </span>
                       )}
-                      <span className="truncate">
-                        {homeTeam?.name || "Home"}
-                      </span>
-                    </td>
-                    <td className="py-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                      {periodScores.home1H}
-                    </td>
-                    <td className="py-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                      {periodScores.home2H}
-                    </td>
-                    <td className="py-3 text-right tabular-nums font-black text-sm text-sffl-navy dark:text-white">
-                      {periodScores.homeFT}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-3 flex items-center gap-2 text-sffl-navy dark:text-gray-200 font-black truncate max-w-35">
-                      {awayTeam?.logo ? (
-                        <img
-                          src={awayTeam.logo}
-                          alt={awayTeam.name}
-                          className="w-5 h-5 object-contain shrink-0"
-                        />
-                      ) : (
-                        <span className="w-5 h-5 rounded-full bg-sffl-red text-white text-[9px] flex items-center justify-center font-black">
-                          {awayTeam?.short_name?.slice(0, 2) || "A"}
-                        </span>
-                      )}
-                      <span className="truncate">
-                        {awayTeam?.name || "Away"}
-                      </span>
-                    </td>
-                    <td className="py-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                      {periodScores.away1H}
-                    </td>
-                    <td className="py-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                      {periodScores.away2H}
-                    </td>
-                    <td className="py-3 text-right tabular-nums font-black text-sm text-sffl-red dark:text-red-400">
-                      {periodScores.awayFT}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                      <span className="truncate">{r.name}</span>
+                    </span>
+                  ),
+                },
+                {
+                  header: "1H",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums text-gray-700 dark:text-gray-300",
+                  cell: (r) => r.h1,
+                },
+                {
+                  header: "2H",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums text-gray-700 dark:text-gray-300",
+                  cell: (r) => r.h2,
+                },
+                {
+                  header: "FT",
+                  align: "right",
+                  className: "px-3 py-3 text-xs tabular-nums",
+                  cell: (r) => <span className={`font-black text-sm ${r.ftClass}`}>{r.ft}</span>,
+                },
+              ]}
+            />
           </div>
 
           <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-500 dark:text-gray-400">
@@ -864,35 +863,26 @@ export const MatchSummaryTab = ({
       {/* ── Sub-Toggle: Team Comparison vs Key Box Score ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
         <div className="grid grid-cols-2 sm:flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setViewMode("comparison")}
+          <Button
+            variant={viewMode === "comparison" ? "navy" : "ghost"}
+            size="sm"
+            icon={ChartBarIcon}
             aria-pressed={viewMode === "comparison"}
-            className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${
-              viewMode === "comparison"
-                ? "bg-sffl-navy text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
+            className="uppercase tracking-tight"
+            onClick={() => setViewMode("comparison")}
           >
-            <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
             Team Comparison
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("boxscore")}
+          </Button>
+          <Button
+            variant={viewMode === "boxscore" ? "navy" : "ghost"}
+            size="sm"
+            icon={ClipboardDocumentListIcon}
             aria-pressed={viewMode === "boxscore"}
-            className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${
-              viewMode === "boxscore"
-                ? "bg-sffl-navy text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
+            className="uppercase tracking-tight"
+            onClick={() => setViewMode("boxscore")}
           >
-            <ClipboardDocumentListIcon
-              className="w-4 h-4 shrink-0"
-              aria-hidden="true"
-            />
             Key Box Score
-          </button>
+          </Button>
         </div>
         {/* Colour key for the comparison bars, on every screen size */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold">
@@ -1086,75 +1076,66 @@ export const MatchSummaryTab = ({
                 TOP 6
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-bold uppercase text-[10px] border-b border-gray-200 dark:border-gray-700">
-                  <tr>
-                    <th className="py-2.5 px-4">Player</th>
-                    <th className="py-2.5 px-3 text-center">CMP/ATT</th>
-                    <th className="py-2.5 px-3 text-center">YDS</th>
-                    <th className="py-2.5 px-3 text-center">TD</th>
-                    <th className="py-2.5 px-4 text-right">FP</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-semibold">
-                  {offensiveBoxScore.length > 0 ? (
-                    offensiveBoxScore.map((p) => (
-                      <tr
-                        key={p.player_id}
-                        className="hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors"
+            <DataTable
+              compact
+              searchable={false}
+              paginated={false}
+              getRowId={(p) => p.player_id}
+              data={offensiveBoxScore}
+              emptyMessage="No offensive statistics recorded yet."
+              columns={[
+                {
+                  header: "Player",
+                  className: "px-4 py-3 text-xs font-semibold",
+                  cell: (p) => (
+                    <>
+                      <Link
+                        to={`/players/${p.player_id}?match=${match.id}`}
+                        className="font-black text-sffl-navy dark:text-white hover:text-sffl-red transition-colors block truncate max-w-37.5"
                       >
-                        <td className="py-3 px-4">
-                          <Link
-                            to={`/players/${p.player_id}?match=${match.id}`}
-                            className="font-black text-sffl-navy dark:text-white hover:text-sffl-red transition-colors block truncate max-w-37.5"
-                          >
-                            {p.player_name}
-                          </Link>
-                          <span className="text-[10px] text-gray-500 dark:text-gray-400 block truncate">
-                            {p.team_short_name || p.team_name} ·{" "}
-                            {p.player_position}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                          {p.passing_attempts > 0
-                            ? `${formatStatNumber(p.completed_passes)}/${formatStatNumber(p.passing_attempts)}`
-                            : p.receptions > 0
-                              ? `${formatStatNumber(p.receptions)} REC`
-                              : "-"}
-                        </td>
-                        <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                          {formatStatNumber(
-                            (p.passing_yards || 0) +
-                              (p.receiving_yards || 0) +
-                              (p.rushing_yards || 0),
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center tabular-nums font-bold text-sffl-navy dark:text-white">
-                          {formatStatNumber(
-                            (p.passing_tds || 0) +
-                              (p.receiving_tds || 0) +
-                              (p.rushing_tds || 0),
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right tabular-nums font-black text-amber-600 dark:text-amber-400">
-                          {formatStatDecimal(p.fp, 1)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="py-8 text-center text-gray-400 italic"
-                      >
-                        No offensive statistics recorded yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        {p.player_name}
+                      </Link>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 block truncate">
+                        {p.team_short_name || p.team_name} · {p.player_position}
+                      </span>
+                    </>
+                  ),
+                },
+                {
+                  header: "CMP/ATT",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums text-gray-700 dark:text-gray-300",
+                  cell: (p) =>
+                    p.passing_attempts > 0
+                      ? `${formatStatNumber(p.completed_passes)}/${formatStatNumber(p.passing_attempts)}`
+                      : p.receptions > 0
+                        ? `${formatStatNumber(p.receptions)} REC`
+                        : "-",
+                },
+                {
+                  header: "YDS",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums text-gray-700 dark:text-gray-300",
+                  cell: (p) =>
+                    formatStatNumber(
+                      (p.passing_yards || 0) + (p.receiving_yards || 0) + (p.rushing_yards || 0),
+                    ),
+                },
+                {
+                  header: "TD",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums font-bold text-sffl-navy dark:text-white",
+                  cell: (p) =>
+                    formatStatNumber((p.passing_tds || 0) + (p.receiving_tds || 0) + (p.rushing_tds || 0)),
+                },
+                {
+                  header: "FP",
+                  align: "right",
+                  className: "px-4 py-3 text-xs tabular-nums font-black text-amber-600 dark:text-amber-400",
+                  cell: (p) => formatStatDecimal(p.fp, 1),
+                },
+              ]}
+            />
           </div>
 
           {/* Defensive Box Score */}
@@ -1171,66 +1152,57 @@ export const MatchSummaryTab = ({
                 TOP 6
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-bold uppercase text-[10px] border-b border-gray-200 dark:border-gray-700">
-                  <tr>
-                    <th className="py-2.5 px-4">Player</th>
-                    <th className="py-2.5 px-3 text-center">PULL</th>
-                    <th className="py-2.5 px-3 text-center">BAT</th>
-                    <th className="py-2.5 px-3 text-center">INT</th>
-                    <th className="py-2.5 px-4 text-right">FP</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-semibold">
-                  {defensiveBoxScore.length > 0 ? (
-                    defensiveBoxScore.map((p) => (
-                      <tr
-                        key={p.player_id}
-                        className="hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors"
+            <DataTable
+              compact
+              searchable={false}
+              paginated={false}
+              getRowId={(p) => p.player_id}
+              data={defensiveBoxScore}
+              emptyMessage="No defensive statistics recorded yet."
+              columns={[
+                {
+                  header: "Player",
+                  className: "px-4 py-3 text-xs font-semibold",
+                  cell: (p) => (
+                    <>
+                      <Link
+                        to={`/players/${p.player_id}?match=${match.id}`}
+                        className="font-black text-sffl-navy dark:text-white hover:text-sffl-red transition-colors block truncate max-w-37.5"
                       >
-                        <td className="py-3 px-4">
-                          <Link
-                            to={`/players/${p.player_id}?match=${match.id}`}
-                            className="font-black text-sffl-navy dark:text-white hover:text-sffl-red transition-colors block truncate max-w-37.5"
-                          >
-                            {p.player_name}
-                          </Link>
-                          <span className="text-[10px] text-gray-500 dark:text-gray-400 block truncate">
-                            {p.team_short_name || p.team_name} ·{" "}
-                            {p.player_position}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                          {formatStatNumber(p.flag_pulls || 0)}
-                        </td>
-                        <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                          {formatStatNumber(
-                            (p.pass_deflections || 0) +
-                              (p.batted_down_passes || 0),
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center tabular-nums font-bold text-sffl-navy dark:text-white">
-                          {formatStatNumber(p.interceptions || 0)}
-                        </td>
-                        <td className="py-3 px-4 text-right tabular-nums font-black text-amber-600 dark:text-amber-400">
-                          {formatStatDecimal(p.fp, 1)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="py-8 text-center text-gray-400 italic"
-                      >
-                        No defensive statistics recorded yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        {p.player_name}
+                      </Link>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 block truncate">
+                        {p.team_short_name || p.team_name} · {p.player_position}
+                      </span>
+                    </>
+                  ),
+                },
+                {
+                  header: "PULL",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums text-gray-700 dark:text-gray-300",
+                  cell: (p) => formatStatNumber(p.flag_pulls || 0),
+                },
+                {
+                  header: "BAT",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums text-gray-700 dark:text-gray-300",
+                  cell: (p) => formatStatNumber((p.pass_deflections || 0) + (p.batted_down_passes || 0)),
+                },
+                {
+                  header: "INT",
+                  align: "center",
+                  className: "px-3 py-3 text-xs tabular-nums font-bold text-sffl-navy dark:text-white",
+                  cell: (p) => formatStatNumber(p.interceptions || 0),
+                },
+                {
+                  header: "FP",
+                  align: "right",
+                  className: "px-4 py-3 text-xs tabular-nums font-black text-amber-600 dark:text-amber-400",
+                  cell: (p) => formatStatDecimal(p.fp, 1),
+                },
+              ]}
+            />
           </div>
         </div>
       )}

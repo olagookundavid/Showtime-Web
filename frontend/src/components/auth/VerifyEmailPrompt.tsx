@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowPathIcon, EnvelopeIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { confirmEmailVerification, sendEmailVerificationCode } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button, Field, Input } from '../ui';
 
 const apiError = (err: unknown, fallback: string) =>
     (axios.isAxiosError(err) && err.response?.data?.error) ||
@@ -67,45 +68,43 @@ export const VerifyEmailPrompt = ({ reason, onVerified }: VerifyEmailPromptProps
                     </div>
 
                     {!sent ? (
-                        <button
-                            type="button"
-                            onClick={send}
+                        <Button
+                            variant="navy"
+                            icon={EnvelopeIcon}
+                            loading={busy === 'send'}
                             disabled={busy !== null}
-                            className="inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-xl bg-sffl-navy text-white text-sm font-bold disabled:opacity-60"
+                            onClick={send}
                         >
-                            {busy === 'send' ? (
-                                <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />
-                            ) : (
-                                <EnvelopeIcon className="w-5 h-5" aria-hidden="true" />
-                            )}
                             Email me a code
-                        </button>
+                        </Button>
                     ) : (
                         <form onSubmit={verify} className="space-y-2">
-                            <label htmlFor="verify-code" className="block text-sm font-semibold text-blue-950 dark:text-blue-100">
-                                Enter the 6-digit code sent to <span className="font-black wrap-break-word">{user?.email}</span>
-                            </label>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <input
-                                    id="verify-code"
-                                    inputMode="numeric"
-                                    autoComplete="one-time-code"
-                                    pattern="[0-9]{6}"
-                                    maxLength={6}
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                                    className="min-h-11 w-full sm:w-40 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-lg font-black tracking-[0.4em] text-gray-900 dark:text-white"
-                                    aria-describedby="verify-code-hint"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={code.length !== 6 || busy !== null}
-                                    className="inline-flex items-center justify-center gap-1.5 min-h-11 px-5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white text-sm font-bold disabled:opacity-60"
-                                >
-                                    {busy === 'verify' && <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />}
-                                    Verify email
-                                </button>
-                            </div>
+                            <Field
+                                label={<>Enter the 6-digit code sent to <span className="font-black wrap-break-word">{user?.email}</span></>}
+                                htmlFor="verify-code"
+                            >
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <Input
+                                        id="verify-code"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        pattern="[0-9]{6}"
+                                        maxLength={6}
+                                        value={code}
+                                        onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                                        className="sm:w-40"
+                                        aria-describedby="verify-code-hint"
+                                    />
+                                    <Button
+                                        type="submit"
+                                        className="shrink-0"
+                                        loading={busy === 'verify'}
+                                        disabled={code.length !== 6 || busy !== null}
+                                    >
+                                        Verify email
+                                    </Button>
+                                </div>
+                            </Field>
                             <p id="verify-code-hint" className="text-xs text-blue-900/70 dark:text-blue-200/70">
                                 The code expires in 15 minutes. Didn't get it? Check spam, or{' '}
                                 <button

@@ -28,6 +28,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { withReturnUrl } from '../../hooks/useReturnUrl';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, ButtonLink } from '../../components/ui';
 import { POTWCountdown } from '../../components/potw/POTWCountdown';
 import { NomineeAvatar, POTWResults } from '../../components/potw/POTWResults';
 import { ShareVote } from '../../components/potw/ShareVote';
@@ -258,34 +259,36 @@ export const PlayerOfTheWeekPage = () => {
 
                                     <div className="mt-auto pt-4">
                                         {!user ? (
-                                            <Link
+                                            <ButtonLink
                                                 to={loginHref}
-                                                className="flex w-full items-center justify-center gap-1.5 min-h-11 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                                variant="secondary"
+                                                fullWidth
+                                                icon={LockClosedIcon}
                                             >
-                                                <LockClosedIcon className="w-4 h-4" aria-hidden="true" />
                                                 Log in to vote
-                                            </Link>
+                                            </ButtonLink>
                                         ) : needsVerification ? (
-                                            <a
-                                                href="#verify-email"
-                                                className="flex w-full items-center justify-center gap-1.5 min-h-11 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                            <ButtonLink
+                                                to="#verify-email"
+                                                variant="secondary"
+                                                fullWidth
+                                                icon={LockClosedIcon}
                                             >
-                                                <LockClosedIcon className="w-4 h-4" aria-hidden="true" />
                                                 Verify email to vote
-                                            </a>
+                                            </ButtonLink>
                                         ) : mine ? (
                                             <span className="flex w-full items-center justify-center gap-1.5 min-h-11 rounded-xl bg-emerald-600 text-sm font-bold text-white">
                                                 <CheckBadgeIcon className="w-5 h-5" aria-hidden="true" />
                                                 Your vote
                                             </span>
                                         ) : (
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="primary"
+                                                fullWidth
                                                 onClick={() => setPendingVote(n)}
-                                                className="flex w-full items-center justify-center gap-1.5 min-h-11 rounded-xl bg-sffl-red hover:bg-[#A52323] text-sm font-bold text-white transition-colors"
                                             >
                                                 {poll.my_vote ? 'Change vote to this player' : 'Vote for this player'}
-                                            </button>
+                                            </Button>
                                         )}
                                     </div>
                                 </li>

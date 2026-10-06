@@ -19,7 +19,7 @@ import {
 } from "../../services/api";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
-import { LightboxImage } from "../../components/ui";
+import { Button, LightboxImage } from "../../components/ui";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 import {
   MANAGER_CANDIDATES_KEY,
@@ -269,14 +269,9 @@ const AdminTeams = () => {
         subtitle="Every team in the league with its team heads, squad and status. Select a team's name to see its full profile."
         actions={
           canManage ? (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-            >
-              <PlusIcon className="w-4 h-4" aria-hidden="true" />
+            <Button icon={PlusIcon} onClick={openCreate} className="w-full sm:w-auto">
               Add Team
-            </button>
+            </Button>
           ) : undefined
         }
       />
@@ -317,22 +312,18 @@ const AdminTeams = () => {
             {STATUS_FILTERS.map((s) => {
               const active = statusFilter === s;
               return (
-                <button
+                <Button
                   key={s}
-                  type="button"
+                  variant={active ? "primary" : "ghost"}
                   aria-pressed={active}
                   onClick={() => {
                     setStatusFilter(s);
                     setPage(1);
                   }}
-                  className={`px-3 sm:px-4 py-1.5 min-h-11 text-xs font-extrabold rounded-lg capitalize transition-all ${
-                    active
-                      ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-sm border border-gray-200 dark:border-gray-600"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
+                  className="capitalize"
                 >
                   {s}
-                </button>
+                </Button>
               );
             })}
           </div>

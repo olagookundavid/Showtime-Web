@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getRelivePlaylist, type ReliveVideo } from "../services/api";
 import { Loader } from "./ui/Loader";
+import { Modal } from "./ui";
+import { buttonClass } from "./ui/buttonStyles";
 import {
-  XMarkIcon,
   PlayIcon,
   ArrowRightIcon,
 } from "@heroicons/react/24/outline";
@@ -33,17 +34,6 @@ export const ReliveCarousel = () => {
   const scrollRight = () => {
     scrollContainerRef.current?.scrollBy({ left: 320, behavior: "smooth" });
   };
-
-  // Close modal on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedVideo(null);
-    };
-    if (selectedVideo) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedVideo]);
 
   if (isLoading) {
     return (
@@ -189,74 +179,50 @@ export const ReliveCarousel = () => {
         </button>
       </div>
 
-      {/* In-App Interactive Video Player Modal */}
+      {/* In-App Interactive Video Player */}
       {selectedVideo && (
-        <div
-          className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
-          data-dialog
-          onClick={() => setSelectedVideo(null)}
-        >
-          <div
-            className="relative w-full max-w-4xl max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-sffl-navy dark:bg-gray-900 rounded-2xl shadow-2xl border border-white/10"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10 text-white">
-              <div className="flex items-center gap-2 min-w-0 pr-4">
-                <span className="w-2.5 h-2.5 rounded-full bg-sffl-red animate-ping" />
-                <h3 className="font-black text-base md:text-xl italic truncate">
-                  {selectedVideo.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedVideo(null)}
-                type="button"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-sffl-red text-white transition-all duration-200 cursor-pointer shrink-0"
-                aria-label="Close video player"
-              >
-                <XMarkIcon className="w-6 h-6" aria-hidden="true" />
-              </button>
-            </div>
-
-            {/* YouTube 16:9 Video Embed */}
-            <div className="relative aspect-video w-full bg-black">
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${selectedVideo.video_id}?autoplay=1&rel=0&modestbranding=1`}
-                title={selectedVideo.title}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 md:p-6 flex flex-wrap items-center justify-between gap-4 text-white text-xs md:text-sm bg-black/40">
-              <div>
-                <span className="font-bold text-gray-300">Published: </span>
-                <span className="text-white font-medium">
-                  {selectedVideo.published_at
-                    ? new Date(selectedVideo.published_at).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        },
-                      )
-                    : "Showtime Flag"}
-                </span>
-              </div>
+        <Modal
+          open
+          onClose={() => setSelectedVideo(null)}
+          title={selectedVideo.title}
+          maxWidth="4xl"
+          footer={
+            <>
+              <p className="text-xs text-gray-500 dark:text-gray-400 sm:mr-auto self-center">
+                <span className="font-bold">Published: </span>
+                {selectedVideo.published_at
+                  ? new Date(selectedVideo.published_at).toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      },
+                    )
+                  : "Showtime Flag"}
+              </p>
               <a
                 href={selectedVideo.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg"
+                className={buttonClass("primary", "md", false, "")}
               >
-                Open on YouTube <ArrowRightIcon className="w-4 h-4" />
+                Open on YouTube <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </a>
-            </div>
+            </>
+          }
+        >
+          {/* YouTube 16:9 Video Embed */}
+          <div className="relative aspect-video w-full bg-black rounded-xl overflow-hidden">
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${selectedVideo.video_id}?autoplay=1&rel=0&modestbranding=1`}
+              title={selectedVideo.title}
+              className="w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { ArrowRightIcon, ArrowUturnLeftIcon, PlusIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import { resetBracket, type Match } from '../../services/api';
 import { buildBracketColumns, winnerSide, championOf, ChampionCard } from '../matches/BracketView';
+import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { FootballIcon } from '../icons/FootballIcon';
 
@@ -83,10 +84,9 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
                     <p>Create matches, set Home/Away teams, and tag each stage (Wildcard, Playoff 1, Playoff 2, Bowl).</p>
                 </div>
                 <div className="flex justify-center gap-3">
-                    <button type="button" onClick={() => onAdd()} className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">
-                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                    <Button icon={PlusIcon} onClick={() => onAdd()}>
                         Add Matches
-                    </button>
+                    </Button>
                 </div>
             </div>
         );
@@ -177,9 +177,9 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
                                                 </div>
                                                 {!isCompleted && (
                                                     <div className="flex border-t border-gray-100 dark:border-gray-700 divide-x divide-gray-100 dark:divide-gray-700">
-                                                        <button type="button" onClick={() => onEdit(m)} className="flex-1 min-h-11 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Edit / Score</button>
-                                                        <button type="button" onClick={() => onTeamSheet(m)} className="flex-1 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:bg-sffl-navy/5 dark:hover:bg-gray-700 transition-colors">Sheet</button>
-                                                        <button type="button" onClick={() => onDelete(m)} className="flex-1 min-h-11 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">Delete</button>
+                                                        <Button variant="ghost" size="sm" className="flex-1 rounded-none" onClick={() => onEdit(m)}>Edit / Score</Button>
+                                                        <Button variant="ghost" size="sm" className="flex-1 rounded-none" onClick={() => onTeamSheet(m)}>Sheet</Button>
+                                                        <Button variant="danger" size="sm" className="flex-1 rounded-none" onClick={() => onDelete(m)}>Delete</Button>
                                                     </div>
                                                 )}
                                             </div>

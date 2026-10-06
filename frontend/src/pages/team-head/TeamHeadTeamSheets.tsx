@@ -28,6 +28,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { Button, Input, Select } from "../../components/ui";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { Modal } from "../../components/ui/Modal";
@@ -1294,13 +1295,6 @@ export const TeamHeadTeamSheets = () => {
     setPickerPositionFilter("ALL");
   };
 
-  const unitTabClass = (active: boolean) =>
-    `flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 min-h-11 py-1.5 px-2 rounded-lg font-black text-xs uppercase tracking-tight transition-colors ${
-      active
-        ? "bg-sffl-navy text-white shadow-sm"
-        : "text-gray-600 dark:text-gray-300"
-    }`;
-
   return (
     <div className="space-y-6">
       <DashboardPageHeader
@@ -1316,37 +1310,30 @@ export const TeamHeadTeamSheets = () => {
           !loadingSheet &&
           matches.length > 0 && (
             <>
-              <button
-                type="button"
-                onClick={handleAutoFill}
+              <Button
+                variant="secondary"
+                className="w-full sm:w-auto"
+                icon={SparklesIcon}
                 disabled={isMatchLockedCurrently || isMatchFinished}
                 title={
                   isMatchLockedCurrently
                     ? "Locked (within 10m of kickoff)"
                     : "Auto-populate starters from your squad"
                 }
-                className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto min-h-11 px-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sffl-navy dark:text-white font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={handleAutoFill}
               >
-                <SparklesIcon
-                  className="w-4 h-4 text-amber-500"
-                  aria-hidden="true"
-                />
                 Auto-Fill
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmSave(true)}
-                disabled={
-                  saveMutation.isPending ||
-                  !selectedMatchId ||
-                  !!saveBlockReason
-                }
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                icon={ShieldCheckIcon}
+                loading={saveMutation.isPending}
+                disabled={!selectedMatchId || !!saveBlockReason}
                 title={saveBlockReason || undefined}
-                className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto min-h-11 px-5 bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setConfirmSave(true)}
               >
-                <ShieldCheckIcon className="w-4 h-4" aria-hidden="true" />
                 Save Team Sheet
-              </button>
+              </Button>
             </>
           )
         }
@@ -1358,11 +1345,12 @@ export const TeamHeadTeamSheets = () => {
           <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
             Match
           </span>
-          <select
+          <Select
+            aria-label="Match"
+            className="w-full sm:w-auto sm:min-w-72"
             value={selectedMatchId}
             onChange={(e) => setSelectedMatchId(e.target.value)}
             disabled={matches.length === 0}
-            className="w-full sm:w-auto sm:min-w-72 min-h-11 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sffl-red"
           >
             {matchesLoading ? (
               <option>Loading upcoming fixtures</option>
@@ -1375,7 +1363,7 @@ export const TeamHeadTeamSheets = () => {
                 </option>
               ))
             )}
-          </select>
+          </Select>
         </label>
         {currentMatch && (
           <div
@@ -1514,48 +1502,44 @@ export const TeamHeadTeamSheets = () => {
                   swap positions.
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedSlotForSwap(null)}
-                className="min-h-11 px-3 rounded-lg bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-white font-black text-xs uppercase hover:bg-amber-300 dark:hover:bg-amber-700"
-              >
+              <Button variant="secondary" size="sm" onClick={() => setSelectedSlotForSwap(null)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
 
           {/* ── Mobile Unit Switcher (Attack / Defense / Bench) ── */}
           <div className="grid grid-cols-3 gap-1 xl:hidden bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
-            <button
-              type="button"
-              onClick={() => setMobileUnitTab("offense")}
+            <Button
+              variant={mobileUnitTab === "offense" ? "navy" : "secondary"}
+              size="sm"
+              icon={BoltIcon}
               aria-pressed={mobileUnitTab === "offense"}
-              className={unitTabClass(mobileUnitTab === "offense")}
+              className="flex-col sm:flex-row uppercase tracking-tight"
+              onClick={() => setMobileUnitTab("offense")}
             >
-              <BoltIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
               Attack ({allAssignedStarters.offense.length}/7)
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileUnitTab("defense")}
+            </Button>
+            <Button
+              variant={mobileUnitTab === "defense" ? "navy" : "secondary"}
+              size="sm"
+              icon={ShieldCheckIcon}
               aria-pressed={mobileUnitTab === "defense"}
-              className={unitTabClass(mobileUnitTab === "defense")}
+              className="flex-col sm:flex-row uppercase tracking-tight"
+              onClick={() => setMobileUnitTab("defense")}
             >
-              <ShieldCheckIcon
-                className="w-4 h-4 shrink-0"
-                aria-hidden="true"
-              />
               Defense ({allAssignedStarters.defense.length}/7)
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileUnitTab("bench")}
+            </Button>
+            <Button
+              variant={mobileUnitTab === "bench" ? "navy" : "secondary"}
+              size="sm"
+              icon={UsersIcon}
               aria-pressed={mobileUnitTab === "bench"}
-              className={unitTabClass(mobileUnitTab === "bench")}
+              className="flex-col sm:flex-row uppercase tracking-tight"
+              onClick={() => setMobileUnitTab("bench")}
             >
-              <UsersIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
               Bench ({substitutes.length})
-            </button>
+            </Button>
           </div>
 
           {/* ── Dual Formations: Attack (Offense) & Defense ── */}
@@ -1629,19 +1613,15 @@ export const TeamHeadTeamSheets = () => {
                 {/* Coverage Selector (Cover 1 to 4) */}
                 <div className="grid grid-cols-4 gap-1 w-full sm:w-auto bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
                   {[1, 2, 3, 4].map((num) => (
-                    <button
+                    <Button
                       key={num}
-                      type="button"
-                      onClick={() => setCoverage(num)}
+                      size="sm"
+                      variant={coverage === num ? "navy" : "secondary"}
                       aria-pressed={coverage === num}
-                      className={`min-h-11 px-2 sm:px-3 rounded-lg text-xs font-black whitespace-nowrap transition-colors ${
-                        coverage === num
-                          ? "bg-sffl-navy text-white shadow-sm"
-                          : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                      }`}
+                      onClick={() => setCoverage(num)}
                     >
                       Cover {num}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -1701,15 +1681,16 @@ export const TeamHeadTeamSheets = () => {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => openPicker({ type: "BENCH" })}
+              <Button
+                variant="navy"
+                size="sm"
+                icon={UserPlusIcon}
                 disabled={totalSquadCount >= 25}
-                className="inline-flex items-center justify-center gap-2 min-h-11 px-4 rounded-lg bg-sffl-navy hover:bg-sffl-navy/90 text-white font-black text-xs uppercase tracking-tight shadow transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-start sm:self-auto"
+                className="self-start sm:self-auto uppercase tracking-tight"
+                onClick={() => openPicker({ type: "BENCH" })}
               >
-                <UserPlusIcon className="w-4 h-4" aria-hidden="true" />
                 Add Substitute
-              </button>
+              </Button>
             </div>
 
             {substitutes.length === 0 ? (
@@ -1725,14 +1706,14 @@ export const TeamHeadTeamSheets = () => {
                   Add bench players from your club roster. You can carry up to
                   11 substitutes (25 total match squad limit).
                 </p>
-                <button
-                  type="button"
+                <Button
+                  size="sm"
+                  icon={UserPlusIcon}
+                  className="mt-3 uppercase tracking-tight"
                   onClick={() => openPicker({ type: "BENCH" })}
-                  className="mt-3 inline-flex items-center gap-1.5 min-h-11 px-4 rounded-lg bg-sffl-red text-white text-xs font-black uppercase hover:bg-red-700 transition-colors"
                 >
-                  <UserPlusIcon className="w-4 h-4" aria-hidden="true" />
                   Select Substitutes
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -1833,21 +1814,15 @@ export const TeamHeadTeamSheets = () => {
 
             {/* Search & Position Filters stay in view while the list scrolls. */}
             <div className="sticky -top-4 sm:-top-6 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 space-y-3">
-              <div className="relative">
-                <MagnifyingGlassIcon
-                  className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"
-                  aria-hidden="true"
-                />
-                <input
-                  type="search"
-                  aria-label="Search players"
-                  placeholder="Search by player name or jersey #"
-                  value={pickerSearch}
-                  onChange={(e) => setPickerSearch(e.target.value)}
-                  className="w-full min-h-11 pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                  autoFocus
-                />
-              </div>
+              <Input
+                type="search"
+                aria-label="Search players"
+                icon={MagnifyingGlassIcon}
+                placeholder="Search by player name or jersey #"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                autoFocus
+              />
 
               {/* Position Chips */}
               <div className="flex flex-wrap gap-1.5 text-xs font-black">
@@ -1859,19 +1834,15 @@ export const TeamHeadTeamSheets = () => {
                   { key: "RUSH", label: "Rushers" },
                   { key: "DEF", label: "Defenders" },
                 ].map((tab) => (
-                  <button
+                  <Button
                     key={tab.key}
-                    type="button"
-                    onClick={() => setPickerPositionFilter(tab.key)}
+                    size="sm"
+                    variant={pickerPositionFilter === tab.key ? "primary" : "secondary"}
                     aria-pressed={pickerPositionFilter === tab.key}
-                    className={`min-h-11 px-3 rounded-lg transition-colors ${
-                      pickerPositionFilter === tab.key
-                        ? "bg-sffl-red text-white shadow-sm"
-                        : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600"
-                    }`}
+                    onClick={() => setPickerPositionFilter(tab.key)}
                   >
                     {tab.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -1983,16 +1954,18 @@ export const TeamHeadTeamSheets = () => {
 
                       {/* Action Button */}
                       {pickerTarget.type === "BENCH" ? (
-                        <button
-                          type="button"
+                        <Button
+                          variant="navy"
+                          size="sm"
+                          className="shrink-0 uppercase"
                           onClick={() => handleAddPlayerToBench(p)}
-                          className="shrink-0 min-h-11 px-3.5 rounded-lg bg-sffl-navy hover:bg-sffl-navy/90 text-white font-black text-xs uppercase shadow transition-colors"
                         >
                           Add to Bench
-                        </button>
+                        </Button>
                       ) : (
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
+                          className="shrink-0 uppercase"
                           onClick={() =>
                             assignPlayerToStarterSlot(
                               pickerTarget.unit!,
@@ -2000,10 +1973,9 @@ export const TeamHeadTeamSheets = () => {
                               p,
                             )
                           }
-                          className="shrink-0 min-h-11 px-3.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase shadow transition-colors"
                         >
                           Select
-                        </button>
+                        </Button>
                       )}
                     </div>
                   );

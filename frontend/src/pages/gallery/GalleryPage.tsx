@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getGallery, getCompetitions, getMatches, sortCompetitionsBySeason, dropdownCompetitionsFor, type Competition } from '../../services/api';
+import { getGallery, getCompetitions, getMatches, sortCompetitionsBySeason, dropdownCompetitionsFor, type Competition, type Gallery } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
+import { DataTable } from '../../components/ui/DataTable';
+import { FootballIcon } from '../../components/icons/FootballIcon';
+import { UserGroupIcon } from '@heroicons/react/24/outline';
 import { Pagination } from '../../components/ui/Pagination';
+import { Field, Select } from '../../components/ui';
 import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 
 const ALL = 'ALL';
@@ -88,12 +92,11 @@ export const GalleryPage = () => {
                 {competitions.length > 0 && (
                     <div className="mt-4 md:mt-0 flex flex-col gap-2 md:w-[280px]">
                         <div className="min-w-[260px]">
-                            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
-                            <div className="relative">
-                                <select
+                            <Field label="Competition" tone="dark">
+                                <Select
+                                    tone="dark"
                                     value={selectedCompetitionId}
                                     onChange={(e) => handleCompetitionChange(e.target.value)}
-                                    className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                                 >
                                     {dropdownComps.map((c) => (
                                         <option key={c.id} value={c.id} className="text-black bg-white">
@@ -101,13 +104,8 @@ export const GalleryPage = () => {
                                         </option>
                                     ))}
                                     <option value={ALL} className="text-black bg-white">All competitions</option>
-                                </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </div>
-                            </div>
+                                </Select>
+                            </Field>
                         </div>
                     </div>
                 )}
@@ -138,63 +136,70 @@ export const GalleryPage = () => {
                 <>
                     {/* Desktop Table */}
                     <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-sffl-navy text-white">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left font-bold uppercase tracking-wide">Game Week</th>
-                                        <th className="px-6 py-4 text-left font-bold uppercase tracking-wide">Date</th>
-                                        {selectedCompetitionId === ALL && (
-                                            <th className="px-6 py-4 text-left font-bold uppercase tracking-wide">Competition</th>
-                                        )}
-                                        <th className="px-6 py-4 text-center font-bold uppercase tracking-wide">Players</th>
-                                        <th className="px-6 py-4 text-center font-bold uppercase tracking-wide">Fans Zone</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {gallery.map((entry, index) => (
-                                        <tr
-                                            key={entry.id}
-                                            className={`${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-150`}
+                        <DataTable
+                            compact
+                            searchable={false}
+                            paginated={false}
+                            getRowId={(entry) => entry.id}
+                            data={gallery}
+                            rowClassName={(entry) =>
+                                `${gallery.indexOf(entry) % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-gray-100 dark:hover:bg-gray-600`
+                            }
+                            columns={[
+                                {
+                                    header: 'Game Week',
+                                    className: 'px-6 py-4 font-bold text-sffl-navy dark:text-white',
+                                    cell: (entry) => entry.game_week,
+                                },
+                                {
+                                    header: 'Date',
+                                    className: 'px-6 py-4 text-gray-700 dark:text-gray-300',
+                                    cell: (entry) => entry.date,
+                                },
+                                ...(selectedCompetitionId === ALL
+                                    ? [
+                                          {
+                                              header: 'Competition',
+                                              className: 'px-6 py-4 text-gray-700 dark:text-gray-300',
+                                              cell: (entry: Gallery) =>
+                                                  entry.competition?.name || <span className="text-gray-400 italic">—</span>,
+                                          },
+                                      ]
+                                    : []),
+                                {
+                                    header: 'Players',
+                                    align: 'center',
+                                    className: 'px-6 py-4',
+                                    cell: (entry) => (
+                                        <a
+                                            href={ensureAbsoluteUrl(entry.players_photo_url)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
                                         >
-                                            <td className="px-6 py-4 font-bold text-sffl-navy dark:text-white">
-                                                {entry.game_week}
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                                                {entry.date}
-                                            </td>
-                                            {selectedCompetitionId === ALL && (
-                                                <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                                                    {entry.competition?.name || <span className="text-gray-400 italic">—</span>}
-                                                </td>
-                                            )}
-                                            <td className="px-6 py-4 text-center">
-                                                <a
-                                                    href={ensureAbsoluteUrl(entry.players_photo_url)}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="group inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                                                >
-                                                    <span className="text-lg">🏈</span>
-                                                    <span className="text-sm">Players</span>
-                                                </a>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <a
-                                                    href={ensureAbsoluteUrl(entry.fans_photo_url)}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                                                >
-                                                    <span className="text-lg">⚡</span>
-                                                    <span className="text-sm">Fans</span>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            <FootballIcon className="w-5 h-5" aria-hidden="true" />
+                                            <span className="text-sm">Players</span>
+                                        </a>
+                                    ),
+                                },
+                                {
+                                    header: 'Fans Zone',
+                                    align: 'center',
+                                    className: 'px-6 py-4',
+                                    cell: (entry) => (
+                                        <a
+                                            href={ensureAbsoluteUrl(entry.fans_photo_url)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                                        >
+                                            <UserGroupIcon className="w-5 h-5" aria-hidden="true" />
+                                            <span className="text-sm">Fans</span>
+                                        </a>
+                                    ),
+                                },
+                            ]}
+                        />
                     </div>
 
                     {/* Mobile View */}
@@ -215,7 +220,7 @@ export const GalleryPage = () => {
                                         rel="noopener noreferrer"
                                         className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700 py-2 rounded-lg text-[10px] font-bold text-sffl-navy dark:text-white"
                                     >
-                                        <span>🏈</span> Players
+                                        <FootballIcon className="w-4 h-4" aria-hidden="true" /> Players
                                     </a>
                                     <a
                                         href={ensureAbsoluteUrl(entry.fans_photo_url)}
@@ -223,7 +228,7 @@ export const GalleryPage = () => {
                                         rel="noopener noreferrer"
                                         className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700 py-2 rounded-lg text-[10px] font-bold text-sffl-navy dark:text-white"
                                     >
-                                        <span>⚡</span> Fans
+                                        <UserGroupIcon className="w-4 h-4" aria-hidden="true" /> Fans
                                     </a>
                                 </div>
                             </div>

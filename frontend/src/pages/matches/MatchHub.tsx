@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getCompetitions,
   getMatches,
@@ -13,7 +13,7 @@ import {
   type PaginatedResponse,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
-import { Spinner } from "../../components/ui";
+import { Button, ButtonLink, Field, Select, Spinner } from "../../components/ui";
 import { MatchCard } from "../../components/matches/MatchCard";
 import { MatchStandingsTable } from "../../components/matches/MatchStandingsTable";
 import { BracketView } from "../../components/matches/BracketView";
@@ -296,15 +296,13 @@ export const MatchHub = () => {
             Scores, Fixtures & Standings
           </p>
           <div className="mt-4 lg:hidden">
-            <Link
+            <ButtonLink
               to={`/standings?comp=${selectedCompetitionId}`}
-              className="inline-flex items-center gap-2 min-h-11 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/20"
+              variant="secondary"
+              tone="dark"
+              size="sm"
+              icon={isKnockout || isMatchesOnly ? FootballIcon : TrophyIcon}
             >
-              {isKnockout || isMatchesOnly ? (
-                <FootballIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-              ) : (
-                <TrophyIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-              )}
               {isKnockout
                 ? "View Playoff Bracket"
                 : isPreseason
@@ -312,47 +310,35 @@ export const MatchHub = () => {
                   : isCup
                     ? "View Cup Matches"
                     : "View Full Standings"}
-            </Link>
+            </ButtonLink>
           </div>
         </div>
 
         {/* Competition Selector — picks which competition/season. The
                     Season|Playoffs toggle now lives in the content area below. */}
         {competitions.length > 0 && (
-          <div className="flex flex-col gap-2 w-full md:w-70 shrink-0">
-            <div className="w-full">
-              <label
-                htmlFor="match-hub-competition"
-                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
-              >
-                Competition
-              </label>
-              <div className="relative">
-                <select
-                  id="match-hub-competition"
-                  value={selectedCompetitionId}
-                  onChange={(e) => handleCompetitionChange(e.target.value)}
-                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
-                >
-                  {dropdownComps.map((c: Competition) => (
-                    <option
-                      key={c.id}
-                      value={c.id}
-                      className="text-black bg-white"
-                    >
-                      {c.name}{" "}
-                      {c.status && !["active", "completed"].includes(c.status)
-                        ? `[${c.status.toUpperCase()}]`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
-                </div>
-              </div>
-            </div>
-          </div>
+          <Field
+            label="Competition"
+            htmlFor="match-hub-competition"
+            tone="dark"
+            className="w-full md:w-70 shrink-0"
+          >
+            <Select
+              id="match-hub-competition"
+              tone="dark"
+              value={selectedCompetitionId}
+              onChange={(e) => handleCompetitionChange(e.target.value)}
+            >
+              {dropdownComps.map((c: Competition) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{" "}
+                  {c.status && !["active", "completed"].includes(c.status)
+                    ? `[${c.status.toUpperCase()}]`
+                    : ""}
+                </option>
+              ))}
+            </Select>
+          </Field>
         )}
       </div>
 
@@ -362,14 +348,9 @@ export const MatchHub = () => {
             <span>Filtering matches for</span>
             <span className="font-black">{filterTeam.name}</span>
           </div>
-          <button
-            type="button"
-            onClick={clearTeamFilter}
-            className="inline-flex items-center gap-1 min-h-11 text-[11px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-4 py-1 rounded-full transition"
-          >
+          <Button variant="primary" size="sm" icon={XMarkIcon} iconPosition="right" onClick={clearTeamFilter}>
             Clear
-            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -394,19 +375,16 @@ export const MatchHub = () => {
             {/* Status Filter */}
             <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex gap-1 w-full sm:w-auto">
               {(["ALL", "LIVE", "FINISHED", "SCHEDULED"] as const).map((f) => (
-                <button
-                  type="button"
+                <Button
                   key={f}
-                  onClick={() => setStatusFilter(f)}
+                  size="sm"
+                  variant={statusFilter === f ? "navy" : "ghost"}
+                  className="flex-1 sm:flex-none"
                   aria-pressed={statusFilter === f}
-                  className={`flex-1 sm:flex-none min-h-11 px-2 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                    statusFilter === f
-                      ? "bg-sffl-navy text-white shadow-sm"
-                      : "text-gray-500 dark:text-gray-400 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
+                  onClick={() => setStatusFilter(f)}
                 >
                   {f === "SCHEDULED" ? "UPCOMING" : f}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -532,12 +510,9 @@ export const MatchHub = () => {
                 <p className="text-sm text-purple-100 mb-4">
                   Don't miss a single moment of the SFFL season.
                 </p>
-                <Link
-                  to="/tickets"
-                  className="w-full min-h-11 py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-center"
-                >
+                <ButtonLink to="/tickets" variant="navy" tone="dark" fullWidth>
                   Get Tickets
-                </Link>
+                </ButtonLink>
               </div>
             </div>
           ) : isMatchesOnly ? (
@@ -559,12 +534,9 @@ export const MatchHub = () => {
                 <p className="text-sm text-purple-100 mb-4">
                   Don't miss a single moment of the SFFL season.
                 </p>
-                <Link
-                  to="/tickets"
-                  className="w-full min-h-11 py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-center"
-                >
+                <ButtonLink to="/tickets" variant="navy" tone="dark" fullWidth>
                   Get Tickets
-                </Link>
+                </ButtonLink>
               </div>
             </div>
           ) : standingsLoading ? (
@@ -585,12 +557,9 @@ export const MatchHub = () => {
                 <p className="text-sm text-purple-100 mb-4">
                   Don't miss a single moment of the SFFL season.
                 </p>
-                <Link
-                  to="/tickets"
-                  className="w-full min-h-11 py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-center"
-                >
+                <ButtonLink to="/tickets" variant="navy" tone="dark" fullWidth>
                   Get Tickets
-                </Link>
+                </ButtonLink>
               </div>
             </div>
           ) : (

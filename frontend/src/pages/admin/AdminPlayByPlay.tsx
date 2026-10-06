@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import {
   isDeletedPlayer,
   DELETED_TITLE,
@@ -65,6 +72,7 @@ import { usePermissions } from "../../hooks/usePermissions";
 import { getPlayStatAccruals } from "../../utils/statAccrualDeriver";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { Button, Field, IconButton, Input, Select } from "../../components/ui";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -334,67 +342,61 @@ const PlayerField = ({
             Quick:
           </span>
           {favoritePlayers.map((p) => (
-            <button
+            <Button
               key={p.player_id}
-              type="button"
+              size="sm"
+              variant={value === p.player_id ? "primary" : "secondary"}
               onClick={() => {
                 onChange(p.player_id);
                 setQuery("");
                 setIsOpen(false);
               }}
-              className={`text-xs font-bold px-3 py-1 min-h-11 rounded-md border transition-all ${
-                value === p.player_id
-                  ? "bg-sffl-red text-white border-sffl-red shadow-sm"
-                  : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-600"
-              }`}
             >
               {p.jersey_number ? `#${p.jersey_number} ` : ""}
               {p.name.split(" ")[0]}
-            </button>
+            </Button>
           ))}
         </div>
       )}
 
-      <div className="relative">
-        <input
-          type="text"
-          placeholder={
-            selectedPlayer
+      <Input
+        type="text"
+        aria-label={label}
+        placeholder={
+          selectedPlayer
+            ? `${selectedPlayer.name}${selectedPlayer.jersey_number ? ` (#${selectedPlayer.jersey_number})` : ""}`
+            : "Type jersey # or name…"
+        }
+        value={
+          isOpen
+            ? query
+            : selectedPlayer
               ? `${selectedPlayer.name}${selectedPlayer.jersey_number ? ` (#${selectedPlayer.jersey_number})` : ""}`
-              : "Type jersey # or name…"
-          }
-          value={
-            isOpen
-              ? query
-              : selectedPlayer
-                ? `${selectedPlayer.name}${selectedPlayer.jersey_number ? ` (#${selectedPlayer.jersey_number})` : ""}`
-                : ""
-          }
-          onFocus={() => {
-            setIsOpen(true);
-            setQuery("");
-          }}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setIsOpen(true);
-          }}
-          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-          className="w-full min-h-11 border border-gray-300 rounded-lg pl-3 pr-11 py-2 text-sm font-semibold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-sffl-red focus:outline-none"
-        />
-        {value && (
-          <button
-            type="button"
-            onClick={() => {
-              onChange("");
-              setQuery("");
-            }}
-            aria-label="Clear selection"
-            className="absolute right-0 top-0 h-full min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-          >
-            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-          </button>
-        )}
-      </div>
+              : ""
+        }
+        onFocus={() => {
+          setIsOpen(true);
+          setQuery("");
+        }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setIsOpen(true);
+        }}
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        action={
+          value ? (
+            <IconButton
+              icon={XMarkIcon}
+              label="Clear selection"
+              className="h-full"
+              onClick={() => {
+                onChange("");
+                setQuery("");
+              }}
+            />
+          ) : undefined
+        }
+      />
 
       {isOpen && (
         <div className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
@@ -710,12 +712,13 @@ const ChangeCell = ({ from, to }: { from: string; to: string }) =>
     </span>
   );
 
-const chip = (selected: boolean) =>
-  `px-3 py-2 min-h-11 rounded-lg text-sm font-bold border transition-all ${
-    selected
-      ? "bg-sffl-red text-white border-sffl-red"
-      : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:border-sffl-red"
-  }`;
+// A selectable option: primary when chosen, secondary otherwise.
+const ChipButton = ({
+  selected,
+  ...props
+}: ComponentProps<typeof Button> & { selected: boolean }) => (
+  <Button variant={selected ? "primary" : "secondary"} {...props} />
+);
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -1970,14 +1973,11 @@ export const AdminPlayByPlay = () => {
       />
       {/* Competition + match picker */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="mb-4">
-          <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-            Competition
-          </label>
-          <select
+        <Field label="Competition" htmlFor="pbp-competition" className="mb-4">
+          <Select
+            id="pbp-competition"
             value={selectedCompId}
             onChange={(e) => setSelectedCompId(e.target.value)}
-            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 min-h-11 text-sm font-semibold dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:outline-none"
           >
             <option value="">All competitions</option>
             {competitions.map((c) => (
@@ -1985,24 +1985,24 @@ export const AdminPlayByPlay = () => {
                 {c.name}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </Field>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-          <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">
-            Select Match
+          <label htmlFor="pbp-match" className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+            Select match
           </label>
           <span className="text-xs text-gray-500 dark:text-gray-400">
             Showing {Math.min(visibleMatches.length, matches.length)} of{" "}
             {matches.length} latest matches
           </span>
         </div>
-        <select
+        <Select
+          id="pbp-match"
           value={matchId}
           onChange={(e) => {
             setMatchId(e.target.value);
             resetWizard();
           }}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 min-h-11 text-sm font-semibold dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:outline-none"
         >
           <option value="">Select a match…</option>
           {groupedMatches.map((group) => (
@@ -2022,27 +2022,25 @@ export const AdminPlayByPlay = () => {
               ))}
             </optgroup>
           ))}
-        </select>
+        </Select>
 
         {visibleCount < matches.length && (
           <div className="flex flex-wrap items-center justify-end gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              icon={PlusIcon}
               onClick={() =>
                 setVisibleCount((prev) => Math.min(matches.length, prev + 10))
               }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 bg-sffl-navy/10 hover:bg-sffl-navy/20 dark:bg-gray-700 dark:hover:bg-gray-600 text-sffl-navy dark:text-white font-bold text-xs rounded-lg transition-colors"
             >
-              <PlusIcon className="w-4 h-4" aria-hidden="true" />
-              Load 10 More Matches
-            </button>
-            <button
-              type="button"
+              Load 10 more matches
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => setVisibleCount(matches.length)}
-              className="px-3 py-1.5 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-lg transition-colors"
             >
-              Show All ({matches.length})
-            </button>
+              Show all ({matches.length})
+            </Button>
           </div>
         )}
       </div>
@@ -2072,20 +2070,14 @@ export const AdminPlayByPlay = () => {
             </div>
           </div>
           {canToggleLock ? (
-            <button
-              type="button"
+            <Button
+              variant={locked ? "success" : "danger"}
               onClick={requestLockToggle}
-              disabled={lockBusy}
-              className={`shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 rounded-lg font-bold text-white disabled:opacity-50 ${locked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}
+              loading={lockBusy}
+              className="shrink-0"
             >
-              {lockBusy && (
-                <ArrowPathIcon
-                  className="w-4 h-4 animate-spin"
-                  aria-hidden="true"
-                />
-              )}
               {locked ? "Unlock" : "Lock"}
-            </button>
+            </Button>
           ) : (
             <span className="shrink-0 text-xs font-semibold text-gray-500 dark:text-gray-400">
               Admin only
@@ -2117,42 +2109,33 @@ export const AdminPlayByPlay = () => {
               )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  Half
-                </span>
-                <input
+              <Field label="Half" htmlFor="ctx-half">
+                <Input
+                  id="ctx-half"
                   type="number"
                   value={ctx.quarter}
                   onChange={(e) =>
                     setCtx({ ...ctx, quarter: parseInt(e.target.value) || 1 })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 min-h-11 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  Drive
-                </span>
-                <input
+              </Field>
+              <Field label="Drive" htmlFor="ctx-drive">
+                <Input
+                  id="ctx-drive"
                   type="number"
                   value={ctx.driveNo}
                   onChange={(e) =>
                     setCtx({ ...ctx, driveNo: parseInt(e.target.value) || 1 })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 min-h-11 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  Ball with
-                </span>
-                <select
+              </Field>
+              <Field label="Ball with" htmlFor="ctx-offense">
+                <Select
+                  id="ctx-offense"
                   value={ctx.offense}
                   onChange={(e) =>
                     setCtx({ ...ctx, offense: e.target.value as Side })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 min-h-11 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
                   <option value="">—</option>
                   <option value="home">
@@ -2165,13 +2148,11 @@ export const AdminPlayByPlay = () => {
                       match?.away_team?.name ||
                       "Away"}
                   </option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  Down
-                </span>
-                <select
+                </Select>
+              </Field>
+              <Field label="Down" htmlFor="ctx-down">
+                <Select
+                  id="ctx-down"
                   value={ctx.down}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -2187,7 +2168,6 @@ export const AdminPlayByPlay = () => {
                       });
                     }
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 min-h-11 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
                   <option value="1">1</option>
                   <option value="2">2</option>
@@ -2197,47 +2177,38 @@ export const AdminPlayByPlay = () => {
                   <option value="2&G">2&G</option>
                   <option value="3&G">3&G</option>
                   <option value="4&G">4&G</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  To go
-                </span>
-                <input
+                </Select>
+              </Field>
+              <Field label="To go" htmlFor="ctx-togo">
+                <Input
+                  id="ctx-togo"
                   type="number"
                   value={ctx.toGo}
                   onChange={(e) => setCtx({ ...ctx, toGo: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 min-h-11 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
-              </label>
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3 max-w-xs">
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  {match?.home_team?.short_name || "Home"} score
-                </span>
-                <input
+              <Field label={`${match?.home_team?.short_name || "Home"} score`} htmlFor="ctx-home-score">
+                <Input
+                  id="ctx-home-score"
                   type="number"
                   value={ctx.homeScore}
                   onChange={(e) =>
                     setCtx({ ...ctx, homeScore: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 min-h-11 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  {match?.away_team?.short_name || "Away"} score
-                </span>
-                <input
+              </Field>
+              <Field label={`${match?.away_team?.short_name || "Away"} score`} htmlFor="ctx-away-score">
+                <Input
+                  id="ctx-away-score"
                   type="number"
                   value={ctx.awayScore}
                   onChange={(e) =>
                     setCtx({ ...ctx, awayScore: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 min-h-11 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
-              </label>
+              </Field>
             </div>
           </div>
 
@@ -2263,13 +2234,13 @@ export const AdminPlayByPlay = () => {
                         ["bad_snap", "Bad Snap"],
                       ] as [SnapOutcome, string][]
                     ).map(([so, label]) => (
-                      <button
+                      <ChipButton
                         key={so}
-                        className={chip(w.snapOutcome === so)}
+                        selected={w.snapOutcome === so}
                         onClick={() => setField("snapOutcome", so)}
                       >
                         {label}
-                      </button>
+                      </ChipButton>
                     ))}
                   </div>
                 </div>
@@ -2287,14 +2258,14 @@ export const AdminPlayByPlay = () => {
                             ["safety", "Safety (2 pts)"],
                           ] as [BadSnapOutcome, string][]
                         ).map(([bso, label]) => (
-                          <button
+                          <ChipButton
                             key={bso}
                             type="button"
-                            className={chip((w.badSnapOutcome || "next_down") === bso)}
+                            selected={(w.badSnapOutcome || "next_down") === bso}
                             onClick={() => setField("badSnapOutcome", bso)}
                           >
                             {label}
-                          </button>
+                          </ChipButton>
                         ))}
                       </div>
                     </div>
@@ -2352,9 +2323,9 @@ export const AdminPlayByPlay = () => {
                     ["event", "Game event"],
                   ] as [Kind, string][]
                 ).map(([k, label]) => (
-                  <button
+                  <ChipButton
                     key={k}
-                    className={chip(w.kind === k)}
+                    selected={w.kind === k}
                     onClick={() =>
                       setW({
                         ...emptyWizard,
@@ -2367,7 +2338,7 @@ export const AdminPlayByPlay = () => {
                     }
                   >
                     {label}
-                  </button>
+                  </ChipButton>
                 ))}
               </div>
 
@@ -2377,8 +2348,10 @@ export const AdminPlayByPlay = () => {
                   Quick Play Presets
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={FootballIcon}
                     onClick={() =>
                       setW({
                         ...emptyWizard,
@@ -2393,13 +2366,13 @@ export const AdminPlayByPlay = () => {
                         passFinalOutcome: "next_down",
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-1 min-h-11 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                   >
-                    <FootballIcon className="w-4 h-4" aria-hidden="true" />
                     Incomplete Pass
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={CheckCircleIcon}
                     onClick={() =>
                       setW({
                         ...emptyWizard,
@@ -2414,32 +2387,31 @@ export const AdminPlayByPlay = () => {
                         passFinalOutcome: "next_down",
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-1 min-h-11 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                   >
-                    <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
                     Complete Pass
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={RunnerIcon}
                     onClick={() =>
                       setW({
                         ...emptyWizard,
                         editingId: w.editingId,
                         centerId: w.centerId || stickyCenter,
-                        qbId: w.qbId || stickyQb,
                         snapOutcome: w.snapOutcome,
                         kind: "run",
                         runDefenderAction: "FG",
                         runPlayOutcome: "next_down",
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-1 min-h-11 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                   >
-                    <RunnerIcon className="w-4 h-4" aria-hidden="true" />
                     Run
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="warning"
+                    size="sm"
+                    icon={ClockIcon}
                     onClick={() =>
                       setW({
                         ...emptyWizard,
@@ -2450,13 +2422,13 @@ export const AdminPlayByPlay = () => {
                         eventKind: "EH",
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-1 min-h-11 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 rounded-md text-xs font-bold text-amber-800 dark:text-amber-200 transition-colors"
                   >
-                    <ClockIcon className="w-4 h-4" aria-hidden="true" />
                     End of Half
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="info"
+                    size="sm"
+                    icon={FlagIcon}
                     onClick={() =>
                       setW({
                         ...emptyWizard,
@@ -2467,13 +2439,13 @@ export const AdminPlayByPlay = () => {
                         eventKind: "EG",
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-1 min-h-11 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 rounded-md text-xs font-bold text-blue-800 dark:text-blue-200 transition-colors"
                   >
-                    <FlagIcon className="w-4 h-4" aria-hidden="true" />
                     End of Game
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    icon={ExclamationTriangleIcon}
                     onClick={() =>
                       setW({
                         ...emptyWizard,
@@ -2484,14 +2456,9 @@ export const AdminPlayByPlay = () => {
                         eventKind: "OMW",
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-1 min-h-11 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 rounded-md text-xs font-bold text-rose-800 dark:text-rose-200 transition-colors"
                   >
-                    <ExclamationTriangleIcon
-                      className="w-4 h-4"
-                      aria-hidden="true"
-                    />
                     1-Minute Warning
-                  </button>
+                  </Button>
                 </div>
               </div>
             </Section>
@@ -2538,31 +2505,29 @@ export const AdminPlayByPlay = () => {
                           ["int", "Interception"],
                         ] as [RushOutcome, string][]
                       ).map(([ro, label]) => (
-                        <button
+                        <ChipButton
                           key={ro}
-                          className={chip(w.rushOutcome === ro)}
+                          selected={w.rushOutcome === ro}
                           onClick={() => setField("rushOutcome", ro)}
                         >
                           {label}
-                        </button>
+                        </ChipButton>
                       ))}
                     </div>
                   </div>
 
                   {w.rushOutcome === "sack" && (
                     <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <label className="block">
-                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                          Yards lost
-                        </span>
-                        <input
+                      <Field label="Yards lost" htmlFor="pbp-sack-yards">
+                        <Input
+                          id="pbp-sack-yards"
                           type="number"
                           value={w.yards}
                           onChange={(e) => setField("yards", e.target.value)}
                           placeholder="e.g. -6"
-                          className="ml-2 w-24 border rounded-lg px-2 py-1.5 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          className="w-24"
                         />
-                      </label>
+                      </Field>
                       <div>
                         <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
                           Sack Result (Play Ends)
@@ -2574,13 +2539,13 @@ export const AdminPlayByPlay = () => {
                               ["safety", "Safety"],
                             ] as [SackResult, string][]
                           ).map(([sr, label]) => (
-                            <button
+                            <ChipButton
                               key={sr}
-                              className={chip(w.sackResult === sr)}
+                              selected={w.sackResult === sr}
                               onClick={() => setField("sackResult", sr)}
                             >
                               {label}
-                            </button>
+                            </ChipButton>
                           ))}
                         </div>
                       </div>
@@ -2632,13 +2597,13 @@ export const AdminPlayByPlay = () => {
                             ["ta", "Throw Away"],
                           ] as [PassOutcome, string][]
                         ).map(([o, label]) => (
-                          <button
+                          <ChipButton
                             key={o}
-                            className={chip(w.passOutcome === o)}
+                            selected={w.passOutcome === o}
                             onClick={() => setField("passOutcome", o)}
                           >
                             {label}
-                          </button>
+                          </ChipButton>
                         ))}
                       </div>
                     </div>
@@ -2659,17 +2624,15 @@ export const AdminPlayByPlay = () => {
                           roster={offenseRoster}
                           favoriteIds={getFavorites(offenseTeamId, "target")}
                         />
-                        <label className="block">
-                          <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                            Yards gained
-                          </span>
-                          <input
+                        <Field label="Yards gained" htmlFor="pbp-complete-yards">
+                          <Input
+                            id="pbp-complete-yards"
                             type="number"
                             value={w.yards}
                             onChange={(e) => setField("yards", e.target.value)}
-                            className="ml-2 w-24 border rounded-lg px-2 py-1.5 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="w-24"
                           />
-                        </label>
+                        </Field>
                         <div>
                           <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
                             Defender Action
@@ -2681,15 +2644,15 @@ export const AdminPlayByPlay = () => {
                                 ["OB", "Out of bounds"],
                               ] as [PassDefenderAction, string][]
                             ).map(([da, label]) => (
-                              <button
+                              <ChipButton
                                 key={da}
-                                className={chip(w.passDefenderAction === da)}
+                                selected={w.passDefenderAction === da}
                                 onClick={() =>
                                   setField("passDefenderAction", da)
                                 }
                               >
                                 {label}
-                              </button>
+                              </ChipButton>
                             ))}
                           </div>
                         </div>
@@ -2720,13 +2683,13 @@ export const AdminPlayByPlay = () => {
                                 ["SAF", "Safety"],
                               ] as [PassFinalOutcome, string][]
                             ).map(([fo, label]) => (
-                              <button
+                              <ChipButton
                                 key={fo}
-                                className={chip(w.passFinalOutcome === fo)}
+                                selected={w.passFinalOutcome === fo}
                                 onClick={() => setField("passFinalOutcome", fo)}
                               >
                                 {label}
-                              </button>
+                              </ChipButton>
                             ))}
                           </div>
                           <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -2765,15 +2728,15 @@ export const AdminPlayByPlay = () => {
                                 ["uncatchable", "Uncatchable"],
                               ] as [IncompleteOption, string][]
                             ).map(([inc, label]) => (
-                              <button
+                              <ChipButton
                                 key={inc}
-                                className={chip(w.incompleteOption === inc)}
+                                selected={w.incompleteOption === inc}
                                 onClick={() =>
                                   setField("incompleteOption", inc)
                                 }
                               >
                                 {label}
-                              </button>
+                              </ChipButton>
                             ))}
                           </div>
                         </div>
@@ -2807,13 +2770,13 @@ export const AdminPlayByPlay = () => {
                                 ["TO", "Turnover on downs"],
                               ] as [PassFinalOutcome, string][]
                             ).map(([fo, label]) => (
-                              <button
+                              <ChipButton
                                 key={fo}
-                                className={chip(w.passFinalOutcome === fo)}
+                                selected={w.passFinalOutcome === fo}
                                 onClick={() => setField("passFinalOutcome", fo)}
                               >
                                 {label}
-                              </button>
+                              </ChipButton>
                             ))}
                           </div>
                         </div>
@@ -2861,13 +2824,13 @@ export const AdminPlayByPlay = () => {
                                 ["pick6", "Pick 6 (Returned for TD)"],
                               ] as [PassFinalOutcome, string][]
                             ).map(([fo, label]) => (
-                              <button
+                              <ChipButton
                                 key={fo}
-                                className={chip(w.passFinalOutcome === fo)}
+                                selected={w.passFinalOutcome === fo}
                                 onClick={() => setField("passFinalOutcome", fo)}
                               >
                                 {label}
-                              </button>
+                              </ChipButton>
                             ))}
                           </div>
                         </div>
@@ -2891,13 +2854,13 @@ export const AdminPlayByPlay = () => {
                                 ["TO", "Turnover on downs"],
                               ] as [PassFinalOutcome, string][]
                             ).map(([fo, label]) => (
-                              <button
+                              <ChipButton
                                 key={fo}
-                                className={chip(w.passFinalOutcome === fo)}
+                                selected={w.passFinalOutcome === fo}
                                 onClick={() => setField("passFinalOutcome", fo)}
                               >
                                 {label}
-                              </button>
+                              </ChipButton>
                             ))}
                           </div>
                         </div>
@@ -2922,17 +2885,15 @@ export const AdminPlayByPlay = () => {
                   roster={offenseRoster}
                   favoriteIds={getFavorites(offenseTeamId, "carrier")}
                 />
-                <label className="block">
-                  <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                    Yards
-                  </span>
-                  <input
+                <Field label="Yards" htmlFor="pbp-carry-yards">
+                  <Input
+                    id="pbp-carry-yards"
                     type="number"
                     value={w.yards}
                     onChange={(e) => setField("yards", e.target.value)}
-                    className="ml-2 w-24 border rounded-lg px-2 py-1.5 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="w-24"
                   />
-                </label>
+                </Field>
                 <div>
                   <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
                     Defender Action
@@ -2944,13 +2905,13 @@ export const AdminPlayByPlay = () => {
                         ["OB", "Out of bounds"],
                       ] as [RunDefenderAction, string][]
                     ).map(([da, label]) => (
-                      <button
+                      <ChipButton
                         key={da}
-                        className={chip(w.runDefenderAction === da)}
+                        selected={w.runDefenderAction === da}
                         onClick={() => setField("runDefenderAction", da)}
                       >
                         {label}
-                      </button>
+                      </ChipButton>
                     ))}
                   </div>
                 </div>
@@ -2980,13 +2941,13 @@ export const AdminPlayByPlay = () => {
                         ["next_down", "Next Down"],
                       ] as [RunPlayOutcome, string][]
                     ).map(([po, label]) => (
-                      <button
+                      <ChipButton
                         key={po}
-                        className={chip(w.runPlayOutcome === po)}
+                        selected={w.runPlayOutcome === po}
                         onClick={() => setField("runPlayOutcome", po)}
                       >
                         {label}
-                      </button>
+                      </ChipButton>
                     ))}
                   </div>
                 </div>
@@ -2999,18 +2960,18 @@ export const AdminPlayByPlay = () => {
             <Section active title="Extra point">
               <div className="space-y-4">
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    className={chip(w.xpType === "PAT-R")}
+                  <ChipButton
+                    selected={w.xpType === "PAT-R"}
                     onClick={() => setField("xpType", "PAT-R")}
                   >
                     Run (PAT-R)
-                  </button>
-                  <button
-                    className={chip(w.xpType === "XP-P")}
+                  </ChipButton>
+                  <ChipButton
+                    selected={w.xpType === "XP-P"}
                     onClick={() => setField("xpType", "XP-P")}
                   >
                     Pass (XP-P)
-                  </button>
+                  </ChipButton>
                 </div>
                 {w.xpType === "XP-P" && (
                   <>
@@ -3056,21 +3017,21 @@ export const AdminPlayByPlay = () => {
                   />
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    className={chip(w.xpResult === "XP")}
+                  <ChipButton
+                    selected={w.xpResult === "XP"}
                     onClick={() => {
                       setField("xpResult", "XP");
                       setField("xpDefenseScored", false);
                     }}
                   >
                     Good
-                  </button>
-                  <button
-                    className={chip(w.xpResult === "XPF")}
+                  </ChipButton>
+                  <ChipButton
+                    selected={w.xpResult === "XPF"}
                     onClick={() => setField("xpResult", "XPF")}
                   >
                     Failed
-                  </button>
+                  </ChipButton>
                 </div>
 
                 {w.xpResult === "XPF" && (
@@ -3079,9 +3040,9 @@ export const AdminPlayByPlay = () => {
                       <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
                         Did Defense Score? (1 pt M / 2 pts F)
                       </span>
-                      <button
+                      <ChipButton
                         type="button"
-                        className={chip(Boolean(w.xpDefenseScored))}
+                        selected={Boolean(w.xpDefenseScored)}
                         onClick={() => {
                           const nextVal = !w.xpDefenseScored;
                           setField("xpDefenseScored", nextVal);
@@ -3096,7 +3057,7 @@ export const AdminPlayByPlay = () => {
                           )}
                           Defense Scored
                         </span>
-                      </button>
+                      </ChipButton>
                     </div>
 
                     {w.xpDefenseScored && (
@@ -3168,13 +3129,13 @@ export const AdminPlayByPlay = () => {
                       ["PUNT", "Punt"],
                     ] as [SpecialType, string][]
                   ).map(([st, label]) => (
-                    <button
+                    <ChipButton
                       key={st}
-                      className={chip(w.specialType === st)}
+                      selected={w.specialType === st}
                       onClick={() => setField("specialType", st)}
                     >
                       {label}
-                    </button>
+                    </ChipButton>
                   ))}
                 </div>
 
@@ -3185,8 +3146,8 @@ export const AdminPlayByPlay = () => {
                     Penalty on this play
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      className={chip(w.penaltyTeam === "home")}
+                    <ChipButton
+                      selected={w.penaltyTeam === "home"}
                       onClick={() =>
                         setField(
                           "penaltyTeam",
@@ -3195,9 +3156,9 @@ export const AdminPlayByPlay = () => {
                       }
                     >
                       {match?.home_team?.short_name || "Home"}
-                    </button>
-                    <button
-                      className={chip(w.penaltyTeam === "away")}
+                    </ChipButton>
+                    <ChipButton
+                      selected={w.penaltyTeam === "away"}
                       onClick={() =>
                         setField(
                           "penaltyTeam",
@@ -3206,20 +3167,22 @@ export const AdminPlayByPlay = () => {
                       }
                     >
                       {match?.away_team?.short_name || "Away"}
-                    </button>
+                    </ChipButton>
                   </div>
-                  <select
-                    value={w.penaltyCode}
-                    onChange={(e) => setField("penaltyCode", e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  >
-                    <option value="">No penalty / Select penalty…</option>
-                    {Object.entries(PENALTY_LABELS).map(([code, label]) => (
-                      <option key={code} value={code}>
-                        {code} — {label}
-                      </option>
-                    ))}
-                  </select>
+                  <Field label="Penalty" htmlFor="pbp-penalty-code">
+                    <Select
+                      id="pbp-penalty-code"
+                      value={w.penaltyCode}
+                      onChange={(e) => setField("penaltyCode", e.target.value)}
+                    >
+                      <option value="">No penalty / Select penalty…</option>
+                      {Object.entries(PENALTY_LABELS).map(([code, label]) => (
+                        <option key={code} value={code}>
+                          {code} — {label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
                   {w.penaltyCode && (
                     <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end gap-3">
                       <PlayerField
@@ -3236,19 +3199,17 @@ export const AdminPlayByPlay = () => {
                         roster={penaltyRoster}
                         favoriteIds={getFavorites(penaltyTeamId, "penalty")}
                       />
-                      <label className="block">
-                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                          Yards
-                        </span>
-                        <input
+                      <Field label="Yards" htmlFor="pbp-penalty-yards">
+                        <Input
+                          id="pbp-penalty-yards"
                           type="number"
                           value={w.penaltyYards}
                           onChange={(e) =>
                             setField("penaltyYards", e.target.value)
                           }
-                          className="ml-2 w-20 border rounded-lg px-2 py-1.5 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          className="w-20"
                         />
-                      </label>
+                      </Field>
                     </div>
                   )}
                 </div>
@@ -3265,13 +3226,13 @@ export const AdminPlayByPlay = () => {
                         ["safety", "Safety (2 pts)"],
                       ] as [ReceiverOutcome, string][]
                     ).map(([ro, label]) => (
-                      <button
+                      <ChipButton
                         key={ro}
-                        className={chip(w.receiverOutcome === ro)}
+                        selected={w.receiverOutcome === ro}
                         onClick={() => setField("receiverOutcome", ro)}
                       >
                         {label}
-                      </button>
+                      </ChipButton>
                     ))}
                   </div>
                 </div>
@@ -3361,15 +3322,15 @@ export const AdminPlayByPlay = () => {
                             ["OB", "Out of bounds"],
                           ] as [SpecialDefenderAction, string][]
                         ).map(([da, label]) => (
-                          <button
+                          <ChipButton
                             key={da}
-                            className={chip(w.specialDefenderAction === da)}
+                            selected={w.specialDefenderAction === da}
                             onClick={() =>
                               setField("specialDefenderAction", da)
                             }
                           >
                             {label}
-                          </button>
+                          </ChipButton>
                         ))}
                       </div>
                     </div>
@@ -3398,13 +3359,13 @@ export const AdminPlayByPlay = () => {
                             ["next_down", "Next Down"],
                           ] as [SpecialPlayOutcome, string][]
                         ).map(([po, label]) => (
-                          <button
+                          <ChipButton
                             key={po}
-                            className={chip(w.specialPlayOutcome === po)}
+                            selected={w.specialPlayOutcome === po}
                             onClick={() => setField("specialPlayOutcome", po)}
                           >
                             {label}
-                          </button>
+                          </ChipButton>
                         ))}
                       </div>
                     </div>
@@ -3419,31 +3380,33 @@ export const AdminPlayByPlay = () => {
             <Section active title="Penalty">
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    className={chip(w.penaltyTeam === "home")}
+                  <ChipButton
+                    selected={w.penaltyTeam === "home"}
                     onClick={() => setField("penaltyTeam", "home")}
                   >
                     {match?.home_team?.short_name || "Home"}
-                  </button>
-                  <button
-                    className={chip(w.penaltyTeam === "away")}
+                  </ChipButton>
+                  <ChipButton
+                    selected={w.penaltyTeam === "away"}
                     onClick={() => setField("penaltyTeam", "away")}
                   >
                     {match?.away_team?.short_name || "Away"}
-                  </button>
+                  </ChipButton>
                 </div>
-                <select
-                  value={w.penaltyCode}
-                  onChange={(e) => setField("penaltyCode", e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                >
-                  <option value="">Select penalty…</option>
-                  {Object.entries(PENALTY_LABELS).map(([code, label]) => (
-                    <option key={code} value={code}>
-                      {code} — {label}
-                    </option>
-                  ))}
-                </select>
+                <Field label="Penalty" htmlFor="pbp-penalty-code-solo">
+                  <Select
+                    id="pbp-penalty-code-solo"
+                    value={w.penaltyCode}
+                    onChange={(e) => setField("penaltyCode", e.target.value)}
+                  >
+                    <option value="">Select penalty…</option>
+                    {Object.entries(PENALTY_LABELS).map(([code, label]) => (
+                      <option key={code} value={code}>
+                        {code} — {label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
                 <PlayerField
                   label="Player (optional)"
                   value={w.penaltyPlayerId}
@@ -3458,17 +3421,15 @@ export const AdminPlayByPlay = () => {
                   roster={penaltyRoster}
                   favoriteIds={getFavorites(penaltyTeamId, "penalty")}
                 />
-                <label className="block">
-                  <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                    Penalty yards
-                  </span>
-                  <input
+                <Field label="Penalty yards" htmlFor="pbp-penalty-yards-solo">
+                  <Input
+                    id="pbp-penalty-yards-solo"
                     type="number"
                     value={w.penaltyYards}
                     onChange={(e) => setField("penaltyYards", e.target.value)}
-                    className="ml-2 w-24 border rounded-lg px-2 py-1.5 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="w-24"
                   />
-                </label>
+                </Field>
               </div>
             </Section>
           )}
@@ -3486,13 +3447,13 @@ export const AdminPlayByPlay = () => {
                       ["OMW", "One Minute Warning"],
                     ] as [Wizard["eventKind"], string][]
                   ).map(([e, label]) => (
-                    <button
+                    <ChipButton
                       key={e}
-                      className={chip(w.eventKind === e)}
+                      selected={w.eventKind === e}
                       onClick={() => setField("eventKind", e)}
                     >
                       {label}
-                    </button>
+                    </ChipButton>
                   ))}
                 </div>
                 {w.eventKind === "IH" && (
@@ -3522,8 +3483,8 @@ export const AdminPlayByPlay = () => {
                 Penalty on this play (Optional)
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
-                  className={chip(w.penaltyTeam === "home")}
+                <ChipButton
+                  selected={w.penaltyTeam === "home"}
                   onClick={() =>
                     setField(
                       "penaltyTeam",
@@ -3532,9 +3493,9 @@ export const AdminPlayByPlay = () => {
                   }
                 >
                   {match?.home_team?.short_name || "Home"}
-                </button>
-                <button
-                  className={chip(w.penaltyTeam === "away")}
+                </ChipButton>
+                <ChipButton
+                  selected={w.penaltyTeam === "away"}
                   onClick={() =>
                     setField(
                       "penaltyTeam",
@@ -3543,20 +3504,22 @@ export const AdminPlayByPlay = () => {
                   }
                 >
                   {match?.away_team?.short_name || "Away"}
-                </button>
+                </ChipButton>
               </div>
-              <select
-                value={w.penaltyCode}
-                onChange={(e) => setField("penaltyCode", e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">No penalty / Select penalty…</option>
-                {Object.entries(PENALTY_LABELS).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {code} — {label}
-                  </option>
-                ))}
-              </select>
+              <Field label="Penalty" htmlFor="pbp-penalty-code-box">
+                <Select
+                  id="pbp-penalty-code-box"
+                  value={w.penaltyCode}
+                  onChange={(e) => setField("penaltyCode", e.target.value)}
+                >
+                  <option value="">No penalty / Select penalty…</option>
+                  {Object.entries(PENALTY_LABELS).map(([code, label]) => (
+                    <option key={code} value={code}>
+                      {code} — {label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
               {w.penaltyCode && (
                 <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end gap-3">
                   <PlayerField
@@ -3573,17 +3536,15 @@ export const AdminPlayByPlay = () => {
                     roster={penaltyRoster}
                     favoriteIds={getFavorites(penaltyTeamId, "penalty")}
                   />
-                  <label className="block">
-                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
-                      Yards
-                    </span>
-                    <input
+                  <Field label="Yards" htmlFor="pbp-penalty-yards-box">
+                    <Input
+                      id="pbp-penalty-yards-box"
                       type="number"
                       value={w.penaltyYards}
                       onChange={(e) => setField("penaltyYards", e.target.value)}
-                      className="ml-2 w-20 border rounded-lg px-2 py-1.5 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      className="w-20"
                     />
-                  </label>
+                  </Field>
                 </div>
               )}
             </div>
@@ -3593,32 +3554,27 @@ export const AdminPlayByPlay = () => {
                         straight off the Snap step. */}
           {(w.kind || isBadSnap) && (
             <div className="space-y-3">
-              <input
+              <Input
+                aria-label="Notes"
                 value={w.notes}
                 onChange={(e) => setField("notes", e.target.value)}
                 placeholder="Notes (optional)"
-                className="w-full border rounded-lg px-3 py-2 min-h-11 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="lg"
+                  icon={locked ? LockClosedIcon : undefined}
+                  loading={saving}
+                  disabled={locked}
                   onClick={requestSave}
-                  disabled={saving || locked}
                   title={locked ? "Unlock this match to edit plays" : undefined}
-                  className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 min-h-11 bg-sffl-red text-white font-bold rounded-lg disabled:opacity-50"
                 >
-                  {locked && (
-                    <LockClosedIcon className="w-4 h-4" aria-hidden="true" />
-                  )}
                   {locked ? "Locked" : w.editingId ? "Update play" : "Add play"}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetWizard}
-                  className="px-4 py-2.5 min-h-11 border rounded-lg font-bold text-gray-600 dark:text-gray-300 dark:border-gray-600"
-                >
+                </Button>
+                <Button variant="secondary" size="lg" onClick={resetWizard}>
                   {w.editingId ? "Cancel edit" : "Clear"}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -3781,9 +3737,6 @@ const PlayRow = ({
     );
 
   const accruals = getPlayStatAccruals(play, homeTeamName, awayTeamName);
-  const actionClass =
-    "inline-flex items-center gap-1 min-h-11 px-3 rounded-lg text-xs font-bold transition-colors";
-
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all">
       <div className="flex flex-col gap-1 px-3 py-1 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
@@ -3815,38 +3768,30 @@ const PlayRow = ({
               {play.home_score_after}-{play.away_score_after}
             </span>
           )}
-          <button
-            type="button"
+          <Button
+            variant={showAudit ? "warning" : "ghost"}
+            size="sm"
+            icon={MagnifyingGlassIcon}
             onClick={() => setShowAudit((s) => !s)}
             aria-expanded={showAudit}
-            className={`${actionClass} ${showAudit ? "bg-amber-500 text-white shadow-xs" : "text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"}`}
             title="Audit exact stat accruals credited for this play"
           >
-            <MagnifyingGlassIcon className="w-4 h-4" aria-hidden="true" />
             Audit ({accruals.length})
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onInsertAfter}
             title="Insert a missed play right after this one"
-            className={`${actionClass} text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30`}
           >
             Insert after
-          </button>
-          <button
-            type="button"
-            onClick={onEdit}
-            className={`${actionClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30`}
-          >
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onEdit}>
             Edit
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className={`${actionClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30`}
-          >
+          </Button>
+          <Button variant="link" size="sm" onClick={onDelete}>
             Delete
-          </button>
+          </Button>
         </div>
       </div>
       {showAudit && (
@@ -4211,22 +4156,22 @@ const ScoreTools = ({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setEditingRules((o) => !o)}
             aria-expanded={editingRules}
-            className="px-3 py-2 min-h-11 border rounded-lg font-bold text-xs text-sffl-navy dark:text-gray-200 dark:border-gray-600"
           >
             Scoring rules
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={recomputing}
             onClick={() => setPendingAction("recompute")}
-            disabled={recomputing}
-            className="px-3 py-2 min-h-11 bg-gray-100 dark:bg-gray-700 font-bold rounded-lg text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-200 disabled:opacity-50"
           >
             Refresh PBP score
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -4260,20 +4205,22 @@ const ScoreTools = ({
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-            <button
-              type="button"
+            <Button
+              variant="navy"
+              size="sm"
+              icon={ArrowRightIcon}
+              iconPosition="right"
+              loading={committingScore}
+              disabled={!isAppAdmin}
               onClick={requestCommit}
-              disabled={!isAppAdmin || committingScore}
               title={
                 !isAppAdmin
                   ? "Commit restricted to App Admin"
                   : "Commit PBP score to official match record"
               }
-              className="inline-flex items-center gap-1.5 px-3 py-2 min-h-11 bg-sffl-navy text-white font-bold rounded-lg text-xs hover:bg-sffl-navy/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Commit PBP Score
-              <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-            </button>
+            </Button>
             <span className="text-xl font-black font-mono text-sffl-navy dark:text-white">
               {pbpHome} – {pbpAway}
             </span>
@@ -4326,23 +4273,24 @@ const ScoreTools = ({
             </div>
           </div>
           {(match?.mvp_overridden || match?.mvp_player_id) && canOverrideMVP && (
-            <button
-              type="button"
-              onClick={() => setPendingAction("mvp-reset")}
+            <Button
+              variant="link"
+              size="sm"
               disabled={savingMVP}
-              className="text-xs text-sffl-red hover:underline font-bold px-2 py-1 min-h-8 disabled:opacity-50"
+              onClick={() => setPendingAction("mvp-reset")}
             >
               Reset to Auto-Calculated
-            </button>
+            </Button>
           )}
         </div>
 
         {canOverrideMVP && (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 border-t border-gray-200 dark:border-gray-700">
-            <select
+            <Select
+              aria-label="Official MVP player"
               value={selectedMVP}
               onChange={(e) => setSelectedMVP(e.target.value)}
-              className="flex-1 min-h-11 px-3 py-2 text-xs font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:border-sffl-red focus:ring-sffl-red"
+              className="flex-1"
             >
               <option value="">Auto-Calculated by Platform (Default)</option>
               {teamSheet?.home_team && teamSheet.home_team.length > 0 && (
@@ -4363,22 +4311,17 @@ const ScoreTools = ({
                   ))}
                 </optgroup>
               )}
-            </select>
-            <button
-              type="button"
+            </Select>
+            <Button
+              variant="primary"
+              size="md"
+              className="shrink-0"
+              loading={savingMVP}
+              disabled={mvpApplyIsNoOp}
               onClick={() => setPendingAction("mvp-override")}
-              disabled={savingMVP || mvpApplyIsNoOp}
-              className="px-4 py-2 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-bold rounded-lg text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0 transition-colors shadow-sm inline-flex items-center justify-center gap-1.5"
             >
-              {savingMVP ? (
-                <>
-                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-                  Saving...
-                </>
-              ) : (
-                "Apply MVP Override"
-              )}
-            </button>
+              Apply MVP Override
+            </Button>
           </div>
         )}
         <p className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -4400,11 +4343,9 @@ const ScoreTools = ({
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {RULE_FIELDS.map((f) => (
-                  <label key={f.key} className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                      {f.label}
-                    </span>
-                    <input
+                  <Field key={f.key} label={f.label} htmlFor={`pbp-rule-${f.key}`}>
+                    <Input
+                      id={`pbp-rule-${f.key}`}
                       type="number"
                       value={rulesForm[f.key]}
                       onChange={(e) =>
@@ -4413,19 +4354,17 @@ const ScoreTools = ({
                           [f.key]: parseInt(e.target.value) || 0,
                         })
                       }
-                      className="w-full min-h-11 border rounded-lg px-2 py-1.5 text-sm font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
-                  </label>
+                  </Field>
                 ))}
               </div>
-              <button
-                type="button"
+              <Button
+                className="mt-3"
+                loading={savingRules}
                 onClick={() => setPendingAction("rules")}
-                disabled={savingRules}
-                className="mt-3 px-5 py-2 min-h-11 bg-sffl-red text-white font-bold rounded-lg text-sm disabled:opacity-50"
               >
                 Save rules
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -4603,14 +4542,14 @@ const StatsCompare = ({
             for every play.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="px-4 py-2 min-h-11 border rounded-lg font-bold text-sm text-sffl-navy dark:text-gray-200 dark:border-gray-600"
         >
           {open ? "Hide" : "Show stats"}
-        </button>
+        </Button>
       </div>
 
       {open && (
@@ -4627,33 +4566,30 @@ const StatsCompare = ({
               <div className="flex items-center justify-between gap-3 flex-wrap bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700">
                 {/* Player vs Team vs Audit Tabs */}
                 <div className="flex gap-2 flex-wrap">
-                  <button
-                    type="button"
+                  <Button
+                    variant={activeTab === "players" ? "navy" : "secondary"}
+                    size="sm"
+                    icon={UserIcon}
                     onClick={() => setActiveTab("players")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 rounded-lg font-bold text-xs transition-colors ${activeTab === "players" ? "bg-sffl-navy text-white shadow-sm" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100"}`}
                   >
-                    <UserIcon className="w-4 h-4" aria-hidden="true" />
                     Player Stats ({derived.length})
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant={activeTab === "teams" ? "navy" : "secondary"}
+                    size="sm"
+                    icon={ShieldCheckIcon}
                     onClick={() => setActiveTab("teams")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 rounded-lg font-bold text-xs transition-colors ${activeTab === "teams" ? "bg-sffl-navy text-white shadow-sm" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100"}`}
                   >
-                    <ShieldCheckIcon className="w-4 h-4" aria-hidden="true" />
                     Team Stats ({derivedTeamStats.length})
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant={activeTab === "audit" ? "warning" : "secondary"}
+                    size="sm"
+                    icon={MagnifyingGlassIcon}
                     onClick={() => setActiveTab("audit")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 rounded-lg font-bold text-xs transition-colors ${activeTab === "audit" ? "bg-amber-500 text-white shadow-sm" : "bg-white dark:bg-gray-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"}`}
                   >
-                    <MagnifyingGlassIcon
-                      className="w-4 h-4"
-                      aria-hidden="true"
-                    />
                     Full Stat Audit Log ({plays.length})
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
@@ -4663,10 +4599,10 @@ const StatsCompare = ({
                       <span className="text-[11px] font-bold text-gray-400">
                         Order By:
                       </span>
-                      <select
+                      <Select
+                        aria-label="Order by"
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2.5 py-1 min-h-11 text-xs font-bold border border-gray-200 dark:border-gray-600 cursor-pointer"
                       >
                         <option value="">Default (A to Z)</option>
                         <option value="passing_yards">Pass Yards (YDS)</option>
@@ -4697,7 +4633,7 @@ const StatsCompare = ({
                         </option>
                         <option value="qb_sacks">Sacks Taken (QB)</option>
                         <option value="def_sacks">Defensive Sacks</option>
-                      </select>
+                      </Select>
                     </div>
                   )}
 
@@ -4707,22 +4643,22 @@ const StatsCompare = ({
                       <span className="text-[11px] font-bold text-gray-400 mr-1">
                         Filter Team:
                       </span>
-                      <button
-                        type="button"
+                      <ChipButton
+                        size="sm"
+                        selected={selectedTeamId === "all"}
                         onClick={() => setSelectedTeamId("all")}
-                        className={`px-3 py-1 min-h-11 rounded-md text-xs font-bold transition-colors ${selectedTeamId === "all" ? "bg-sffl-red text-white" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100"}`}
                       >
                         All Teams
-                      </button>
+                      </ChipButton>
                       {teamsList.map((t) => (
-                        <button
+                        <ChipButton
                           key={t.id}
-                          type="button"
+                          size="sm"
+                          selected={selectedTeamId === t.id}
                           onClick={() => setSelectedTeamId(t.id)}
-                          className={`px-3 py-1 min-h-11 rounded-md text-xs font-bold transition-colors ${selectedTeamId === t.id ? "bg-sffl-red text-white" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100"}`}
                         >
                           {t.shortName}
-                        </button>
+                        </ChipButton>
                       ))}
                     </div>
                   )}
@@ -4807,28 +4743,32 @@ const FullStatAuditLog = ({
           <span className="text-xs font-bold text-gray-500">
             Filter Half:
           </span>
-          <button
+          <Button
+            size="sm"
+            variant={quarterFilter === "all" ? "navy" : "secondary"}
             onClick={() => setQuarterFilter("all")}
-            className={`px-3 py-1 min-h-11 rounded-md text-xs font-bold transition-colors ${quarterFilter === "all" ? "bg-sffl-navy text-white" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"}`}
           >
             All
-          </button>
+          </Button>
           {[1, 2].map((q) => (
-            <button
+            <Button
               key={q}
+              size="sm"
+              variant={quarterFilter === q ? "navy" : "secondary"}
               onClick={() => setQuarterFilter(q)}
-              className={`px-3 py-1 min-h-11 rounded-md text-xs font-bold transition-colors ${quarterFilter === q ? "bg-sffl-navy text-white" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"}`}
             >
               {q}H
-            </button>
+            </Button>
           ))}
         </div>
-        <input
+        <Input
+          aria-label="Search plays"
+          icon={MagnifyingGlassIcon}
           type="text"
           placeholder="Search player, stat, or play type…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 min-h-11 text-xs font-semibold dark:bg-gray-700 dark:text-white w-full sm:w-64"
+          className="w-full sm:w-64"
         />
       </div>
 

@@ -11,6 +11,7 @@ import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
+import { Button, Field, Input } from "../../components/ui";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 const DEFAULT_BUDGET = "15000000";
@@ -265,19 +266,17 @@ export const AdminTransfers: React.FC = () => {
                   ],
                 ]}
               />
-              <label className="block">
-                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                  New total budget (points)
-                </span>
-                <input
+              <Field label="New total budget (points)" htmlFor="budget-amount">
+                <Input
+                  id="budget-amount"
                   type="number"
                   inputMode="numeric"
                   min={1}
                   value={budgetInput}
                   onChange={(e) => setBudgetInput(e.target.value)}
-                  className="w-full min-h-11 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-mono font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                  className="font-mono font-bold"
                 />
-              </label>
+              </Field>
             </div>
           ),
         }
@@ -296,14 +295,14 @@ export const AdminTransfers: React.FC = () => {
         title="Transfers"
         subtitle="Oversee all team budgets, active listings, and transfer proposals."
         actions={
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            icon={BoltIcon}
             onClick={() => setPendingAction({ kind: "seed" })}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 px-4 py-2.5 min-h-11 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors"
+            className="w-full sm:w-auto shrink-0"
           >
-            <BoltIcon className="w-4 h-4" aria-hidden="true" />
             Seed All Budgets (15M)
-          </button>
+          </Button>
         }
       />
 

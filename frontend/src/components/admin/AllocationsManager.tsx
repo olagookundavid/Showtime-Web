@@ -12,6 +12,7 @@ import {
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { Spinner } from '../ui/Spinner';
+import { Button, IconButton, Input, Select } from '../ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { usePermissions } from '../../hooks/usePermissions';
 
@@ -130,16 +131,15 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
                                         <p className="font-bold text-sm dark:text-white truncate">{a.team_name || 'Unknown Team'}</p>
                                         <p className="text-xs text-gray-500">{a.allocated_count} Tickets Allocated</p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPendingAction({ kind: 'delete', allocation: a })}
+                                    <IconButton
+                                        variant="danger"
+                                        icon={TrashIcon}
+                                        label={`Revoke allocation for ${a.team_name || 'this team'}`}
+                                        className="shrink-0"
                                         disabled={!canManage}
                                         title={canManage ? undefined : 'View-only access to Event Days'}
-                                        aria-label={`Revoke allocation for ${a.team_name || 'this team'}`}
-                                        className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg min-h-11 min-w-11 flex justify-center items-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        <TrashIcon className="w-5 h-5" aria-hidden="true" />
-                                    </button>
+                                        onClick={() => setPendingAction({ kind: 'delete', allocation: a })}
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -149,35 +149,35 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
 
                     {/* Add/Update Form */}
                     <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-purple-200 dark:border-gray-600">
-                        <select
+                        <Select
                             value={teamId}
                             onChange={e => setTeamId(e.target.value)}
                             aria-label="Team"
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm w-full sm:flex-1 min-w-0 min-h-11"
+                            className="w-full sm:flex-1"
                         >
                             <option value="">Select a team</option>
                             {teams.map(t => (
                                 <option key={t.id} value={t.id}>{t.name}</option>
                             ))}
-                        </select>
-                        <input
+                        </Select>
+                        <Input
                             type="number"
                             min="1"
                             value={allocatedCount}
                             onChange={e => setAllocatedCount(e.target.value)}
                             placeholder="Ticket Count"
                             aria-label="Ticket count"
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm w-full sm:w-32 min-h-11"
+                            className="w-full sm:w-32"
                         />
-                        <button
-                            type="button"
-                            onClick={requestSave}
+                        <Button
+                            variant="navy"
+                            className="shrink-0"
                             disabled={busy || !teamId || !allocatedCount || !canManage}
                             title={canManage ? undefined : 'View-only access to Event Days'}
-                            className="bg-sffl-navy text-white px-4 py-2 min-h-11 rounded-lg text-sm font-bold shadow hover:bg-blue-900 disabled:opacity-50 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                            onClick={requestSave}
                         >
                             Set Allocation
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

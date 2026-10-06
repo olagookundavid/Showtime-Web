@@ -8,6 +8,7 @@ import {
 } from "../../services/api";
 import { AuthRequiredDialog } from "../auth/AuthRequiredDialog";
 import toast from "react-hot-toast";
+import { Button, IconButton, Textarea } from "../ui";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ConfirmSummary } from "../ui/ConfirmSummary";
 import { Spinner } from "../ui/Spinner";
@@ -19,7 +20,6 @@ import {
   UserCircleIcon,
   LockClosedIcon,
   ChevronDownIcon,
-  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 
@@ -391,21 +391,15 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
               {content.length}/1000 characters
             </span>
 
-            <button
+            <Button
               type="submit"
-              disabled={submitting || !content.trim()}
-              className="inline-flex items-center gap-2 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              size="sm"
+              icon={PaperAirplaneIcon}
+              loading={submitting}
+              disabled={!content.trim()}
             >
-              {submitting ? (
-                <ArrowPathIcon
-                  className="w-3.5 h-3.5 animate-spin"
-                  aria-hidden="true"
-                />
-              ) : (
-                <PaperAirplaneIcon className="w-3.5 h-3.5" aria-hidden="true" />
-              )}
-              <span>{submitting ? "Posting…" : "Post Comment"}</span>
-            </button>
+              {submitting ? "Posting…" : "Post Comment"}
+            </Button>
           </div>
         </div>
       </form>
@@ -465,8 +459,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                   </div>
 
                   {canDelete && (
-                    <button
-                      type="button"
+                    <IconButton
+                      variant="danger"
+                      icon={TrashIcon}
+                      label="Delete comment"
+                      className="-mr-2 -mt-2 shrink-0"
                       onClick={() =>
                         setPendingDelete({
                           commentId: c.id,
@@ -475,11 +472,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           excerpt: c.content,
                         })
                       }
-                      className="min-h-11 min-w-11 -mr-2 -mt-2 flex items-center justify-center shrink-0 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
-                      aria-label="Delete comment"
-                    >
-                      <TrashIcon className="w-4 h-4" aria-hidden="true" />
-                    </button>
+                    />
                   )}
                 </div>
 
@@ -490,26 +483,22 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
                 {/* Comment Actions Bar */}
                 <div className="flex items-center gap-2 pt-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleLike(c.id)}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-ml-2"
+                    icon={c.is_liked_by_caller ? HeartIconSolid : HeartIconOutline}
                     aria-pressed={c.is_liked_by_caller}
-                    className={`flex items-center gap-1.5 min-h-11 px-2 -ml-2 font-bold transition-colors ${
-                      c.is_liked_by_caller
-                        ? "text-sffl-red"
-                        : "text-gray-500 dark:text-gray-400 hover:text-sffl-red"
-                    }`}
+                    onClick={() => handleToggleLike(c.id)}
                   >
-                    {c.is_liked_by_caller ? (
-                      <HeartIconSolid className="w-4 h-4 text-sffl-red" />
-                    ) : (
-                      <HeartIconOutline className="w-4 h-4" />
-                    )}
-                    <span>{c.likes_count > 0 ? c.likes_count : "Like"}</span>
-                  </button>
+                    {c.likes_count > 0 ? c.likes_count : "Like"}
+                  </Button>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={ChatBubbleLeftIcon}
+                    aria-expanded={replyToId === c.id}
                     onClick={() => {
                       if (replyToId === c.id) {
                         setReplyToId(null);
@@ -519,47 +508,34 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                         setReplyContent("");
                       }
                     }}
-                    aria-expanded={replyToId === c.id}
-                    className="flex items-center gap-1.5 min-h-11 px-2 font-bold text-gray-500 dark:text-gray-400 hover:text-sffl-navy dark:hover:text-white transition-colors"
                   >
-                    <ChatBubbleLeftIcon className="w-4 h-4" />
-                    <span>Reply</span>
-                  </button>
+                    Reply
+                  </Button>
                 </div>
 
                 {/* Reply Input Box */}
                 {replyToId === c.id && (
                   <div className="mt-3 pl-4 border-l-2 border-sffl-red space-y-2 pt-2 animate-in fade-in">
-                    <textarea
+                    <Textarea
                       value={replyContent}
                       onChange={(e) => setReplyContent(e.target.value)}
+                      aria-label={`Reply to ${c.user_full_name}`}
                       placeholder={`Replying to ${c.user_full_name}...`}
                       rows={2}
                       maxLength={1000}
-                      className="w-full p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red resize-none"
                     />
                     <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setReplyToId(null)}
-                        className="min-h-11 px-4 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold rounded-lg text-xs hover:bg-gray-200 transition-colors"
-                      >
+                      <Button variant="secondary" size="sm" onClick={() => setReplyToId(null)}>
                         Cancel
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
+                        size="sm"
+                        loading={submittingReply}
+                        disabled={!replyContent.trim()}
                         onClick={() => handleCreateReply(c.id)}
-                        disabled={submittingReply || !replyContent.trim()}
-                        className="inline-flex items-center gap-1.5 min-h-11 px-4 py-1.5 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg text-xs transition-colors disabled:opacity-40"
                       >
-                        {submittingReply && (
-                          <ArrowPathIcon
-                            className="w-3.5 h-3.5 animate-spin"
-                            aria-hidden="true"
-                          />
-                        )}
                         {submittingReply ? "Replying…" : "Post Reply"}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -597,8 +573,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                             </div>
 
                             {canDeleteReply && (
-                              <button
-                                type="button"
+                              <IconButton
+                                variant="danger"
+                                icon={TrashIcon}
+                                label="Delete reply"
+                                className="-mr-2 shrink-0"
                                 onClick={() =>
                                   setPendingDelete({
                                     commentId: r.id,
@@ -608,14 +587,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                     excerpt: r.content,
                                   })
                                 }
-                                className="min-h-11 min-w-11 -mr-2 flex items-center justify-center shrink-0 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg"
-                                aria-label="Delete reply"
-                              >
-                                <TrashIcon
-                                  className="w-4 h-4"
-                                  aria-hidden="true"
-                                />
-                              </button>
+                              />
                             )}
                           </div>
 
@@ -624,25 +596,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           </p>
 
                           <div className="flex items-center gap-3 pt-0.5 text-[11px]">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleLike(r.id, true, c.id)}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="-ml-2"
+                              icon={r.is_liked_by_caller ? HeartIconSolid : HeartIconOutline}
                               aria-pressed={r.is_liked_by_caller}
-                              className={`flex items-center gap-1 min-h-11 px-2 -ml-2 font-bold ${
-                                r.is_liked_by_caller
-                                  ? "text-sffl-red"
-                                  : "text-gray-400 hover:text-sffl-red"
-                              }`}
+                              onClick={() => handleToggleLike(r.id, true, c.id)}
                             >
-                              {r.is_liked_by_caller ? (
-                                <HeartIconSolid className="w-3.5 h-3.5 text-sffl-red" />
-                              ) : (
-                                <HeartIconOutline className="w-3.5 h-3.5" />
-                              )}
-                              <span>
-                                {r.likes_count > 0 ? r.likes_count : "Like"}
-                              </span>
-                            </button>
+                              {r.likes_count > 0 ? r.likes_count : "Like"}
+                            </Button>
                           </div>
                         </div>
                       );
@@ -658,22 +621,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       {/* Load more: newest page first, older batches on demand. */}
       {!loading && hasMore && (
         <div className="flex flex-col items-center gap-2 pt-1">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            icon={ChevronDownIcon}
+            loading={loadingMore}
             onClick={loadMore}
-            disabled={loadingMore}
-            className="inline-flex items-center gap-2 min-h-11 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-sffl-navy dark:text-gray-200 font-bold px-5 py-2.5 rounded-xl text-xs shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loadingMore ? (
-              <ArrowPathIcon
-                className="w-4 h-4 animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
-            )}
-            <span>{loadingMore ? "Loading…" : "View more comments"}</span>
-          </button>
+            {loadingMore ? "Loading…" : "View more comments"}
+          </Button>
           <span className="text-[11px] text-gray-400 font-semibold">
             Showing {comments.length} of {totalTopLevel} comments
           </span>

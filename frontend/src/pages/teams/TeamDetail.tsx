@@ -12,6 +12,7 @@ import {
   type Team,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
+import { Button, Field, Select } from "../../components/ui";
 import { BackButton } from "../../components/common/BackButton";
 import { formatStatNumber } from "../../utils/formatters";
 import { Spinner } from "../../components/ui/Spinner";
@@ -20,7 +21,6 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   ChartBarIcon,
-  ChevronDownIcon,
   ShieldCheckIcon,
   TrophyIcon,
 } from "@heroicons/react/24/outline";
@@ -200,18 +200,12 @@ export const TeamDetail = () => {
         {competitions.length > 0 && (
           <div className="w-full md:w-auto flex flex-col md:flex-row md:items-end gap-3">
             <div className="flex-1 w-full md:min-w-50">
-              <label
-                htmlFor="team-competition"
-                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
-              >
-                Competition
-              </label>
-              <div className="relative">
-                <select
+              <Field label="Competition" htmlFor="team-competition" tone="dark">
+                <Select
                   id="team-competition"
+                  tone="dark"
                   value={selectedCompetitionId}
                   onChange={(e) => setSelectedCompetitionId(e.target.value)}
-                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                 >
                   {dropdownComps.map((c) => (
                     <option
@@ -222,34 +216,21 @@ export const TeamDetail = () => {
                       {c.name}
                     </option>
                   ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
-                </div>
-              </div>
+                </Select>
+              </Field>
             </div>
             {(linkedPlayoff || parentLeague) && (
-              <button
-                type="button"
+              <Button
+                className="w-full sm:w-auto whitespace-nowrap"
+                icon={linkedPlayoff ? TrophyIcon : ArrowLeftIcon}
                 onClick={() =>
                   setSelectedCompetitionId(
                     linkedPlayoff ? linkedPlayoff.id : parentLeague!.id,
                   )
                 }
-                className="px-4 py-2 min-h-11 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full sm:w-auto"
               >
-                {linkedPlayoff ? (
-                  <>
-                    <TrophyIcon className="w-4 h-4" aria-hidden="true" />
-                    Switch to Playoffs
-                  </>
-                ) : (
-                  <>
-                    <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
-                    Back to Season
-                  </>
-                )}
-              </button>
+                {linkedPlayoff ? "Switch to Playoffs" : "Back to Season"}
+              </Button>
             )}
           </div>
         )}

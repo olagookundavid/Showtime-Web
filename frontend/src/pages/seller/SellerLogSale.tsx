@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import { sellerGetProducts, sellerLogSale, sellerGetPaymentMethods, type InventoryProduct, type PaymentMethod } from '../../services/api';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { Button, Field, Input, Select, Textarea } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Spinner } from '../../components/ui/Spinner';
 import { getApiErrorMessage } from '../../utils/apiError';
 
-const inputClass =
-    'w-full min-h-11 px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-sffl-red focus:border-sffl-red outline-none transition-all text-gray-900 dark:text-white';
-const labelClass = 'block mb-1 text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider';
 const cardClass = 'bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 dark:border-gray-700';
 
 const naira = (n: number) => `₦${n.toLocaleString()}`;
@@ -86,13 +84,14 @@ export const SellerLogSale = () => {
                 {/* Catalog */}
                 <section className={cardClass}>
                     <h2 className="text-lg font-bold text-sffl-navy dark:text-white mb-4">Select Product</h2>
-                    <input
+                    <Input
                         type="search"
                         aria-label="Search products"
+                        icon={MagnifyingGlassIcon}
                         placeholder="Search products"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
-                        className={`${inputClass} mb-4`}
+                        className="mb-4"
                     />
                     {loadingProducts ? <Spinner label="Loading products" /> : (
                         <div className="space-y-3 max-h-96 lg:max-h-125 overflow-y-auto pr-1">
@@ -137,59 +136,50 @@ export const SellerLogSale = () => {
                                 <p className="font-bold text-gray-900 dark:text-white wrap-break-word">{targetProduct.name}</p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">{naira(targetProduct.price)} per unit</p>
                             </div>
-                            <div>
-                                <label htmlFor="sale-quantity" className={labelClass}>Quantity Sold</label>
-                                <input
+                            <Field
+                                label="Quantity Sold"
+                                htmlFor="sale-quantity"
+                                error={overStock ? `Cannot sell more than in stock (${targetProduct.quantity})` : undefined}
+                            >
+                                <Input
                                     id="sale-quantity"
                                     type="number"
                                     min="1"
                                     max={targetProduct.quantity}
                                     value={quantity}
                                     onChange={(e) => setQuantity(Number(e.target.value))}
-                                    className={inputClass}
+                                    invalid={overStock}
                                     required
                                 />
-                                {overStock && (
-                                    <p className="text-red-500 text-xs mt-1 font-semibold">Cannot sell more than in stock ({targetProduct.quantity})</p>
-                                )}
-                            </div>
-                            <div>
-                                <label htmlFor="sale-payment" className={labelClass}>Payment Method</label>
-                                <select
+                            </Field>
+                            <Field label="Payment Method" htmlFor="sale-payment">
+                                <Select
                                     id="sale-payment"
                                     value={paymentMethod}
                                     onChange={(e) => setPaymentMethod(e.target.value)}
-                                    className={inputClass}
                                     required
                                 >
                                     <option value="" disabled>Select Payment Method</option>
                                     {paymentMethods.map(pm => (
                                         <option key={pm.id} value={pm.name}>{pm.name}</option>
                                     ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="sale-notes" className={labelClass}>Notes (Optional)</label>
-                                <textarea
+                                </Select>
+                            </Field>
+                            <Field label="Notes (Optional)" htmlFor="sale-notes">
+                                <Textarea
                                     id="sale-notes"
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
-                                    className={inputClass}
                                     rows={2}
                                 />
-                            </div>
+                            </Field>
                             <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-2">
                                 <span className="font-bold text-gray-700 dark:text-gray-300">Total Price</span>
                                 <span className="text-2xl font-black text-green-600 dark:text-green-400">{naira(totalPrice)}</span>
                             </div>
-                            <button
-                                type="submit"
-                                disabled={!canSubmit}
-                                className="w-full inline-flex items-center justify-center gap-1.5 min-h-11 px-4 bg-sffl-navy text-white rounded-lg font-bold hover:bg-blue-900 transition-colors shadow-sm disabled:opacity-50"
-                            >
-                                <ShoppingCartIcon className="w-5 h-5" aria-hidden="true" />
+                            <Button type="submit" variant="navy" size="lg" fullWidth icon={ShoppingCartIcon} disabled={!canSubmit}>
                                 Log Sale
-                            </button>
+                            </Button>
                         </form>
                     ) : (
                         <div className="flex items-center justify-center h-48 p-4 text-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">

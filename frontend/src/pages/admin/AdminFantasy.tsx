@@ -57,6 +57,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { usePermissions } from '../../hooks/usePermissions';
+import { Button, Field, IconButton, Input, Modal, Select } from '../../components/ui';
 
 /**
  * Commissioner has view-only access to Fantasy (backend: routes.go's
@@ -121,13 +122,6 @@ const lockLabel = (mins: number): string => (mins >= 60 ? `${mins / 60} hours` :
 const errorText = (err: unknown, fallback = 'Something went wrong'): string =>
     getApiErrorMessage(err, err instanceof Error && err.message ? err.message : fallback);
 
-// Shared control styles. Everything tappable is at least 44px tall.
-const fieldClass = 'w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red';
-const labelClass = 'text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1';
-const btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-11 rounded-xl font-bold text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
-const btnGhost = `${btnBase} px-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`;
-const btnPrimary = `${btnBase} px-5 bg-sffl-red hover:bg-[#A52323] text-white shadow-md`;
-
 const NO_ROWS = [] as never[];
 
 /**
@@ -162,20 +156,16 @@ function TabBar<K extends string>({ tabs, active, onChange }: {
 }) {
     return (
         <div className="flex flex-wrap gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-2xl p-2 shadow-sm">
-            {tabs.map(({ key, label, icon: Icon }) => (
-                <button
+            {tabs.map(({ key, label, icon }) => (
+                <Button
                     key={key}
-                    type="button"
+                    variant={active === key ? 'navy' : 'ghost'}
+                    icon={icon}
                     aria-pressed={active === key}
                     onClick={() => onChange(key)}
-                    className={`px-4 min-h-11 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
-                        active === key
-                            ? 'bg-yellow-500 text-black shadow-lg shadow-sffl-red/20'
-                            : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:text-white hover:bg-neutral-800'
-                    }`}
                 >
-                    <Icon className="w-4 h-4" aria-hidden="true" /> {label}
-                </button>
+                    {label}
+                </Button>
             ))}
         </div>
     );
@@ -496,31 +486,29 @@ function SeasonsIndex({ seasons, onManage }: {
                                 <div className="flex items-center gap-2 flex-wrap shrink-0">
                                     {s.status === 'DRAFT' && (
                                         <>
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="success"
+                                                icon={RocketLaunchIcon}
                                                 onClick={() => setReleasing(s)}
-                                                className={`${btnBase} px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-black tracking-wider`}
                                             >
-                                                <RocketLaunchIcon className="w-4 h-4" aria-hidden="true" /> Release
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setDeleting(s)}
-                                                className={`${btnBase} min-w-11 bg-gray-100 dark:bg-gray-700 hover:bg-red-500/20 hover:text-red-500 text-gray-500 dark:text-gray-400`}
-                                                aria-label={`Delete ${s.name}`}
+                                                Release
+                                            </Button>
+                                            <IconButton
+                                                icon={TrashIcon}
+                                                variant="danger"
+                                                label={`Delete ${s.name}`}
                                                 title="Delete draft season"
-                                            >
-                                                <TrashIcon className="w-4 h-4" aria-hidden="true" />
-                                            </button>
+                                                onClick={() => setDeleting(s)}
+                                            />
                                         </>
                                     )}
-                                    <button
-                                        type="button"
+                                    <Button
+                                        icon={ChevronRightIcon}
+                                        iconPosition="right"
                                         onClick={() => onManage(s.id)}
-                                        className={`${btnPrimary} font-black tracking-wider`}
                                     >
-                                        Manage <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
-                                    </button>
+                                        Manage
+                                    </Button>
                                 </div>
                             </div>
                         ))}
@@ -633,61 +621,57 @@ function CreateSeasonCard() {
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label className={labelClass}>Competition</label>
-                    <select
+                <Field label="Competition" htmlFor="fantasy-season-competition">
+                    <Select
+                        id="fantasy-season-competition"
                         value={seasonForm.competition_id}
                         onChange={(e) => setSeasonForm({ ...seasonForm, competition_id: e.target.value })}
-                        className={fieldClass}
                     >
                         <option value="">Select a competition</option>
                         {competitionsData?.data?.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
-                    </select>
-                </div>
+                    </Select>
+                </Field>
 
-                <div>
-                    <label className={labelClass}>Season Name</label>
-                    <input
+                <Field label="Season name" htmlFor="fantasy-season-name">
+                    <Input
+                        id="fantasy-season-name"
                         type="text"
                         value={seasonForm.name}
                         onChange={(e) => setSeasonForm({ ...seasonForm, name: e.target.value })}
-                        className={fieldClass}
                     />
-                </div>
+                </Field>
 
-                <div>
-                    <label className={labelClass}>Salary Cap Budget (SC)</label>
-                    <input
+                <Field label="Salary cap budget (SC)" htmlFor="fantasy-season-budget">
+                    <Input
+                        id="fantasy-season-budget"
                         type="number"
                         value={seasonForm.budget}
                         onChange={(e) => setSeasonForm({ ...seasonForm, budget: parseFloat(e.target.value) || 100 })}
-                        className={fieldClass}
                     />
-                </div>
+                </Field>
 
-                <div>
-                    <label className={labelClass}>
-                        Lock Minutes Before Kickoff <span className="normal-case text-gray-400 font-normal">(720 = 12 hours)</span>
-                    </label>
-                    <input
+                <Field
+                    label={<>Lock minutes before kickoff <span className="font-normal text-gray-400">(720 = 12 hours)</span></>}
+                    htmlFor="fantasy-season-lock"
+                >
+                    <Input
+                        id="fantasy-season-lock"
                         type="number"
                         value={seasonForm.lock_mins_before}
                         onChange={(e) => setSeasonForm({ ...seasonForm, lock_mins_before: parseInt(e.target.value) || 720 })}
-                        className={fieldClass}
                     />
-                </div>
+                </Field>
             </div>
 
-            <button
-                type="button"
+            <Button
                 onClick={requestCreate}
                 disabled={createSeasonMutation.isPending}
-                className={`${btnPrimary} mt-6 px-6 font-black w-full sm:w-auto`}
+                className="mt-6 w-full sm:w-auto"
             >
-                Create Draft Season
-            </button>
+                Create draft season
+            </Button>
 
             <ConfirmDialog
                 open={confirming}
@@ -732,13 +716,9 @@ function SeasonDetail({ season, onBack }: { season: FantasySeason; onBack: () =>
 
     return (
         <div className="space-y-6">
-            <button
-                type="button"
-                onClick={onBack}
-                className="inline-flex items-center gap-1.5 min-h-11 text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-sffl-red transition cursor-pointer"
-            >
-                <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" /> All Seasons
-            </button>
+            <Button variant="ghost" icon={ArrowLeftIcon} onClick={onBack}>
+                All seasons
+            </Button>
 
             {/* Season header */}
             <div className="bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
@@ -755,13 +735,9 @@ function SeasonDetail({ season, onBack }: { season: FantasySeason; onBack: () =>
                 </div>
 
                 {season.status === 'DRAFT' && (
-                    <button
-                        type="button"
-                        onClick={() => setReleasing(true)}
-                        className={`${btnBase} px-5 bg-emerald-500 hover:bg-emerald-400 text-black font-black tracking-wider shadow-lg shadow-emerald-500/20 shrink-0`}
-                    >
-                        <RocketLaunchIcon className="w-4 h-4" aria-hidden="true" /> Release Season
-                    </button>
+                    <Button variant="success" icon={RocketLaunchIcon} onClick={() => setReleasing(true)} className="shrink-0">
+                        Release season
+                    </Button>
                 )}
             </div>
 
@@ -1111,14 +1087,14 @@ function SetupTab({ season }: { season: FantasySeason }) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
+                        <Button
+                            variant="secondary"
+                            icon={CurrencyDollarIcon}
                             onClick={() => setAction({ kind: 'initPrices' })}
                             disabled={anyPending}
-                            className={btnGhost}
                         >
-                            <CurrencyDollarIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" /> Initialize Prices
-                        </button>
+                            Initialize prices
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -1144,15 +1120,14 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                 Automatically maps each competition match date to Gameweek 1, 2, and so on, with lock deadlines set {lockLabel(season.lock_mins_before || 720)} before the earliest kickoff.
                             </p>
                         </div>
-                        <button
-                            type="button"
+                        <Button
+                            icon={RocketLaunchIcon}
                             onClick={() => setAction({ kind: 'autoSchedule' })}
                             disabled={anyPending}
-                            className={`${btnPrimary} py-3 shrink-0`}
+                            className="shrink-0"
                         >
-                            <RocketLaunchIcon className="w-4 h-4" aria-hidden="true" />
-                            Auto-Schedule {matchDays.length} Gameweeks
-                        </button>
+                            Auto-schedule {matchDays.length} gameweeks
+                        </Button>
                     </div>
                 )}
 
@@ -1163,22 +1138,24 @@ function SetupTab({ season }: { season: FantasySeason }) {
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className={labelClass}>Gameweek Number</label>
-                            <input
+                        <Field label="Gameweek number" htmlFor="gw-number">
+                            <Input
+                                id="gw-number"
                                 type="number"
                                 value={gwNumber}
                                 onChange={(e) => setGwNumberInput(parseInt(e.target.value) || 1)}
-                                className={fieldClass}
                             />
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label className={labelClass}>Competition Match Date</label>
-                            <select
+                        <Field
+                            label="Competition match date"
+                            htmlFor="gw-match-date"
+                            error={!matchDaysLoading && matchDays.length === 0 ? "No matches found with dates for this season's competition. Add matches in Match Schedule first." : undefined}
+                        >
+                            <Select
+                                id="gw-match-date"
                                 value={gwForm.match_date}
                                 onChange={(e) => handleMatchDateChange(e.target.value)}
-                                className={fieldClass}
                             >
                                 <option value="">
                                     {matchDaysLoading
@@ -1195,39 +1172,31 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                         </option>
                                     );
                                 })}
-                            </select>
-                            {matchDays.length === 0 && !matchDaysLoading && (
-                                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
-                                    No matches found with dates for this season's competition. Add matches in Match Schedule first.
-                                </p>
-                            )}
-                        </div>
+                            </Select>
+                        </Field>
 
-                        <div className="sm:col-span-2">
-                            <label className={labelClass}>
-                                Lock Deadline <span className="text-gray-400 dark:text-gray-500 normal-case font-medium">(optional)</span>
-                            </label>
-                            <input
+                        <Field
+                            className="sm:col-span-2"
+                            label={<>Lock deadline <span className="text-gray-400 dark:text-gray-500 font-medium">(optional)</span></>}
+                            htmlFor="gw-deadline"
+                            hint={`Leave blank and the server automatically computes it from the match day's earliest kickoff minus the lock window (${lockLabel(season.lock_mins_before)}).`}
+                        >
+                            <Input
+                                id="gw-deadline"
                                 type="datetime-local"
                                 value={gwForm.deadline}
                                 onChange={(e) => setGwForm({ ...gwForm, deadline: e.target.value })}
-                                className={fieldClass}
                             />
-                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
-                                Leave blank and the server automatically computes it from the match day's earliest kickoff
-                                minus the lock window ({lockLabel(season.lock_mins_before)}).
-                            </p>
-                        </div>
+                        </Field>
                     </div>
 
-                    <button
-                        type="button"
+                    <Button
                         onClick={requestCreateGw}
                         disabled={anyPending || !gwForm.match_date}
-                        className={`${btnPrimary} mt-4 w-full sm:w-auto`}
+                        className="mt-4 w-full sm:w-auto"
                     >
-                        Schedule Gameweek
-                    </button>
+                        Schedule gameweek
+                    </Button>
                 </div>
 
                 {/* Gameweeks List */}
@@ -1275,8 +1244,9 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                             </div>
 
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <button
-                                                    type="button"
+                                                <Button
+                                                    variant="secondary"
+                                                    icon={isEditingDeadline ? XMarkIcon : ClockIcon}
                                                     onClick={() => {
                                                         if (isEditingDeadline) {
                                                             setEditingDeadlineGwId(null);
@@ -1285,61 +1255,52 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                                         setEditingDeadlineGwId(gw.id);
                                                         setDeadlineDraft(toDateTimeLocalValue(gw.deadline));
                                                     }}
-                                                    className={btnGhost}
                                                 >
-                                                    {isEditingDeadline
-                                                        ? <XMarkIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
-                                                        : <ClockIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />}
-                                                    {isEditingDeadline ? 'Cancel' : 'Edit Deadline'}
-                                                </button>
+                                                    {isEditingDeadline ? 'Cancel' : 'Edit deadline'}
+                                                </Button>
 
                                                 {/* Finalizing is re-runnable — it recomputes rather than
                                                     double-counts — and is the path for correcting stats
                                                     after the fact, so it stays available once finalized. */}
-                                                <button
-                                                    type="button"
+                                                <Button
+                                                    variant="secondary"
+                                                    icon={isFinalized ? ArrowPathIcon : undefined}
                                                     onClick={() => setAction({ kind: 'finalize', gw })}
                                                     disabled={anyPending}
-                                                    className={`${btnGhost} hover:bg-sffl-red hover:text-white dark:hover:bg-sffl-red`}
                                                 >
-                                                    {isFinalized && <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />}
-                                                    {isFinalized ? 'Re-score' : 'Finalize & Score'}
-                                                </button>
+                                                    {isFinalized ? 'Re-score' : 'Finalize & score'}
+                                                </Button>
 
                                                 {!isFinalized && (
-                                                    <button
-                                                        type="button"
+                                                    <Button
+                                                        variant="danger"
+                                                        icon={TrashIcon}
                                                         onClick={() => setAction({ kind: 'deleteGw', gw })}
                                                         disabled={anyPending}
-                                                        className={`${btnBase} px-4 bg-red-50 dark:bg-red-950/30 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400`}
                                                         title={`Delete Gameweek ${gw.number}`}
                                                     >
-                                                        <TrashIcon className="w-4 h-4" aria-hidden="true" />
-                                                        <span>Delete</span>
-                                                    </button>
+                                                        Delete
+                                                    </Button>
                                                 )}
                                             </div>
                                         </div>
 
                                         {isEditingDeadline && (
                                             <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-end gap-3">
-                                                <div className="flex-1">
-                                                    <label className={labelClass}>New Lock Deadline</label>
-                                                    <input
+                                                <Field label="New lock deadline" htmlFor={`gw-deadline-${gw.id}`} className="flex-1">
+                                                    <Input
+                                                        id={`gw-deadline-${gw.id}`}
                                                         type="datetime-local"
                                                         value={deadlineDraft}
                                                         onChange={(e) => setDeadlineDraft(e.target.value)}
-                                                        className={fieldClass}
                                                     />
-                                                </div>
-                                                <button
-                                                    type="button"
+                                                </Field>
+                                                <Button
                                                     onClick={() => requestDeadline(gw)}
                                                     disabled={anyPending || !deadlineDraft}
-                                                    className={btnPrimary}
                                                 >
-                                                    Save Deadline
-                                                </button>
+                                                    Save deadline
+                                                </Button>
                                             </div>
                                         )}
                                     </div>
@@ -1496,13 +1457,9 @@ function LeaguesTab({ seasonId }: { seasonId: string }) {
 function LeagueDetailView({ league, seasonId, onBack }: { league: AdminLeagueRow; seasonId: string; onBack: () => void }) {
     return (
         <div className="space-y-4">
-            <button
-                type="button"
-                onClick={onBack}
-                className="inline-flex items-center gap-1.5 min-h-11 text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-sffl-red transition cursor-pointer"
-            >
-                <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" /> All Leagues
-            </button>
+            <Button variant="ghost" icon={ArrowLeftIcon} onClick={onBack}>
+                All leagues
+            </Button>
             <div className="bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-5 shadow-sm">
                 <div className="flex items-center gap-2 flex-wrap">
                     <TypeBadge type={league.type} />
@@ -1574,75 +1531,68 @@ function CreateLeagueCard({ seasonId }: { seasonId: string }) {
                         joinable by invite code only.
                     </p>
                 </div>
-                <button
-                    type="button"
+                <Button
+                    variant="secondary"
+                    icon={open ? XMarkIcon : PlusIcon}
                     onClick={() => setOpen(o => !o)}
-                    className={`${btnGhost} shrink-0`}
+                    className="shrink-0"
                 >
-                    {open ? <XMarkIcon className="w-4 h-4" aria-hidden="true" /> : <PlusIcon className="w-4 h-4" aria-hidden="true" />}
-                    {open ? 'Cancel' : 'New League'}
-                </button>
+                    {open ? 'Cancel' : 'New league'}
+                </Button>
             </div>
 
             {open && (
                 <div className="p-4 sm:p-5 border-t border-gray-200 dark:border-gray-700">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className={labelClass}>League Name</label>
-                            <input
+                        <Field label="League name" htmlFor="league-name">
+                            <Input
+                                id="league-name"
                                 type="text"
                                 value={form.name}
                                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                                 placeholder="e.g. Showtime Office League"
-                                className={fieldClass}
                             />
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label className={labelClass}>Type</label>
-                            <select
+                        <Field label="Type" htmlFor="league-type">
+                            <Select
+                                id="league-type"
                                 value={form.type}
                                 onChange={(e) => setForm({ ...form, type: e.target.value as 'PUBLIC' | 'PRIVATE' })}
-                                className={fieldClass}
                             >
                                 <option value="PUBLIC">PUBLIC — anyone can browse and join</option>
                                 <option value="PRIVATE">PRIVATE — invite code only</option>
-                            </select>
-                        </div>
+                            </Select>
+                        </Field>
 
-                        <div>
-                            <label className={labelClass}>Entry Fee (₦)</label>
-                            <input
+                        <Field
+                            label="Entry fee (₦)"
+                            htmlFor="league-entry-fee"
+                            hint={feeKobo > 0
+                                ? `Members pay ${formatKobo(feeKobo)} to join.`
+                                : 'Zero makes this a free league — no prize pool and nothing to settle.'}
+                        >
+                            <Input
+                                id="league-entry-fee"
                                 type="number"
                                 min={0}
                                 value={form.entry_fee_naira}
                                 onChange={(e) => setForm({ ...form, entry_fee_naira: parseFloat(e.target.value) || 0 })}
-                                className={`${fieldClass} tabular-nums`}
                             />
-                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
-                                {feeKobo > 0
-                                    ? <>Members pay <strong className="text-sffl-red">{formatKobo(feeKobo)}</strong> to join.</>
-                                    : 'Zero makes this a free league — no prize pool and nothing to settle.'}
-                            </p>
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label className={labelClass}>Max Members</label>
-                            <input
+                        <Field label="Max members" htmlFor="league-max-members" hint="0 means unlimited.">
+                            <Input
+                                id="league-max-members"
                                 type="number"
                                 min={0}
                                 value={form.max_members}
                                 onChange={(e) => setForm({ ...form, max_members: parseInt(e.target.value) || 0 })}
-                                className={`${fieldClass} tabular-nums`}
                             />
-                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
-                                0 means unlimited.
-                            </p>
-                        </div>
+                        </Field>
                     </div>
 
-                    <button
-                        type="button"
+                    <Button
                         onClick={() => {
                             if (!form.name.trim()) {
                                 toast.error('Give the league a name');
@@ -1651,10 +1601,10 @@ function CreateLeagueCard({ seasonId }: { seasonId: string }) {
                             setConfirming(true);
                         }}
                         disabled={createLeagueMutation.isPending || !form.name.trim()}
-                        className={`${btnPrimary} mt-5 px-6 font-black tracking-wider w-full sm:w-auto`}
+                        className="mt-5 w-full sm:w-auto"
                     >
-                        Create League
-                    </button>
+                        Create league
+                    </Button>
                 </div>
             )}
 
@@ -1905,8 +1855,8 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                                     <span className="w-12 text-xs font-black uppercase text-gray-500 dark:text-gray-400 tabular-nums">
                                         {ordinal(t.rank)}
                                     </span>
-                                    <div className="relative flex-1 min-w-28">
-                                        <input
+                                    <div className="flex-1 min-w-28">
+                                        <Input
                                             type="number"
                                             min={0}
                                             max={100}
@@ -1917,45 +1867,40 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                                                 next[i] = { ...next[i], percent: parseFloat(e.target.value) || 0 };
                                                 setTiers(next);
                                             }}
-                                            className="w-full min-h-11 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 pl-3 pr-8 text-sm text-gray-900 dark:text-white tabular-nums focus:outline-none focus:border-yellow-500"
+                                            action={<span className="pr-3 text-xs text-gray-400 dark:text-gray-500 pointer-events-none">%</span>}
                                         />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">%</span>
                                     </div>
                                     <span className="min-w-24 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
                                         {formatKobo(Math.round(finance.prize_pool_kobo * (Number(t.percent) || 0) / 100))}
                                     </span>
-                                    <button
-                                        type="button"
+                                    <IconButton
+                                        icon={TrashIcon}
+                                        variant="danger"
+                                        label={`Remove position ${t.rank}`}
                                         onClick={() => setTiers(tiers.filter((_, idx) => idx !== i))}
-                                        className={`${btnBase} min-w-11 bg-gray-100 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-sffl-red text-gray-500 dark:text-gray-400`}
-                                        aria-label={`Remove position ${t.rank}`}
-                                    >
-                                        <TrashIcon className="w-4 h-4" aria-hidden="true" />
-                                    </button>
+                                    />
                                 </div>
                             ))}
                         </div>
 
                         <div className="flex items-center gap-3 flex-wrap mt-4">
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
+                                icon={PlusIcon}
                                 onClick={() => setTiers([...tiers, { rank: tiers.length + 1, percent: 0 }])}
-                                className={btnGhost}
                             >
-                                <PlusIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" /> Add Position
-                            </button>
-                            <button
-                                type="button"
+                                Add position
+                            </Button>
+                            <Button
                                 onClick={() => setConfirm('prizes')}
                                 disabled={savePrizesMutation.isPending || tierDraft === null}
-                                className={btnPrimary}
                             >
-                                Save Structure
-                            </button>
+                                Save structure
+                            </Button>
                             {tierDraft !== null && (
-                                <button type="button" onClick={() => setTierDraft(null)} className={btnGhost}>
-                                    Discard Changes
-                                </button>
+                                <Button variant="secondary" onClick={() => setTierDraft(null)}>
+                                    Discard changes
+                                </Button>
                             )}
                             <span className={`text-xs font-bold tabular-nums ${totalPercent > 100 ? 'text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
                                 Total: {totalPercent}% {totalPercent > 100 && '— over 100%, the server will reject this'}
@@ -1993,14 +1938,15 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                             Credits {formatKobo(awardTotal)} to {finance.awards.length} winner wallet(s) and closes this league's prize pool. This moves real money and cannot be undone.
                         </p>
                     </div>
-                    <button
-                        type="button"
+                    <Button
+                        variant="warning"
+                        icon={ShieldCheckIcon}
                         onClick={() => setConfirm('settle')}
                         disabled={finance.awards.length === 0}
-                        className={`${btnBase} px-6 bg-amber-500 hover:bg-amber-400 text-black font-black tracking-wider shadow-lg shadow-amber-500/20 shrink-0`}
+                        className="shrink-0"
                     >
-                        Settle League
-                    </button>
+                        Settle league
+                    </Button>
                 </div>
             )}
 
@@ -2269,14 +2215,14 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                                 so gameweeks can still be scored.
                             </p>
                         </div>
-                        <button
-                            type="button"
+                        <Button
+                            variant="warning"
                             onClick={() => setConfirmMode('settle')}
                             disabled={overview.unsettled_leagues === 0}
-                            className={`${btnBase} w-full px-5 bg-amber-500 hover:bg-amber-400 text-black font-black tracking-wider shadow-lg shadow-amber-500/20 disabled:opacity-40`}
+                            fullWidth
                         >
-                            {overview.unsettled_leagues === 0 ? 'Nothing To Settle' : `Settle ${overview.unsettled_leagues} League(s)`}
-                        </button>
+                            {overview.unsettled_leagues === 0 ? 'Nothing to settle' : `Settle ${overview.unsettled_leagues} league(s)`}
+                        </Button>
                     </div>
 
                     <div className="bg-gray-50 dark:bg-gray-700/50 border border-red-500/25 rounded-xl p-4 flex flex-col justify-between gap-4">
@@ -2287,13 +2233,9 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                                 Once closed the season is final — do this only when every gameweek has been scored.
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setConfirmMode('complete')}
-                            className={`${btnBase} w-full px-5 bg-red-600 hover:bg-red-500 text-white font-black tracking-wider shadow-lg shadow-red-600/20`}
-                        >
-                            Complete Season
-                        </button>
+                        <Button variant="danger" onClick={() => setConfirmMode('complete')} fullWidth>
+                            Complete season
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -2606,33 +2548,29 @@ function PricingTab({ seasonId }: { seasonId: string }) {
                         {isFetching && !isLoading && (
                             <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-400" role="img" aria-label="Refreshing" />
                         )}
-                        <select
+                        <Select
                             value={position}
                             onChange={(e) => { setPosition(e.target.value); setPage(1); }}
                             aria-label="Filter by position"
-                            className="w-full sm:w-auto min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red cursor-pointer"
+                            className="w-full sm:w-56"
                         >
                             {POSITION_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
-                        </select>
+                        </Select>
 
-                        {/* Status Filter Chips */}
-                        <div className="flex flex-wrap items-center bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl border border-gray-200 dark:border-gray-600 gap-1">
+                        {/* Status filter */}
+                        <div className="flex flex-wrap items-center gap-1.5">
                             {(['all', 'overridden', 'calculated'] as const).map((st) => (
-                                <button
+                                <Button
                                     key={st}
-                                    type="button"
+                                    variant={overrideStatus === st ? 'primary' : 'secondary'}
+                                    size="sm"
                                     aria-pressed={overrideStatus === st}
                                     onClick={() => { setOverrideStatus(st); setPage(1); }}
-                                    className={`px-3 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                                        overrideStatus === st
-                                            ? 'bg-sffl-red text-white shadow-sm'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                    }`}
                                 >
                                     {st === 'all' ? 'All' : st === 'overridden' ? 'Overridden' : 'Calculated'}
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     </>
@@ -2641,28 +2579,25 @@ function PricingTab({ seasonId }: { seasonId: string }) {
 
             {/* Price Edit Modal Dialog */}
             {editingPlayer && (
-                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setEditingPlayer(null)}>
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto" onClick={(e) => e.stopPropagation()}>
-                        <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 shrink-0">
-                            <div className="min-w-0">
-                                <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">Manual Price Override</span>
-                                <h3 className="text-lg font-black text-sffl-navy dark:text-white wrap-break-word">{editingPlayer.player_name}</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    {editingPlayer.position} · {editingPlayer.team_short_name || editingPlayer.team_name}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setEditingPlayer(null)}
-                                aria-label="Close"
-                                className={`${btnBase} min-w-11 shrink-0 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300`}
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSaveOverride} className="flex flex-col flex-1 min-h-0">
-                            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                <Modal
+                    open
+                    onClose={() => setEditingPlayer(null)}
+                    title={editingPlayer.player_name}
+                    subtitle={`Manual Price Override · ${editingPlayer.position} · ${editingPlayer.team_short_name || editingPlayer.team_name}`}
+                    maxWidth="md"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setEditingPlayer(null)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" form="fantasy-override-form" disabled={overrideMutation.isPending}>
+                                Save override
+                            </Button>
+                        </>
+                    }
+                >
+                        <form id="fantasy-override-form" onSubmit={handleSaveOverride}>
+                            <div className="space-y-4">
                                 <div className="bg-gray-50 dark:bg-gray-700/40 p-3 rounded-xl border border-gray-200 dark:border-gray-600 space-y-1">
                                     <div className="flex justify-between gap-3 text-xs">
                                         <span className="text-gray-500 dark:text-gray-400">Model Calculated:</span>
@@ -2678,50 +2613,28 @@ function PricingTab({ seasonId }: { seasonId: string }) {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
-                                        New Override Price (₦{PRICE_FLOOR.toFixed(1)}m – ₦{PRICE_CEILING.toFixed(1)}m)
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">₦</span>
-                                        <input
-                                            type="number"
-                                            step="0.1"
-                                            min={PRICE_FLOOR}
-                                            max={PRICE_CEILING}
-                                            required
-                                            value={overridePriceInput}
-                                            onChange={(e) => setOverridePriceInput(e.target.value)}
-                                            placeholder="e.g. 10.5"
-                                            className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-8 pr-12 py-2.5 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                                        />
-                                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">m</span>
-                                    </div>
-                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
-                                        Preview: <strong>{formatFantasyPrice(parseFloat(overridePriceInput) || 0)}</strong>. Overriding protects this price from being overwritten by future gameweek calculations.
-                                    </p>
-                                </div>
+                                <Field
+                                    label={`New override price (₦${PRICE_FLOOR.toFixed(1)}m – ₦${PRICE_CEILING.toFixed(1)}m)`}
+                                    htmlFor="override-price"
+                                    hint={`Preview: ${formatFantasyPrice(parseFloat(overridePriceInput) || 0)}. Overriding protects this price from being overwritten by future gameweek calculations.`}
+                                >
+                                    <Input
+                                        id="override-price"
+                                        type="number"
+                                        step="0.1"
+                                        min={PRICE_FLOOR}
+                                        max={PRICE_CEILING}
+                                        required
+                                        value={overridePriceInput}
+                                        onChange={(e) => setOverridePriceInput(e.target.value)}
+                                        placeholder="e.g. 10.5"
+                                        action={<span className="pr-3 text-xs font-bold text-gray-400 pointer-events-none">m</span>}
+                                    />
+                                </Field>
                             </div>
 
-                            <div className="p-4 sm:p-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t border-gray-100 dark:border-gray-700 shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => setEditingPlayer(null)}
-                                    className={`${btnBase} px-4 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600`}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={overrideMutation.isPending}
-                                    className={btnPrimary}
-                                >
-                                    Save Override
-                                </button>
-                            </div>
                         </form>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <ConfirmDialog
@@ -2779,19 +2692,15 @@ function PayoutsTab() {
                 action={
                     <div className="flex flex-wrap gap-1.5">
                         {PAYOUT_FILTERS.map(f => (
-                            <button
+                            <Button
                                 key={f.key || 'all'}
-                                type="button"
+                                size="sm"
+                                variant={status === f.key ? 'navy' : 'secondary'}
                                 aria-pressed={status === f.key}
                                 onClick={() => { setStatus(f.key); setPage(1); }}
-                                className={`px-3 min-h-11 rounded-lg text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
-                                    status === f.key
-                                        ? 'bg-yellow-500 text-black'
-                                        : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:text-white hover:bg-neutral-800'
-                                }`}
                             >
                                 {f.label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 }
@@ -2904,15 +2813,16 @@ function MoneyOwedPanel() {
             title="Money Owed"
             icon={BanknotesIcon}
             action={
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={expanded ? ChevronUpIcon : ChevronDownIcon}
+                    iconPosition="right"
                     onClick={() => setExpanded(v => !v)}
                     aria-expanded={expanded}
-                    className="flex items-center gap-1 min-h-11 px-2 text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-sffl-red transition cursor-pointer"
                 >
                     {expanded ? 'Hide' : 'Show'}
-                    {expanded ? <ChevronUpIcon className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDownIcon className="w-3.5 h-3.5" aria-hidden="true" />}
-                </button>
+                </Button>
             }
         >
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
@@ -3142,15 +3052,12 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                                 <span className="text-lg font-black text-gray-900 dark:text-white font-mono tracking-widest tabular-nums">
                                     {payout.account_number}
                                 </span>
-                                <button
-                                    type="button"
+                                <IconButton
+                                    icon={ClipboardDocumentIcon}
+                                    variant="secondary"
+                                    label="Copy account number"
                                     onClick={copyAccountNumber}
-                                    className={`${btnBase} min-w-11 bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-300`}
-                                    aria-label="Copy account number"
-                                    title="Copy account number"
-                                >
-                                    <ClipboardDocumentIcon className="w-4 h-4" aria-hidden="true" />
-                                </button>
+                                />
                             </div>
                         </div>
                         <div>
@@ -3175,29 +3082,26 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                     ) : (
                         <div className="flex flex-col gap-2">
                             {payout.status === 'PENDING' && (
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="secondary"
                                     onClick={() => setConfirm('processing')}
                                     disabled={updateMutation.isPending}
-                                    className={`${btnBase} px-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`}
                                 >
-                                    Mark Processing
-                                </button>
+                                    Mark processing
+                                </Button>
                             )}
-                            <button
-                                type="button"
+                            <Button
+                                variant={mode === 'paid' ? 'secondary' : 'success'}
                                 onClick={() => setMode(mode === 'paid' ? null : 'paid')}
-                                className={`${btnBase} px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-black tracking-wider shadow-lg shadow-emerald-500/10`}
                             >
-                                {mode === 'paid' ? 'Cancel' : 'Mark Paid'}
-                            </button>
-                            <button
-                                type="button"
+                                {mode === 'paid' ? 'Cancel' : 'Mark paid'}
+                            </Button>
+                            <Button
+                                variant={mode === 'reject' ? 'secondary' : 'danger'}
                                 onClick={() => setMode(mode === 'reject' ? null : 'reject')}
-                                className={`${btnBase} px-4 bg-gray-100 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-sffl-red text-gray-700 dark:text-gray-300`}
                             >
                                 {mode === 'reject' ? 'Cancel' : 'Reject'}
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -3205,58 +3109,59 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
 
             {mode === 'paid' && (
                 <div className="bg-emerald-500/5 border border-emerald-500/30 rounded-xl p-4">
-                    <label className="text-xs font-black uppercase tracking-wider text-emerald-500 dark:text-emerald-300 block mb-1">
-                        Bank Transfer Reference <span className="text-red-400">*required</span>
-                    </label>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-                        The reference your bank gave for this transfer. Marking paid debits the manager's wallet permanently.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <input
-                            type="text"
-                            value={paymentReference}
-                            onChange={(e) => setPaymentReference(e.target.value)}
-                            placeholder="e.g. GTB/TRF/00918273"
-                            className="flex-1 min-w-0 min-h-11 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-emerald-500"
-                        />
-                        <button
-                            type="button"
-                            onClick={requestPaid}
-                            disabled={updateMutation.isPending || !paymentReference.trim()}
-                            className={`${btnBase} px-6 bg-emerald-500 hover:bg-emerald-400 text-black font-black tracking-wider shadow-lg shadow-emerald-500/20 disabled:opacity-40`}
-                        >
-                            {`Confirm ${amount} Paid`}
-                        </button>
-                    </div>
+                    <Field
+                        label={<>Bank transfer reference <span className="text-red-400">*required</span></>}
+                        htmlFor="payout-payment-reference"
+                        hint="The reference your bank gave for this transfer. Marking paid debits the manager's wallet permanently."
+                    >
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <Input
+                                id="payout-payment-reference"
+                                type="text"
+                                value={paymentReference}
+                                onChange={(e) => setPaymentReference(e.target.value)}
+                                placeholder="e.g. GTB/TRF/00918273"
+                                className="flex-1"
+                            />
+                            <Button
+                                variant="success"
+                                onClick={requestPaid}
+                                disabled={updateMutation.isPending || !paymentReference.trim()}
+                                className="shrink-0"
+                            >
+                                {`Confirm ${amount} paid`}
+                            </Button>
+                        </div>
+                    </Field>
                 </div>
             )}
 
             {mode === 'reject' && (
                 <div className="bg-red-500/5 border border-red-500/30 rounded-xl p-4">
-                    <label className="text-xs font-black uppercase tracking-wider text-red-500 dark:text-red-300 block mb-1">
-                        Rejection Reason <span className="text-red-400">*required</span>
-                    </label>
-                    <p className="text-[11px] text-amber-600 dark:text-amber-300/90 mb-2 flex items-start gap-1.5">
-                        <ExclamationTriangleIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                        Rejecting returns {amount} to this manager's wallet balance. They will see this reason.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <input
-                            type="text"
-                            value={adminNotes}
-                            onChange={(e) => setAdminNotes(e.target.value)}
-                            placeholder="e.g. Account name does not match the registered manager"
-                            className="flex-1 min-w-0 min-h-11 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-red-500"
-                        />
-                        <button
-                            type="button"
-                            onClick={requestReject}
-                            disabled={updateMutation.isPending || !adminNotes.trim()}
-                            className={`${btnBase} px-6 bg-red-600 hover:bg-red-500 text-white font-black tracking-wider shadow-lg shadow-red-600/20 disabled:opacity-40`}
-                        >
-                            Reject & Refund Wallet
-                        </button>
-                    </div>
+                    <Field
+                        label={<>Rejection reason <span className="text-red-400">*required</span></>}
+                        htmlFor="payout-reject-reason"
+                        hint={`Rejecting returns ${amount} to this manager's wallet balance. They will see this reason.`}
+                    >
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <Input
+                                id="payout-reject-reason"
+                                type="text"
+                                value={adminNotes}
+                                onChange={(e) => setAdminNotes(e.target.value)}
+                                placeholder="e.g. Account name does not match the registered manager"
+                                className="flex-1"
+                            />
+                            <Button
+                                variant="danger"
+                                onClick={requestReject}
+                                disabled={updateMutation.isPending || !adminNotes.trim()}
+                                className="shrink-0"
+                            >
+                                Reject & refund wallet
+                            </Button>
+                        </div>
+                    </Field>
                 </div>
             )}
 

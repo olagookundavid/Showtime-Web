@@ -13,6 +13,7 @@ import { liveApi, type AdminLiveStatus } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, Field, IconButton, Input } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
@@ -153,14 +154,12 @@ const StatusCards = ({ status }: { status: AdminLiveStatus }) => {
                     <div className="text-[10px] uppercase tracking-widest font-bold text-gray-400">
                         Automatic detection
                     </div>
-                    <button
-                        type="button"
+                    <IconButton
+                        icon={ArrowPathIcon}
+                        label="Refresh detection"
+                        className="-my-2 -mr-2"
                         onClick={() => queryClient.invalidateQueries({ queryKey: ['adminLiveStatus'] })}
-                        className="-my-2 -mr-2 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-sffl-red hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                        aria-label="Refresh detection"
-                    >
-                        <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
-                    </button>
+                    />
                 </div>
                 <div className="text-2xl font-black italic uppercase text-sffl-navy dark:text-white mb-2">
                     {status.detected_live ? 'Channel is live' : 'Channel is offline'}
@@ -179,8 +178,6 @@ const StatusCards = ({ status }: { status: AdminLiveStatus }) => {
         </div>
     );
 };
-
-const inputClass = 'w-full min-h-11 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-sffl-navy dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red/40';
 
 const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
     const queryClient = useQueryClient();
@@ -255,58 +252,53 @@ const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
             {/* Video fields — shown for "Live Stream" or "Featured Video" */}
             {needsVideo && (
                 <div className="p-4 sm:p-6 md:p-8 rounded-3xl bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 space-y-5">
-                    <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
-                            YouTube link or video ID <span className="text-sffl-red">*</span>
-                        </label>
-                        <input
-                            value={videoInput}
-                            onChange={e => setVideoInput(e.target.value)}
-                            placeholder="https://www.youtube.com/watch?v=… or https://youtu.be/…"
-                            className={inputClass}
-                        />
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
-                            <p className="text-xs text-gray-400">
-                                Paste any YouTube link — watch, youtu.be, /live/ or /embed/ — or just the video ID. We'll work it out.
-                            </p>
-                            {status.detected_live && status.detected_video_id && (
-                                <button
-                                    type="button"
-                                    onClick={() => setVideoInput(status.detected_video_id!)}
-                                    className="min-h-11 text-xs font-bold text-sffl-red hover:underline"
-                                >
-                                    Use the detected stream ({status.detected_video_id})
-                                </button>
-                            )}
-                        </div>
+                    <div className="space-y-2">
+                        <Field
+                            label={<>YouTube link or video ID <span className="text-sffl-red">*</span></>}
+                            htmlFor="live-video-input"
+                            hint="Paste any YouTube link — watch, youtu.be, /live/ or /embed/ — or just the video ID. We'll work it out."
+                        >
+                            <Input
+                                id="live-video-input"
+                                value={videoInput}
+                                onChange={e => setVideoInput(e.target.value)}
+                                placeholder="https://www.youtube.com/watch?v=… or https://youtu.be/…"
+                            />
+                        </Field>
+                        {status.detected_live && status.detected_video_id && (
+                            <Button
+                                variant="link"
+                                onClick={() => setVideoInput(status.detected_video_id!)}
+                            >
+                                Use the detected stream ({status.detected_video_id})
+                            </Button>
+                        )}
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
-                            {mode === 'video' ? 'Video caption / title (optional)' : 'Caption (optional)'}
-                        </label>
-                        <input
+                    <Field
+                        label={mode === 'video' ? 'Video caption / title (optional)' : 'Caption (optional)'}
+                        htmlFor="live-title-input"
+                        hint={mode === 'video' ? 'Shown in player accessibility metadata and admin dashboard.' : 'Shown next to the LIVE badge on the player.'}
+                    >
+                        <Input
+                            id="live-title-input"
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                             placeholder={mode === 'video' ? 'Week 5 Highlights — Game of the Week' : 'Bowl 14 Semifinal — Rebels vs Knights'}
-                            className={inputClass}
                         />
-                        <p className="text-xs text-gray-400 mt-2">
-                            {mode === 'video' ? 'Shown in player accessibility metadata and admin dashboard.' : 'Shown next to the LIVE badge on the player.'}
-                        </p>
-                    </div>
+                    </Field>
                 </div>
             )}
 
             <div className="flex flex-col sm:flex-row items-center gap-3">
-                <button
-                    type="button"
+                <Button
+                    size="lg"
                     onClick={() => setConfirming(true)}
                     disabled={save.isPending || (needsVideo && !videoInput.trim())}
-                    className="w-full sm:w-auto min-h-11 px-8 py-3.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-2xl shadow-lg transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    className="w-full sm:w-auto rounded-2xl"
                 >
                     Apply to homepage
-                </button>
+                </Button>
                 <p className="text-xs text-gray-400 text-center sm:text-left">
                     Visitors pick the change up within about a minute — no refresh needed on their end.
                 </p>

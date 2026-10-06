@@ -9,14 +9,13 @@ import {
     PlayCircleIcon,
     PlusIcon,
     TrashIcon,
-    XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { PlayIcon } from '@heroicons/react/24/solid';
 import {
     getNews, createNews, updateNews, deleteNews,
     type News, type CreateNewsPayload,
 } from '../../services/api';
-import { ImageUploadField } from '../../components/ui';
+import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -60,9 +59,6 @@ const toForm = (n: News): ArticleForm => {
 const formatDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : undefined);
 
 type PendingAction = { kind: 'save' } | { kind: 'delete'; article: News };
-
-const inputClass = 'w-full min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2';
-const labelClass = 'block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1';
 
 export const AdminNews = () => {
     const queryClient = useQueryClient();
@@ -221,14 +217,9 @@ export const AdminNews = () => {
                 title="News"
                 subtitle="Write, publish and manage news articles."
                 actions={
-                    <button
-                        type="button"
-                        onClick={openCreate}
-                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                    >
-                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                    <Button icon={PlusIcon} onClick={openCreate} className="w-full sm:w-auto">
                         Add Article
-                    </button>
+                    </Button>
                 }
             />
 
@@ -245,89 +236,77 @@ export const AdminNews = () => {
                 itemsPerPage={PAGE_SIZE}
                 emptyMessage={search || category ? 'No articles match these filters.' : 'No articles found.'}
                 headerActions={
-                    <select
+                    <Select
                         value={category}
                         onChange={(e) => { setCategory(e.target.value); setPage(1); }}
                         aria-label="Filter by category"
-                        className="w-full sm:w-48 min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm font-semibold shadow-sm focus:ring-2 focus:ring-sffl-red transition-all"
+                        className="w-full sm:w-48"
                     >
                         <option value="">All Categories</option>
                         {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    </Select>
                 }
             />
 
             {showModal && (
-                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-between gap-3">
-                            <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Article' : 'New Article'}</h2>
-                            <button
-                                type="button"
-                                onClick={() => setShowModal(false)}
-                                aria-label="Close"
-                                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <label className={labelClass}>Title *</label>
-                                <input type="text" value={form.title} onChange={e => set('title', e.target.value)} className={inputClass} placeholder="Article title" />
-                            </div>
+                <Modal
+                    open
+                    onClose={() => setShowModal(false)}
+                    title={editingId ? 'Edit Article' : 'New Article'}
+                    maxWidth="2xl"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+                            <Button onClick={requestSave} disabled={busy}>
+                                {editingId ? 'Update Article' : 'Publish Article'}
+                            </Button>
+                        </>
+                    }
+                >
+                    <div className="space-y-4">
+                            <Field label="Title *" htmlFor="news-title">
+                                <Input id="news-title" type="text" value={form.title} onChange={e => set('title', e.target.value)} placeholder="Article title" />
+                            </Field>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className={labelClass}>Author</label>
-                                    <input type="text" value={form.author} onChange={e => set('author', e.target.value)} className={inputClass} placeholder="Author name" />
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Category</label>
-                                    <select value={form.category} onChange={e => set('category', e.target.value)} className={inputClass}>
+                                <Field label="Author" htmlFor="news-author">
+                                    <Input id="news-author" type="text" value={form.author} onChange={e => set('author', e.target.value)} placeholder="Author name" />
+                                </Field>
+                                <Field label="Category" htmlFor="news-category">
+                                    <Select id="news-category" value={form.category} onChange={e => set('category', e.target.value)}>
                                         <option value="">Select a category</option>
                                         {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
+                                    </Select>
+                                </Field>
                             </div>
-                            <div>
-                                <label className={labelClass}>Excerpt</label>
-                                <textarea value={form.excerpt} onChange={e => set('excerpt', e.target.value)} rows={2} className={inputClass} placeholder="Short summary" />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Content *</label>
+                            <Field label="Excerpt" htmlFor="news-excerpt">
+                                <Textarea id="news-excerpt" value={form.excerpt} onChange={e => set('excerpt', e.target.value)} rows={2} placeholder="Short summary" />
+                            </Field>
+                            <Field label="Content *" htmlFor="news-content">
                                 <NewsContentEditor value={form.content} onChange={v => set('content', v)} />
-                            </div>
+                            </Field>
                             <label className="flex items-center justify-between gap-4 p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 cursor-pointer">
                                 <span className="min-w-0">
                                     <span className="block text-sm font-bold text-gray-800 dark:text-white">Enable Comments</span>
                                     <span className="block text-xs text-gray-500 dark:text-gray-400">Allow logged-in users to discuss and comment on this article</span>
                                 </span>
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     checked={form.comments_enabled}
                                     onChange={e => set('comments_enabled', e.target.checked)}
-                                    className="w-5 h-5 shrink-0 text-sffl-red rounded border-gray-300 focus:ring-sffl-red cursor-pointer"
                                 />
                             </label>
                             <div className="space-y-3">
                                 <span className="block text-sm font-bold text-gray-700 dark:text-gray-300">Featured Media</span>
                                 <div className="flex flex-wrap gap-2">
-                                    {(['image', 'youtube'] as const).map(t => {
-                                        const Icon = t === 'image' ? PhotoIcon : PlayCircleIcon;
-                                        return (
-                                            <button
-                                                key={t}
-                                                type="button"
-                                                onClick={() => set('featured_media_type', t)}
-                                                className={`inline-flex items-center gap-1.5 px-4 min-h-11 text-xs font-bold rounded-lg border transition ${form.featured_media_type === t
-                                                    ? 'border-sffl-red text-sffl-red bg-sffl-red/10'
-                                                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
-                                            >
-                                                <Icon className="w-4 h-4" aria-hidden="true" />
-                                                {t === 'image' ? 'Photo' : 'YouTube Video'}
-                                            </button>
-                                        );
-                                    })}
+                                    {(['image', 'youtube'] as const).map(t => (
+                                        <Button
+                                            key={t}
+                                            variant={form.featured_media_type === t ? 'primary' : 'secondary'}
+                                            icon={t === 'image' ? PhotoIcon : PlayCircleIcon}
+                                            onClick={() => set('featured_media_type', t)}
+                                        >
+                                            {t === 'image' ? 'Photo' : 'YouTube Video'}
+                                        </Button>
+                                    ))}
                                 </div>
                                 {form.featured_media_type === 'image' ? (
                                     <ImageUploadField
@@ -342,12 +321,12 @@ export const AdminNews = () => {
                                     />
                                 ) : (
                                     <div className="space-y-2">
-                                        <input
+                                        <Input
                                             type="text"
                                             value={form.featured_youtube_url}
                                             onChange={e => set('featured_youtube_url', e.target.value)}
                                             placeholder="https://www.youtube.com/watch?v=..."
-                                            className={inputClass}
+                                            aria-label="YouTube link"
                                         />
                                         {videoId ? (
                                             <div className="relative w-48 max-w-full rounded-lg overflow-hidden">
@@ -367,12 +346,7 @@ export const AdminNews = () => {
                                 )}
                             </div>
                         </div>
-                        <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-gray-50 dark:bg-gray-800/90">
-                            <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-sm transition-colors min-h-11">Cancel</button>
-                            <button type="button" onClick={requestSave} disabled={busy} className="px-5 py-2.5 bg-sffl-red text-white font-bold text-sm rounded-xl shadow-sm hover:bg-red-700 transition-colors min-h-11 disabled:opacity-50">{editingId ? 'Update Article' : 'Publish Article'}</button>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <ConfirmDialog

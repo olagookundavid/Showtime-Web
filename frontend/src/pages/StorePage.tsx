@@ -17,6 +17,7 @@ import { getStoreProducts, type StoreProduct } from "../services/api";
 import { LazyImage } from "../components/common/LazyImage";
 import { getAvailableStock } from "../utils/storeStock";
 import { StarRating } from "../components/store/StarRating";
+import { Button, Input } from "../components/ui";
 
 type GroupByOption = "ALL" | "TAGS" | "DATE";
 
@@ -312,19 +313,15 @@ export const StorePage = () => {
       <div className="space-y-4 bg-white/5 dark:bg-gray-800/40 backdrop-blur-md border border-white/5 p-4 md:p-6 rounded-3xl shadow-lg">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           {/* Search Field */}
-          <div className="relative w-full md:w-80">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <MagnifyingGlassIcon className="w-4 h-4" aria-hidden="true" />
-            </span>
-            <input
-              type="search"
-              aria-label="Search products"
-              placeholder="Search gear..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full min-h-11 pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700/60 rounded-xl bg-white dark:bg-gray-800/50 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sffl-red/50 transition-all"
-            />
-          </div>
+          <Input
+            type="search"
+            aria-label="Search products"
+            icon={MagnifyingGlassIcon}
+            placeholder="Search gear..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full md:w-80"
+          />
 
           {/* Group By Selector */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full md:w-auto md:justify-end">
@@ -332,47 +329,32 @@ export const StorePage = () => {
               Group By:
             </span>
             <div className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto p-1 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-              <button
-                type="button"
-                onClick={() => setGroupBy("ALL")}
+              <Button
+                size="sm"
+                variant={groupBy === "ALL" ? "navy" : "ghost"}
                 aria-pressed={groupBy === "ALL"}
-                className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold leading-tight text-center transition-all ${
-                  groupBy === "ALL"
-                    ? "bg-sffl-navy dark:bg-sffl-red text-white shadow"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                onClick={() => setGroupBy("ALL")}
               >
                 All Products
-              </button>
-              <button
-                type="button"
-                onClick={() => setGroupBy("TAGS")}
+              </Button>
+              <Button
+                size="sm"
+                variant={groupBy === "TAGS" ? "navy" : "ghost"}
+                icon={TagIcon}
                 aria-pressed={groupBy === "TAGS"}
-                className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold leading-tight text-center transition-all ${
-                  groupBy === "TAGS"
-                    ? "bg-sffl-navy dark:bg-sffl-red text-white shadow"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                onClick={() => setGroupBy("TAGS")}
               >
-                <TagIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
                 Tags
-              </button>
-              <button
-                type="button"
-                onClick={() => setGroupBy("DATE")}
+              </Button>
+              <Button
+                size="sm"
+                variant={groupBy === "DATE" ? "navy" : "ghost"}
+                icon={CalendarDaysIcon}
                 aria-pressed={groupBy === "DATE"}
-                className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold leading-tight text-center transition-all ${
-                  groupBy === "DATE"
-                    ? "bg-sffl-navy dark:bg-sffl-red text-white shadow"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                onClick={() => setGroupBy("DATE")}
               >
-                <CalendarDaysIcon
-                  className="w-4 h-4 shrink-0"
-                  aria-hidden="true"
-                />
                 Creation Date
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -385,22 +367,17 @@ export const StorePage = () => {
           {allAvailableTags.map((tag) => {
             const isSelected = selectedTag === tag;
             return (
-              <button
-                type="button"
+              <Button
                 key={tag}
-                onClick={() => setSelectedTag(tag)}
+                size="sm"
+                variant={isSelected ? "primary" : "secondary"}
+                className="shrink-0"
+                icon={tag !== "All" ? TagIcon : undefined}
                 aria-pressed={isSelected}
-                className={`inline-flex items-center gap-1.5 shrink-0 min-h-11 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                  isSelected
-                    ? "bg-sffl-red text-white shadow-md scale-105"
-                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 hover:text-sffl-red"
-                }`}
+                onClick={() => setSelectedTag(tag)}
               >
-                {tag !== "All" && (
-                  <TagIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                )}
                 {tag === "All" ? "All Tags" : tag}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -445,16 +422,15 @@ export const StorePage = () => {
               Try switching tag filters!
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="navy"
             onClick={() => {
               setSelectedTag("All");
               setSearchQuery("");
             }}
-            className="min-h-11 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow-lg transition-all"
           >
             Reset Filters
-          </button>
+          </Button>
         </div>
       ) : groupBy === "TAGS" ? (
         /* Grouped By Tags View */

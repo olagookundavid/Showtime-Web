@@ -3,6 +3,7 @@ import { PhotoIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outli
 import { useImageUpload } from '../../hooks/useImageUpload';
 import toast from 'react-hot-toast';
 import { LightboxImage } from './LightboxImage';
+import { Button } from './Button';
 
 interface ImageUploadFieldProps {
   label: string;
@@ -165,15 +166,14 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             accept="image/*,.heic,.heif"
             className="hidden"
           />
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            icon={ArrowUpTrayIcon}
             disabled={isUploading}
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <ArrowUpTrayIcon className="w-4 h-4 mr-2" />
             {mode === 'picker' ? 'Select Image' : (preview ? 'Change Image' : 'Upload Image')}
-          </button>
+          </Button>
 
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {helperText || `JPG, PNG or WEBP. Max ${maxSizeMB}MB (will be compressed).`}

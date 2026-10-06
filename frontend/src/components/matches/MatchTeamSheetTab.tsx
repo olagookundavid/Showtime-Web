@@ -26,6 +26,7 @@ import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import type { ComponentType, SVGProps } from "react";
 import { FootballIcon } from "../icons/FootballIcon";
 import { PitchIcon } from "../icons/PitchIcon";
+import { Button } from "../ui";
 import { Modal } from "../ui/Modal";
 
 interface MatchTeamSheetTabProps {
@@ -562,15 +563,11 @@ export const MatchTeamSheetTab = ({
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           {/* Team Selector Pills */}
           <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto bg-gray-100 dark:bg-gray-700/60 p-1.5 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setSelectedTeam("home")}
+            <Button
+              variant={selectedTeam === "home" ? "navy" : "ghost"}
+              className="min-w-0 uppercase tracking-tight"
               aria-pressed={selectedTeam === "home"}
-              className={`flex items-center justify-center gap-2 min-w-0 min-h-11 px-3 py-2 rounded-lg font-black text-xs md:text-sm uppercase tracking-tight transition-all ${
-                selectedTeam === "home"
-                  ? "bg-sffl-navy text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-              }`}
+              onClick={() => setSelectedTeam("home")}
             >
               {homeTeam?.logo ? (
                 <img
@@ -586,17 +583,13 @@ export const MatchTeamSheetTab = ({
               <span className="truncate min-w-0 md:max-w-45">
                 {homeTeam?.name || "Home"}
               </span>
-            </button>
+            </Button>
 
-            <button
-              type="button"
-              onClick={() => setSelectedTeam("away")}
+            <Button
+              variant={selectedTeam === "away" ? "primary" : "ghost"}
+              className="min-w-0 uppercase tracking-tight"
               aria-pressed={selectedTeam === "away"}
-              className={`flex items-center justify-center gap-2 min-w-0 min-h-11 px-3 py-2 rounded-lg font-black text-xs md:text-sm uppercase tracking-tight transition-all ${
-                selectedTeam === "away"
-                  ? "bg-sffl-red text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-              }`}
+              onClick={() => setSelectedTeam("away")}
             >
               {awayTeam?.logo ? (
                 <img
@@ -612,7 +605,7 @@ export const MatchTeamSheetTab = ({
               <span className="truncate min-w-0 md:max-w-45">
                 {awayTeam?.name || "Away"}
               </span>
-            </button>
+            </Button>
           </div>
 
           {/* Status Pill & View Controls */}
@@ -643,35 +636,26 @@ export const MatchTeamSheetTab = ({
 
             {/* View Mode Toggle: Pitch vs Detailed List */}
             <div className="flex items-center w-full sm:w-auto bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setViewFormat("pitch")}
+              <Button
+                size="sm"
+                variant={viewFormat === "pitch" ? "secondary" : "ghost"}
+                className="flex-1 sm:flex-none"
+                icon={PitchIcon}
                 aria-pressed={viewFormat === "pitch"}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  viewFormat === "pitch"
-                    ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-sm font-black"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900"
-                }`}
+                onClick={() => setViewFormat("pitch")}
               >
-                <PitchIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
                 Pitch
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewFormat("list")}
+              </Button>
+              <Button
+                size="sm"
+                variant={viewFormat === "list" ? "secondary" : "ghost"}
+                className="flex-1 sm:flex-none"
+                icon={ListBulletIcon}
                 aria-pressed={viewFormat === "list"}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  viewFormat === "list"
-                    ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-sm font-black"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900"
-                }`}
+                onClick={() => setViewFormat("list")}
               >
-                <ListBulletIcon
-                  className="w-4 h-4 shrink-0"
-                  aria-hidden="true"
-                />
                 Detailed List
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -679,47 +663,35 @@ export const MatchTeamSheetTab = ({
         {/* Sub-bar: Unit Filter Pills (Full Lineup / Attack / Defense) & Tactical Details */}
         <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
           <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-center gap-1.5 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setUnitFilter("ALL")}
+            <Button
+              size="sm"
+              variant={unitFilter === "ALL" ? "navy" : "ghost"}
+              className="uppercase tracking-tight"
               aria-pressed={unitFilter === "ALL"}
-              className={`flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                unitFilter === "ALL"
-                  ? "bg-sffl-navy text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-              }`}
+              onClick={() => setUnitFilter("ALL")}
             >
-              <span>
-                <span className="hidden min-[400px]:inline">Full </span>Lineup
-                (14)
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setUnitFilter("OFFENSE")}
+              <span className="hidden min-[400px]:inline">Full </span>Lineup (14)
+            </Button>
+            <Button
+              size="sm"
+              variant={unitFilter === "OFFENSE" ? "primary" : "ghost"}
+              className="uppercase tracking-tight"
               aria-pressed={unitFilter === "OFFENSE"}
-              className={`flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                unitFilter === "OFFENSE"
-                  ? "bg-sffl-red text-white shadow-sm ring-1 ring-white/30"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-              }`}
+              onClick={() => setUnitFilter("OFFENSE")}
             >
               <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
-              <span>Attack (7)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setUnitFilter("DEFENSE")}
+              Attack (7)
+            </Button>
+            <Button
+              size="sm"
+              variant={unitFilter === "DEFENSE" ? "info" : "ghost"}
+              className="uppercase tracking-tight"
               aria-pressed={unitFilter === "DEFENSE"}
-              className={`flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                unitFilter === "DEFENSE"
-                  ? "bg-[#2563eb] text-white shadow-sm ring-1 ring-white/30"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-              }`}
+              onClick={() => setUnitFilter("DEFENSE")}
             >
               <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
-              <span>Defense (7)</span>
-            </button>
+              Defense (7)
+            </Button>
           </div>
 
           <div className="text-xs text-gray-500 dark:text-gray-400 font-bold flex flex-wrap items-center gap-2">
@@ -1073,23 +1045,19 @@ export const MatchTeamSheetTab = ({
               <span className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 Sort
               </span>
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="secondary"
+                className="tabular-nums"
+                icon={RATING_SORT_LABEL[ratingSort].icon}
                 onClick={() =>
                   setRatingSort((s) =>
                     s === "default" ? "high" : s === "high" ? "low" : "default",
                   )
                 }
-                className="inline-flex items-center gap-1.5 min-h-11 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-600 text-sffl-navy dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors tabular-nums"
               >
-                {(() => {
-                  const SortIcon = RATING_SORT_LABEL[ratingSort].icon;
-                  return (
-                    <SortIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                  );
-                })()}
                 {RATING_SORT_LABEL[ratingSort].label}
-              </button>
+              </Button>
             </div>
           </div>
 

@@ -20,13 +20,12 @@ import {
   InformationCircleIcon,
   LockClosedIcon,
   PencilSquareIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { Loader } from "../../components/ui/Loader";
 import { Spinner } from "../../components/ui/Spinner";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { LightboxImage } from "../../components/ui";
+import { Button, Checkbox, Field, Input, LightboxImage, Modal, Select } from "../../components/ui";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -303,30 +302,24 @@ export const AdminStats = () => {
 
       {/* Context Selectors */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-            Competition *
-          </label>
-          <select
+        <Field label="Competition *" htmlFor="stats-competition">
+          <Select
+            id="stats-competition"
             value={selectedComp}
             onChange={(e) => setSelectedComp(e.target.value)}
-            className="w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
             {comps.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-            Match *
-          </label>
-          <select
+          </Select>
+        </Field>
+        <Field label="Match *" htmlFor="stats-match">
+          <Select
+            id="stats-match"
             value={selectedMatch}
             onChange={(e) => setSelectedMatch(e.target.value)}
-            className="w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             disabled={loadingMatches || matches.length === 0}
           >
             {matches.length === 0 && <option value="">No matches found</option>}
@@ -346,16 +339,13 @@ export const AdminStats = () => {
                 ).toUpperCase()}
               </option>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-            Team Filter
-          </label>
-          <select
+          </Select>
+        </Field>
+        <Field label="Team Filter" htmlFor="stats-team">
+          <Select
+            id="stats-team"
             value={selectedTeamId}
             onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             disabled={!activeMatch}
           >
             {activeMatch && activeMatch.home_team && activeMatch.away_team ? (
@@ -370,8 +360,8 @@ export const AdminStats = () => {
             ) : (
               <option value="">Select a match first</option>
             )}
-          </select>
-        </div>
+          </Select>
+        </Field>
       </div>
 
       {isCompleted && (
@@ -411,38 +401,24 @@ export const AdminStats = () => {
 
       {/* Stats Entry Modal */}
       {showModal && activePlayer && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden"
-          data-dialog
-          onClick={() => setShowModal(false)}
+        <Modal
+          open
+          onClose={() => setShowModal(false)}
+          title="Record Stats"
+          subtitle={`${activePlayer.name} • ${activeMatch?.date.split("T")[0] ?? ""}`}
+          maxWidth="4xl"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setConfirmSave(true)} disabled={saving}>
+                Update Stats
+              </Button>
+            </>
+          }
         >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-center gap-3">
-              <div className="min-w-0">
-                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                  Record Stats
-                </h2>
-                <p className="text-gray-500 text-sm mt-1">
-                  <span className="font-bold text-sffl-red">
-                    {activePlayer.name}
-                  </span>{" "}
-                  • {activeMatch?.date.split("T")[0]}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <XMarkIcon className="w-6 h-6" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-6 relative overflow-y-auto overscroll-contain flex-1 min-h-0">
+            <div className="relative">
               {loadingExisting && (
                 <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-[1px] flex items-center justify-center z-20">
                   <Spinner />
@@ -468,45 +444,21 @@ export const AdminStats = () => {
                 )
                   .filter((s) => !s.teamOnly)
                   .map((field) => (
-                    <div
-                      key={field.key}
-                      className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600"
-                    >
-                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wider">
-                        {field.label}
-                      </label>
-                      <input
+                    <Field key={field.key} label={field.label} htmlFor={`stat-${field.key}`}>
+                      <Input
+                        id={`stat-${field.key}`}
                         type="number"
                         value={form[field.key] ?? "0"}
                         onChange={(e) =>
                           setForm({ ...form, [field.key]: e.target.value })
                         }
-                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 font-bold text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red outline-none transition-all"
                       />
-                    </div>
+                    </Field>
                   ))}
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-gray-50 dark:bg-gray-800/90 rounded-b-2xl">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-6 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all min-h-11 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmSave(true)}
-                disabled={saving}
-                className="px-8 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-black uppercase tracking-wider text-sm rounded-xl shadow-sm hover:shadow-md transition-all duration-300 min-h-11 disabled:opacity-50 flex items-center gap-2"
-              >
-                Update Stats
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Outside the modal: portal clicks bubble through the React tree, so inside it a
@@ -614,50 +566,28 @@ const RecomputeAllStatsPanel = ({
         </p>
       </div>
 
-      <label className="flex items-center gap-2 min-h-11 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
-        <input
-          type="checkbox"
-          className="w-5 h-5 shrink-0"
-          checked={scopeAll}
-          onChange={(e) => {
-            setScopeAll(e.target.checked);
-            setPreview(null);
-          }}
-        />
-        Every competition (otherwise just{" "}
-        {competitionName || "the selected competition"})
-      </label>
+      <Checkbox
+        label={`Every competition (otherwise just ${competitionName || "the selected competition"})`}
+        checked={scopeAll}
+        onChange={(e) => {
+          setScopeAll(e.target.checked);
+          setPreview(null);
+        }}
+      />
 
       <div className="flex gap-2 flex-wrap">
-        <button
-          type="button"
-          onClick={() => run(true)}
-          disabled={busy}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm text-sffl-navy dark:text-gray-200 disabled:opacity-50"
-        >
-          {busy && (
-            <ArrowPathIcon
-              className="w-4 h-4 animate-spin"
-              aria-hidden="true"
-            />
-          )}
+        <Button variant="secondary" onClick={() => run(true)} disabled={busy} loading={busy}>
           {busy ? "Working" : "1. Preview (dry run)"}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="primary"
           onClick={() => setConfirmRun(true)}
           disabled={busy || !preview}
           title={!preview ? "Run the preview first" : undefined}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 min-h-11 bg-sffl-navy text-white rounded-lg font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          loading={busy}
         >
-          {busy && (
-            <ArrowPathIcon
-              className="w-4 h-4 animate-spin"
-              aria-hidden="true"
-            />
-          )}
           {busy ? "Working" : "2. Recompute for real"}
-        </button>
+        </Button>
       </div>
 
       {preview && (

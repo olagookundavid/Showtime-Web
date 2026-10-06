@@ -4,6 +4,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
+import { Button } from "./Button";
+import { IconButton } from "./IconButton";
 
 interface CalendarPickerProps {
   value: string; // YYYY-MM-DD
@@ -140,35 +142,33 @@ export const CalendarPicker = ({
           {label}
         </label>
       )}
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        fullWidth
+        icon={CalendarIcon}
+        iconPosition="right"
+        className="justify-between"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
       >
-        <span>{value || "Select Date"}</span>
-        <CalendarIcon className="w-4 h-4 text-gray-400" />
-      </button>
+        {value || "Select Date"}
+      </Button>
 
       {isOpen && (
         <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl z-60 p-4">
           <div className="flex items-center justify-between mb-4">
-            <button
-              type="button"
+            <IconButton
+              icon={ChevronLeftIcon}
+              label="Previous month"
               onClick={() => handleMonthChange(-1)}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
-            >
-              <ChevronLeftIcon className="w-5 h-5" />
-            </button>
+            />
             <h3 className="font-black text-sffl-navy dark:text-white uppercase tracking-wider text-sm">
               {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
             </h3>
-            <button
-              type="button"
+            <IconButton
+              icon={ChevronRightIcon}
+              label="Next month"
               onClick={() => handleMonthChange(1)}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
-            >
-              <ChevronRightIcon className="w-5 h-5" />
-            </button>
+            />
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-2">
@@ -191,8 +191,10 @@ export const CalendarPicker = ({
                 Sunday
               </span>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="link"
+              size="sm"
+              className="uppercase tracking-wider"
               onClick={() => {
                 const today = new Date();
                 const y = today.getFullYear();
@@ -201,10 +203,9 @@ export const CalendarPicker = ({
                 onChange(`${y}-${m}-${d}`);
                 setIsOpen(false);
               }}
-              className="text-[10px] font-black text-sffl-red uppercase hover:underline"
             >
               Today
-            </button>
+            </Button>
           </div>
         </div>
       )}

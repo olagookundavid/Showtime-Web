@@ -33,6 +33,7 @@ import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea } from '../../components/ui';
 import { DiscountCodesPanel } from '../../components/admin/DiscountCodesPanel';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -136,11 +137,6 @@ const regenerateVariantGrid = (opts: OptionDraft[], prev: VariantDraft[], defaul
         };
     });
 };
-
-const editorInputClass = 'w-full min-h-11 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40';
-const editorLabelClass = 'text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider';
-const subInputClass = 'w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:text-white';
-const filterSelectClass = 'w-full sm:w-auto min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white';
 
 const paymentPill = (status: Order['payment_status']) =>
     status === 'paid'
@@ -590,35 +586,25 @@ export const AdminStore = () => {
                 subtitle="Manage e-commerce products, variants, image assets, and order fulfillment."
                 actions={
                     activeTab === 'PRODUCTS' && (
-                        <button
-                            type="button"
-                            onClick={handleOpenCreate}
-                            className="inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white px-6 min-h-11 rounded-2xl font-black tracking-wider text-xs uppercase shadow-lg transition-all hover:scale-[1.02] active:scale-95"
-                        >
-                            <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                        <Button icon={PlusIcon} onClick={handleOpenCreate} className="w-full sm:w-auto">
                             Create Product
-                        </button>
+                        </Button>
                     )
                 }
             />
 
             {/* Tabs */}
-            <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700 gap-2">
-                {TABS.map(({ key, label, icon: Icon }) => (
-                    <button
+            <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
+                {TABS.map(({ key, label, icon }) => (
+                    <Button
                         key={key}
-                        type="button"
+                        variant={activeTab === key ? 'navy' : 'secondary'}
+                        icon={icon}
                         onClick={() => setActiveTab(key)}
                         aria-pressed={activeTab === key}
-                        className={`inline-flex items-center gap-1.5 px-4 sm:px-6 min-h-11 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${
-                            activeTab === key
-                                ? 'border-sffl-red text-sffl-red'
-                                : 'border-transparent text-gray-500 hover:text-sffl-navy dark:hover:text-white'
-                        }`}
                     >
-                        <Icon className="w-4 h-4" aria-hidden="true" />
                         {label}
-                    </button>
+                    </Button>
                 ))}
             </div>
 
@@ -690,22 +676,12 @@ export const AdminStore = () => {
                                         </div>
 
                                         <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleOpenEdit(p)}
-                                                className="inline-flex items-center justify-center gap-1.5 bg-sffl-navy hover:bg-slate-900 text-white px-3 min-h-11 rounded-xl font-bold text-xs"
-                                            >
-                                                <PencilSquareIcon className="w-4 h-4" aria-hidden="true" />
+                                            <Button variant="navy" icon={PencilSquareIcon} onClick={() => handleOpenEdit(p)}>
                                                 Edit Product
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setPendingAction({ kind: 'delete', product: p })}
-                                                className="inline-flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white px-3 min-h-11 rounded-xl font-bold text-xs"
-                                            >
-                                                <TrashIcon className="w-4 h-4" aria-hidden="true" />
+                                            </Button>
+                                            <Button variant="danger" icon={TrashIcon} onClick={() => setPendingAction({ kind: 'delete', product: p })}>
                                                 Delete
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 );
@@ -730,29 +706,29 @@ export const AdminStore = () => {
                     emptyMessage="No orders found."
                     headerActions={
                         <>
-                            <select
+                            <Select
                                 value={paymentFilter}
                                 onChange={(e) => { setPaymentFilter(e.target.value); setOrdersPage(1); }}
                                 aria-label="Filter by payment status"
-                                className={filterSelectClass}
+                                className="w-full sm:w-44"
                             >
                                 <option value="">All Payments</option>
                                 <option value="pending">Pending</option>
                                 <option value="paid">Paid</option>
                                 <option value="failed">Failed</option>
-                            </select>
-                            <select
+                            </Select>
+                            <Select
                                 value={fulfillmentFilter}
                                 onChange={(e) => { setFulfillmentFilter(e.target.value); setOrdersPage(1); }}
                                 aria-label="Filter by fulfillment status"
-                                className={filterSelectClass}
+                                className="w-full sm:w-48"
                             >
                                 <option value="">All Fulfillments</option>
                                 <option value="pending">Pending</option>
                                 <option value="shipped">Shipped</option>
                                 <option value="delivered">Delivered</option>
                                 <option value="cancelled">Cancelled</option>
-                            </select>
+                            </Select>
                         </>
                     }
                 />
@@ -763,159 +739,144 @@ export const AdminStore = () => {
 
             {/* Unified Product Editor (create + edit) */}
             {editor && (
-                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={handleCloseEditor}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center gap-3 p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 shrink-0">
-                            <div className="min-w-0">
-                                <h2 className="text-xl font-black dark:text-white">
-                                    {editor.kind === 'edit' ? 'Edit Product' : 'Create Product'}
-                                </h2>
-                                {editor.kind === 'edit' && (
-                                    <p className="text-[11px] text-gray-500 mt-0.5 wrap-break-word">{editor.product.name}</p>
-                                )}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleCloseEditor}
-                                aria-label="Close"
-                                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={requestSaveEditor} className="flex flex-col flex-1 overflow-hidden min-h-0">
-                            <div className="p-4 sm:p-6 space-y-6 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                <Modal
+                    open
+                    onClose={handleCloseEditor}
+                    title={editor.kind === 'edit' ? 'Edit Product' : 'Create Product'}
+                    subtitle={editor.kind === 'edit' ? editor.product.name : undefined}
+                    maxWidth="3xl"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={handleCloseEditor} disabled={busy}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" form="store-product-form" disabled={busy}>
+                                {editor.kind === 'edit' ? 'Save Changes' : 'Create Product'}
+                            </Button>
+                        </>
+                    }
+                >
+                        <form id="store-product-form" onSubmit={requestSaveEditor}>
+                            <div className="space-y-6">
                             {/* ── Product details ─────────────────────────────── */}
                             <section className="space-y-4">
                                 <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">Product Details</h3>
 
-                                <div className="space-y-1">
-                                    <label className={editorLabelClass}>Product Name</label>
-                                    <input
+                                <Field label="Product name" htmlFor="store-product-name">
+                                    <Input
+                                        id="store-product-name"
                                         required
                                         type="text"
                                         placeholder="Team Jersey, Snapback Cap"
                                         value={formData.name}
                                         onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
-                                        className={editorInputClass}
                                     />
-                                </div>
+                                </Field>
 
-                                <div className="space-y-1">
-                                    <label className={editorLabelClass}>Description</label>
-                                    <textarea
+                                <Field
+                                    label="Description"
+                                    htmlFor="store-product-description"
+                                    hint="Tip: leave a blank line between paragraphs to render with spacing on the product page."
+                                >
+                                    <Textarea
+                                        id="store-product-description"
                                         rows={8}
                                         value={formData.description}
                                         onChange={e => setFormData(d => ({ ...d, description: e.target.value }))}
                                         placeholder={'Describe the product. Leave a blank line between paragraphs.\n\nFabric · Fit · Care · What\'s in the box — anything a buyer wants to know.'}
-                                        className={`${editorInputClass} resize-y leading-relaxed`}
+                                        className="leading-relaxed"
                                     />
-                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                                        Tip: leave a <strong>blank line</strong> between paragraphs to render with spacing on the product page.
-                                    </p>
-                                </div>
+                                </Field>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="space-y-1">
-                                        <label className={editorLabelClass}>Price (₦)</label>
-                                        <input
+                                    <Field label="Price (₦)" htmlFor="store-product-price">
+                                        <Input
+                                            id="store-product-price"
                                             required
                                             type="number"
                                             min="0"
                                             value={formData.price}
                                             onChange={e => setFormData(d => ({ ...d, price: Number(e.target.value) }))}
-                                            className={editorInputClass}
                                         />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={editorLabelClass}>Quantity</label>
-                                        <input
+                                    </Field>
+                                    <Field label="Quantity" htmlFor="store-product-quantity" hint="Base stock — ignored if variants exist.">
+                                        <Input
+                                            id="store-product-quantity"
                                             required
                                             type="number"
                                             min="0"
                                             value={formData.quantity}
                                             onChange={e => setFormData(d => ({ ...d, quantity: Number(e.target.value) }))}
-                                            className={editorInputClass}
                                         />
-                                        <p className="text-[10px] text-gray-500 dark:text-gray-400">Base stock — ignored if variants exist.</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={editorLabelClass}>Threshold</label>
-                                        <input
+                                    </Field>
+                                    <Field label="Threshold" htmlFor="store-product-threshold">
+                                        <Input
+                                            id="store-product-threshold"
                                             required
                                             type="number"
                                             min="0"
                                             value={formData.threshold}
                                             onChange={e => setFormData(d => ({ ...d, threshold: Number(e.target.value) }))}
-                                            className={editorInputClass}
                                         />
-                                    </div>
+                                    </Field>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        id="is_active"
-                                        type="checkbox"
-                                        checked={formData.is_active}
-                                        onChange={e => setFormData(d => ({ ...d, is_active: e.target.checked }))}
-                                        className="w-4 h-4 accent-sffl-red"
-                                    />
-                                    <label htmlFor="is_active" className="flex items-center min-h-11 text-sm font-medium dark:text-gray-300 select-none cursor-pointer">
-                                        Active (visible in storefront)
-                                    </label>
-                                </div>
+                                <Checkbox
+                                    id="is_active"
+                                    label="Active (visible in storefront)"
+                                    checked={formData.is_active}
+                                    onChange={e => setFormData(d => ({ ...d, is_active: e.target.checked }))}
+                                />
 
                                 {/* ── Product Tags ── */}
                                 <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                                    <label className={editorLabelClass}>Product Tags <span className="text-sffl-red">* (Required)</span></label>
+                                    <span className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                        Product tags <span className="text-sffl-red">* (Required)</span>
+                                    </span>
                                     <div className="flex flex-wrap gap-2 items-center">
                                         {STANDARD_TAGS.map(t => {
                                             const selected = formData.tags.includes(t);
                                             return (
-                                                <button
-                                                    type="button"
+                                                <Button
                                                     key={t}
+                                                    variant={selected ? 'primary' : 'secondary'}
+                                                    size="sm"
+                                                    icon={selected ? CheckIcon : PlusIcon}
                                                     aria-pressed={selected}
+                                                    className="rounded-full"
                                                     onClick={() => {
                                                         setFormData(d => ({
                                                             ...d,
                                                             tags: selected ? d.tags.filter(tag => tag !== t) : [...d.tags, t],
                                                         }));
                                                     }}
-                                                    className={`inline-flex items-center gap-1 px-3 min-h-11 rounded-full text-xs font-bold transition-all ${
-                                                        selected
-                                                            ? 'bg-sffl-red text-white shadow-sm'
-                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
-                                                    }`}
                                                 >
-                                                    {selected
-                                                        ? <CheckIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                                                        : <PlusIcon className="w-3.5 h-3.5" aria-hidden="true" />}
                                                     {t}
-                                                </button>
+                                                </Button>
                                             );
                                         })}
 
                                         {formData.tags.filter(t => !STANDARD_TAGS.includes(t)).map(customTag => (
-                                            <button
-                                                type="button"
+                                            <Button
                                                 key={customTag}
-                                                onClick={() => setFormData(d => ({ ...d, tags: d.tags.filter(tag => tag !== customTag) }))}
+                                                variant="navy"
+                                                size="sm"
+                                                icon={CheckIcon}
+                                                className="rounded-full"
                                                 aria-label={`Remove tag ${customTag}`}
-                                                className="px-3 min-h-11 rounded-full text-xs font-bold bg-indigo-600 text-white inline-flex items-center gap-1 shadow-sm"
+                                                onClick={() => setFormData(d => ({ ...d, tags: d.tags.filter(tag => tag !== customTag) }))}
                                             >
-                                                <CheckIcon className="w-3.5 h-3.5" aria-hidden="true" />
                                                 {customTag}
                                                 <XMarkIcon className="w-3.5 h-3.5 opacity-70" aria-hidden="true" />
-                                            </button>
+                                            </Button>
                                         ))}
                                     </div>
 
                                     <div className="flex items-center gap-2 pt-1">
-                                        <input
+                                        <Input
                                             type="text"
                                             placeholder="Add custom tag (e.g. Footwear, Caps)"
+                                            aria-label="Custom tag"
                                             value={customTagInput}
                                             onChange={e => setCustomTagInput(e.target.value)}
                                             onKeyDown={e => {
@@ -924,15 +885,11 @@ export const AdminStore = () => {
                                                     handleAddCustomTag();
                                                 }
                                             }}
-                                            className={`${editorInputClass} flex-1 min-w-0 text-xs`}
+                                            className="flex-1 min-w-0"
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={handleAddCustomTag}
-                                            className="shrink-0 px-3 min-h-11 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg font-bold text-xs hover:bg-sffl-red dark:hover:bg-sffl-red dark:hover:text-white transition-colors"
-                                        >
+                                        <Button variant="secondary" onClick={handleAddCustomTag} className="shrink-0">
                                             Add Tag
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             </section>
@@ -950,37 +907,27 @@ export const AdminStore = () => {
                                         {options.map((opt, optIdx) => (
                                             <div key={optIdx} className="bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 rounded-xl p-3 sm:p-4 space-y-3">
                                                 <div className="flex flex-wrap items-end gap-3">
-                                                    <div className="flex-1 min-w-40 space-y-1">
-                                                        <label className="text-[10px] font-bold text-gray-500 uppercase">Option Name</label>
-                                                        <input
+                                                    <Field label="Option name" htmlFor={`option-name-${optIdx}`} className="flex-1 min-w-40">
+                                                        <Input
+                                                            id={`option-name-${optIdx}`}
                                                             type="text"
                                                             placeholder="Size"
                                                             value={opt.name}
                                                             onChange={e => handleOptionNameChange(optIdx, e.target.value)}
-                                                            className={subInputClass}
                                                         />
-                                                    </div>
-                                                    <label className="flex items-center gap-2 min-h-11 text-[11px] font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={opt.drives_price}
-                                                            onChange={() => handleDrivesPriceToggle(optIdx)}
-                                                            className="w-4 h-4 accent-sffl-red"
-                                                        />
-                                                        Drives price
-                                                    </label>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveOption(optIdx)}
-                                                        className="inline-flex items-center gap-1 text-red-500 bg-red-50 dark:bg-red-900/20 px-3 min-h-11 rounded-lg text-[10px] font-bold uppercase"
-                                                    >
-                                                        <TrashIcon className="w-4 h-4" aria-hidden="true" />
+                                                    </Field>
+                                                    <Checkbox
+                                                        label="Drives price"
+                                                        checked={opt.drives_price}
+                                                        onChange={() => handleDrivesPriceToggle(optIdx)}
+                                                    />
+                                                    <Button variant="danger" size="sm" icon={TrashIcon} onClick={() => handleRemoveOption(optIdx)}>
                                                         Remove
-                                                    </button>
+                                                    </Button>
                                                 </div>
 
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Values</label>
+                                                    <span className="block text-sm font-bold text-gray-700 dark:text-gray-300">Values</span>
                                                     {opt.values.length > 0 && (
                                                         <div className="space-y-2">
                                                             {opt.values.map((val, valIdx) => (
@@ -989,31 +936,29 @@ export const AdminStore = () => {
                                                                     {opt.drives_price && (
                                                                         <div className="flex items-center gap-1">
                                                                             <span className="text-[10px] font-bold text-gray-500 uppercase">₦</span>
-                                                                            <input
+                                                                            <Input
                                                                                 type="number"
                                                                                 min="0"
                                                                                 placeholder="Price"
                                                                                 aria-label={`Price for ${val.value}`}
                                                                                 value={val.price ?? ''}
                                                                                 onChange={e => handleOptionValuePrice(optIdx, valIdx, Number(e.target.value))}
-                                                                                className="w-28 min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2 py-1 text-sm dark:text-white"
+                                                                                className="w-28"
                                                                             />
                                                                         </div>
                                                                     )}
-                                                                    <button
-                                                                        type="button"
+                                                                    <IconButton
+                                                                        icon={XMarkIcon}
+                                                                        variant="danger"
+                                                                        label={`Remove ${val.value}`}
                                                                         onClick={() => handleRemoveOptionValue(optIdx, valIdx)}
-                                                                        aria-label={`Remove ${val.value}`}
-                                                                        className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                                    >
-                                                                        <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-                                                                    </button>
+                                                                    />
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     )}
                                                     <div className="flex gap-2">
-                                                        <input
+                                                        <Input
                                                             type="text"
                                                             placeholder={`Add ${opt.name || 'value'} (e.g. M, Navy)`}
                                                             aria-label={`Add ${opt.name || 'value'}`}
@@ -1029,16 +974,11 @@ export const AdminStore = () => {
                                                                     handleAddOptionValue(optIdx);
                                                                 }
                                                             }}
-                                                            className={`${subInputClass} flex-1 min-w-0`}
+                                                            className="flex-1 min-w-0"
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleAddOptionValue(optIdx)}
-                                                            className="shrink-0 inline-flex items-center gap-1 bg-sffl-navy hover:bg-slate-900 text-white px-3 sm:px-4 min-h-11 rounded-lg font-bold text-[10px] uppercase tracking-wider"
-                                                        >
-                                                            <PlusIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                                                        <Button variant="navy" size="sm" icon={PlusIcon} onClick={() => handleAddOptionValue(optIdx)} className="shrink-0">
                                                             Add value
-                                                        </button>
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1047,14 +987,9 @@ export const AdminStore = () => {
                                 )}
 
                                 {options.length < MAX_OPTIONS && (
-                                    <button
-                                        type="button"
-                                        onClick={handleAddOption}
-                                        className="inline-flex items-center gap-1 min-h-11 text-xs font-black uppercase tracking-wider text-sffl-red hover:underline"
-                                    >
-                                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                                    <Button variant="link" icon={PlusIcon} onClick={handleAddOption}>
                                         Add option
-                                    </button>
+                                    </Button>
                                 )}
                             </section>
 
@@ -1081,37 +1016,39 @@ export const AdminStore = () => {
                                                     <div className="col-span-12 sm:col-span-5">
                                                         <div className="font-bold text-sm dark:text-white wrap-break-word">{tuple}</div>
                                                     </div>
-                                                    <div className="col-span-6 sm:col-span-3 space-y-1">
-                                                        <label className="text-[10px] font-bold text-gray-500 uppercase">Stock</label>
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            value={v.quantity}
-                                                            onChange={e => {
-                                                                const qty = Number(e.target.value) || 0;
-                                                                setVariants(prev => prev.map((x, i) => i === index ? { ...x, quantity: qty } : x));
-                                                            }}
-                                                            className={subInputClass}
-                                                        />
+                                                    <div className="col-span-6 sm:col-span-3">
+                                                        <Field label="Stock" htmlFor={`variant-stock-${index}`}>
+                                                            <Input
+                                                                id={`variant-stock-${index}`}
+                                                                type="number"
+                                                                min="0"
+                                                                value={v.quantity}
+                                                                onChange={e => {
+                                                                    const qty = Number(e.target.value) || 0;
+                                                                    setVariants(prev => prev.map((x, i) => i === index ? { ...x, quantity: qty } : x));
+                                                                }}
+                                                            />
+                                                        </Field>
                                                     </div>
-                                                    <div className="col-span-6 sm:col-span-4 space-y-1 min-w-0">
-                                                        <label className="text-[10px] font-bold text-gray-500 uppercase">Image (optional)</label>
-                                                        <select
-                                                            value={v.image_url}
-                                                            onChange={e => {
-                                                                const url = e.target.value;
-                                                                setVariants(prev => prev.map((x, i) => i === index ? { ...x, image_url: url } : x));
-                                                            }}
-                                                            disabled={images.length === 0}
-                                                            className={`${subInputClass} disabled:opacity-50`}
-                                                        >
-                                                            <option value="">{images.length === 0 ? 'Upload images first' : 'None'}</option>
-                                                            {images.map((img, i) => (
-                                                                <option key={img.image_url} value={img.image_url}>
-                                                                    Image {i + 1}{img.is_primary ? ' (primary)' : ''}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                    <div className="col-span-6 sm:col-span-4 min-w-0">
+                                                        <Field label="Image (optional)" htmlFor={`variant-image-${index}`}>
+                                                            <Select
+                                                                id={`variant-image-${index}`}
+                                                                value={v.image_url}
+                                                                onChange={e => {
+                                                                    const url = e.target.value;
+                                                                    setVariants(prev => prev.map((x, i) => i === index ? { ...x, image_url: url } : x));
+                                                                }}
+                                                                disabled={images.length === 0}
+                                                            >
+                                                                <option value="">{images.length === 0 ? 'Upload images first' : 'None'}</option>
+                                                                {images.map((img, i) => (
+                                                                    <option key={img.image_url} value={img.image_url}>
+                                                                        Image {i + 1}{img.is_primary ? ' (primary)' : ''}
+                                                                    </option>
+                                                                ))}
+                                                            </Select>
+                                                        </Field>
                                                     </div>
                                                 </div>
                                             );
@@ -1158,13 +1095,9 @@ export const AdminStore = () => {
                                                         />
                                                         Primary
                                                     </label>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveImage(index)}
-                                                        className="min-h-11 px-1 text-red-500 font-bold"
-                                                    >
+                                                    <Button variant="link" size="sm" onClick={() => handleRemoveImage(index)}>
                                                         Remove
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         ))}
@@ -1174,26 +1107,8 @@ export const AdminStore = () => {
 
                             </div>
 
-                            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 bg-gray-50 dark:bg-gray-800/90">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseEditor}
-                                    disabled={busy}
-                                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-11 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={busy}
-                                    className="px-6 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-11 shadow-sm transition-colors"
-                                >
-                                    {editor.kind === 'edit' ? 'Save Changes' : 'Create Product'}
-                                </button>
-                            </div>
                         </form>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <ConfirmDialog

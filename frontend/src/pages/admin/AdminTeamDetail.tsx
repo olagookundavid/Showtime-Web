@@ -40,7 +40,7 @@ import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHea
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { Loader } from "../../components/ui/Loader";
 import { Spinner } from "../../components/ui/Spinner";
-import { LightboxImage } from "../../components/ui";
+import { Button, LightboxImage } from "../../components/ui";
 import {
   DeletedPlayerName,
   deletedRowClass,
@@ -75,10 +75,8 @@ const FORMAT_LABEL: Record<string, string> = {
 
 const cardClass =
   "bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 min-w-0";
-const primaryButton =
-  "inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none";
-const secondaryButton =
-  "inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+// The "View-only" hint shown on disabled controls when the role cannot edit teams.
+const viewOnlyTitle = "View-only access to Teams";
 const textLink =
   "inline-flex items-center gap-1 min-h-11 text-sm font-bold text-sffl-red hover:underline";
 
@@ -481,14 +479,12 @@ export const AdminTeamDetail = () => {
         back={{ to: "/admin/teams", label: "Back to Teams" }}
         actions={
           <>
-            <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openEdit(team)} className={primaryButton}>
-              <PencilSquareIcon className="w-4 h-4" aria-hidden="true" />
+            <Button icon={PencilSquareIcon} disabled={!canManage} title={canManage ? undefined : viewOnlyTitle} onClick={() => actions.openEdit(team)} className="w-full sm:w-auto">
               Edit Team
-            </button>
-            <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openTeamHeads(team)} className={secondaryButton}>
-              <UserGroupIcon className="w-4 h-4" aria-hidden="true" />
+            </Button>
+            <Button variant="secondary" icon={UserGroupIcon} disabled={!canManage} title={canManage ? undefined : viewOnlyTitle} onClick={() => actions.openTeamHeads(team)} className="w-full sm:w-auto">
               Team Heads
-            </button>
+            </Button>
           </>
         }
       />
@@ -592,18 +588,16 @@ export const AdminTeamDetail = () => {
                   </li>
                 ))}
               </ul>
-              <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openTeamHeads(team)} className={secondaryButton}>
-                <UserGroupIcon className="w-4 h-4" aria-hidden="true" />
+              <Button variant="secondary" icon={UserGroupIcon} disabled={!canManage} title={canManage ? undefined : viewOnlyTitle} onClick={() => actions.openTeamHeads(team)} className="w-full sm:w-auto">
                 Manage Team Heads
-              </button>
+              </Button>
             </>
           ) : (
             <EmptyState
               action={
-                <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openTeamHeads(team)} className={primaryButton}>
-                  <UserPlusIcon className="w-4 h-4" aria-hidden="true" />
+                <Button icon={UserPlusIcon} disabled={!canManage} title={canManage ? undefined : viewOnlyTitle} onClick={() => actions.openTeamHeads(team)} className="w-full sm:w-auto">
                   Assign a Team Head
-                </button>
+                </Button>
               }
             >
               No team head yet. Until one is assigned, nobody can manage this team's players from the team
@@ -707,10 +701,9 @@ export const AdminTeamDetail = () => {
           <div className={cardClass}>
             <EmptyState
               action={
-                <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.askToggleStatus(team)} className={primaryButton}>
-                  <EyeIcon className="w-4 h-4" aria-hidden="true" />
+                <Button icon={EyeIcon} disabled={!canManage} title={canManage ? undefined : viewOnlyTitle} onClick={() => actions.askToggleStatus(team)} className="w-full sm:w-auto">
                   Mark Active
-                </button>
+                </Button>
               }
             >
               {hiddenNote}
@@ -745,30 +738,25 @@ export const AdminTeamDetail = () => {
               ? "This team is inactive: it's hidden from public pages and selection dropdowns. Nothing has been deleted."
               : "This team is active: it appears on public pages and in selection dropdowns. Mark it inactive to hide it without deleting anything."}
           </p>
-          <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.askToggleStatus(team)} className={`${secondaryButton} shrink-0`}>
-            {inactive ? (
-              <EyeIcon className="w-4 h-4" aria-hidden="true" />
-            ) : (
-              <EyeSlashIcon className="w-4 h-4" aria-hidden="true" />
-            )}
+          <Button variant="secondary" icon={inactive ? EyeIcon : EyeSlashIcon} disabled={!canManage} title={canManage ? undefined : viewOnlyTitle} onClick={() => actions.askToggleStatus(team)} className="w-full sm:w-auto shrink-0">
             {inactive ? "Mark Active" : "Mark Inactive"}
-          </button>
+          </Button>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-300 min-w-0">
             Deleting removes the team together with its players, matches, standings, contracts and stats. It
             can't be undone.
           </p>
-          <button
-            type="button"
+          <Button
+            variant="danger"
+            icon={TrashIcon}
             disabled={!canManage}
-            title={canManage ? undefined : "View-only access to Teams"}
+            title={canManage ? undefined : viewOnlyTitle}
             onClick={() => actions.askDelete(team)}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 px-4 py-2 min-h-11 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto shrink-0"
           >
-            <TrashIcon className="w-4 h-4" aria-hidden="true" />
             Delete Team
-          </button>
+          </Button>
         </div>
       </section>
 

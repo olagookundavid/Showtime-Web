@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 import { useCart } from "../contexts/CartContext";
+import { Button, IconButton } from "../components/ui";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 
 export const CartPage = () => {
@@ -66,14 +67,15 @@ export const CartPage = () => {
             {items.length} item{items.length === 1 ? "" : "s"}
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="danger"
+          size="sm"
+          className="self-start md:self-auto"
+          icon={TrashIcon}
           onClick={() => setConfirmClear(true)}
-          className="inline-flex items-center gap-1.5 min-h-11 px-2 -mx-2 text-xs font-black uppercase tracking-wider text-red-500 hover:underline self-start md:self-auto"
         >
-          <TrashIcon className="w-4 h-4" aria-hidden="true" />
           Clear cart
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -123,8 +125,10 @@ export const CartPage = () => {
 
                   <div className="flex flex-wrap items-center justify-between sm:justify-end gap-x-3 gap-y-2">
                     <div className="inline-flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800/40">
-                      <button
-                        type="button"
+                      <IconButton
+                        variant="ghost"
+                        icon={MinusIcon}
+                        label={`Decrease quantity of ${line.product_name}`}
                         onClick={() =>
                           updateQuantity(
                             line.product_id,
@@ -132,19 +136,17 @@ export const CartPage = () => {
                             line.quantity - 1,
                           )
                         }
-                        aria-label={`Decrease quantity of ${line.product_name}`}
-                        className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <MinusIcon className="w-4 h-4" aria-hidden="true" />
-                      </button>
+                      />
                       <span
                         className="px-2 min-w-8 text-center text-sm font-bold text-gray-900 dark:text-white"
                         aria-live="polite"
                       >
                         {line.quantity}
                       </span>
-                      <button
-                        type="button"
+                      <IconButton
+                        variant="ghost"
+                        icon={PlusIcon}
+                        label={`Increase quantity of ${line.product_name}`}
                         onClick={() =>
                           updateQuantity(
                             line.product_id,
@@ -152,26 +154,23 @@ export const CartPage = () => {
                             line.quantity + 1,
                           )
                         }
-                        aria-label={`Increase quantity of ${line.product_name}`}
-                        className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
-                      </button>
+                      />
                     </div>
 
                     <div className="text-right sm:min-w-20">
                       <div className="font-black text-sm text-sffl-navy dark:text-white">
                         ₦{lineTotal.toLocaleString()}
                       </div>
-                      <button
-                        type="button"
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="-mr-2 text-red-500"
                         onClick={() =>
                           removeItem(line.product_id, line.variant_id)
                         }
-                        className="min-h-11 px-2 -mr-2 text-[11px] font-bold text-red-500 hover:underline uppercase tracking-wider"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -207,14 +206,15 @@ export const CartPage = () => {
             </div>
           </div>
 
-          <button
-            type="button"
+          <Button
+            fullWidth
+            size="lg"
+            icon={ArrowRightIcon}
+            iconPosition="right"
             onClick={handleCheckout}
-            className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white py-3 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md"
           >
             Checkout
-            <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-          </button>
+          </Button>
 
           <Link
             to="/store"

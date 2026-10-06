@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckIcon, LinkIcon, ShareIcon } from '@heroicons/react/24/outline';
+import { Button } from '../ui/Button';
+import { buttonClass } from '../ui/buttonStyles';
 
 interface ShareVoteProps {
     /** Absolute link to share. */
@@ -37,28 +39,25 @@ export const ShareVote = ({ url, text }: ShareVoteProps) => {
         }
     };
 
-    const btn =
-        'inline-flex items-center justify-center gap-1.5 min-h-11 px-3.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
+    const linkClass = buttonClass('secondary', 'md', false, '');
 
     return (
         <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 mr-1">Share the vote:</span>
             {canNativeShare && (
-                <button type="button" onClick={nativeShare} className={btn}>
-                    <ShareIcon className="w-4 h-4" aria-hidden="true" />
+                <Button variant="secondary" icon={ShareIcon} onClick={nativeShare}>
                     Share
-                </button>
+                </Button>
             )}
-            <a href={`https://wa.me/?text=${encoded}`} target="_blank" rel="noopener noreferrer" className={btn}>
+            <a href={`https://wa.me/?text=${encoded}`} target="_blank" rel="noopener noreferrer" className={linkClass}>
                 WhatsApp
             </a>
-            <a href={`https://twitter.com/intent/tweet?text=${encoded}`} target="_blank" rel="noopener noreferrer" className={btn}>
+            <a href={`https://twitter.com/intent/tweet?text=${encoded}`} target="_blank" rel="noopener noreferrer" className={linkClass}>
                 Post on X
             </a>
-            <button type="button" onClick={copy} className={btn}>
-                {copied ? <CheckIcon className="w-4 h-4" aria-hidden="true" /> : <LinkIcon className="w-4 h-4" aria-hidden="true" />}
+            <Button variant="secondary" icon={copied ? CheckIcon : LinkIcon} onClick={copy}>
                 {copied ? 'Copied' : 'Copy link'}
-            </button>
+            </Button>
         </div>
     );
 };

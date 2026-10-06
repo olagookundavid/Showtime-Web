@@ -5,6 +5,7 @@ import { claimApi, type MyClaimStatusData } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { Button } from '../../components/ui';
 import { Spinner } from '../../components/ui/Spinner';
 import {
     ArrowPathIcon,
@@ -211,15 +212,15 @@ export const ClaimStatusPage: React.FC = () => {
                                     Confirming your email is not required for approval, but it is what lets you
                                     reset your password later.
                                 </p>
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="mt-1"
+                                    loading={resending}
                                     onClick={handleResend}
-                                    disabled={resending}
-                                    className="mt-1 min-h-11 inline-flex items-center gap-1.5 text-xs font-bold text-sffl-red hover:underline disabled:opacity-50"
                                 >
-                                    {resending && <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />}
                                     {resending ? 'Sending…' : 'Resend confirmation email'}
-                                </button>
+                                </Button>
                             </div>
                         )}
 
@@ -266,33 +267,19 @@ export const ClaimStatusPage: React.FC = () => {
                                     issued while the account was still player_pending, so the
                                     cached profile has to be re-fetched before the portal's role
                                     guard will let them through. */}
-                                <button
-                                    type="button"
-                                    onClick={() => window.location.assign('/player-portal')}
-                                    className="w-full min-h-11 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
-                                >
+                                <Button fullWidth size="lg" onClick={() => window.location.assign('/player-portal')}>
                                     Go to my player portal
-                                </button>
+                                </Button>
                             </div>
                         )}
 
                         <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                            <button
-                                type="button"
-                                onClick={fetchStatus}
-                                className="min-h-11 inline-flex items-center gap-1.5 -ml-2 px-2 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                            >
-                                <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
+                            <Button variant="ghost" size="sm" className="-ml-2" icon={ArrowPathIcon} onClick={fetchStatus}>
                                 Refresh status
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setConfirmLogout(true)}
-                                className="min-h-11 inline-flex items-center gap-1.5 -mr-2 px-2 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                            >
-                                <ArrowRightOnRectangleIcon className="w-4 h-4" aria-hidden="true" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="-mr-2" icon={ArrowRightOnRectangleIcon} onClick={() => setConfirmLogout(true)}>
                                 Sign out
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>

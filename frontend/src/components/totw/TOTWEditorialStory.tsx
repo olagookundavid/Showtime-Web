@@ -10,7 +10,7 @@ import {
 import type { TeamOfTheWeek } from "../../services/api";
 import { NewsContent } from "../news/NewsContent";
 import { YouTubeEmbed } from "../news/YouTubeEmbed";
-import { LightboxImage } from "../ui";
+import { Button, LightboxImage } from "../ui";
 import { parseYouTubeId } from "../../utils/newsContent";
 
 interface TOTWEditorialStoryProps {
@@ -70,16 +70,14 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
         </div>
 
         {isAdmin && (
-          <button
-            type="button"
+          <Button
+            variant="navy"
+            icon={PencilSquareIcon}
+            className="shrink-0 self-start sm:self-auto uppercase tracking-wider"
             onClick={onEditClick}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sffl-navy hover:bg-sffl-navy/90 text-white dark:bg-gray-700 dark:hover:bg-gray-600 font-bold text-xs uppercase tracking-wider transition-all shadow-md shrink-0 self-start sm:self-auto border border-white/10"
           >
-            <PencilSquareIcon className="w-4 h-4 text-sffl-red" />
-            <span>
-              {news ? "Edit Editorial Story" : "Write Editorial Story"}
-            </span>
-          </button>
+            {news ? "Edit Editorial Story" : "Write Editorial Story"}
+          </Button>
         )}
       </div>
 
@@ -171,14 +169,14 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
             </p>
           </div>
           {isAdmin && (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              icon={PencilSquareIcon}
+              className="uppercase tracking-wider"
               onClick={onEditClick}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md"
             >
-              <PencilSquareIcon className="w-4 h-4" />
-              <span>Write Editorial Breakdown</span>
-            </button>
+              Write Editorial Breakdown
+            </Button>
           )}
         </div>
       )}

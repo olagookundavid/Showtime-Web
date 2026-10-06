@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { getHeroSlides } from "../services/api";
+import { IconButton } from "./ui";
 
 export const MainHeroCarousel = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -98,28 +99,28 @@ export const MainHeroCarousel = () => {
       {/* Navigation Controls - Only if multiple slides */}
       {hasMultipleSlides && (
         <>
-          <button
-            type="button"
+          <IconButton
+            tone="dark"
+            variant="secondary"
+            icon={ChevronLeftIcon}
+            label="Previous slide"
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md"
             onClick={() =>
               setCurrentSlide(
                 (prev) => (prev - 1 + slides.length) % slides.length,
               )
             }
-            aria-label="Previous slide"
-            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 min-h-11 min-w-11 flex items-center justify-center bg-black/20 hover:bg-sffl-red text-white p-2 md:p-3 rounded-full backdrop-blur-md transition-all border border-white/10"
-          >
-            <ChevronLeftIcon className="w-6 h-6" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
+          />
+          <IconButton
+            tone="dark"
+            variant="secondary"
+            icon={ChevronRightIcon}
+            label="Next slide"
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md"
             onClick={() =>
               setCurrentSlide((prev) => (prev + 1) % slides.length)
             }
-            aria-label="Next slide"
-            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 min-h-11 min-w-11 flex items-center justify-center bg-black/20 hover:bg-sffl-red text-white p-2 md:p-3 rounded-full backdrop-blur-md transition-all border border-white/10"
-          >
-            <ChevronRightIcon className="w-6 h-6" aria-hidden="true" />
-          </button>
+          />
 
           {/* Dots: small marks inside 44px tap areas */}
           <div className="absolute bottom-1 md:bottom-3 left-1/2 -translate-x-1/2 z-20 flex">

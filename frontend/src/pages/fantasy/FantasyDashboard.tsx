@@ -34,6 +34,7 @@ import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
 import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 import { Spinner } from "../../components/ui/Spinner";
+import { Button, IconButton } from "../../components/ui";
 import {
   FantasyPlayerModal,
   type FantasyPlayerModalData,
@@ -267,32 +268,24 @@ function DashboardLeaderboard({
 
       {/* League filter */}
       <div className="flex flex-wrap gap-2 pb-4 mb-2 border-b border-gray-100 dark:border-gray-700">
-        <button
-          type="button"
-          onClick={() => selectScope(OVERALL)}
+        <Button
+          size="sm"
+          variant={scope === OVERALL ? "navy" : "secondary"}
           aria-pressed={scope === OVERALL}
-          className={`min-h-11 px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
-            scope === OVERALL
-              ? "bg-sffl-navy text-white shadow-sm"
-              : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
+          onClick={() => selectScope(OVERALL)}
         >
           Overall
-        </button>
+        </Button>
         {leagueOptions.map((o) => (
-          <button
+          <Button
             key={o.id}
-            type="button"
-            onClick={() => selectScope(o.id)}
+            size="sm"
+            variant={scope === o.id ? "navy" : "secondary"}
             aria-pressed={scope === o.id}
-            className={`min-h-11 px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
-              scope === o.id
-                ? "bg-sffl-navy text-white shadow-sm"
-                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-            }`}
+            onClick={() => selectScope(o.id)}
           >
             {o.name}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -330,13 +323,9 @@ function DashboardLeaderboard({
               Rest of the table
             </p>
             {canJumpToMe && (
-              <button
-                type="button"
-                onClick={jumpToMe}
-                className="min-h-11 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition"
-              >
-                <MapPinIcon className="w-3.5 h-3.5" aria-hidden="true" /> Jump to me
-              </button>
+              <Button size="sm" variant="secondary" icon={MapPinIcon} onClick={jumpToMe}>
+                Jump to me
+              </Button>
             )}
           </div>
 
@@ -368,42 +357,34 @@ function DashboardLeaderboard({
                 : ""}
             </span>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => goToPage(1)}
+              <IconButton
+                variant="secondary"
+                icon={ChevronDoubleLeftIcon}
+                label="First page"
                 disabled={safePage === 1}
-                aria-label="First page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-              >
-                <ChevronDoubleLeftIcon className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => goToPage(safePage - 1)}
+                onClick={() => goToPage(1)}
+              />
+              <IconButton
+                variant="secondary"
+                icon={ChevronLeftIcon}
+                label="Previous page"
                 disabled={safePage <= 1}
-                aria-label="Previous page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
+                onClick={() => goToPage(safePage - 1)}
+              />
+              <IconButton
+                variant="secondary"
+                icon={ChevronRightIcon}
+                label="Next page"
+                disabled={safePage >= totalPages}
                 onClick={() => goToPage(safePage + 1)}
+              />
+              <IconButton
+                variant="secondary"
+                icon={ChevronDoubleRightIcon}
+                label="Last page"
                 disabled={safePage >= totalPages}
-                aria-label="Next page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-              >
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
                 onClick={() => goToPage(totalPages)}
-                disabled={safePage >= totalPages}
-                aria-label="Last page"
-                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-              >
-                <ChevronDoubleRightIcon className="w-4 h-4" />
-              </button>
+              />
             </div>
           </div>
         </>

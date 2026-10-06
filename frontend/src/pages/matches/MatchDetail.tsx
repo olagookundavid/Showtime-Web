@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getMatchDetail, getPublicMatchStats } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
-import { LightboxImage } from '../../components/ui';
+import { Button, LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
 import { MatchSummaryTab, getUnifiedMatchMvp } from '../../components/matches/MatchSummaryTab';
@@ -271,10 +271,12 @@ export const MatchDetail = () => {
                         ] as const).map(([key, label]) => {
                             const isActive = activeTab === key;
                             return (
-                                <button
+                                <Button
                                     key={key}
-                                    type="button"
+                                    size="sm"
+                                    variant={isActive ? 'primary' : 'ghost'}
                                     aria-pressed={isActive}
+                                    className="uppercase tracking-tight"
                                     onClick={() => {
                                         setActiveTab(key);
                                         setSearchParams(prev => {
@@ -283,14 +285,9 @@ export const MatchDetail = () => {
                                             return next;
                                         }, { replace: true });
                                     }}
-                                    className={`min-h-11 py-2.5 px-2 sm:px-3 rounded-xl text-center font-black text-xs md:text-sm uppercase tracking-tight transition-all duration-200 ${
-                                        isActive
-                                            ? 'bg-sffl-red text-white shadow-md shadow-sffl-red/20 scale-[1.01]'
-                                            : 'text-gray-600 dark:text-gray-300 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100/70 dark:hover:bg-gray-700/60'
-                                    }`}
                                 >
                                     {label}
-                                </button>
+                                </Button>
                             );
                         })}
                     </div>

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_URL } from '../../services/api';
 import { useBroadcastProducer } from '../../hooks/useBroadcastProducer';
 import { formatClock, calculateClockNow, type GraphicEvent } from '../../types/broadcast';
 import { Loader } from '../../components/ui/Loader';
+import { Button, Checkbox, Field, Input, Select } from '../../components/ui';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import {
-  VideoCameraIcon,
-  ArrowLeftIcon,
   PlayIcon,
   PauseIcon,
   CheckCircleIcon,
@@ -217,42 +217,35 @@ export function AdminBroadcastStudio() {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-5 md:p-6 rounded-xl md:rounded-2xl shadow-xl gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
-            <Link to="/admin/broadcast" className="hover:text-white flex items-center gap-1 font-bold">
-              <ArrowLeftIcon className="w-3.5 h-3.5" /> Back to matches
-            </Link>
-          </div>
-          <h1 className="text-2xl md:text-4xl font-black italic tracking-tighter flex items-center gap-2">
-            <VideoCameraIcon className="w-7 h-7 text-sffl-red" />
-            BROADCAST STUDIO
-          </h1>
-          <p className="text-gray-300 text-xs md:text-sm mt-0.5">
-            {state.home} vs {state.away} · On-Air Graphics Control for vMix
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1.5 ${
-              isConnected ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            {isConnected ? 'LIVE SYNC ACTIVE' : 'CONNECTING...'}
+      <DashboardPageHeader
+        back={{ to: '/admin/broadcast', label: 'Back to matches' }}
+        title={
+          <span className="flex items-center gap-2">
+            <span>{state.home} vs {state.away}</span>
           </span>
-          <button
-            onClick={copyUrl}
-            className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1.5 transition-colors"
-            title="Copy public vMix transparent overlay URL"
-          >
-            {copied ? <ClipboardDocumentCheckIcon className="w-4 h-4 text-emerald-400" /> : <ClipboardDocumentIcon className="w-4 h-4" />}
-            {copied ? 'Copied URL!' : 'vMix Overlay URL'}
-          </button>
-        </div>
-      </div>
+        }
+        subtitle="On-air graphics control for vMix."
+        actions={
+          <>
+            <span
+              className={`px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5 ${
+                isConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+              {isConnected ? 'Live sync active' : 'Connecting...'}
+            </span>
+            <Button
+              variant="secondary"
+              icon={copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon}
+              onClick={copyUrl}
+              title="Copy public vMix transparent overlay URL"
+            >
+              {copied ? 'Copied URL!' : 'vMix Overlay URL'}
+            </Button>
+          </>
+        }
+      />
 
       {/* Main Grid: Control Station on Left, Preview and Status on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -260,19 +253,15 @@ export function AdminBroadcastStudio() {
         <div className="lg:col-span-7 space-y-6">
           {/* Section 1: Scoreboard Controls */}
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-5">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-3">
               <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
-                ON-AIR SCOREBOARD
+                On-air scoreboard
               </h2>
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={state.scorebug}
-                  onChange={(e) => updateField('scorebug', e.target.checked)}
-                  className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
-                />
-                Show Scorebug on Air
-              </label>
+              <Checkbox
+                label="Show scorebug on air"
+                checked={state.scorebug}
+                onChange={(e) => updateField('scorebug', e.target.checked)}
+              />
             </div>
 
             {/* Score Inputs Home vs Away */}
@@ -285,6 +274,7 @@ export function AdminBroadcastStudio() {
                 <input
                   type="number"
                   min="0"
+                  aria-label={`${state.home} score`}
                   value={state.manual_home}
                   onChange={(e) => updateScore(parseInt(e.target.value, 10) || 0, state.manual_away)}
                   className="w-20 text-center text-4xl font-black bg-transparent text-gray-900 dark:text-white border-0 focus:ring-0"
@@ -298,12 +288,13 @@ export function AdminBroadcastStudio() {
                       onClick={() =>
                         updateField('timeouts_home', state.timeouts_home > idx ? idx : idx + 1)
                       }
-                      className={`w-3.5 h-3.5 rounded-full border transition-colors ${
+                      className={`w-3.5 h-3.5 rounded-full border transition-colors cursor-pointer ${
                         idx < state.timeouts_home
                           ? 'bg-sffl-red border-sffl-red'
                           : 'bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500'
                       }`}
                       title={`Toggle timeout ${idx + 1}`}
+                      aria-label={`Toggle ${state.home} timeout ${idx + 1}`}
                     />
                   ))}
                 </div>
@@ -320,6 +311,7 @@ export function AdminBroadcastStudio() {
                 <input
                   type="number"
                   min="0"
+                  aria-label={`${state.away} score`}
                   value={state.manual_away}
                   onChange={(e) => updateScore(state.manual_home, parseInt(e.target.value, 10) || 0)}
                   className="w-20 text-center text-4xl font-black bg-transparent text-gray-900 dark:text-white border-0 focus:ring-0"
@@ -333,12 +325,13 @@ export function AdminBroadcastStudio() {
                       onClick={() =>
                         updateField('timeouts_away', state.timeouts_away > idx ? idx : idx + 1)
                       }
-                      className={`w-3.5 h-3.5 rounded-full border transition-colors ${
+                      className={`w-3.5 h-3.5 rounded-full border transition-colors cursor-pointer ${
                         idx < state.timeouts_away
                           ? 'bg-sffl-red border-sffl-red'
                           : 'bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500'
                       }`}
                       title={`Toggle timeout ${idx + 1}`}
+                      aria-label={`Toggle ${state.away} timeout ${idx + 1}`}
                     />
                   ))}
                 </div>
@@ -347,7 +340,7 @@ export function AdminBroadcastStudio() {
 
             {/* Score Alignment Notice (Staff Only) */}
             <div
-              className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
+              className={`p-3 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
                 isScoreAligned
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                   : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
@@ -355,99 +348,75 @@ export function AdminBroadcastStudio() {
             >
               <div className="flex items-center gap-2">
                 {isScoreAligned ? (
-                  <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                 ) : (
-                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
                 )}
                 <span>
-                  <b>{isScoreAligned ? 'Scores Aligned' : 'Score Discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({pbpHome}–{pbpAway})
+                  <b>{isScoreAligned ? 'Scores aligned' : 'Score discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({pbpHome}–{pbpAway})
                 </span>
               </div>
               {!isScoreAligned && (
-                <button
-                  onClick={() => updateScore(pbpHome, pbpAway)}
-                  className="font-bold underline text-amber-800 dark:text-amber-200 hover:opacity-80 ml-2"
-                >
+                <Button variant="link" size="sm" onClick={() => updateScore(pbpHome, pbpAway)}>
                   Sync to PBP
-                </button>
+                </Button>
               )}
             </div>
 
             {/* Clock, Period, Down & Possession Rows */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Period */}
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Period
-                </label>
-                <select
+              <Field label="Period" htmlFor="broadcast-period">
+                <Select
+                  id="broadcast-period"
                   value={state.period}
                   onChange={(e) => updateField('period', e.target.value)}
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 >
                   <option value="H1">1st Half (H1)</option>
                   <option value="HALF">Halftime (HALF)</option>
                   <option value="H2">2nd Half (H2)</option>
                   <option value="OT">Overtime (OT)</option>
                   <option value="FINAL">Final</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
 
               {/* Countdown Clock */}
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Countdown Clock (MM:SS)
-                </label>
+              <Field label="Countdown clock (MM:SS)" htmlFor="broadcast-clock">
                 <div className="flex items-center gap-1.5">
-                  <input
+                  <Input
+                    id="broadcast-clock"
                     type="text"
                     value={clockInput}
                     onChange={(e) => setClockDraft(e.target.value)}
-                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-black text-gray-900 dark:text-white text-center"
+                    className="flex-1 min-w-0"
                     placeholder="12:00"
                   />
-                  <button
-                    onClick={handleSetClock}
-                    className="px-2.5 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-bold text-xs rounded-lg transition-colors"
-                  >
+                  <Button variant="secondary" onClick={handleSetClock}>
                     Set
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </Field>
 
               {/* Clock Action Toggle */}
               <div className="flex flex-col justify-end">
-                <button
+                <Button
+                  variant={state.clock_running ? 'warning' : 'success'}
+                  icon={state.clock_running ? PauseIcon : PlayIcon}
                   onClick={handleToggleClock}
-                  className={`w-full py-2.5 px-4 rounded-lg font-black text-xs uppercase flex items-center justify-center gap-1.5 shadow-sm transition-all ${
-                    state.clock_running
-                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  }`}
+                  fullWidth
                 >
-                  {state.clock_running ? (
-                    <>
-                      <PauseIcon className="w-4 h-4" /> Pause Clock
-                    </>
-                  ) : (
-                    <>
-                      <PlayIcon className="w-4 h-4" /> Start Clock
-                    </>
-                  )}
-                </button>
+                  {state.clock_running ? 'Pause clock' : 'Start clock'}
+                </Button>
               </div>
             </div>
 
             {/* Down & Possession */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Down & Distance
-                </label>
-                <select
+              <Field label="Down & distance" htmlFor="broadcast-down">
+                <Select
+                  id="broadcast-down"
                   value={state.down}
                   onChange={(e) => updateField('down', e.target.value)}
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 >
                   <option value="1">1st Down</option>
                   <option value="2">2nd Down</option>
@@ -457,50 +426,41 @@ export function AdminBroadcastStudio() {
                   <option value="2G">2nd & Goal</option>
                   <option value="3G">3rd & Goal</option>
                   <option value="4G">4th & Goal</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Ball Possession
-                </label>
-                <select
+              <Field label="Ball possession" htmlFor="broadcast-possession">
+                <Select
+                  id="broadcast-possession"
                   value={state.possession}
                   onChange={(e) => updateField('possession', e.target.value)}
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 >
                   <option value={state.home}>{state.home} (Home)</option>
                   <option value={state.away}>{state.away} (Away)</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
             </div>
           </div>
 
           {/* Section 2: Player & Lower-Third Trigger Panel */}
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-5">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-3">
               <div>
                 <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
-                  LOWER-THIRD GRAPHIC
+                  Lower-third graphic
                 </h2>
                 <p className="text-xs text-gray-500">Configure player or event banner and fire on air</p>
               </div>
-              <button
-                onClick={hideGraphic}
-                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
-              >
-                <EyeSlashIcon className="w-4 h-4" />
-                Hide Graphic Now
-              </button>
+              <Button variant="secondary" icon={EyeSlashIcon} onClick={hideGraphic}>
+                Hide graphic now
+              </Button>
             </div>
 
             {/* Player Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Select Player
-                </label>
-                <select
+              <Field label="Select player" htmlFor="broadcast-player">
+                <Select
+                  id="broadcast-player"
                   value={selectedPlayerId}
                   onChange={(e) => {
                     const pid = e.target.value;
@@ -510,83 +470,71 @@ export function AdminBroadcastStudio() {
                       setSelectedTeam(p.team_name);
                     }
                   }}
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 >
-                  <option value="">-- No Specific Player --</option>
+                  <option value="">-- No specific player --</option>
                   {players.map((p) => (
                     <option key={p.player_id} value={p.player_id}>
                       #{p.jersey_number} {p.name} · {p.position} ({p.team_name})
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Team
-                </label>
-                <select
+              <Field label="Team" htmlFor="broadcast-team">
+                <Select
+                  id="broadcast-team"
                   value={team}
                   onChange={(e) => setSelectedTeam(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 >
                   <option value={state.home}>{state.home}</option>
                   <option value={state.away}>{state.away}</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
             </div>
 
             {/* Custom Stat Line & Penalty selector */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Stat Line / Subtitle
-                </label>
-                <input
+              <Field label="Stat line / subtitle" htmlFor="broadcast-stat">
+                <Input
+                  id="broadcast-stat"
                   type="text"
                   value={statInput}
                   onChange={(e) => setStatInput(e.target.value)}
                   placeholder="e.g. 42 YD TOUCHDOWN · 2 TD TODAY"
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
-                  Penalty Call Type
-                </label>
-                <select
+              <Field label="Penalty call type" htmlFor="broadcast-penalty">
+                <Select
+                  id="broadcast-penalty"
                   value={selectedPenalty}
                   onChange={(e) => setSelectedPenalty(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 >
                   {PENALTIES.map((pen) => (
                     <option key={pen} value={pen}>
                       {pen}
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Field>
             </div>
 
             {/* Event Button Grid */}
             <div>
-              <span className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-2">
-                Fast-Trigger Event Callouts
+              <span className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                Fast-trigger event callouts
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 {CALL_BUTTONS.map((btn) => (
-                  <button
+                  <Button
                     key={btn.call}
+                    variant={btn.red ? 'danger' : 'navy'}
                     onClick={() => handleTriggerCall(btn.call)}
-                    className={`p-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all transform active:scale-95 shadow-sm text-center ${
-                      btn.red
-                        ? 'bg-sffl-red hover:bg-[#A52323] text-white col-span-2 sm:col-span-3 md:col-span-4 py-3 text-sm'
-                        : 'bg-sffl-navy hover:bg-[#002b59] text-white'
-                    }`}
+                    fullWidth
+                    className={`uppercase tracking-wider ${btn.red ? 'col-span-2 sm:col-span-3 md:col-span-4 py-3 text-sm' : ''}`}
                   >
                     {btn.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -597,12 +545,12 @@ export function AdminBroadcastStudio() {
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
               <div>
                 <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
-                  PLAY-BY-PLAY QUEUE
+                  Play-by-play queue
                 </h2>
                 <p className="text-xs text-gray-500">Click PREPARE to review and manually trigger lower-third graphic</p>
               </div>
               <span className="text-[10px] font-black px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase">
-                MANUAL TRIGGER MODE
+                Manual trigger mode
               </span>
             </div>
 
@@ -630,12 +578,9 @@ export function AdminBroadcastStudio() {
                           {summary}
                         </span>
                       </div>
-                      <button
-                        onClick={() => handlePreparePlay(p)}
-                        className="px-3 py-1.5 bg-sffl-navy hover:bg-[#002b59] text-white font-black text-[11px] rounded uppercase shrink-0 transition-colors"
-                      >
-                        PREPARE
-                      </button>
+                      <Button variant="navy" size="sm" onClick={() => handlePreparePlay(p)} className="shrink-0">
+                        Prepare
+                      </Button>
                     </div>
                   );
                 })}
@@ -650,8 +595,7 @@ export function AdminBroadcastStudio() {
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-black text-gray-900 dark:text-white text-base tracking-tight flex items-center gap-2">
-                <VideoCameraIcon className="w-5 h-5 text-sffl-red" />
-                vMix Output Monitor
+                vMix output monitor
               </h2>
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-black rounded-full">
                 1920 × 1080 · ALPHA
@@ -682,7 +626,7 @@ export function AdminBroadcastStudio() {
                 rel="noopener noreferrer"
                 className="text-sffl-red hover:underline font-bold flex items-center gap-1"
               >
-                Open in new tab <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                Open in new tab <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" aria-hidden="true" />
               </a>
             </div>
           </div>
@@ -714,13 +658,9 @@ export function AdminBroadcastStudio() {
               </p>
             </div>
 
-            <button
-              onClick={copyUrl}
-              className="w-full py-2 bg-sffl-red hover:bg-[#A52323] text-white font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors"
-            >
-              {copied ? <ClipboardDocumentCheckIcon className="w-4 h-4" /> : <ClipboardDocumentIcon className="w-4 h-4" />}
-              {copied ? 'Overlay URL Copied!' : 'Copy Overlay URL for vMix'}
-            </button>
+            <Button variant="primary" icon={copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon} onClick={copyUrl} fullWidth>
+              {copied ? 'Overlay URL copied!' : 'Copy overlay URL for vMix'}
+            </Button>
           </div>
         </div>
       </div>

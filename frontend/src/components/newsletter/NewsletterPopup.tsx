@@ -8,6 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNewsletterPrompt } from "../../hooks/useNewsletterPrompt";
+import { Button, IconButton, Input } from "../ui";
 
 /** Brevo's hosted form endpoint. Dormant until this is set in environment (.env). */
 const BREVO_FORM_URL = import.meta.env.VITE_BREVO_FORM_URL as
@@ -116,14 +117,7 @@ export const NewsletterPopup = () => {
                       Pass Issued
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={close}
-                    aria-label="Close"
-                    className="min-h-11 min-w-11 -mr-3 flex items-center justify-center text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 rounded-full transition-colors"
-                  >
-                    <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                  </button>
+                  <IconButton variant="ghost" icon={XMarkIcon} label="Close" className="-mr-3" onClick={close} />
                 </div>
                 <h3 className="font-serif text-xl font-bold tracking-tight text-sffl-navy dark:text-white leading-tight">
                   You're on the list.
@@ -143,14 +137,7 @@ export const NewsletterPopup = () => {
                       The Insider Dispatch
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={dismiss}
-                    aria-label="Close"
-                    className="min-h-11 min-w-11 -mr-3 flex items-center justify-center text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 rounded-full transition-all active:scale-95 cursor-pointer"
-                  >
-                    <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                  </button>
+                  <IconButton variant="ghost" icon={XMarkIcon} label="Close" className="-mr-3" onClick={dismiss} />
                 </div>
 
                 {/* Editorial Headline & Subtitle */}
@@ -192,49 +179,42 @@ export const NewsletterPopup = () => {
                           </span>
                         </p>
                       </div>
-                      <button
-                        type="button"
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="-mr-2 shrink-0"
                         onClick={() => {
                           setEditing(true);
                           setEmail("");
                           setFirstName("");
                         }}
-                        className="min-h-11 px-2 -mr-2 text-xs font-bold text-sffl-red hover:text-red-700 dark:hover:text-red-400 hover:underline shrink-0 cursor-pointer"
                       >
                         Change
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400 dark:text-neutral-500">
-                          <UserIcon className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="text"
-                          name="FIRSTNAME"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          placeholder="First name"
-                          autoComplete="given-name"
-                          maxLength={200}
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/80 border border-neutral-200 dark:border-neutral-700 text-xs sm:text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-sffl-navy dark:focus:border-white focus:ring-2 focus:ring-sffl-navy/5 dark:focus:ring-white/5 transition-all"
-                        />
-                      </div>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400 dark:text-neutral-500">
-                          <EnvelopeIcon className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="email"
-                          name="EMAIL"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          autoComplete="email"
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/80 border border-neutral-200 dark:border-neutral-700 text-xs sm:text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-sffl-navy dark:focus:border-white focus:ring-2 focus:ring-sffl-navy/5 dark:focus:ring-white/5 transition-all"
-                        />
-                      </div>
+                      <Input
+                        type="text"
+                        name="FIRSTNAME"
+                        aria-label="First name"
+                        icon={UserIcon}
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="First name"
+                        autoComplete="given-name"
+                        maxLength={200}
+                      />
+                      <Input
+                        type="email"
+                        name="EMAIL"
+                        aria-label="Email address"
+                        icon={EnvelopeIcon}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                      />
                     </>
                   )}
 
@@ -254,23 +234,17 @@ export const NewsletterPopup = () => {
                     </p>
                   )}
 
-                  <button
+                  <Button
                     type="submit"
-                    disabled={status === "submitting"}
-                    className="group w-full flex items-center justify-center gap-2 bg-sffl-navy hover:bg-[#002B59] dark:bg-white dark:text-sffl-navy dark:hover:bg-neutral-100 text-white font-black py-3 px-4 rounded-xl text-xs uppercase tracking-[0.18em] shadow-sm active:scale-[0.98] transition-all disabled:opacity-60 disabled:active:scale-100 cursor-pointer disabled:cursor-not-allowed"
+                    variant="navy"
+                    fullWidth
+                    size="lg"
+                    icon={ArrowRightIcon}
+                    iconPosition="right"
+                    loading={status === "submitting"}
                   >
-                    {status === "submitting" ? (
-                      <>
-                        <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        <span>Subscribing…</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Get Insider Access</span>
-                        <ArrowRightIcon className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
-                      </>
-                    )}
-                  </button>
+                    {status === "submitting" ? "Subscribing…" : "Get Insider Access"}
+                  </Button>
 
                   <p className="text-[10px] text-center text-neutral-400 dark:text-neutral-500 font-medium">
                     Matchday dispatches only. No spam, 1-click unsubscribe.

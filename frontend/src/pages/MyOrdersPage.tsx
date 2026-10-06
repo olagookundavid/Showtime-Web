@@ -5,6 +5,7 @@ import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentLis
 import { useAuth } from '../contexts/AuthContext';
 import { getCustomerOrders } from '../services/api';
 import { BackButton } from '../components/common/BackButton';
+import { Button } from '../components/ui';
 
 const statusBadge = (kind: 'payment' | 'fulfillment', value: string) => {
     const base = 'text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider';
@@ -110,27 +111,28 @@ export const MyOrdersPage = () => {
 
                     {totalPages > 1 && (
                         <div className="flex justify-between items-center gap-2 pt-4 border-t dark:border-gray-700">
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={ChevronLeftIcon}
+                                aria-label="Previous page"
                                 disabled={page === 1}
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                                aria-label="Previous page"
-                                className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                             >
-                                <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
                                 <span className="hidden sm:inline">Previous</span>
-                            </button>
+                            </Button>
                             <span className="text-xs text-gray-500 font-bold">Page {page} of {totalPages}</span>
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={ChevronRightIcon}
+                                iconPosition="right"
+                                aria-label="Next page"
                                 disabled={page >= totalPages}
                                 onClick={() => setPage(p => p + 1)}
-                                aria-label="Next page"
-                                className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                             >
                                 <span className="hidden sm:inline">Next</span>
-                                <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </>

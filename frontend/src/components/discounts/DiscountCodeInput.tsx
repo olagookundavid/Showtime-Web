@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ArrowPathIcon,
   TagIcon,
   XMarkIcon,
   CheckCircleIcon,
@@ -10,6 +9,7 @@ import {
   type CheckoutItemPayload,
   type DiscountPreview,
 } from "../../services/api";
+import { Button, IconButton, Input } from "../ui";
 
 interface DiscountCodeInputProps {
   /** Storefront cart to price the code against. */
@@ -170,15 +170,14 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={remove}
+          <IconButton
+            variant="ghost"
+            icon={XMarkIcon}
+            label="Remove code"
+            className="-m-2 shrink-0"
             disabled={disabled}
-            className="min-h-11 min-w-11 -m-2 flex items-center justify-center text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-200 rounded-lg shrink-0 disabled:opacity-50"
-            aria-label="Remove code"
-          >
-            <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-          </button>
+            onClick={remove}
+          />
         </div>
       </div>
     );
@@ -191,8 +190,9 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
         Discount code
       </label>
       <div className="flex gap-2">
-        <input
+        <Input
           type="text"
+          aria-label="Discount code"
           value={code}
           onChange={(e) => {
             setCode(e.target.value);
@@ -209,22 +209,17 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
           placeholder="Enter code"
           autoCapitalize="characters"
           disabled={disabled || checking}
-          className="flex-1 min-w-0 min-h-11 px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm uppercase placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors disabled:opacity-60"
+          className="flex-1"
         />
-        <button
-          type="button"
+        <Button
+          variant="navy"
+          className="whitespace-nowrap"
+          loading={checking}
+          disabled={disabled || !code.trim()}
           onClick={apply}
-          disabled={disabled || checking || !code.trim()}
-          className="min-h-11 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-sffl-navy dark:bg-gray-600 hover:bg-sffl-navy/90 dark:hover:bg-gray-500 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
         >
-          {checking && (
-            <ArrowPathIcon
-              className="w-4 h-4 animate-spin"
-              aria-hidden="true"
-            />
-          )}
           {checking ? "Checking" : "Apply"}
-        </button>
+        </Button>
       </div>
       {error && (
         <p className="text-xs font-semibold text-red-600 dark:text-red-400">

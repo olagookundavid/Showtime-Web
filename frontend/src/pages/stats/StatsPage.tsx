@@ -10,6 +10,7 @@ import {
   dropdownCompetitionsFor,
   type Competition,
 } from "../../services/api";
+import { Button, Field, IconButton, Input, Select, Tabs } from "../../components/ui";
 import { Loader } from "../../components/ui/Loader";
 import { StatsTable } from "../../components/stats/StatsTable";
 import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
@@ -281,17 +282,12 @@ export const StatsPage = () => {
           <div
             className={`w-full md:w-auto min-w-0 overflow-visible transition-opacity duration-300 ${activeTab === "players" ? "opacity-100" : "opacity-0 pointer-events-none"}`}
           >
-            <label
-              htmlFor="stats-player-search"
-              className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
-            >
-              Search Players
-            </label>
-            <div className="relative group/search">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within/search:text-sffl-red transition-colors" />
-              <input
+            <Field label="Search Players" htmlFor="stats-player-search" tone="dark">
+              <Input
                 id="stats-player-search"
                 type="text"
+                tone="dark"
+                icon={MagnifyingGlassIcon}
                 placeholder="Player name..."
                 value={searchQuery}
                 onChange={(e) => {
@@ -306,42 +302,38 @@ export const StatsPage = () => {
                   }
                   setSearchParams(params, { replace: true });
                 }}
-                className="w-full min-h-11 bg-white/10 border border-white/20 text-white pl-9 pr-11 py-2 rounded-lg font-bold text-sm md:min-w-60 outline-none focus:ring-2 focus:ring-sffl-red transition-all"
+                className="md:min-w-60"
+                action={
+                  searchQuery ? (
+                    <IconButton
+                      tone="dark"
+                      variant="ghost"
+                      icon={XMarkIcon}
+                      label="Clear search"
+                      className="h-full"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setPage(1);
+                        const params = new URLSearchParams(searchParams);
+                        params.delete("search");
+                        params.delete("player_id");
+                        setSearchParams(params, { replace: true });
+                      }}
+                    />
+                  ) : undefined
+                }
               />
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setPage(1);
-                    const params = new URLSearchParams(searchParams);
-                    params.delete("search");
-                    params.delete("player_id");
-                    setSearchParams(params, { replace: true });
-                  }}
-                  type="button"
-                  className="absolute right-0 top-0 h-full min-w-11 flex items-center justify-center hover:bg-white/10 rounded-r-lg transition-colors"
-                  aria-label="Clear search"
-                >
-                  <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-white" aria-hidden="true" />
-                </button>
-              )}
-            </div>
+            </Field>
           </div>
 
           <div className="w-full flex flex-col gap-2 md:w-50">
             <div className="w-full">
-              <label
-                htmlFor="stats-competition"
-                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
-              >
-                Competition
-              </label>
-              <div className="relative">
-                <select
+              <Field label="Competition" htmlFor="stats-competition" tone="dark">
+                <Select
                   id="stats-competition"
+                  tone="dark"
                   value={selectedCompetitionId}
                   onChange={(e) => handleCompChange(e.target.value)}
-                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                 >
                   <option value="" className="text-black bg-white">
                     All Competitions
@@ -358,26 +350,18 @@ export const StatsPage = () => {
                         : ""}
                     </option>
                   ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
-                </div>
-              </div>
+                </Select>
+              </Field>
             </div>
           </div>
 
           <div
             className={`w-full md:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? "opacity-40" : "opacity-100"}`}
           >
-            <label
-              htmlFor="stats-event-day"
-              className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
-            >
-              Event Day
-            </label>
-            <div className="relative">
-              <select
+            <Field label="Event Day" htmlFor="stats-event-day" tone="dark">
+              <Select
                 id="stats-event-day"
+                tone="dark"
                 value={selectedDate}
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
@@ -386,7 +370,7 @@ export const StatsPage = () => {
                   setSearchParams(params, { replace: true });
                 }}
                 disabled={!selectedCompetitionId}
-                className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm md:min-w-37.5 cursor-pointer hover:bg-white/20 transition-colors disabled:cursor-not-allowed"
+                className="md:min-w-37.5"
               >
                 <option value="" className="text-black bg-white">
                   All Event Days
@@ -400,11 +384,8 @@ export const StatsPage = () => {
                     {date}
                   </option>
                 ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
-              </div>
-            </div>
+              </Select>
+            </Field>
           </div>
         </div>
       </div>
@@ -415,14 +396,15 @@ export const StatsPage = () => {
             <span>Filtering stats for</span>
             <span className="font-black">{filterTeam.name}</span>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={XMarkIcon}
+            iconPosition="right"
             onClick={clearTeamFilter}
-            className="inline-flex items-center gap-1 min-h-11 text-[11px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-4 py-1 rounded-full transition"
           >
             Clear
-            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -434,32 +416,15 @@ export const StatsPage = () => {
       />
 
       {/* Tabs */}
-      <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">
-        <button
-          type="button"
-          onClick={() => handleTabChange("players")}
-          aria-pressed={activeTab === "players"}
-          className={`min-h-11 px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${
-            activeTab === "players"
-              ? "border-sffl-red text-sffl-red"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300"
-          }`}
-        >
-          Player Stats
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTabChange("teams")}
-          aria-pressed={activeTab === "teams"}
-          className={`min-h-11 px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${
-            activeTab === "teams"
-              ? "border-sffl-red text-sffl-red"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300"
-          }`}
-        >
-          Team Stats
-        </button>
-      </div>
+      <Tabs
+        aria-label="Stats view"
+        items={[
+          { value: "players", label: "Player Stats" },
+          { value: "teams", label: "Team Stats" },
+        ]}
+        value={activeTab}
+        onChange={handleTabChange}
+      />
 
       {/* Content */}
       {loading && !playerStats && !teamStats ? (
@@ -621,9 +586,12 @@ export const StatsPage = () => {
               ].map((pos) => {
                 const isActive = (positionFilter || "QB") === pos.id;
                 return (
-                  <button
+                  <Button
                     key={pos.id}
-                    type="button"
+                    size="sm"
+                    variant={isActive ? "navy" : "secondary"}
+                    className="shrink-0"
+                    aria-pressed={isActive}
                     onClick={() => {
                       setPositionFilter(pos.id);
                       setSortBy("");
@@ -632,15 +600,9 @@ export const StatsPage = () => {
                       params.set("pos", pos.id);
                       setSearchParams(params, { replace: true });
                     }}
-                    aria-pressed={isActive}
-                    className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
-                      isActive
-                        ? "bg-sffl-navy dark:bg-sffl-red text-white shadow-md scale-105"
-                        : "bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600"
-                    }`}
                   >
                     {pos.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -675,15 +637,13 @@ export const StatsPage = () => {
                 entries
               </div>
               <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                <IconButton
+                  variant="secondary"
+                  icon={ChevronLeftIcon}
+                  label="Previous page"
                   disabled={page === 1}
-                  aria-label="Previous page"
-                  className="min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <ChevronLeftIcon className="w-5 h-5" aria-hidden="true" />
-                </button>
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                />
                 {[...Array(totalPages)].map((_, i) => {
                   const p = i + 1;
                   // Logic to show limited page numbers if totalPages is large
@@ -705,31 +665,26 @@ export const StatsPage = () => {
                     }
                   }
                   return (
-                    <button
-                      type="button"
+                    <Button
                       key={p}
+                      size="sm"
+                      variant={page === p ? "primary" : "ghost"}
+                      className="min-w-11"
                       onClick={() => setPage(p)}
                       aria-label={`Page ${p}`}
                       aria-current={page === p ? "page" : undefined}
-                      className={`w-11 h-11 rounded-lg font-bold text-sm transition-all ${
-                        page === p
-                          ? "bg-sffl-red text-white shadow-md shadow-red-500/20"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
-                      }`}
                     >
                       {p}
-                    </button>
+                    </Button>
                   );
                 })}
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                <IconButton
+                  variant="secondary"
+                  icon={ChevronRightIcon}
+                  label="Next page"
                   disabled={page === totalPages}
-                  aria-label="Next page"
-                  className="min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <ChevronRightIcon className="w-5 h-5" aria-hidden="true" />
-                </button>
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                />
               </div>
             </div>
           )}

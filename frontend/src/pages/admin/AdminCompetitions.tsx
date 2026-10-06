@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  ArrowRightIcon,
   CheckCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -29,7 +27,18 @@ import {
   getTeamsByCompetition,
   type Team,
 } from "../../services/api";
-import { ImageUploadField, LightboxImage } from "../../components/ui";
+import {
+  Button,
+  ButtonLink,
+  Checkbox,
+  Field,
+  IconButton,
+  ImageUploadField,
+  Input,
+  LightboxImage,
+  Modal,
+  Select,
+} from "../../components/ui";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 interface Competition {
@@ -61,12 +70,6 @@ type PendingAction =
   | { kind: "delete"; competition: Competition };
 
 const NO_COMPETITIONS: Competition[] = [];
-
-const inputClass =
-  "w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red";
-
-const pagerButton =
-  "inline-flex items-center justify-center gap-1 px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95";
 
 const AdminCompetitions = () => {
   const queryClient = useQueryClient();
@@ -297,71 +300,54 @@ const AdminCompetitions = () => {
         title="Competitions"
         subtitle="Create competitions and choose which teams are enrolled in each."
         actions={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-          >
-            <PlusIcon className="w-4 h-4" aria-hidden="true" />
+          <Button icon={PlusIcon} onClick={openCreate} className="w-full sm:w-auto">
             Add Competition
-          </button>
+          </Button>
         }
       />
 
       {/* Search bar */}
       <div className="flex gap-2 w-full md:w-auto">
-        <div className="relative flex-1 min-w-0 md:flex-none md:w-96">
-          <input
-            type="text"
-            aria-label="Search competitions"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") searchNow();
-            }}
-            placeholder="Search competitions by name..."
-            className="w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg pl-9 pr-11 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red transition-all"
-          />
-          <MagnifyingGlassIcon
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-            aria-hidden="true"
-          />
-          {searchInput && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => {
-                setSearchInput("");
-                setSearch("");
-                setPage(1);
-              }}
-              className="absolute right-0 top-0 h-full min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
-            >
-              <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={searchNow}
-          className="shrink-0 px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-        >
+        <Input
+          type="text"
+          aria-label="Search competitions"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") searchNow();
+          }}
+          placeholder="Search competitions by name..."
+          icon={MagnifyingGlassIcon}
+          action={
+            searchInput ? (
+              <IconButton
+                icon={XMarkIcon}
+                label="Clear search"
+                className="h-full"
+                onClick={() => {
+                  setSearchInput("");
+                  setSearch("");
+                  setPage(1);
+                }}
+              />
+            ) : undefined
+          }
+          className="flex-1 min-w-0 md:flex-none md:w-96"
+        />
+        <Button onClick={searchNow} className="shrink-0">
           Search
-        </button>
+        </Button>
         {search && (
-          <button
-            type="button"
+          <IconButton
+            icon={XMarkIcon}
+            label="Clear filters"
+            className="shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm"
             onClick={() => {
               setSearch("");
               setSearchInput("");
               setPage(1);
             }}
-            title="Clear Filters"
-            aria-label="Clear filters"
-            className="shrink-0 p-2 min-h-11 min-w-11 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center"
-          >
-            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-          </button>
+          />
         )}
       </div>
 
@@ -444,28 +430,29 @@ const AdminCompetitions = () => {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <Link
+                  <ButtonLink
                     to={`/admin/competitions/${comp.id}/teams`}
-                    className="flex-1 min-w-24 text-center text-xs font-bold bg-green-50 text-green-700 hover:text-green-900 dark:bg-green-900/30 dark:text-green-400 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-green-100 dark:hover:bg-green-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center"
+                    variant="secondary"
+                    className="flex-1 min-w-24"
                   >
                     Teams
-                  </Link>
-                  <button
-                    type="button"
+                  </ButtonLink>
+                  <Button
+                    variant="secondary"
                     onClick={() => openEdit(comp)}
-                    className="flex-1 min-w-24 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                    className="flex-1 min-w-24"
                   >
                     Edit
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="danger"
                     onClick={() =>
                       setPendingAction({ kind: "delete", competition: comp })
                     }
-                    className="flex-1 min-w-24 text-xs font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                    className="flex-1 min-w-24"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -475,68 +462,62 @@ const AdminCompetitions = () => {
 
       {/* Pagination Controls */}
       <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          icon={ChevronLeftIcon}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
-          className={pagerButton}
         >
-          <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
           Prev
-        </button>
+        </Button>
         <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
           Page {page} of {totalPages}
         </span>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          icon={ChevronRightIcon}
+          iconPosition="right"
           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page === totalPages}
-          className={pagerButton}
         >
           Next
-          <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
-        </button>
+        </Button>
       </div>
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden"
-          data-dialog
-          onClick={() => setShowModal(false)}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-between gap-3">
-              <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                {editing ? "Edit Competition" : "New Competition"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        <Modal
+          open
+          onClose={() => setShowModal(false)}
+          title={editing ? "Edit Competition" : "New Competition"}
+          maxWidth="xl"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => setPendingAction({ kind: "save" })}
+                disabled={!form.name.trim()}
+                loading={saving}
               >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Name *
-                </label>
-                <input
+                {editing ? "Update" : "Create"}
+              </Button>
+            </>
+          }
+        >
+            <div className="space-y-4">
+              <Field label="Name *" htmlFor="competition-name">
+                <Input
+                  id="competition-name"
                   type="text"
                   value={form.name}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, name: e.target.value }))
                   }
-                  className={inputClass}
                   placeholder="e.g. SFFL Season 3"
                 />
-              </div>
+              </Field>
               <div>
                 <ImageUploadField
                   label="Competition Logo"
@@ -548,33 +529,35 @@ const AdminCompetitions = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Status *
-                </label>
-                <select
+              <Field label="Status *" htmlFor="competition-status">
+                <Select
+                  id="competition-status"
                   value={form.status}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, status: e.target.value }))
                   }
-                  className={inputClass}
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="completed">Completed</option>
-                </select>
-              </div>
+                </Select>
+              </Field>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Format *
-                </label>
-                <select
+              <Field
+                label="Format *"
+                htmlFor="competition-format"
+                hint={
+                  form.format === "PLAYOFFS"
+                    ? "Knockout competitions show a bracket instead of standings. Winners advance automatically."
+                    : "Regular, preseason, and cup competitions track standings and team performances."
+                }
+              >
+                <Select
+                  id="competition-format"
                   value={form.format}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, format: e.target.value }))
                   }
-                  className={inputClass}
                 >
                   <option value="SEASON">
                     Season (regular season with standings)
@@ -586,20 +569,17 @@ const AdminCompetitions = () => {
                   <option value="CUP">
                     Cup (tournament / cup competition)
                   </option>
-                </select>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                  {form.format === "PLAYOFFS"
-                    ? "Knockout competitions show a bracket instead of standings. Winners advance automatically."
-                    : "Regular, preseason, and cup competitions track standings and team performances."}
-                </p>
-              </div>
+                </Select>
+              </Field>
 
               {form.format === "SEASON" ? (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Standings Tie-Breaker Rule *
-                  </label>
-                  <select
+                <Field
+                  label="Standings Tie-Breaker Rule *"
+                  htmlFor="competition-tie-breaker"
+                  hint="Determines how teams are ranked and broken when tied on points/percentage in standings."
+                >
+                  <Select
+                    id="competition-tie-breaker"
                     value={form.tie_breaker_rule}
                     onChange={(e) =>
                       setForm((f) => ({
@@ -607,7 +587,6 @@ const AdminCompetitions = () => {
                         tie_breaker_rule: e.target.value,
                       }))
                     }
-                    className={`${inputClass} text-xs sm:text-sm font-medium`}
                   >
                     <option value="PCT_PD_PF_PA_NAME">
                       Rule 1: Win %, then Point Diff, then Points For, then
@@ -617,23 +596,20 @@ const AdminCompetitions = () => {
                       Rule 2: Head-to-Head, then Win %, then Point Diff, then
                       Points For, then Points Against, then Name (A-Z)
                     </option>
-                  </select>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                    Determines how teams are ranked and broken when tied on
-                    points/percentage in standings.
-                  </p>
-                </div>
+                  </Select>
+                </Field>
               ) : (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Parent Season
-                  </label>
-                  <select
+                <Field
+                  label="Parent Season"
+                  htmlFor="competition-parent-season"
+                  hint={`Attach this ${form.format.toLowerCase()} competition to a regular season.`}
+                >
+                  <Select
+                    id="competition-parent-season"
                     value={form.season_id}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, season_id: e.target.value }))
                     }
-                    className={`${inputClass} text-xs sm:text-sm`}
                   >
                     <option value="">
                       -- No Parent Season (Independent) --
@@ -645,56 +621,49 @@ const AdminCompetitions = () => {
                           {sc.name}
                         </option>
                       ))}
-                  </select>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                    Attach this {form.format.toLowerCase()} competition to a
-                    regular season.
-                  </p>
-                </div>
+                  </Select>
+                </Field>
               )}
 
               {/* ── Enrolled Teams Multi-Select Section ── */}
               <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                  <span className="block text-sm font-bold text-gray-700 dark:text-gray-300">
                     Enrolled Teams{" "}
                     <span className="text-xs text-sffl-red font-semibold">
                       ({form.team_ids.length} selected)
                     </span>
-                  </label>
+                  </span>
                   <div className="flex items-center gap-1 text-xs">
-                    <button
-                      type="button"
+                    <Button
+                      variant="link"
                       onClick={() =>
                         setForm((f) => ({
                           ...f,
                           team_ids: allTeams.map((t) => t.id),
                         }))
                       }
-                      className="min-h-11 px-2 font-bold text-sffl-red hover:underline"
                     >
                       Select All
-                    </button>
+                    </Button>
                     <span
                       className="w-px h-4 bg-gray-300 dark:bg-gray-600"
                       aria-hidden="true"
                     />
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
                       onClick={() => setForm((f) => ({ ...f, team_ids: [] }))}
-                      className="min-h-11 px-2 font-bold text-gray-500 hover:underline dark:text-gray-400"
                     >
                       Clear All
-                    </button>
+                    </Button>
                   </div>
                 </div>
-                <input
+                <Input
                   type="text"
                   aria-label="Search teams"
                   placeholder="Search teams by name..."
                   value={teamFilter}
                   onChange={(e) => setTeamFilter(e.target.value)}
-                  className="w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red"
                 />
                 <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2 divide-y divide-gray-100 dark:divide-gray-700/50 space-y-1 bg-gray-50/50 dark:bg-gray-900/30">
                   {filteredTeams.length === 0 ? (
@@ -710,8 +679,7 @@ const AdminCompetitions = () => {
                           className={`flex items-center justify-between min-h-11 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? "bg-red-50/80 dark:bg-red-950/20" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={isSelected}
                               onChange={(e) => {
                                 const checked = e.target.checked;
@@ -722,7 +690,6 @@ const AdminCompetitions = () => {
                                     : f.team_ids.filter((id) => id !== team.id),
                                 }));
                               }}
-                              className="w-4 h-4 shrink-0 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
                             />
                             {team.logo ? (
                               <img
@@ -751,43 +718,19 @@ const AdminCompetitions = () => {
 
               {editing && (
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <Link
+                  <ButtonLink
                     to={`/admin/competitions/${editing.id}/teams`}
+                    variant="secondary"
+                    icon={FootballIcon}
+                    fullWidth
                     onClick={() => setShowModal(false)}
-                    className="w-full flex flex-wrap items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-bold text-xs rounded-lg border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-all min-h-11"
                   >
-                    <FootballIcon
-                      className="w-4 h-4 shrink-0"
-                      aria-hidden="true"
-                    />
                     Manage Enrolled Teams Standalone Page
-                    <ArrowRightIcon
-                      className="w-4 h-4 shrink-0"
-                      aria-hidden="true"
-                    />
-                  </Link>
+                  </ButtonLink>
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => setPendingAction({ kind: "save" })}
-                disabled={saving || !form.name.trim()}
-                className="px-4 py-2 min-h-11 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-              >
-                {editing ? "Update" : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Outside the form overlay: portal clicks bubble through the React tree,

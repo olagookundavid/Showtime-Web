@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-    XMarkIcon,
     ArrowPathIcon,
     ListBulletIcon,
     Squares2X2Icon,
@@ -15,6 +14,7 @@ import {
     type FantasyGameweek,
     type FantasyLineupPick,
 } from '../../services/api';
+import { Button, Field, Modal, Select } from '../ui';
 import { FantasyPitch } from './FantasyPitch';
 import { FantasyPlayerModal, type FantasyPlayerModalData } from './FantasyPlayerModal';
 
@@ -60,21 +60,6 @@ export function FantasyTeamModal({
 
     const activeGameweeks = gameweeks.length > 0 ? gameweeks : (fetchedGameweeks || []);
 
-    // Handle ESC key to dismiss
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        if (isOpen) {
-            window.addEventListener('keydown', handleKeyDown);
-            document.body.style.overflow = 'hidden';
-        }
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            document.body.style.overflow = 'unset';
-        };
-    }, [isOpen, onClose]);
-
     if (!isOpen || !teamId) return null;
 
     const picks = data?.picks || [];
@@ -85,107 +70,61 @@ export function FantasyTeamModal({
     const defensePicks = picks.filter((p) => !isOffenseSlot(p.slot));
 
     return (
-        <div
-            data-dialog
-            role="dialog"
-            aria-modal="true"
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] overflow-y-auto transition-[padding] duration-300 motion-reduce:transition-none"
-        >
-            {/* Click outside backdrop */}
-            <div className="fixed inset-0" onClick={onClose} />
-
-            <div
-                className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-var(--chrome-h,0px)-2rem)] z-10 animate-in fade-in zoom-in-95 duration-200"
-                onClick={(e) => e.stopPropagation()}
+        <>
+            <Modal
+                open
+                onClose={onClose}
+                title={data?.team_name || 'Loading squad…'}
+                subtitle={`Team Inspection • Manager: ${data?.manager_name || '—'}`}
+                maxWidth="2xl"
+                footer={
+                    <Button variant="secondary" onClick={onClose}>
+                        Close
+                    </Button>
+                }
             >
-                {/* Header Banner */}
-                <div className="bg-sffl-navy text-white p-4 md:p-6 flex items-start justify-between gap-3 border-b border-white/10 shrink-0">
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-white/15 text-gray-200">
-                                Team Inspection
-                            </span>
-                            {data?.is_rollover && (
-                                <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                    Rollover Squad
-                                </span>
-                            )}
-                            {data?.gameweek_status && (
-                                <span
-                                    className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
-                                        data.gameweek_status === 'FINALIZED'
-                                            ? 'bg-emerald-500/20 text-emerald-300'
-                                            : data.gameweek_status === 'LIVE'
-                                            ? 'bg-sffl-red text-white animate-pulse'
-                                            : data.gameweek_status === 'LOCKED'
-                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                            : 'bg-white/10 text-gray-300'
-                                    }`}
-                                >
-                                    {data.gameweek_status === 'LOCKED'
-                                        ? 'GW Locked'
-                                        : data.gameweek_status === 'SCHEDULED'
-                                        ? 'Scheduled'
-                                        : data.gameweek_status}
-                                </span>
-                            )}
-                        </div>
-
-                        <h2 className="text-xl md:text-2xl font-black italic tracking-tight truncate text-white">
-                            {data?.team_name || 'Loading squad…'}
-                        </h2>
-
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-300 min-w-0">
-                            <span className="truncate">Manager: <strong className="text-white">{data?.manager_name || '—'}</strong></span>
-                        </div>
-
-                        {/* Gameweek selector: under the title on phones so the name keeps its width */}
-                        {activeGameweeks.length > 0 && (
-                            <div className="mt-2 sm:hidden">
-                                <label className="sr-only" htmlFor="team-modal-gw-mobile">Gameweek</label>
-                                <select
-                                    id="team-modal-gw-mobile"
-                                    value={selectedGwId}
-                                    onChange={(e) => setSelectedGwId(e.target.value)}
-                                    className="w-full min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
-                                >
-                                    {activeGameweeks.map((gw) => (
-                                        <option key={gw.id} value={gw.id} className="text-gray-900 bg-white">
-                                            Gameweek {gw.number}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                        {/* Gameweek Selector Dropdown */}
-                        {activeGameweeks.length > 0 && (
-                            <select
-                                aria-label="Gameweek"
-                                value={selectedGwId}
-                                onChange={(e) => setSelectedGwId(e.target.value)}
-                                className="hidden sm:block min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
-                            >
-                                {activeGameweeks.map((gw) => (
-                                    <option key={gw.id} value={gw.id} className="text-gray-900 bg-white">
-                                        Gameweek {gw.number}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white transition cursor-pointer"
-                            aria-label="Close dialog"
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                    {data?.is_rollover && (
+                        <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                            Rollover Squad
+                        </span>
+                    )}
+                    {data?.gameweek_status && (
+                        <span
+                            className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                                data.gameweek_status === 'FINALIZED'
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                    : data.gameweek_status === 'LIVE'
+                                    ? 'bg-sffl-red text-white animate-pulse'
+                                    : data.gameweek_status === 'LOCKED'
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                            }`}
                         >
-                            <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                        </button>
-                    </div>
+                            {data.gameweek_status === 'LOCKED'
+                                ? 'GW Locked'
+                                : data.gameweek_status === 'SCHEDULED'
+                                ? 'Scheduled'
+                                : data.gameweek_status}
+                        </span>
+                    )}
                 </div>
+
+                {activeGameweeks.length > 0 && (
+                    <Field label="Gameweek" htmlFor="team-modal-gw" className="mb-4 sm:max-w-xs">
+                        <Select
+                            id="team-modal-gw"
+                            value={selectedGwId}
+                            onChange={(e) => setSelectedGwId(e.target.value)}
+                        >
+                            {activeGameweeks.map((gw) => (
+                                <option key={gw.id} value={gw.id}>
+                                    Gameweek {gw.number}
+                                </option>
+                            ))}
+                        </Select>
+                    </Field>
+                )}
 
                 {/* KPI Overview Strip */}
                 {data && (
@@ -223,30 +162,24 @@ export function FantasyTeamModal({
                 {data && picks.length > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-2 bg-gray-100/70 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700 shrink-0">
                         <div className="flex items-center gap-1 bg-white dark:bg-gray-800 p-0.5 rounded-xl border border-gray-200 dark:border-gray-700">
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('pitch')}
+                            <Button
+                                size="sm"
+                                variant={viewMode === 'pitch' ? 'navy' : 'ghost'}
+                                icon={Squares2X2Icon}
                                 aria-pressed={viewMode === 'pitch'}
-                                className={`flex items-center gap-1.5 min-h-11 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                    viewMode === 'pitch'
-                                        ? 'bg-sffl-navy text-white shadow-sm'
-                                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
-                                }`}
+                                onClick={() => setViewMode('pitch')}
                             >
-                                <Squares2X2Icon className="w-3.5 h-3.5" aria-hidden="true" /> Formation
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('list')}
+                                Formation
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={viewMode === 'list' ? 'navy' : 'ghost'}
+                                icon={ListBulletIcon}
                                 aria-pressed={viewMode === 'list'}
-                                className={`flex items-center gap-1.5 min-h-11 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                    viewMode === 'list'
-                                        ? 'bg-sffl-navy text-white shadow-sm'
-                                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
-                                }`}
+                                onClick={() => setViewMode('list')}
                             >
-                                <ListBulletIcon className="w-3.5 h-3.5" aria-hidden="true" /> Squad List
-                            </button>
+                                Squad List
+                            </Button>
                         </div>
 
                         <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold">
@@ -265,13 +198,9 @@ export function FantasyTeamModal({
                     ) : isError ? (
                         <div className="py-12 text-center text-red-600 dark:text-red-400 text-sm">
                             <p className="font-bold">Failed to load this lineup.</p>
-                            <button
-                                type="button"
-                                onClick={() => refetch()}
-                                className="mt-3 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
-                            >
+                            <Button className="mt-3" size="sm" variant="secondary" onClick={() => refetch()}>
                                 Try again
-                            </button>
+                            </Button>
                         </div>
                     ) : picks.length === 0 ? (
                         <div className="py-16 text-center text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">
@@ -481,25 +410,15 @@ export function FantasyTeamModal({
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2 rounded-xl bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-black uppercase tracking-wider transition cursor-pointer"
-                    >
-                        Close
-                    </button>
-                </div>
-            </div>
+            </Modal>
 
-            {/* Fantasy Player Modal */}
+            {/* Outside the Modal: a click inside the player profile would otherwise bubble up to this backdrop. */}
             <FantasyPlayerModal
                 isOpen={Boolean(inspectingPlayer)}
                 onClose={() => setInspectingPlayer(null)}
                 player={inspectingPlayer}
             />
-        </div>
+        </>
     );
 }
 

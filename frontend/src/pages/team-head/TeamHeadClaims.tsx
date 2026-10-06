@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { teamHeadClaimsApi, type ClaimCodeData, type PlayerClaimData } from '../../services/api';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { Button, Field, Tabs, Textarea } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Spinner } from '../../components/ui/Spinner';
@@ -40,11 +41,6 @@ const claimRows = (claim: PlayerClaimData): [string, string | undefined][] => [
     ['Email', claim.claimed_email],
     ['Jersey', claim.player_jersey_number ? `#${claim.player_jersey_number}` : undefined],
 ];
-
-const smallButton = 'inline-flex items-center justify-center gap-1.5 min-h-11 px-3 text-xs font-bold rounded-lg transition-colors';
-const actionButton = 'inline-flex items-center justify-center gap-1.5 min-h-11 px-4 text-sm font-bold rounded-lg transition-colors disabled:opacity-50';
-const noteInputClass =
-    'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red';
 
 /**
  * The team manager's claim review screen.
@@ -178,12 +174,12 @@ export const TeamHeadClaims: React.FC = () => {
     };
 
     const noteField = (label: string, required: boolean, placeholder: string) => (
-        <label className="block">
-            <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                {label} {required ? <span className="text-sffl-red">*</span> : <span className="font-normal text-gray-400">(optional)</span>}
-            </span>
-            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder={placeholder} className={noteInputClass} />
-        </label>
+        <Field
+            label={<>{label} {required ? <span className="text-sffl-red">*</span> : <span className="font-normal text-gray-400">(optional)</span>}</>}
+            htmlFor="claim-note"
+        >
+            <Textarea id="claim-note" value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder={placeholder} />
+        </Field>
     );
 
     const dialog = (() => {
@@ -290,66 +286,36 @@ export const TeamHeadClaims: React.FC = () => {
                         <code className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-900 font-mono text-lg font-black tracking-widest text-gray-900 dark:text-white break-all">
                             {code.code}
                         </code>
-                        <button
-                            type="button"
-                            onClick={() => copyCode(code.code)}
-                            className={`${smallButton} bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400`}
-                        >
-                            <ClipboardDocumentIcon className="w-4 h-4" aria-hidden="true" />
+                        <Button variant="secondary" size="md" icon={ClipboardDocumentIcon} onClick={() => copyCode(code.code)}>
                             Copy
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => ask({ kind: 'generateCode' })}
-                            className={`${smallButton} bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`}
-                        >
-                            <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
+                        </Button>
+                        <Button variant="secondary" size="md" icon={ArrowPathIcon} onClick={() => ask({ kind: 'generateCode' })}>
                             Rotate
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => ask({ kind: 'revokeCode', code })}
-                            className={`${smallButton} bg-red-100 hover:bg-red-200 text-red-600`}
-                        >
-                            <NoSymbolIcon className="w-4 h-4" aria-hidden="true" />
+                        </Button>
+                        <Button variant="danger" size="md" icon={NoSymbolIcon} onClick={() => ask({ kind: 'revokeCode', code })}>
                             Revoke
-                        </button>
+                        </Button>
                         <span className="text-xs text-gray-400">
                             used {code.uses} of {code.max_uses}
                             {code.expires_at && ` · expires ${new Date(code.expires_at).toLocaleDateString()}`}
                         </span>
                     </div>
                 ) : (
-                    <button
-                        type="button"
-                        onClick={() => ask({ kind: 'generateCode' })}
-                        className={`mt-4 ${actionButton} bg-sffl-red hover:bg-red-700 text-white`}
-                    >
-                        <KeyIcon className="w-4 h-4" aria-hidden="true" />
+                    <Button className="mt-4" icon={KeyIcon} onClick={() => ask({ kind: 'generateCode' })}>
                         Generate a claim code
-                    </button>
+                    </Button>
                 )}
             </div>
 
             {/* Review queue */}
             <div>
-                <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700 mb-4">
-                    {STATUS_TABS.map(([s, label]) => (
-                        <button
-                            key={s}
-                            type="button"
-                            onClick={() => setStatus(s)}
-                            aria-pressed={status === s}
-                            className={`min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 transition-colors ${
-                                status === s
-                                    ? 'border-sffl-red text-sffl-red'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
+                <Tabs
+                    aria-label="Claim status"
+                    className="mb-4"
+                    items={STATUS_TABS.map(([value, label]) => ({ value, label }))}
+                    value={status}
+                    onChange={setStatus}
+                />
 
                 {loading ? (
                     <Spinner label="Loading claims" />
@@ -494,13 +460,9 @@ export const TeamHeadClaims: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => ask({ kind: 'endorse', claim, endorse: claim.endorsement !== 'ENDORSED' })}
-                                                    className={`${smallButton} bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`}
-                                                >
+                                                <Button variant="secondary" size="md" onClick={() => ask({ kind: 'endorse', claim, endorse: claim.endorsement !== 'ENDORSED' })}>
                                                     Change my answer
-                                                </button>
+                                                </Button>
                                             </div>
                                         ) : (
                                             <div className="flex flex-wrap items-center gap-3 justify-between">
@@ -508,44 +470,24 @@ export const TeamHeadClaims: React.FC = () => {
                                                     Do you know this person?
                                                 </p>
                                                 <div className="flex flex-wrap gap-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => ask({ kind: 'endorse', claim, endorse: false })}
-                                                        className={`${actionButton} bg-red-100 hover:bg-red-200 text-red-600`}
-                                                    >
-                                                        <HandThumbDownIcon className="w-4 h-4" aria-hidden="true" />
+                                                    <Button variant="danger" size="lg" icon={HandThumbDownIcon} onClick={() => ask({ kind: 'endorse', claim, endorse: false })}>
                                                         I cannot vouch
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => ask({ kind: 'endorse', claim, endorse: true })}
-                                                        className={`${actionButton} bg-sffl-red hover:bg-red-700 text-white`}
-                                                    >
-                                                        <HandThumbUpIcon className="w-4 h-4" aria-hidden="true" />
+                                                    </Button>
+                                                    <Button variant="primary" size="lg" icon={HandThumbUpIcon} onClick={() => ask({ kind: 'endorse', claim, endorse: true })}>
                                                         I vouch for them
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                 ) : claim.status === 'PENDING' ? (
                                     <div className="px-4 sm:px-5 py-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => ask({ kind: 'reject', claim })}
-                                            className={`${actionButton} bg-red-100 hover:bg-red-200 text-red-600`}
-                                        >
-                                            <XCircleIcon className="w-4 h-4" aria-hidden="true" />
+                                        <Button variant="danger" size="lg" icon={XCircleIcon} onClick={() => ask({ kind: 'reject', claim })}>
                                             Reject
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => ask({ kind: 'approve', claim })}
-                                            className={`${actionButton} bg-sffl-red hover:bg-red-700 text-white`}
-                                        >
-                                            <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
+                                        </Button>
+                                        <Button variant="primary" size="lg" icon={CheckCircleIcon} onClick={() => ask({ kind: 'approve', claim })}>
                                             Approve
-                                        </button>
+                                        </Button>
                                     </div>
                                 ) : (
                                     <div className="px-4 sm:px-5 py-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 wrap-break-word">

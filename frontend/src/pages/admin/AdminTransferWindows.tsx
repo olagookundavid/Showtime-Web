@@ -12,13 +12,13 @@ import {
   PlusIcon,
   PowerIcon,
   TrashIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
 import { Spinner } from "../../components/ui/Spinner";
+import { Button, Checkbox, Field, Input, Modal } from "../../components/ui";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 import { usePermissions } from "../../hooks/usePermissions";
 
@@ -30,9 +30,6 @@ type PendingAction =
   | { kind: "update" }
   | { kind: "toggle"; target: TransferWindowData }
   | { kind: "delete"; target: TransferWindowData };
-
-const inputClass =
-  "w-full min-h-11 px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red";
 
 const formatDateTime = (value: string) => new Date(value).toLocaleString();
 
@@ -444,16 +441,15 @@ export const AdminTransferWindows: React.FC = () => {
         title="Transfer Windows"
         subtitle="Configure open/close date windows for league-wide buying and trading."
         actions={
-          <button
-            type="button"
+          <Button
+            icon={PlusIcon}
             onClick={() => setShowModal(true)}
             disabled={!canManage}
             title={canManage ? undefined : "View-only access to Transfer Windows"}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 px-4 py-2.5 min-h-11 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto shrink-0"
           >
-            <PlusIcon className="w-4 h-4" aria-hidden="true" />
             Create Transfer Window
-          </button>
+          </Button>
         }
       />
 
@@ -495,13 +491,13 @@ export const AdminTransferWindows: React.FC = () => {
               window is open.
             </p>
           </div>
-          <input
+          <Input
             type="text"
             aria-label="Search free agents"
             value={freeAgentSearch}
             onChange={(e) => setFreeAgentSearch(e.target.value)}
             placeholder="Search by name or position…"
-            className="w-full sm:w-64 min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm"
+            className="w-full sm:w-64"
           />
         </div>
 
@@ -555,29 +551,27 @@ export const AdminTransferWindows: React.FC = () => {
                   of {freeAgentTotal}
                 </span>
                 <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     onClick={() => setFreeAgentPage((p) => Math.max(1, p - 1))}
                     disabled={freeAgentPage <= 1}
-                    className="px-3 py-1.5 min-h-11 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     Previous
-                  </button>
+                  </Button>
                   <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
                     Page {freeAgentPage} of {freeAgentTotalPages}
                   </span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     onClick={() =>
                       setFreeAgentPage((p) =>
                         Math.min(freeAgentTotalPages, p + 1),
                       )
                     }
                     disabled={freeAgentPage >= freeAgentTotalPages}
-                    className="px-3 py-1.5 min-h-11 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     Next
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -587,187 +581,111 @@ export const AdminTransferWindows: React.FC = () => {
 
       {/* Modal for creating window */}
       {showModal && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden"
-          data-dialog
-          onClick={() => setShowModal(false)}
+        <Modal
+          open
+          onClose={() => setShowModal(false)}
+          title="Create Transfer Window"
+          maxWidth="md"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
+                Cancel
+              </Button>
+              <Button onClick={requestCreate} disabled={submitting} className="flex-1">
+                Create Window
+              </Button>
+            </>
+          }
         >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-100 dark:border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center gap-3 border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 shrink-0">
-              <h3 className="text-xl font-black text-gray-900 dark:text-white">
-                Create Transfer Window
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Window Name
-                </label>
-                <input
+            <div className="space-y-4">
+              <Field label="Window Name" htmlFor="window-name">
+                <Input
+                  id="window-name"
                   type="text"
                   placeholder="e.g. Mid-Season Transfer Window"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Opens At
-                </label>
-                <input
+              <Field label="Opens At" htmlFor="window-opens">
+                <Input
+                  id="window-opens"
                   type="datetime-local"
                   value={opensAt}
                   onChange={(e) => setOpensAt(e.target.value)}
-                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Closes At
-                </label>
-                <input
+              <Field label="Closes At" htmlFor="window-closes">
+                <Input
+                  id="window-closes"
                   type="datetime-local"
                   value={closesAt}
                   onChange={(e) => setClosesAt(e.target.value)}
-                  className={inputClass}
                 />
-              </div>
+              </Field>
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 bg-gray-50 dark:bg-gray-800/90">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors min-h-11"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={requestCreate}
-                disabled={submitting}
-                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-11 shadow-sm"
-              >
-                Create Window
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal for editing window */}
       {editingWindow && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden"
-          data-dialog
-          onClick={() => setEditingWindow(null)}
+        <Modal
+          open
+          onClose={() => setEditingWindow(null)}
+          title="Edit Transfer Window"
+          maxWidth="md"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setEditingWindow(null)} className="flex-1">
+                Cancel
+              </Button>
+              <Button onClick={requestUpdate} disabled={submitting} className="flex-1">
+                Save Changes
+              </Button>
+            </>
+          }
         >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center gap-3 border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 shrink-0">
-              <h3 className="text-xl font-black text-gray-900 dark:text-white">
-                Edit Transfer Window
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingWindow(null)}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Window Name
-                </label>
-                <input
+            <div className="space-y-4">
+              <Field label="Window Name" htmlFor="edit-window-name">
+                <Input
+                  id="edit-window-name"
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Opens At
-                </label>
-                <input
+              <Field label="Opens At" htmlFor="edit-window-opens">
+                <Input
+                  id="edit-window-opens"
                   type="datetime-local"
                   value={editOpensAt}
                   onChange={(e) => setEditOpensAt(e.target.value)}
-                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Closes At
-                </label>
-                <input
+              <Field label="Closes At" htmlFor="edit-window-closes">
+                <Input
+                  id="edit-window-closes"
                   type="datetime-local"
                   value={editClosesAt}
                   onChange={(e) => setEditClosesAt(e.target.value)}
-                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              <label
-                htmlFor="editIsActiveCheckbox"
-                className="flex items-center gap-3 min-h-11 pt-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  id="editIsActiveCheckbox"
-                  checked={editIsActive}
-                  onChange={(e) => setEditIsActive(e.target.checked)}
-                  className="w-5 h-5 shrink-0 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
-                />
-                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                  Window Active Schedule
-                </span>
-              </label>
+              <Checkbox
+                id="editIsActiveCheckbox"
+                label="Window Active Schedule"
+                className="pt-2"
+                checked={editIsActive}
+                onChange={(e) => setEditIsActive(e.target.checked)}
+              />
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 bg-gray-50 dark:bg-gray-800/90">
-              <button
-                type="button"
-                onClick={() => setEditingWindow(null)}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors min-h-11"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={requestUpdate}
-                disabled={submitting}
-                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-11 shadow-sm"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Outside the form overlays: portal clicks bubble through the React tree,

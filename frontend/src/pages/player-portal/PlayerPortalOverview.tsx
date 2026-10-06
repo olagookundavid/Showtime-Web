@@ -5,6 +5,7 @@ import { CheckCircleIcon, ChevronRightIcon, EnvelopeIcon, XCircleIcon } from '@h
 import { playerPortalApi, type ContractData } from '../../services/api';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { RunnerIcon } from '../../components/icons/RunnerIcon';
+import { Button } from '../../components/ui';
 import { Spinner } from '../../components/ui/Spinner';
 import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
 import { OfferResponseDialog, type OfferResponse } from '../../components/player-portal/OfferResponseDialog';
@@ -101,22 +102,22 @@ export const PlayerPortalOverview: React.FC = () => {
                                 </div>
 
                                 <div className="flex gap-3">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="success"
+                                        className="flex-1"
+                                        icon={CheckCircleIcon}
                                         onClick={() => setRespondTo({ contract: c, action: 'accept' })}
-                                        className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-3 bg-green-600 hover:bg-green-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm"
                                     >
-                                        <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
                                         Accept Offer
-                                    </button>
-                                    <button
-                                        type="button"
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        className="flex-1"
+                                        icon={XCircleIcon}
                                         onClick={() => setRespondTo({ contract: c, action: 'reject' })}
-                                        className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-3 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold text-sm rounded-xl transition-colors"
                                     >
-                                        <XCircleIcon className="w-4 h-4" aria-hidden="true" />
                                         Reject
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         ))}

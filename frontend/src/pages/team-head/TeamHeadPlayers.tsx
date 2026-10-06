@@ -3,7 +3,7 @@ import { isDeletedPlayer, deletedRowClass, DeletedPlayerName } from '../../compo
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api, { moveToReserve, graduatePlayer, getTeamRosterSummary, type RosterSummary } from '../../services/api';
-import { LightboxImage, ImageUploadField } from '../../components/ui';
+import { Button, Field, Input, LightboxImage, ImageUploadField, Select, Textarea } from '../../components/ui';
 import toast from 'react-hot-toast';
 import {
     ArrowDownCircleIcon,
@@ -69,17 +69,6 @@ const FULL_SQUAD_HINT = 'Main squad is at capacity (25/25). Move an active playe
 const emptyForm = {
     name: '', position: '-', secondary_position: '', gender: '', jersey_number: '', email: '', image: '', bio: '',
 };
-
-const fieldClass =
-    'w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3.5 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold';
-const labelClass = 'block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1';
-
-const tabClass = (active: boolean, activeColour: string) =>
-    `inline-flex items-center gap-2 min-h-11 px-4 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${
-        active
-            ? `${activeColour} text-white shadow-sm`
-            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-    }`;
 
 const TeamHeadPlayers = () => {
     const team = useTeamHeadTeam();
@@ -500,7 +489,11 @@ const TeamHeadPlayers = () => {
             {/* Filters: squad tabs and page size */}
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
                 <div className="flex gap-2 overflow-x-auto">
-                    <button type="button" onClick={() => switchTab('main')} aria-pressed={rosterTab === 'main'} className={tabClass(rosterTab === 'main', 'bg-sffl-navy')}>
+                    <Button
+                        variant={rosterTab === 'main' ? 'navy' : 'secondary'}
+                        aria-pressed={rosterTab === 'main'}
+                        onClick={() => switchTab('main')}
+                    >
                         Main Squad
                         {rosterSummary && (
                             <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-black ${
@@ -509,8 +502,12 @@ const TeamHeadPlayers = () => {
                                 {rosterSummary.main_count}/25
                             </span>
                         )}
-                    </button>
-                    <button type="button" onClick={() => switchTab('reserve')} aria-pressed={rosterTab === 'reserve'} className={tabClass(rosterTab === 'reserve', 'bg-amber-600')}>
+                    </Button>
+                    <Button
+                        variant={rosterTab === 'reserve' ? 'warning' : 'secondary'}
+                        aria-pressed={rosterTab === 'reserve'}
+                        onClick={() => switchTab('reserve')}
+                    >
                         Reserves
                         {rosterSummary && (
                             <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-black ${
@@ -519,25 +516,30 @@ const TeamHeadPlayers = () => {
                                 {rosterSummary.reserve_count}
                             </span>
                         )}
-                    </button>
-                    <button type="button" onClick={() => switchTab('all')} aria-pressed={rosterTab === 'all'} className={tabClass(rosterTab === 'all', 'bg-sffl-red')}>
+                    </Button>
+                    <Button
+                        variant={rosterTab === 'all' ? 'primary' : 'secondary'}
+                        aria-pressed={rosterTab === 'all'}
+                        onClick={() => switchTab('all')}
+                    >
                         All Players
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-start gap-3 text-sm text-gray-500 dark:text-gray-400">
                     <label className="flex items-center gap-2">
                         <span className="font-semibold whitespace-nowrap">Show</span>
-                        <select
+                        <Select
+                            aria-label="Players per page"
+                            className="w-32"
                             value={limit}
                             onChange={e => {
                                 setLimit(Number(e.target.value));
                                 setPage(1);
                             }}
-                            className="min-h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red text-sm"
                         >
                             {PAGE_SIZES.map(n => <option key={n} value={n}>{n} per page</option>)}
-                        </select>
+                        </Select>
                     </label>
                     <span className="font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                         {totalPlayers} Total Players
@@ -574,59 +576,64 @@ const TeamHeadPlayers = () => {
                 onClose={() => { if (!pendingAction) setEditing(null); }}
                 title="Edit Player"
                 maxWidth="2xl"
+                footer={
+                    <>
+                        <Button variant="secondary" onClick={() => setEditing(null)}>
+                            Cancel
+                        </Button>
+                        <Button disabled={!form.name.trim()} onClick={submitEdit}>
+                            Update Player
+                        </Button>
+                    </>
+                }
             >
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label className="block">
-                            <span className={labelClass}>Name *</span>
-                            <input type="text" value={form.name} onChange={e => setField('name', e.target.value)} className={fieldClass} placeholder="Player Full Name" />
-                        </label>
-                        <label className="block">
-                            <span className={labelClass}>Jersey #</span>
-                            <input type="number" value={form.jersey_number} onChange={e => setField('jersey_number', e.target.value)} className={fieldClass} />
-                        </label>
-                        <label className="block">
-                            <span className={labelClass}>Email *</span>
-                            <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} className={fieldClass} placeholder="player@team.com" />
-                        </label>
+                        <Field label="Name *" htmlFor="player-name">
+                            <Input id="player-name" type="text" value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Player Full Name" />
+                        </Field>
+                        <Field label="Jersey #" htmlFor="player-jersey">
+                            <Input id="player-jersey" type="number" value={form.jersey_number} onChange={e => setField('jersey_number', e.target.value)} />
+                        </Field>
+                        <Field label="Email *" htmlFor="player-email">
+                            <Input id="player-email" type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="player@team.com" />
+                        </Field>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label className="block">
-                            <span className={labelClass}>Primary Role</span>
-                            <select
+                        <Field label="Primary Role" htmlFor="player-position">
+                            <Select
+                                id="player-position"
                                 value={form.position || '-'}
                                 onChange={e => {
                                     const newPos = e.target.value;
                                     setField('position', newPos);
                                     if (form.secondary_position === newPos) setField('secondary_position', '');
                                 }}
-                                className={fieldClass}
                             >
                                 <option value="-">- (No Role / Unassigned)</option>
                                 {POSITIONS.filter(p => p !== '-').map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                        </label>
-                        <label className="block">
-                            <span className={labelClass}>
-                                Secondary Role <span className="text-xs font-normal text-gray-400">(Optional)</span>
-                            </span>
-                            <select value={form.secondary_position} onChange={e => setField('secondary_position', e.target.value)} className={fieldClass}>
+                            </Select>
+                        </Field>
+                        <Field
+                            label={<>Secondary Role <span className="text-xs font-normal text-gray-400">(Optional)</span></>}
+                            htmlFor="player-secondary-position"
+                        >
+                            <Select id="player-secondary-position" value={form.secondary_position} onChange={e => setField('secondary_position', e.target.value)}>
                                 <option value="">None (No Secondary Role)</option>
                                 {SECONDARY_POSITIONS.filter(p => p !== form.position).map(p => (
                                     <option key={p} value={p}>{p}</option>
                                 ))}
-                            </select>
-                        </label>
+                            </Select>
+                        </Field>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label className="block">
-                            <span className={labelClass}>Gender</span>
-                            <select value={form.gender} onChange={e => setField('gender', e.target.value)} className={fieldClass}>
+                        <Field label="Gender" htmlFor="player-gender">
+                            <Select id="player-gender" value={form.gender} onChange={e => setField('gender', e.target.value)}>
                                 <option value="">Select a gender</option>
                                 <option value="M">Male (M)</option>
                                 <option value="F">Female (F)</option>
-                            </select>
-                        </label>
+                            </Select>
+                        </Field>
                         <p className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400 sm:pt-7">
                             <InformationCircleIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
                             <span><strong>Allrounders Rule:</strong> Teams are limited to a maximum of 6 Allrounders (combined main & secondary roles).</span>
@@ -640,18 +647,9 @@ const TeamHeadPlayers = () => {
                         helperText="Upload a profile photo."
                         isCommitted={busy}
                     />
-                    <label className="block">
-                        <span className={labelClass}>Bio</span>
-                        <textarea value={form.bio} onChange={e => setField('bio', e.target.value)} rows={3} className={fieldClass} placeholder="A short bio" />
-                    </label>
-                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
-                        <button type="button" onClick={() => setEditing(null)} className="min-h-11 px-5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-200 transition-colors text-sm">
-                            Cancel
-                        </button>
-                        <button type="button" onClick={submitEdit} disabled={!form.name.trim()} className="min-h-11 px-5 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm shadow-sm">
-                            Update Player
-                        </button>
-                    </div>
+                    <Field label="Bio" htmlFor="player-bio">
+                        <Textarea id="player-bio" value={form.bio} onChange={e => setField('bio', e.target.value)} rows={3} placeholder="A short bio" />
+                    </Field>
                 </div>
             </Modal>
 

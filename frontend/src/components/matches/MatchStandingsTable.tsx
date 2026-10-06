@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { ArrowRightIcon, TrophyIcon } from "@heroicons/react/24/outline";
 import type { Standing } from "../../services/api";
 import { formatStatNumber } from "../../utils/formatters";
+import { ButtonLink } from "../ui";
+import { DataTable, type Column } from "../ui/DataTable";
 
 interface MatchStandingsTableProps {
   standings: Standing[];
@@ -28,9 +30,94 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
     );
   }
 
+  const indexOf = new Map(standings.map((s, i) => [s.id, i]));
+  const isGold = (s: Standing) => !!isCompleted && indexOf.get(s.id) === 0;
+  const isWildcard = (s: Standing) => {
+    const index = indexOf.get(s.id) ?? -1;
+    return index >= 1 && index < 7;
+  };
+
+  const columns: Column<Standing>[] = [
+    {
+      header: "Team",
+      className: "px-2 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap",
+      cell: (s) => {
+        const index = indexOf.get(s.id) ?? 0;
+        const name = s.team?.short_name || s.team?.name || "Unknown";
+        const logo = (
+          <img
+            src={s.team?.logo || "/images/default_football.png"}
+            alt={s.team?.name || "Team"}
+            className="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md shrink-0"
+            title={s.team?.name || "Team"}
+          />
+        );
+        const trophy = isGold(s) ? (
+          <img
+            src={championIcon}
+            alt="Champion Trophy"
+            className="w-5 h-5 md:w-7 md:h-7 object-contain shrink-0 animate-bounce drop-shadow-xl"
+            title="Champion"
+          />
+        ) : null;
+        return (
+          <div className="relative flex items-center gap-2 min-w-0">
+            {isWildcard(s) && (
+              <span aria-hidden="true" className="absolute -left-2 inset-y-0 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+            )}
+            {isGold(s) && <span aria-hidden="true" className="absolute -left-2 inset-y-0 w-1 bg-amber-500" />}
+            <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500 dark:text-gray-400">
+              {index + 1}
+            </span>
+            {s.team?.id ? (
+              <Link to={`/teams/${s.team.id}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                {logo}
+              </Link>
+            ) : (
+              logo
+            )}
+            {s.team?.id ? (
+              <Link
+                to={`/teams/${s.team.id}`}
+                className="flex items-center gap-1 min-w-0 uppercase hover:text-sffl-red transition-colors"
+                title={s.team?.name || name}
+              >
+                <span className="truncate max-w-15 md:max-w-none">{name}</span>
+                {trophy}
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 min-w-0 uppercase" title={s.team?.name || name}>
+                <span className="truncate max-w-15 md:max-w-none">{name}</span>
+                {trophy}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      header: "P",
+      align: "center",
+      className: "px-1 py-2 md:px-4 md:py-4 text-gray-700 dark:text-gray-200",
+      cell: (s) => formatStatNumber(s.played),
+    },
+    {
+      header: "PD",
+      align: "center",
+      className: "px-1 py-2 md:px-4 md:py-4 font-bold text-gray-800 dark:text-gray-100",
+      cell: (s) => (s.goal_diff > 0 ? `+${formatStatNumber(s.goal_diff)}` : formatStatNumber(s.goal_diff)),
+    },
+    {
+      header: "PCT",
+      align: "center",
+      className: "px-1 py-2 md:px-4 md:py-4 font-semibold text-gray-800 dark:text-gray-100",
+      cell: (s) => (s.pct != null ? `${s.pct}%` : "-"),
+    },
+  ];
+
   return (
-    <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
-      <div className="px-3 py-2 md:px-6 md:py-3 bg-sffl-navy text-white font-bold text-sm md:text-lg flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+    <div className="space-y-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-t-lg md:rounded-t-xl bg-sffl-navy px-3 py-2 md:px-6 md:py-3 text-white font-bold text-sm md:text-lg">
         <div className="flex items-center gap-2">
           <TrophyIcon className="w-5 h-5 text-yellow-500" aria-hidden="true" />
           <span>Team Standings</span>
@@ -41,143 +128,32 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
             <span className="text-[11px] font-bold">Wildcard spot</span>
           </div>
           {viewAllLink && (
-            <Link
+            <ButtonLink
               to={viewAllLink}
-              className="inline-flex items-center gap-1 min-h-11 text-[11px] md:text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded transition-colors uppercase tracking-tight"
+              variant="secondary"
+              tone="dark"
+              size="sm"
+              icon={ArrowRightIcon}
+              iconPosition="right"
             >
               View All
-              <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
-            </Link>
+            </ButtonLink>
           )}
         </div>
       </div>
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-xs md:text-sm text-left">
-          <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-            <tr>
-              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 px-1 py-2 md:px-4 md:py-3 text-center w-10 md:w-14"></th>
-              <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-1 py-2 md:px-4 md:py-3 whitespace-nowrap w-25 md:w-35 border-r border-gray-100 dark:border-gray-700">
-                Team
-              </th>
-              <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">
-                P
-              </th>
-              <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">
-                PD
-              </th>
-              <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">
-                PCT
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((standing, index) => {
-              const isGold = isCompleted && index === 0;
-              const isWildcard = index >= 1 && index < 7;
-              const borderLeftClass = isGold
-                ? "border-l-4 border-l-amber-500"
-                : isWildcard
-                  ? "border-l-4 border-l-emerald-500 dark:border-l-emerald-400"
-                  : "border-l-4 border-l-transparent";
-              const logoImg = (
-                <img
-                  src={standing.team?.logo || "/images/default_football.png"}
-                  alt={standing.team?.name || "Team"}
-                  className="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md mx-auto"
-                  title={standing.team?.name || "Team"}
-                />
-              );
-              const nameText =
-                standing.team?.short_name || standing.team?.name || "Unknown";
-
-              const stickyBg = isGold
-                ? "bg-amber-100/90 dark:bg-amber-950/90 group-hover:bg-amber-200/90 dark:group-hover:bg-amber-900/90"
-                : "bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800";
-              const stickyZ = isGold ? "z-30" : "z-10";
-
-              return (
-                <tr
-                  key={standing.id}
-                  className={`
-                                        group border-b border-gray-100 dark:border-gray-700 transition-all duration-300
-                                        ${
-                                          isGold
-                                            ? "bg-linear-to-r from-amber-300/40 via-yellow-400/50 to-amber-300/40 dark:from-amber-600/40 dark:via-yellow-500/50 dark:to-amber-600/40 shadow-[0_0_15px_rgba(245,158,11,0.45)] ring-2 ring-yellow-400/50 font-bold text-amber-950 dark:text-amber-100 relative z-30"
-                                            : "hover:bg-gray-50 dark:hover:bg-gray-800"
-                                        }
-                                    `}
-                >
-                  <td
-                    className={`sticky left-0 ${stickyZ} ${stickyBg} ${borderLeftClass} px-1 py-2 md:px-4 md:py-4 text-center w-10 md:w-14`}
-                  >
-                    {standing.team?.id ? (
-                      <Link
-                        to={`/teams/${standing.team.id}`}
-                        className="block hover:opacity-80 transition-opacity"
-                      >
-                        {logoImg}
-                      </Link>
-                    ) : (
-                      logoImg
-                    )}
-                  </td>
-                  <td
-                    className={`sticky left-10 md:left-14 ${stickyZ} ${stickyBg} px-1 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap w-25 md:w-35 border-r border-gray-100 dark:border-gray-800`}
-                  >
-                    {standing.team?.id ? (
-                      <Link
-                        to={`/teams/${standing.team.id}`}
-                        className="inline-flex items-center gap-1 uppercase hover:text-sffl-red transition-colors relative z-30"
-                        title={standing.team?.name || nameText}
-                      >
-                        <span className="truncate max-w-15 md:max-w-none">
-                          {nameText}
-                        </span>
-                        {isGold && (
-                          <img
-                            src={championIcon}
-                            alt="Champion Trophy"
-                            className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 shrink-0"
-                            title="Champion"
-                          />
-                        )}
-                      </Link>
-                    ) : (
-                      <span
-                        className="inline-flex items-center gap-1 uppercase relative z-30"
-                        title={standing.team?.name || nameText}
-                      >
-                        <span className="truncate max-w-15 md:max-w-none">
-                          {nameText}
-                        </span>
-                        {isGold && (
-                          <img
-                            src={championIcon}
-                            alt="Champion Trophy"
-                            className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 shrink-0"
-                            title="Champion"
-                          />
-                        )}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-1 py-2 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">
-                    {formatStatNumber(standing.played)}
-                  </td>
-                  <td className="px-1 py-2 md:px-4 md:py-4 text-center font-bold text-gray-800 dark:text-gray-100">
-                    {standing.goal_diff > 0
-                      ? `+${formatStatNumber(standing.goal_diff)}`
-                      : formatStatNumber(standing.goal_diff)}
-                  </td>
-                  <td className="px-1 py-2 md:px-4 md:py-4 text-center font-semibold text-gray-800 dark:text-gray-100">
-                    {standing.pct != null ? `${standing.pct}%` : "-"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={standings}
+        columns={columns}
+        searchable={false}
+        paginated={false}
+        compact
+        getRowId={(s) => s.id}
+        rowClassName={(s) =>
+          isGold(s)
+            ? "bg-amber-100 dark:bg-amber-950 font-bold text-amber-950 dark:text-amber-100"
+            : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+        }
+      />
     </div>
   );
 };

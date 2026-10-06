@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { getMatches, type Match } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
-import { VideoCameraIcon, ArrowTopRightOnSquareIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';
+import { Button, ButtonLink } from '../../components/ui';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { VideoCameraIcon, ArrowTopRightOnSquareIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, MapPinIcon } from '@heroicons/react/24/outline';
+
+const FILTERS = ['ALL', 'LIVE', 'SCHEDULED', 'FINISHED'] as const;
 
 export function AdminBroadcastPicker() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'ALL' | 'LIVE' | 'SCHEDULED' | 'FINISHED'>('ALL');
+  const [filter, setFilter] = useState<typeof FILTERS[number]>('ALL');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,33 +42,22 @@ export function AdminBroadcastPicker() {
 
   return (
     <div className="space-y-6">
-      {/* Showtime Signature Header Banner */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-6 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-4">
-        <div>
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter flex items-center gap-3">
-            <VideoCameraIcon className="w-8 h-8 md:w-12 md:h-12 text-sffl-red" />
-            BROADCAST STUDIO
-          </h1>
-          <p className="text-gray-300 mt-1 text-sm md:text-base">
-            Select a live or scheduled match to launch on-air graphics control for vMix.
-          </p>
-        </div>
-      </div>
+      <DashboardPageHeader
+        title="Broadcast Studio"
+        subtitle="Select a live or scheduled match to launch on-air graphics control for vMix."
+      />
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
-        {(['ALL', 'LIVE', 'SCHEDULED', 'FINISHED'] as const).map((tab) => (
-          <button
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
+        {FILTERS.map((tab) => (
+          <Button
             key={tab}
+            variant={filter === tab ? 'primary' : 'secondary'}
             onClick={() => setFilter(tab)}
-            className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-colors ${
-              filter === tab
-                ? 'bg-sffl-red text-white shadow-sm'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-            }`}
+            aria-pressed={filter === tab}
           >
             {tab}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -147,50 +139,40 @@ export function AdminBroadcastPicker() {
                   </div>
 
                   {m.venue && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      📍 {m.venue}
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <MapPinIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                      {m.venue}
                     </div>
                   )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-700/60">
-                  <button
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={copiedId === m.id ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon}
                     onClick={() => copyOverlayUrl(m.id)}
-                    className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-sffl-red dark:hover:text-sffl-red flex items-center gap-1.5 transition-colors"
                     title="Copy transparent vMix overlay browser URL"
                   >
-                    {copiedId === m.id ? (
-                      <>
-                        <ClipboardDocumentCheckIcon className="w-4 h-4 text-emerald-600" />
-                        <span className="text-emerald-600 font-bold">Copied vMix URL!</span>
-                      </>
-                    ) : (
-                      <>
-                        <ClipboardDocumentIcon className="w-4 h-4" />
-                        <span>Copy vMix URL</span>
-                      </>
-                    )}
-                  </button>
+                    {copiedId === m.id ? 'Copied vMix URL!' : 'Copy vMix URL'}
+                  </Button>
 
                   <div className="flex items-center gap-2">
                     <a
                       href={`/broadcast/${m.id}/overlay`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="inline-flex items-center justify-center min-h-11 min-w-11 p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                       title="Open transparent overlay in new tab"
+                      aria-label="Open transparent overlay in new tab"
                     >
-                      <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4" aria-hidden="true" />
                     </a>
 
-                    <Link
-                      to={`/admin/broadcast/${m.id}`}
-                      className="bg-sffl-red hover:bg-[#A52323] text-white font-bold px-4 py-2 rounded-xl text-xs md:text-sm shadow-md transition-all flex items-center gap-1.5"
-                    >
-                      <VideoCameraIcon className="w-4 h-4" />
+                    <ButtonLink to={`/admin/broadcast/${m.id}`} icon={VideoCameraIcon}>
                       Launch Studio
-                    </Link>
+                    </ButtonLink>
                   </div>
                 </div>
               </div>

@@ -16,6 +16,7 @@ import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
+import { Field, Input, Select } from "../../components/ui";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 // Status options for the admin override actions
@@ -73,9 +74,6 @@ const statusBadgeClass = (status: string): string => {
       return "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
   }
 };
-
-const filterClass =
-  "w-full sm:w-auto px-3 py-2 min-h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-sffl-red";
 
 const getApiErrorMessage = (error: unknown, fallback: string): string => {
   if (isAxiosError(error)) {
@@ -307,18 +305,15 @@ export const AdminContracts: React.FC = () => {
                   ["Change to", pendingAction.status],
                 ]}
               />
-              <label className="block">
-                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                  Reason (optional)
-                </span>
-                <input
+              <Field label="Reason (optional)" htmlFor="contract-override-reason">
+                <Input
+                  id="contract-override-reason"
                   type="text"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Why is the status changing?"
-                  className="w-full min-h-11 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
                 />
-              </label>
+              </Field>
             </div>
           ),
         }
@@ -367,14 +362,14 @@ export const AdminContracts: React.FC = () => {
         emptyMessage="No contract records match your filter criteria."
         headerActions={
           <>
-            <select
+            <Select
               aria-label="Contract status"
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className={filterClass}
+              className="w-full sm:w-44"
             >
               <option value="">All Statuses</option>
               <option value="ACTIVE">ACTIVE</option>
@@ -382,21 +377,21 @@ export const AdminContracts: React.FC = () => {
               <option value="EXPIRED">EXPIRED</option>
               <option value="TERMINATED">TERMINATED</option>
               <option value="CANCELLED">CANCELLED</option>
-            </select>
-            <select
+            </Select>
+            <Select
               aria-label="Contracts per page"
               value={limit}
               onChange={(e) => {
                 setLimit(Number(e.target.value));
                 setPage(1);
               }}
-              className={filterClass}
+              className="w-full sm:w-40"
             >
               <option value={10}>10 per page</option>
               <option value={25}>25 per page</option>
               <option value={50}>50 per page</option>
               <option value={100}>100 per page</option>
-            </select>
+            </Select>
             <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
               {total.toLocaleString()} total contract{total === 1 ? "" : "s"}
             </span>

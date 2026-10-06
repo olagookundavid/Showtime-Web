@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -20,6 +20,7 @@ import {
 import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, ButtonLink } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
@@ -38,8 +39,6 @@ const SUCCESS: Record<PendingAction, string> = {
     delivered: 'Order marked as delivered.',
     cancel: 'Order cancelled and stock restored.',
 };
-
-const actionButton = 'w-full inline-flex items-center justify-center gap-2 min-h-11 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 transition-colors';
 
 export const AdminOrderDetail = () => {
     const { id } = useParams<{ id: string }>();
@@ -90,10 +89,11 @@ export const AdminOrderDetail = () => {
                         We couldn't load this order. It may have been deleted, or the reference is invalid.
                     </p>
                 </div>
-                <Link to="/admin/store" className="inline-flex items-center gap-1.5 min-h-11 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 rounded-full shadow transition-all">
-                    <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
-                    Back to Orders
-                </Link>
+                <div className="flex justify-center">
+                    <ButtonLink to="/admin/store" variant="primary" icon={ArrowLeftIcon}>
+                        Back to Orders
+                    </ButtonLink>
+                </div>
             </div>
         );
     }
@@ -262,51 +262,51 @@ export const AdminOrderDetail = () => {
                         <h2 className="text-[11px] font-black uppercase tracking-wider text-sffl-red">Actions</h2>
 
                         {order.payment_status !== 'paid' && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
+                                icon={ArrowPathIcon}
                                 disabled={busy}
                                 onClick={() => setPendingAction('verify')}
-                                className={`${actionButton} bg-sffl-navy hover:bg-slate-900 text-white`}
+                                fullWidth
                             >
-                                <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
                                 Re-verify Payment
-                            </button>
+                            </Button>
                         )}
 
                         {order.payment_status === 'paid' && order.fulfillment_status === 'pending' && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="info"
+                                icon={TruckIcon}
                                 disabled={busy}
                                 onClick={() => setPendingAction('shipped')}
-                                className={`${actionButton} bg-blue-600 hover:bg-blue-700 text-white`}
+                                fullWidth
                             >
-                                <TruckIcon className="w-4 h-4" aria-hidden="true" />
                                 Mark as Shipped
-                            </button>
+                            </Button>
                         )}
 
                         {order.payment_status === 'paid' && order.fulfillment_status === 'shipped' && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="success"
+                                icon={CheckCircleIcon}
                                 disabled={busy}
                                 onClick={() => setPendingAction('delivered')}
-                                className={`${actionButton} bg-green-600 hover:bg-green-700 text-white`}
+                                fullWidth
                             >
-                                <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
                                 Mark as Delivered
-                            </button>
+                            </Button>
                         )}
 
                         {order.fulfillment_status !== 'cancelled' && order.fulfillment_status !== 'delivered' && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="danger"
+                                icon={XCircleIcon}
                                 disabled={busy}
                                 onClick={() => setPendingAction('cancel')}
-                                className={`${actionButton} bg-red-50 hover:bg-red-600 text-red-600 hover:text-white dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white border border-red-200 dark:border-red-900`}
+                                fullWidth
                             >
-                                <XCircleIcon className="w-4 h-4" aria-hidden="true" />
                                 Cancel & Restore Stock
-                            </button>
+                            </Button>
                         )}
 
                         {(order.fulfillment_status === 'delivered' || order.fulfillment_status === 'cancelled') && order.payment_status === 'paid' && (

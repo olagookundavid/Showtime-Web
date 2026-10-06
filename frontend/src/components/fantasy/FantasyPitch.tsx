@@ -23,6 +23,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { FemaleIcon } from "../icons/FemaleIcon";
 import { MaleIcon } from "../icons/MaleIcon";
+import { Button } from "../ui";
 
 /**
  * The starting fourteen, laid out on a flag football field.
@@ -695,49 +696,43 @@ export function FantasyPitch({
       {/* Filter Controls & Formation Info */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
         <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-stretch gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
-          <button
-            type="button"
-            onClick={() => handleUnitChange("ALL")}
+          <Button
+            size="sm"
+            variant={currentUnitTab === "ALL" ? "navy" : "ghost"}
+            tone={currentUnitTab === "ALL" ? "light" : "dark"}
+            className="flex-wrap gap-x-1 leading-tight text-center"
             aria-pressed={currentUnitTab === "ALL"}
-            className={`flex flex-wrap items-center justify-center gap-x-1 min-h-11 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wide sm:tracking-wider leading-tight text-center transition cursor-pointer ${
-              currentUnitTab === "ALL"
-                ? "bg-sffl-navy text-white shadow-sm ring-1 ring-white/30"
-                : "text-[#afc1d4] hover:text-white hover:bg-white/10"
-            }`}
+            onClick={() => handleUnitChange("ALL")}
           >
             <span>
               <span className="hidden sm:inline">Full </span>Roster
             </span>
             <span>({filled}/14)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUnitChange("OFFENSE")}
+          </Button>
+          <Button
+            size="sm"
+            variant={currentUnitTab === "OFFENSE" ? "primary" : "ghost"}
+            tone="dark"
+            className="flex-wrap gap-x-1.5 leading-tight text-center"
             aria-pressed={currentUnitTab === "OFFENSE"}
-            className={`flex flex-wrap items-center justify-center gap-x-1.5 min-h-11 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wide sm:tracking-wider leading-tight text-center transition cursor-pointer ${
-              currentUnitTab === "OFFENSE"
-                ? "bg-sffl-red text-white shadow-sm ring-1 ring-white/30"
-                : "text-[#afc1d4] hover:text-white hover:bg-white/10"
-            }`}
+            onClick={() => handleUnitChange("OFFENSE")}
           >
             <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
             <span>Offense</span>
             <span>({offenseFilled}/7)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUnitChange("DEFENSE")}
+          </Button>
+          <Button
+            size="sm"
+            variant={currentUnitTab === "DEFENSE" ? "info" : "ghost"}
+            tone="dark"
+            className="flex-wrap gap-x-1.5 leading-tight text-center"
             aria-pressed={currentUnitTab === "DEFENSE"}
-            className={`flex flex-wrap items-center justify-center gap-x-1.5 min-h-11 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wide sm:tracking-wider leading-tight text-center transition cursor-pointer ${
-              currentUnitTab === "DEFENSE"
-                ? "bg-[#2563eb] text-white shadow-sm ring-1 ring-white/30"
-                : "text-[#afc1d4] hover:text-white hover:bg-white/10"
-            }`}
+            onClick={() => handleUnitChange("DEFENSE")}
           >
             <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
             <span>Defense</span>
             <span>({defenseFilled}/7)</span>
-          </button>
+          </Button>
         </div>
 
         <span
@@ -1048,52 +1043,37 @@ export function FantasyPitch({
         {/* Primary action button */}
         {mode === "builder" ? (
           activePick ? (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant={activePick.isInvalid ? "danger" : "primary"}
+              icon={activePick.isInvalid ? ExclamationTriangleIcon : ArrowsRightLeftIcon}
+              className={`ml-auto shrink-0 uppercase tracking-wider ${activePick.isInvalid ? "animate-pulse" : ""}`}
               onClick={() => onSlotClick?.(activeSpot.slot, activePick)}
-              className={`min-h-11 px-3 py-1.5 rounded-lg text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto flex items-center gap-1.5 shadow-sm ${
-                activePick.isInvalid
-                  ? "bg-red-600 hover:bg-red-700 animate-pulse"
-                  : "bg-sffl-red hover:bg-[#A52323]"
-              }`}
             >
-              {activePick.isInvalid ? (
-                <>
-                  <ExclamationTriangleIcon
-                    className="w-3.5 h-3.5"
-                    aria-hidden="true"
-                  />
-                  Replace Player
-                </>
-              ) : (
-                <>
-                  <ArrowsRightLeftIcon
-                    className="w-3.5 h-3.5"
-                    aria-hidden="true"
-                  />
-                  Manage
-                </>
-              )}
-            </button>
+              {activePick.isInvalid ? "Replace Player" : "Manage"}
+            </Button>
           ) : (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="primary"
+              icon={PlusIcon}
+              className="ml-auto shrink-0 uppercase tracking-wider"
               onClick={() => onSlotClick?.(activeSpot.slot, null)}
-              className="min-h-11 px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto flex items-center gap-1.5 shadow-sm"
             >
-              <PlusIcon className="w-3.5 h-3.5" aria-hidden="true" />
               Draft
-            </button>
+            </Button>
           )
         ) : (
           activePick && (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="secondary"
+              tone="dark"
+              className="ml-auto shrink-0 uppercase tracking-wider"
               onClick={() => handleSpotClick(activeSpot)}
-              className="min-h-11 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto"
             >
               {onPlayerClick ? "Breakdown" : "View Profile"}
-            </button>
+            </Button>
           )
         )}
       </div>

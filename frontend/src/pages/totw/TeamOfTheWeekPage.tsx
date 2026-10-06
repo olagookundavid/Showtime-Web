@@ -16,6 +16,7 @@ import { TeamOfTheWeekModule } from "../../components/totw/TeamOfTheWeekModule";
 import { TOTWEditorialStory } from "../../components/totw/TOTWEditorialStory";
 import { TOTWStoryModal } from "../../components/totw/TOTWStoryModal";
 import { POTWCountdown } from "../../components/potw/POTWCountdown";
+import { Button, ButtonLink } from "../../components/ui";
 import {
   CalendarDaysIcon,
   TrophyIcon,
@@ -167,30 +168,23 @@ export const TeamOfTheWeekPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            tone="dark"
+            icon={copied ? CheckIcon : ShareIcon}
+            className="uppercase tracking-wider"
             onClick={handleShare}
-            className="inline-flex items-center gap-2 min-h-11 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all border border-white/20 shadow-sm"
           >
-            {copied ? (
-              <>
-                <CheckIcon className="w-4 h-4 text-emerald-400" />
-                <span>Copied!</span>
-              </>
-            ) : (
-              <>
-                <ShareIcon className="w-4 h-4" />
-                <span>Share Edition</span>
-              </>
-            )}
-          </button>
-          <Link
+            {copied ? "Copied!" : "Share Edition"}
+          </Button>
+          <ButtonLink
             to="/matches"
-            className="inline-flex items-center gap-2 min-h-11 px-4 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md"
+            variant="primary"
+            icon={TrophyIcon}
+            className="uppercase tracking-wider"
           >
-            <TrophyIcon className="w-4 h-4" />
-            <span>Match Center</span>
-          </Link>
+            Match Center
+          </ButtonLink>
         </div>
       </div>
 
@@ -215,31 +209,32 @@ export const TeamOfTheWeekPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handlePrevEdition}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={ChevronLeftIcon}
                 disabled={currentIndex >= archive.length - 1}
-                className="inline-flex items-center gap-1 min-h-11 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                 aria-label="Previous week"
+                onClick={handlePrevEdition}
               >
-                <ChevronLeftIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Older</span>
-              </button>
+                Older
+              </Button>
               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-1">
                 {currentIndex >= 0
                   ? `${archive.length - currentIndex} of ${archive.length}`
                   : ""}
               </span>
-              <button
-                type="button"
-                onClick={handleNextEdition}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={ChevronRightIcon}
+                iconPosition="right"
                 disabled={currentIndex <= 0}
-                className="inline-flex items-center gap-1 min-h-11 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                 aria-label="Next week"
+                onClick={handleNextEdition}
               >
-                <span>Newer</span>
-                <ChevronRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
+                Newer
+              </Button>
             </div>
           </div>
         )}
@@ -349,32 +344,26 @@ export const TeamOfTheWeekPage: React.FC = () => {
           {/* Competition Filter Pills */}
           {competitions.length > 1 && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 scrollbar-thin">
-              <button
-                type="button"
-                onClick={() => setSelectedCompId("ALL")}
+              <Button
+                size="sm"
+                variant={selectedCompId === "ALL" ? "navy" : "secondary"}
+                className="shrink-0"
                 aria-pressed={selectedCompId === "ALL"}
-                className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                  selectedCompId === "ALL"
-                    ? "bg-sffl-navy text-white shadow-sm"
-                    : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                }`}
+                onClick={() => setSelectedCompId("ALL")}
               >
                 All Competitions
-              </button>
+              </Button>
               {competitions.map((comp) => (
-                <button
+                <Button
                   key={comp.id}
-                  type="button"
-                  onClick={() => setSelectedCompId(comp.id)}
+                  size="sm"
+                  variant={selectedCompId === comp.id ? "navy" : "secondary"}
+                  className="shrink-0"
                   aria-pressed={selectedCompId === comp.id}
-                  className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    selectedCompId === comp.id
-                      ? "bg-sffl-navy text-white shadow-sm"
-                      : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                  }`}
+                  onClick={() => setSelectedCompId(comp.id)}
                 >
                   {comp.name}
-                </button>
+                </Button>
               ))}
             </div>
           )}

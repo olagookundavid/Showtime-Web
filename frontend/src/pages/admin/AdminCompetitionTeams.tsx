@@ -14,7 +14,7 @@ import {
 import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { LightboxImage } from '../../components/ui';
+import { Button, LightboxImage, Select } from '../../components/ui';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 // Adding and removing a team both go through the confirm dialog first.
@@ -130,11 +130,11 @@ export const AdminCompetitionTeams = () => {
                     Add Team to Competition
                 </h2>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <select
+                    <Select
                         aria-label="Team to add"
                         value={selectedTeamId}
                         onChange={e => setSelectedTeamId(e.target.value)}
-                        className="flex-1 min-w-0 w-full min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
+                        className="flex-1"
                     >
                         <option value="">Select a team to add…</option>
                         {availableTeams.map(t => (
@@ -142,16 +142,15 @@ export const AdminCompetitionTeams = () => {
                                 {t.name} ({t.short_name})
                             </option>
                         ))}
-                    </select>
-                    <button
-                        type="button"
+                    </Select>
+                    <Button
+                        icon={PlusIcon}
                         onClick={() => selectedTeam && setPendingAction({ kind: 'add', team: selectedTeam })}
                         disabled={!selectedTeam || adding}
-                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-6 py-2.5 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:bg-red-700 disabled:opacity-50 transition-all whitespace-nowrap"
+                        className="w-full sm:w-auto whitespace-nowrap"
                     >
-                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
                         Add Team
-                    </button>
+                    </Button>
                 </div>
                 {availableTeams.length === 0 && (
                     <p className="text-xs text-gray-400 italic">All existing teams are already enrolled in this competition.</p>
@@ -191,14 +190,14 @@ export const AdminCompetitionTeams = () => {
                                         <div className="text-xs text-gray-400 font-semibold truncate">{team.short_name}</div>
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="danger"
                                     onClick={() => setPendingAction({ kind: 'remove', team })}
                                     disabled={removingId === team.id}
-                                    className="shrink-0 px-3 py-1.5 min-h-11 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 font-bold text-xs rounded-lg transition-colors disabled:opacity-50"
+                                    className="shrink-0"
                                 >
                                     Remove
-                                </button>
+                                </Button>
                             </div>
                         ))}
                     </div>

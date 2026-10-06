@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { CheckIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { Button } from '../ui';
 
 interface CopyableEmailProps {
     email: string;
@@ -21,26 +22,16 @@ export const CopyableEmail = ({ email, label, className = '' }: CopyableEmailPro
         <div className={`inline-flex flex-wrap items-center gap-x-2 gap-y-1 max-w-full min-w-0 ${className}`}>
             {label && <span className="inline-flex items-center font-bold shrink-0">{label}</span>}
             <span className="font-medium text-inherit min-w-0 break-all">{email}</span>
-            <button
-                type="button"
-                onClick={handleCopy}
-                className={`inline-flex items-center justify-center gap-1 min-h-11 min-w-11 px-2 rounded-md shrink-0 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red
-                    ${copied
-                        ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
-                        : 'text-sffl-red hover:bg-sffl-red/10'
-                    }
-                `}
+            <Button
+                size="sm"
+                variant={copied ? 'success' : 'link'}
+                className="shrink-0"
+                icon={copied ? CheckIcon : DocumentDuplicateIcon}
                 aria-label={copied ? 'Email copied' : 'Copy email'}
+                onClick={handleCopy}
             >
-                {copied ? (
-                    <>
-                        <CheckIcon className="w-4 h-4" aria-hidden="true" />
-                        <span className="text-xs font-bold">Copied</span>
-                    </>
-                ) : (
-                    <DocumentDuplicateIcon className="w-5 h-5" aria-hidden="true" />
-                )}
-            </button>
+                {copied ? 'Copied' : null}
+            </Button>
         </div>
     );
 };

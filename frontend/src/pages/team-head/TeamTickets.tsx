@@ -4,6 +4,7 @@ import { ExclamationTriangleIcon, PaperAirplaneIcon, TicketIcon } from '@heroico
 import { getTeamAllocations, issueTeamTicket, getPlayers, type Player, type TeamTicketAllocation } from '../../services/api';
 import toast from 'react-hot-toast';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { Button, Field, Input, Select } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Spinner } from '../../components/ui/Spinner';
@@ -130,12 +131,11 @@ const TeamTickets = () => {
                                         </div>
                                     ) : (
                                         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 sm:p-5 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
-                                            <label className="block">
-                                                <span className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Select Player</span>
-                                                <select
+                                            <Field label="Select Player" htmlFor={`player-select-${allocation.id}`}>
+                                                <Select
+                                                    id={`player-select-${allocation.id}`}
                                                     value={form?.playerId || ''}
                                                     onChange={e => handlePlayerSelect(allocation.id, e.target.value)}
-                                                    className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sffl-navy font-semibold text-sm cursor-pointer"
                                                 >
                                                     <option value="">Choose a player</option>
                                                     {players.map(p => (
@@ -143,37 +143,25 @@ const TeamTickets = () => {
                                                             {p.name} ({p.position || 'N/A'})
                                                         </option>
                                                     ))}
-                                                </select>
-                                            </label>
+                                                </Select>
+                                            </Field>
 
                                             {form?.playerId && (
                                                 <div className="grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <label className="block min-w-0">
-                                                        <span className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Recipient Name</span>
-                                                        <input
-                                                            type="text"
-                                                            value={form.name}
-                                                            readOnly
-                                                            className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed"
-                                                        />
-                                                    </label>
-                                                    <label className="block min-w-0">
-                                                        <span className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Recipient Email</span>
-                                                        <input
-                                                            type="email"
-                                                            value={form.email}
-                                                            readOnly
-                                                            className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed"
-                                                        />
-                                                    </label>
-                                                    <button
-                                                        type="button"
+                                                    <Field label="Recipient Name" htmlFor={`recipient-name-${allocation.id}`}>
+                                                        <Input id={`recipient-name-${allocation.id}`} type="text" value={form.name} readOnly />
+                                                    </Field>
+                                                    <Field label="Recipient Email" htmlFor={`recipient-email-${allocation.id}`}>
+                                                        <Input id={`recipient-email-${allocation.id}`} type="email" value={form.email} readOnly />
+                                                    </Field>
+                                                    <Button
+                                                        size="lg"
+                                                        icon={PaperAirplaneIcon}
+                                                        className="sm:col-span-2 lg:col-span-1"
                                                         onClick={() => askToIssue(allocation)}
-                                                        className="min-h-11 px-6 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg shadow transition-colors flex justify-center items-center gap-2 sm:col-span-2 lg:col-span-1"
                                                     >
-                                                        <PaperAirplaneIcon className="w-5 h-5" aria-hidden="true" />
                                                         Issue Ticket
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             )}
                                         </div>

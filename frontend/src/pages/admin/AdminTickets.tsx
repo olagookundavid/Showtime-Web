@@ -5,7 +5,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  ArrowPathIcon,
   BoltIcon,
   CheckBadgeIcon,
   CheckCircleIcon,
@@ -31,6 +30,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { formatMatchDate } from "../../utils/dateUtils";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { Button, IconButton, Input, Select } from "../../components/ui";
 
 type ApiError = {
   response?: {
@@ -468,9 +468,6 @@ export const AdminTickets = () => {
 
   const action = pendingAction ? ACTIONS[pendingAction.kind] : null;
 
-  const filterSelectClass =
-    "w-full sm:w-auto max-w-full px-3 py-2 min-h-11 border text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white";
-
   return (
     <div className="space-y-6">
       <DashboardPageHeader
@@ -487,74 +484,68 @@ export const AdminTickets = () => {
 
         {/* Search Mode Toggle */}
         <div className="flex flex-wrap gap-2 mb-3">
-          <button
+          <Button
+            variant={searchMode === "code" ? "primary" : "secondary"}
+            icon={HashtagIcon}
             onClick={() => {
               setSearchMode("code");
               setSearchQuery("");
               setSearchResults([]);
               setSearchError("");
             }}
-            className={`inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === "code" ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"}`}
           >
-            <HashtagIcon className="w-4 h-4" aria-hidden="true" />
             Search by Code
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={searchMode === "email" ? "primary" : "secondary"}
+            icon={EnvelopeIcon}
             onClick={() => {
               setSearchMode("email");
               setSearchQuery("");
               setSearchResults([]);
               setSearchError("");
             }}
-            className={`inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === "email" ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"}`}
           >
-            <EnvelopeIcon className="w-4 h-4" aria-hidden="true" />
             Search by Email
-          </button>
+          </Button>
         </div>
 
         {/* Search Input */}
         <div className="flex gap-3">
-          <div className="relative flex-1 min-w-0">
-            <input
-              type={searchMode === "email" ? "email" : "text"}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder={
-                searchMode === "code"
-                  ? "Enter ticket code (e.g. SFFL-A3K9X2)"
-                  : "Enter email address"
-              }
-              className={`w-full pl-3 pr-10 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none ${searchMode === "code" ? "uppercase" : ""}`}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults([]);
-                }}
-                className="absolute right-0 top-0 h-full min-w-11 px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-              >
-                <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <button
+          <Input
+            type={searchMode === "email" ? "email" : "text"}
+            aria-label={searchMode === "code" ? "Ticket code" : "Email address"}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            placeholder={
+              searchMode === "code"
+                ? "Enter ticket code (e.g. SFFL-A3K9X2)"
+                : "Enter email address"
+            }
+            className="flex-1 min-w-0"
+            action={
+              searchQuery ? (
+                <IconButton
+                  icon={XMarkIcon}
+                  label="Clear search"
+                  className="h-full"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSearchResults([]);
+                  }}
+                />
+              ) : undefined
+            }
+          />
+          <Button
             onClick={handleSearch}
-            disabled={searching || !searchQuery.trim()}
-            className="inline-flex items-center justify-center gap-1.5 bg-sffl-navy text-white text-xs px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+            disabled={!searchQuery.trim()}
+            loading={searching}
+            className="shrink-0"
           >
-            {searching && (
-              <ArrowPathIcon
-                className="w-4 h-4 animate-spin"
-                aria-hidden="true"
-              />
-            )}
             {searching ? "Searching" : "Search"}
-          </button>
+          </Button>
         </div>
 
         {searchError && (
@@ -598,14 +589,14 @@ export const AdminTickets = () => {
         emptyMessage="No tickets found"
         headerActions={
           <>
-            <select
+            <Select
               value={selectedEventDay}
               onChange={(e) => {
                 setFilterEventDay(e.target.value);
                 setPage(1);
               }}
               aria-label="Game day"
-              className={filterSelectClass}
+              className="w-full sm:w-72"
             >
               {isAdmin && <option value="">All game days</option>}
               {upcoming.length > 0 && (
@@ -626,22 +617,22 @@ export const AdminTickets = () => {
                   ))}
                 </optgroup>
               )}
-            </select>
-            <select
+            </Select>
+            <Select
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
                 setPage(1);
               }}
               aria-label="Ticket status"
-              className={filterSelectClass}
+              className="w-full sm:w-44"
             >
               <option value="">All Statuses</option>
               <option value="PENDING">Pending</option>
               <option value="PAID">Paid</option>
               <option value="USED">Used</option>
               <option value="FAILED">Failed</option>
-            </select>
+            </Select>
           </>
         }
       />

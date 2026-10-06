@@ -12,7 +12,6 @@ import {
   StarIcon,
   TrashIcon,
   TrophyIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
   getMatches,
@@ -32,6 +31,7 @@ import { Loader } from "../../components/ui/Loader";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
+import { Button, Field, Input, Modal, Select } from "../../components/ui";
 import { AdminTeamSheetModal } from "../../components/admin/AdminTeamSheetModal";
 import { AdminKnockoutBracket } from "../../components/admin/AdminKnockoutBracket";
 import { KNOCKOUT_STAGES } from "../../components/matches/BracketView";
@@ -719,25 +719,21 @@ export const AdminMatches = () => {
             icon: CheckCircleIcon,
           };
 
-  const inputClass =
-    "w-full min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2";
-
   return (
     <div className="space-y-6">
       <DashboardPageHeader
         title="Matches"
         subtitle="Schedule fixtures, enter scores and manage results for each competition."
         actions={
-          <button
-            type="button"
+          <Button
+            icon={PlusIcon}
             onClick={() => openCreate()}
             disabled={isCompleted || !canManage}
             title={canManage ? undefined : "View-only access to Matches"}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto whitespace-nowrap"
           >
-            <PlusIcon className="w-4 h-4" aria-hidden="true" />
             Add Match
-          </button>
+          </Button>
         }
       />
 
@@ -745,13 +741,13 @@ export const AdminMatches = () => {
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
         {!isKnockout && (
           <form onSubmit={handleSearchSubmit} className="w-full sm:w-auto">
-            <input
+            <Input
               type="text"
               aria-label="Search matches"
               placeholder="Search matches..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-64 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full sm:w-64"
             />
           </form>
         )}
@@ -760,18 +756,18 @@ export const AdminMatches = () => {
             Knockout Bracket
           </span>
         )}
-        <select
+        <Select
           aria-label="Competition"
           value={filterComp}
           onChange={(e) => handleFilterChange(e.target.value)}
-          className="w-full sm:w-auto max-w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          className="w-full sm:w-72"
         >
           {competitions.map((c) => (
-            <option key={c.id} value={c.id} className="truncate">
+            <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {isCompleted && (
@@ -855,25 +851,23 @@ export const AdminMatches = () => {
           {/* Pagination spans every date group, so it lives here rather than in the tables */}
           {totalPages > 1 && (
             <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 mt-6 pt-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Previous
-              </button>
+              </Button>
               <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                 Page {page} of {totalPages}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Next
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -881,42 +875,31 @@ export const AdminMatches = () => {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden"
-          data-dialog
-          onClick={() => setShowModal(false)}
+        <Modal
+          open
+          onClose={() => setShowModal(false)}
+          title={editingId ? "Edit Match" : "Add Match"}
+          maxWidth="2xl"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={requestSave} disabled={saving} loading={saving}>
+                {editingId ? "Update" : "Create"}
+              </Button>
+            </>
+          }
         >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-between gap-3">
-              <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                {editingId ? "Edit Match" : "Add Match"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Competition *
-                  </label>
-                  <select
+                <Field label="Competition *" htmlFor="match-competition">
+                  <Select
+                    id="match-competition"
                     value={form.competition_id}
                     onChange={(e) => set("competition_id", e.target.value)}
-                    className={`${inputClass} z-50 outline-none focus:ring-2 focus:ring-sffl-red`}
                   >
-                    <option value="" className="truncate">
-                      Select...
-                    </option>
+                    <option value="">Select...</option>
                     {(compsData?.data || [])
                       .filter(
                         (c) =>
@@ -924,71 +907,62 @@ export const AdminMatches = () => {
                           c.id === form.competition_id,
                       )
                       .map((c) => (
-                        <option key={c.id} value={c.id} className="truncate">
+                        <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
                       ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Status
-                  </label>
-                  <select
+                  </Select>
+                </Field>
+                <Field label="Status" htmlFor="match-status">
+                  <Select
+                    id="match-status"
                     value={form.status}
                     onChange={(e) => set("status", e.target.value)}
-                    className={`${inputClass} z-50`}
                   >
                     {["SCHEDULED", "LIVE", "FINISHED", "POSTPONED"].map((s) => (
-                      <option key={s} value={s} className="truncate">
+                      <option key={s} value={s}>
                         {s}
                       </option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    {formIsKnockout ? "Home Team" : "Home Team *"}
-                  </label>
-                  <select
+                <Field label={formIsKnockout ? "Home Team" : "Home Team *"} htmlFor="match-home-team">
+                  <Select
+                    id="match-home-team"
                     value={form.home_team_id}
                     onChange={(e) => set("home_team_id", e.target.value)}
-                    className={`${inputClass} z-50`}
                   >
-                    <option value="" className="truncate">
+                    <option value="">
                       {formIsKnockout ? "TBD — filled by bracket" : "Select..."}
                     </option>
                     {selectableTeams().map((t) => (
-                      <option key={t.id} value={t.id} className="truncate">
+                      <option key={t.id} value={t.id}>
                         {t.name.toUpperCase()}
                       </option>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    {formIsKnockout ? "Away Team" : "Away Team *"}
-                  </label>
-                  <select
+                  </Select>
+                </Field>
+                <Field label={formIsKnockout ? "Away Team" : "Away Team *"} htmlFor="match-away-team">
+                  <Select
+                    id="match-away-team"
                     value={form.away_team_id}
                     onChange={(e) => set("away_team_id", e.target.value)}
-                    className={`${inputClass} z-50`}
                   >
-                    <option value="" className="truncate">
+                    <option value="">
                       {formIsKnockout ? "TBD — filled by bracket" : "Select..."}
                     </option>
                     {formIsKnockout && (
                       <option value="BYE">BYE (PLAYOFF BYE)</option>
                     )}
                     {selectableTeams().map((t) => (
-                      <option key={t.id} value={t.id} className="truncate">
+                      <option key={t.id} value={t.id}>
                         {t.name.toUpperCase()}
                       </option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
               </div>
 
               {formIsKnockout && (
@@ -997,14 +971,11 @@ export const AdminMatches = () => {
                     Bracket Setup
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Stage *
-                      </label>
-                      <select
+                    <Field label="Stage *" htmlFor="match-stage">
+                      <Select
+                        id="match-stage"
                         value={form.round}
                         onChange={(e) => set("round", e.target.value)}
-                        className={inputClass}
                       >
                         <option value="">Select stage…</option>
                         {KNOCKOUT_STAGES.map((s) => (
@@ -1012,36 +983,28 @@ export const AdminMatches = () => {
                             {s.label}
                           </option>
                         ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Order in Stage
-                      </label>
-                      <input
+                      </Select>
+                    </Field>
+                    <Field label="Order in stage" htmlFor="match-bracket-pos">
+                      <Input
+                        id="match-bracket-pos"
                         type="number"
                         min="1"
                         value={form.bracket_pos}
                         onChange={(e) => set("bracket_pos", e.target.value)}
-                        className={inputClass}
                         placeholder="1 = top of the column"
                       />
-                    </div>
+                    </Field>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                      Second Leg Match (Optional)
-                    </label>
-                    <select
+                  <Field label="Second leg match (optional)" htmlFor="match-second-leg">
+                    <Select
+                      id="match-second-leg"
                       value={form.second_leg_match_id}
-                      onChange={(e) =>
-                        set("second_leg_match_id", e.target.value)
-                      }
-                      className={inputClass}
+                      onChange={(e) => set("second_leg_match_id", e.target.value)}
                     >
                       <option value="">None</option>
                       {bracketTargets.map((m) => (
-                        <option key={m.id} value={m.id} className="truncate">
+                        <option key={m.id} value={m.id}>
                           {(m.round ? `${m.round}: ` : "") +
                             (m.home_team?.short_name || "TBD") +
                             " vs " +
@@ -1049,31 +1012,22 @@ export const AdminMatches = () => {
                             ` (${m.date.substring(0, 10)})`}
                         </option>
                       ))}
-                    </select>
-                  </div>
+                    </Select>
+                  </Field>
                   <details className="text-sm">
                     <summary className="cursor-pointer py-3.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Auto-advance (optional — for live brackets)
                     </summary>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                          Winner Advances To
-                        </label>
-                        <select
+                      <Field label="Winner advances to" htmlFor="match-feeds-match">
+                        <Select
+                          id="match-feeds-match"
                           value={form.feeds_match_id}
-                          onChange={(e) =>
-                            set("feeds_match_id", e.target.value)
-                          }
-                          className={inputClass}
+                          onChange={(e) => set("feeds_match_id", e.target.value)}
                         >
                           <option value="">None</option>
                           {bracketTargets.map((m) => (
-                            <option
-                              key={m.id}
-                              value={m.id}
-                              className="truncate"
-                            >
+                            <option key={m.id} value={m.id}>
                               {(m.round ? `${m.round}: ` : "") +
                                 (m.home_team?.short_name || "TBD") +
                                 " vs " +
@@ -1081,27 +1035,22 @@ export const AdminMatches = () => {
                                 ` (${m.date.substring(0, 10)})`}
                             </option>
                           ))}
-                        </select>
-                      </div>
-                      <div
-                        className={
-                          form.feeds_match_id
-                            ? ""
-                            : "opacity-40 pointer-events-none"
-                        }
+                        </Select>
+                      </Field>
+                      <Field
+                        label="As"
+                        htmlFor="match-feeds-slot"
+                        className={form.feeds_match_id ? "" : "opacity-40 pointer-events-none"}
                       >
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                          As
-                        </label>
-                        <select
+                        <Select
+                          id="match-feeds-slot"
                           value={form.feeds_slot}
                           onChange={(e) => set("feeds_slot", e.target.value)}
-                          className={inputClass}
                         >
                           <option value="HOME">Home team</option>
                           <option value="AWAY">Away team</option>
-                        </select>
-                      </div>
+                        </Select>
+                      </Field>
                     </div>
                   </details>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -1113,40 +1062,31 @@ export const AdminMatches = () => {
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Date *
-                  </label>
-                  <input
+                <Field label="Date *" htmlFor="match-date">
+                  <Input
+                    id="match-date"
                     type="date"
                     value={form.date}
                     onChange={(e) => set("date", e.target.value)}
-                    className={inputClass}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Kick-off Time
-                  </label>
-                  <input
+                </Field>
+                <Field label="Kick-off time" htmlFor="match-time">
+                  <Input
+                    id="match-time"
                     type="time"
                     value={form.start_time}
                     onChange={(e) => set("start_time", e.target.value)}
-                    className={inputClass}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Venue
-                  </label>
-                  <input
+                </Field>
+                <Field label="Venue" htmlFor="match-venue">
+                  <Input
+                    id="match-venue"
                     type="text"
                     value={form.venue}
                     onChange={(e) => set("venue", e.target.value)}
-                    className={inputClass}
                     placeholder="e.g. SFFL Arena"
                   />
-                </div>
+                </Field>
               </div>
 
               {/* The routine edit. Moving a kickoff is safe but it
@@ -1166,30 +1106,24 @@ export const AdminMatches = () => {
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Home Score
-                  </label>
-                  <input
+                <Field label="Home score" htmlFor="match-home-score">
+                  <Input
+                    id="match-home-score"
                     type="number"
                     value={form.home_score}
                     onChange={(e) => set("home_score", e.target.value)}
-                    className={inputClass}
                     min="0"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Away Score
-                  </label>
-                  <input
+                </Field>
+                <Field label="Away score" htmlFor="match-away-score">
+                  <Input
+                    id="match-away-score"
                     type="number"
                     value={form.away_score}
                     onChange={(e) => set("away_score", e.target.value)}
-                    className={inputClass}
                     min="0"
                   />
-                </div>
+                </Field>
               </div>
 
               {/* Match MVP Selection / Override */}
@@ -1219,8 +1153,9 @@ export const AdminMatches = () => {
                       )}
                     </div>
                     {(form.mvp_overridden || form.mvp_player_id) && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="link"
+                        size="sm"
                         onClick={() =>
                           setForm((prev) => ({
                             ...prev,
@@ -1228,13 +1163,13 @@ export const AdminMatches = () => {
                             mvp_overridden: false,
                           }))
                         }
-                        className="min-h-11 px-2 text-xs text-sffl-red hover:underline font-bold"
                       >
                         Reset to Auto-Calculated
-                      </button>
+                      </Button>
                     )}
                   </div>
-                  <select
+                  <Select
+                    aria-label="Official match MVP"
                     value={form.mvp_player_id}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1244,7 +1179,6 @@ export const AdminMatches = () => {
                         mvp_overridden: val !== "",
                       }));
                     }}
-                    className={`${inputClass} text-sm`}
                   >
                     <option value="">
                       Auto-Calculated by Platform (Default)
@@ -1275,56 +1209,32 @@ export const AdminMatches = () => {
                           ))}
                         </optgroup>
                       )}
-                  </select>
+                  </Select>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
                     Leave as "Auto-Calculated" for the system to award MVP dynamically based on player stats and ratings, or select a player to enforce an official override that persists across play recalculations.
                   </p>
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Highlights URL
-                </label>
-                <input
+              <Field label="Highlights URL" htmlFor="match-highlights">
+                <Input
+                  id="match-highlights"
                   type="url"
                   value={form.highlights_url}
                   onChange={(e) => set("highlights_url", e.target.value)}
-                  className={inputClass}
                   placeholder="https://..."
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Ticket URL
-                </label>
-                <input
+              </Field>
+              <Field label="Ticket URL" htmlFor="match-ticket">
+                <Input
+                  id="match-ticket"
                   type="url"
                   value={form.ticket_url}
                   onChange={(e) => set("ticket_url", e.target.value)}
-                  className={inputClass}
                   placeholder="https://..."
                 />
-              </div>
+              </Field>
             </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={requestSave}
-                disabled={saving}
-                className="px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-              >
-                {editingId ? "Update" : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Rendered outside the form overlay: portal clicks bubble through the

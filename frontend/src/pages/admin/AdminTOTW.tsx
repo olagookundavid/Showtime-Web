@@ -30,6 +30,7 @@ import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { FemaleIcon } from "../../components/icons/FemaleIcon";
 import { MaleIcon } from "../../components/icons/MaleIcon";
 import { ImageUploadField } from "../../components/ui/ImageUploadField";
+import { Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea } from "../../components/ui";
 import { NewsContentEditor } from "../../components/admin/NewsContentEditor";
 import { getApiErrorMessage } from "../../utils/apiError";
 import {
@@ -462,8 +463,6 @@ const formatCreated = (iso: string) =>
   });
 
 const NO_PLAYERS: Player[] = [];
-const metaFieldClass =
-  "w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-sffl-red outline-none";
 
 export const AdminTOTW = () => {
   const queryClient = useQueryClient();
@@ -1432,13 +1431,9 @@ export const AdminTOTW = () => {
         subtitle="Manage Starting XIV selections (OFF 1–7 & DEF 1–7), ratings, and player honours."
         actions={
           !isEditing && (
-            <button
-              onClick={handleNewTOTW}
-              className="shrink-0 px-5 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black text-sm uppercase tracking-wider rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
-            >
-              <PlusIcon className="w-5 h-5 stroke-[2.5]" aria-hidden="true" />
-              <span>Create New Edition</span>
-            </button>
+            <Button icon={PlusIcon} onClick={handleNewTOTW} className="w-full sm:w-auto shrink-0">
+              Create New Edition
+            </Button>
           )
         }
       />
@@ -1462,10 +1457,11 @@ export const AdminTOTW = () => {
                 <span className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Competition
                 </span>
-                <select
+                <Select
+                  aria-label="Filter by competition"
                   value={selectedCompId}
                   onChange={(e) => setSelectedCompId(e.target.value)}
-                  className="w-full sm:w-auto min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-sffl-red outline-none"
+                  className="w-full sm:w-64"
                 >
                   <option value="">All Competitions</option>
                   {competitions.map((c) => (
@@ -1473,7 +1469,7 @@ export const AdminTOTW = () => {
                       {c.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
                 {totwList.length}{" "}
@@ -1488,13 +1484,9 @@ export const AdminTOTW = () => {
           {/* Top Action Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-gray-800 p-4 md:p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
             <div className="flex flex-wrap items-center gap-3 min-w-0">
-              <button
-                onClick={leaveEditor}
-                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"
-              >
-                <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+              <Button variant="secondary" icon={ArrowLeftIcon} onClick={leaveEditor} className="shrink-0">
                 Back to Editions
-              </button>
+              </Button>
               <div className="min-w-0">
                 <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white">
                   {editingTotwId
@@ -1509,22 +1501,16 @@ export const AdminTOTW = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={leaveEditor}
-                className="px-4 min-h-11 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-              >
+              <Button variant="secondary" onClick={leaveEditor}>
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 onClick={requestSave}
                 disabled={busy || !canManage}
                 title={canManage ? undefined : "View-only access to Team of the Week"}
-                className="px-6 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-colors cursor-pointer disabled:opacity-50"
               >
                 {editingTotwId ? "Save Changes" : "Create & Save"}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -1534,14 +1520,11 @@ export const AdminTOTW = () => {
               Edition Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                  Competition *
-                </label>
-                <select
+              <Field label="Competition *" htmlFor="totw-competition">
+                <Select
+                  id="totw-competition"
                   value={formCompId}
                   onChange={(e) => setFormCompId(e.target.value)}
-                  className={metaFieldClass}
                 >
                   <option value="">Select Competition</option>
                   {competitions.map((c) => (
@@ -1549,16 +1532,13 @@ export const AdminTOTW = () => {
                       {c.name}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                  Linked Event Day (For Stat Autofill)
-                </label>
-                <select
+                </Select>
+              </Field>
+              <Field label="Linked event day (for stat autofill)" htmlFor="totw-event-day">
+                <Select
+                  id="totw-event-day"
                   value={formEventDayId}
                   onChange={(e) => setFormEventDayId(e.target.value)}
-                  className={metaFieldClass}
                 >
                   <option value="">None / Custom</option>
                   {eventDays.map((ed) => (
@@ -1567,59 +1547,44 @@ export const AdminTOTW = () => {
                       {new Date(ed.date).toLocaleDateString()})
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                  Week Title *
-                </label>
-                <input
+                </Select>
+              </Field>
+              <Field label="Week title *" htmlFor="totw-week-title">
+                <Input
+                  id="totw-week-title"
                   type="text"
                   value={formWeekTitle}
                   onChange={(e) => setFormWeekTitle(e.target.value)}
                   placeholder="e.g. Week 4 or Divisional Finals"
-                  className={metaFieldClass}
                 />
-              </div>
+              </Field>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                  Banner Headline
-                </label>
-                <input
+              <Field label="Banner headline" htmlFor="totw-headline">
+                <Input
+                  id="totw-headline"
                   type="text"
                   value={formHeadline}
                   onChange={(e) => setFormHeadline(e.target.value)}
                   placeholder="TEAM OF THE WEEK"
-                  className={metaFieldClass}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                  Sub-headline / Description
-                </label>
-                <input
+              </Field>
+              <Field label="Sub-headline / description" htmlFor="totw-sub-headline">
+                <Input
+                  id="totw-sub-headline"
                   type="text"
                   value={formSubHeadline}
                   onChange={(e) => setFormSubHeadline(e.target.value)}
                   placeholder="Honoring top performers from Game Day 4"
-                  className={metaFieldClass}
                 />
-              </div>
+              </Field>
               <div className="flex flex-col justify-end">
-                <label className="inline-flex items-center gap-2 min-h-11 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formIsPublished}
-                    onChange={(e) => setFormIsPublished(e.target.checked)}
-                    className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
-                  />
-                  <span className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                    Publish immediately (Visible on Landing Page)
-                  </span>
-                </label>
+                <Checkbox
+                  label="Publish immediately (Visible on Landing Page)"
+                  checked={formIsPublished}
+                  onChange={(e) => setFormIsPublished(e.target.checked)}
+                />
               </div>
             </div>
           </div>
@@ -1630,39 +1595,27 @@ export const AdminTOTW = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-700">
               {/* View Switcher Tabs */}
               <div className="flex flex-wrap items-center bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
-                <button
-                  type="button"
+                <Button
+                  variant={pitchTab === "all" ? "navy" : "ghost"}
                   onClick={() => setPitchTab("all")}
-                  className={`px-3 min-h-11 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                    pitchTab === "all"
-                      ? "bg-sffl-navy text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900"
-                  }`}
+                  aria-pressed={pitchTab === "all"}
                 >
-                  Full Pitch (14)
-                </button>
-                <button
-                  type="button"
+                  Full pitch (14)
+                </Button>
+                <Button
+                  variant={pitchTab === "offence" ? "navy" : "ghost"}
                   onClick={() => setPitchTab("offence")}
-                  className={`px-3 min-h-11 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                    pitchTab === "offence"
-                      ? "bg-sffl-navy text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900"
-                  }`}
+                  aria-pressed={pitchTab === "offence"}
                 >
                   Offence ({filledOffenceCount}/7)
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant={pitchTab === "defence" ? "navy" : "ghost"}
                   onClick={() => setPitchTab("defence")}
-                  className={`px-3 min-h-11 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                    pitchTab === "defence"
-                      ? "bg-sffl-navy text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900"
-                  }`}
+                  aria-pressed={pitchTab === "defence"}
                 >
                   Defence ({filledDefenceCount}/7)
-                </button>
+                </Button>
               </div>
 
               {/* Batch Action Buttons & Female Quota Badges */}
@@ -1719,22 +1672,13 @@ export const AdminTOTW = () => {
                   {filledCount} / 14 Starters
                 </span>
                 {formEventDayId && (
-                  <button
-                    type="button"
-                    onClick={handleAutofillAll}
-                    className="px-3.5 min-h-11 bg-sffl-navy hover:bg-sffl-navy/90 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <SparklesIcon className="w-4 h-4 text-yellow-300" />
-                    <span>Autofill All Stats</span>
-                  </button>
+                  <Button variant="navy" icon={SparklesIcon} onClick={handleAutofillAll}>
+                    Autofill all stats
+                  </Button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setPendingAction({ kind: "clearLineup" })}
-                  className="px-3 min-h-11 text-xs font-bold text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                >
-                  Clear Lineup
-                </button>
+                <Button variant="danger" onClick={() => setPendingAction({ kind: "clearLineup" })}>
+                  Clear lineup
+                </Button>
               </div>
             </div>
 
@@ -2045,36 +1989,29 @@ export const AdminTOTW = () => {
 
                   {/* Slot Carousel / Navigation */}
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
+                    <IconButton
+                      variant="secondary"
+                      icon={ChevronLeftIcon}
+                      label="Previous slot"
                       onClick={() =>
                         setSelectedSlotIndex(
                           (selectedSlotIndex - 1 + slots.length) % slots.length,
                         )
                       }
-                      className="min-h-11 min-w-11 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
-                      aria-label="Previous slot"
-                    >
-                      <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
-                    </button>
+                    />
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 px-2">
                       {selectedSlotIndex + 1} of 14
                     </span>
-                    <button
-                      type="button"
+                    <IconButton
+                      variant="secondary"
+                      icon={ChevronRightIcon}
+                      label="Next slot"
                       onClick={() =>
                         setSelectedSlotIndex(
                           (selectedSlotIndex + 1) % slots.length,
                         )
                       }
-                      className="min-h-11 min-w-11 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
-                      aria-label="Next slot"
-                    >
-                      <ChevronRightIcon
-                        className="w-4 h-4"
-                        aria-hidden="true"
-                      />
-                    </button>
+                    />
                   </div>
                 </div>
 
@@ -2147,17 +2084,13 @@ export const AdminTOTW = () => {
                       {/* Action Buttons */}
                       <div className="flex flex-wrap items-center gap-2">
                         {/* Player of the Week Toggle */}
-                        <button
-                          type="button"
+                        <Button
+                          variant={activeSlot.is_player_of_the_week ? "warning" : "secondary"}
+                          icon={StarIcon}
                           disabled={potwDecidedByVote}
                           onClick={() =>
                             handleTogglePlayerOfTheWeek(selectedSlotIndex)
                           }
-                          className={`px-3 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                            activeSlot.is_player_of_the_week
-                              ? "bg-amber-400 hover:bg-amber-500 text-sffl-navy border border-amber-300 ring-2 ring-amber-400/50 shadow-amber-400/30"
-                              : "bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
-                          }`}
                           title={
                             potwDecidedByVote
                               ? "Decided by the fan vote — use the Player of the Week panel below to override"
@@ -2166,54 +2099,40 @@ export const AdminTOTW = () => {
                                 : "Designate as Player of the Week"
                           }
                         >
-                          <StarIcon className="w-4 h-4" aria-hidden="true" />
-                          <span>
-                            {activeSlot.is_player_of_the_week
-                              ? "Player of the Week"
-                              : "Make POTW"}
-                          </span>
-                        </button>
+                          {activeSlot.is_player_of_the_week
+                            ? "Player of the week"
+                            : "Make POTW"}
+                        </Button>
 
                         {formEventDayId && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAutofillSlot(selectedSlotIndex)
-                            }
-                            className="px-3 min-h-11 bg-sffl-navy hover:bg-sffl-navy/90 text-white text-xs font-bold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <SparklesIcon className="w-4 h-4 text-yellow-300" />
-                            <span>Autofill Stats</span>
-                          </button>
+                          <Button variant="navy" icon={SparklesIcon} onClick={() => handleAutofillSlot(selectedSlotIndex)}>
+                            Autofill stats
+                          </Button>
                         )}
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          icon={ArrowsRightLeftIcon}
                           onClick={() => handleOpenPicker(selectedSlotIndex)}
-                          className="px-3 min-h-11 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
                         >
-                          <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
-                          <span>Change Player</span>
-                        </button>
-                        <button
-                          type="button"
+                          Change player
+                        </Button>
+                        <Button
+                          variant="link"
                           onClick={() =>
                             handleClearSlotPlayer(selectedSlotIndex)
                           }
-                          className="px-3 min-h-11 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
                         >
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
                     {/* Match Rating & 3 Stats Row */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                       {/* Rating */}
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
-                          Match Rating
-                        </label>
-                        <input
+                      <Field label="Match rating" htmlFor="slot-rating">
+                        <Input
+                          id="slot-rating"
                           type="number"
                           step="0.1"
                           min="5"
@@ -2226,114 +2145,55 @@ export const AdminTOTW = () => {
                               parseFloat(e.target.value) || 0,
                             )
                           }
-                          className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-11 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
+                          className="text-center font-black"
                         />
-                      </div>
+                      </Field>
 
-                      {/* Stat 1 */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 truncate">
-                          Stat 1: {activeSlot.stat1_label || "Value"}
-                        </label>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            value={activeSlot.stat1_label || ""}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                selectedSlotIndex,
-                                "stat1_label",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Label"
-                            className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 min-h-11 min-w-0 text-xs font-bold"
-                          />
-                          <input
-                            type="text"
-                            value={activeSlot.stat1_value || ""}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                selectedSlotIndex,
-                                "stat1_value",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="0"
-                            className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-2 py-2 min-h-11 min-w-0 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Stat 2 */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 truncate">
-                          Stat 2: {activeSlot.stat2_label || "Value"}
-                        </label>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            value={activeSlot.stat2_label || ""}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                selectedSlotIndex,
-                                "stat2_label",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Label"
-                            className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 min-h-11 min-w-0 text-xs font-bold"
-                          />
-                          <input
-                            type="text"
-                            value={activeSlot.stat2_value || ""}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                selectedSlotIndex,
-                                "stat2_value",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="0"
-                            className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-2 py-2 min-h-11 min-w-0 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Stat 3 */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 truncate">
-                          Stat 3: {activeSlot.stat3_label || "Value"}
-                        </label>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            value={activeSlot.stat3_label || ""}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                selectedSlotIndex,
-                                "stat3_label",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Label"
-                            className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 min-h-11 min-w-0 text-xs font-bold"
-                          />
-                          <input
-                            type="text"
-                            value={activeSlot.stat3_value || ""}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                selectedSlotIndex,
-                                "stat3_value",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="0"
-                            className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-2 py-2 min-h-11 min-w-0 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
-                          />
-                        </div>
-                      </div>
+                      {/* Stats 1-3: a label box and a value box per stat */}
+                      {(
+                        [
+                          { n: 1, label: activeSlot.stat1_label, value: activeSlot.stat1_value },
+                          { n: 2, label: activeSlot.stat2_label, value: activeSlot.stat2_value },
+                          { n: 3, label: activeSlot.stat3_label, value: activeSlot.stat3_value },
+                        ] as const
+                      ).map((stat) => (
+                        <Field
+                          key={stat.n}
+                          label={`Stat ${stat.n}: ${stat.label || "Value"}`}
+                          htmlFor={`slot-stat${stat.n}-value`}
+                        >
+                          <div className="flex gap-1.5">
+                            <Input
+                              aria-label={`Stat ${stat.n} name`}
+                              type="text"
+                              value={stat.label || ""}
+                              onChange={(e) =>
+                                handleSlotChange(
+                                  selectedSlotIndex,
+                                  `stat${stat.n}_label` as "stat1_label" | "stat2_label" | "stat3_label",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Label"
+                              className="w-1/2"
+                            />
+                            <Input
+                              id={`slot-stat${stat.n}-value`}
+                              type="text"
+                              value={stat.value || ""}
+                              onChange={(e) =>
+                                handleSlotChange(
+                                  selectedSlotIndex,
+                                  `stat${stat.n}_value` as "stat1_value" | "stat2_value" | "stat3_value",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="0"
+                              className="w-1/2 text-center font-black"
+                            />
+                          </div>
+                        </Field>
+                      ))}
                     </div>
                   </div>
                 ) : (
@@ -2349,14 +2209,13 @@ export const AdminTOTW = () => {
                         Starting XIV spot.
                       </p>
                     </div>
-                    <button
-                      type="button"
+                    <Button
+                      icon={UserPlusIcon}
                       onClick={() => handleOpenPicker(selectedSlotIndex)}
-                      className="px-5 py-2.5 bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer shrink-0 min-h-11"
+                      className="shrink-0"
                     >
-                      <UserPlusIcon className="w-4 h-4" />
-                      <span>Assign Player to {activeSlot.slot_code}</span>
-                    </button>
+                      Assign player to {activeSlot.slot_code}
+                    </Button>
                   </div>
                 )}
               </div>
@@ -2415,80 +2274,65 @@ export const AdminTOTW = () => {
             {isStoryExpanded && (
               <div className="p-4 md:p-6 border-t border-gray-200 dark:border-gray-700 space-y-5 bg-gray-50/40 dark:bg-gray-800/50">
                 {/* Title */}
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
-                    Headline Title
-                  </label>
-                  <input
+                <Field label="Headline title" htmlFor="story-title">
+                  <Input
+                    id="story-title"
                     type="text"
                     value={storyTitle}
                     onChange={(e) => setStoryTitle(e.target.value)}
                     placeholder="e.g. Week 4: Offensive Masterclasses & Defensive Dominance"
-                    className={metaFieldClass}
                   />
-                </div>
+                </Field>
 
                 {/* Excerpt */}
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
-                    Lead Summary / Excerpt
-                  </label>
-                  <textarea
+                <Field label="Lead summary / excerpt" htmlFor="story-excerpt">
+                  <Textarea
+                    id="story-excerpt"
                     rows={2}
                     value={storyExcerpt}
                     onChange={(e) => setStoryExcerpt(e.target.value)}
                     placeholder="A high-impact lead excerpt highlighting key game storylines..."
-                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-sffl-red outline-none"
                   />
-                </div>
+                </Field>
 
                 {/* Author */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
-                      Byline / Author
-                    </label>
-                    <input
+                  <Field label="Byline / author" htmlFor="story-author">
+                    <Input
+                      id="story-author"
                       type="text"
                       value={storyAuthor}
                       onChange={(e) => setStoryAuthor(e.target.value)}
                       placeholder="Showtime Editorial"
-                      className={metaFieldClass}
                     />
-                  </div>
+                  </Field>
                 </div>
 
                 {/* Featured Cover Media */}
                 <div className="space-y-3 bg-white dark:bg-gray-700/40 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Featured Cover Media (Optional)
-                    </label>
-                    <div className="inline-flex rounded-lg bg-gray-200 dark:bg-gray-600 p-0.5">
-                      <button
-                        type="button"
+                    </span>
+                    <div className="inline-flex gap-1.5">
+                      <Button
+                        size="sm"
+                        variant={storyMediaType === "image" ? "navy" : "secondary"}
+                        icon={PhotoIcon}
                         onClick={() => setStoryMediaType("image")}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md transition ${
-                          storyMediaType === "image"
-                            ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
-                            : "text-gray-600 dark:text-gray-300"
-                        }`}
+                        aria-pressed={storyMediaType === "image"}
                       >
-                        <PhotoIcon className="w-3.5 h-3.5" />
-                        <span>Image</span>
-                      </button>
-                      <button
-                        type="button"
+                        Image
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={storyMediaType === "youtube" ? "navy" : "secondary"}
+                        icon={PlayCircleIcon}
                         onClick={() => setStoryMediaType("youtube")}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md transition ${
-                          storyMediaType === "youtube"
-                            ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
-                            : "text-gray-600 dark:text-gray-300"
-                        }`}
+                        aria-pressed={storyMediaType === "youtube"}
                       >
-                        <PlayCircleIcon className="w-3.5 h-3.5" />
-                        <span>YouTube</span>
-                      </button>
+                        YouTube
+                      </Button>
                     </div>
                   </div>
 
@@ -2502,12 +2346,12 @@ export const AdminTOTW = () => {
                     />
                   ) : (
                     <div>
-                      <input
+                      <Input
                         type="url"
+                        aria-label="YouTube video link"
                         value={storyYoutubeUrl}
                         onChange={(e) => setStoryYoutubeUrl(e.target.value)}
                         placeholder="https://www.youtube.com/watch?v=..."
-                        className={metaFieldClass}
                       />
                       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                         Paste YouTube video link for matchday highlights or breakdown.
@@ -2518,9 +2362,9 @@ export const AdminTOTW = () => {
 
                 {/* Story Content Editor */}
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                  <span className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
                     Story Content (Tagged Markdown)
-                  </label>
+                  </span>
                   <NewsContentEditor
                     value={storyContent}
                     onChange={setStoryContent}
@@ -2533,74 +2377,40 @@ export const AdminTOTW = () => {
 
           {/* Bottom Save Action Bar */}
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={leaveEditor}
-              className="px-5 min-h-11 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-            >
+            <Button variant="secondary" onClick={leaveEditor}>
               Cancel
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               onClick={requestSave}
               disabled={busy || !canManage}
               title={canManage ? undefined : "View-only access to Team of the Week"}
-              className="px-6 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-colors cursor-pointer disabled:opacity-50"
             >
               {editingTotwId ? "Save Changes" : "Create & Save"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* ── PLAYER PICKER MODAL (NO RESTRICTIONS) ────────────────────── */}
       {pickingSlotIndex !== null && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fade-in"
-          data-dialog
-          onClick={() => setPickingSlotIndex(null)}
+        <Modal
+          open
+          onClose={() => setPickingSlotIndex(null)}
+          title={`Assign Player: ${slots[pickingSlotIndex]?.slot_code} (${slots[pickingSlotIndex]?.unit})`}
+          subtitle="Select any player from the roster at admin discretion"
+          maxWidth="xl"
         >
-          <div
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] my-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 shrink-0">
-              <div className="min-w-0">
-                <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                  Assign Player: {slots[pickingSlotIndex]?.slot_code} (
-                  {slots[pickingSlotIndex]?.unit})
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Select any player from the roster at admin discretion
-                </p>
-              </div>
-              <button
-                onClick={() => setPickingSlotIndex(null)}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-
             {/* Search & Optional Filters */}
             <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-3 shrink-0">
-              <div className="relative">
-                <MagnifyingGlassIcon
-                  className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  aria-hidden="true"
-                />
-                <input
-                  type="text"
-                  placeholder="Search by player name or jersey #"
-                  aria-label="Search players"
-                  value={playerSearchQuery}
-                  onChange={(e) => setPlayerSearchQuery(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl pl-10 pr-4 py-2 min-h-11 text-sm font-bold focus:ring-2 focus:ring-sffl-red outline-none"
-                  autoFocus
-                />
-              </div>
+              <Input
+                type="text"
+                placeholder="Search by player name or jersey #"
+                aria-label="Search players"
+                icon={MagnifyingGlassIcon}
+                value={playerSearchQuery}
+                onChange={(e) => setPlayerSearchQuery(e.target.value)}
+                autoFocus
+              />
 
               {/* Position Chips for convenience */}
               <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-1 text-xs font-black">
@@ -2614,21 +2424,18 @@ export const AdminTOTW = () => {
                   { key: "DEF", label: "Defenders" },
                   { key: "S", label: "Safeties" },
                 ].map((tab) => (
-                  <button
+                  <Button
                     key={tab.key}
-                    type="button"
+                    variant={positionFilter === tab.key ? "primary" : "secondary"}
+                    size="sm"
                     onClick={() => setPositionFilter(tab.key)}
-                    className={`shrink-0 inline-flex items-center gap-1 px-3 min-h-11 rounded-lg transition-all cursor-pointer ${
-                      positionFilter === tab.key
-                        ? "bg-sffl-red text-white shadow-sm"
-                        : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600"
-                    }`}
+                    className="shrink-0"
                   >
                     {tab.key === "FEMALE" && (
                       <FemaleIcon className="w-3.5 h-3.5" aria-hidden="true" />
                     )}
                     {tab.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -2734,8 +2541,7 @@ export const AdminTOTW = () => {
                 })
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       <ConfirmDialog

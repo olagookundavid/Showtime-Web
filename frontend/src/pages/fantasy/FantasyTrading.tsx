@@ -22,6 +22,7 @@ import {
     type SquadPlayer,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { Button, Input, Modal } from '../../components/ui';
 import { useDebounced } from '../../hooks/useDebounced';
 
 const num = (v: number | null | undefined): number =>
@@ -205,17 +206,13 @@ export function FantasyTrading() {
             {/* Tabs */}
             <div className="flex gap-2">
                 {(['squad', 'market'] as const).map((t) => (
-                    <button
+                    <Button
                         key={t}
+                        variant={tab === t ? 'navy' : 'secondary'}
                         onClick={() => setTab(t)}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                            tab === t
-                                ? 'bg-sffl-navy text-white shadow-sm'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
                     >
                         {t === 'squad' ? `My Squad (${squad.squad_size})` : 'Buy Players'}
-                    </button>
+                    </Button>
                 ))}
             </div>
 
@@ -369,15 +366,13 @@ function PlayerMarket({
     return (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
-                <div className="relative">
-                    <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        placeholder="Search every player in the season..."
-                        className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red"
-                    />
-                </div>
+                <Input
+                    aria-label="Search players"
+                    icon={MagnifyingGlassIcon}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Search every player in the season..."
+                />
 
                 <div className="flex flex-wrap gap-1.5">
                     {POSITIONS.map((p) => (
@@ -455,17 +450,9 @@ function FilterChip({
     children: React.ReactNode;
 }) {
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
-                active
-                    ? 'bg-sffl-navy text-white shadow-sm'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
-        >
+        <Button size="sm" variant={active ? 'navy' : 'secondary'} onClick={onClick}>
             {children}
-        </button>
+        </Button>
     );
 }
 
@@ -561,17 +548,20 @@ function MarketRow({
                     {sc(player.price)}
                 </span>
                 {owned ? (
-                    <button
-                        onClick={() => onSell(owned)}
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        className="mt-1"
                         disabled={!!marketClosed}
                         title={marketClosed}
-                        className="mt-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-red-600 hover:text-white text-gray-700 dark:text-gray-200 font-black text-[10px] uppercase transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        onClick={() => onSell(owned)}
                     >
                         Sell
-                    </button>
+                    </Button>
                 ) : (
-                    <button
-                        onClick={onBuy}
+                    <Button
+                        size="sm"
+                        className="mt-1"
                         disabled={!affordable || squadFull || busy || !!marketClosed}
                         title={
                             marketClosed ? marketClosed
@@ -579,10 +569,10 @@ function MarketRow({
                                 : !affordable ? 'Not enough in the bank'
                                 : undefined
                         }
-                        className="mt-1 px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white font-black text-[10px] uppercase transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        onClick={onBuy}
                     >
                         Buy
-                    </button>
+                    </Button>
                 )}
             </div>
         </div>
@@ -737,14 +727,17 @@ function SquadSection({
                                     </p>
                                 )}
                             </div>
-                            <button
-                                onClick={() => onSell(p)}
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="shrink-0"
+                                icon={MinusIcon}
                                 disabled={!!marketClosed}
                                 title={marketClosed}
-                                className="shrink-0 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-600 hover:text-white text-gray-700 dark:text-gray-200 font-black text-[11px] uppercase flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 dark:disabled:hover:bg-gray-700 dark:disabled:hover:text-gray-200 disabled:hover:text-gray-700 cursor-pointer"
+                                onClick={() => onSell(p)}
                             >
-                                <MinusIcon className="w-3.5 h-3.5" /> Sell {sc(p.sell_price)}
-                            </button>
+                                Sell {sc(p.sell_price)}
+                            </Button>
                         </div>
                     ))}
                 </div>
@@ -782,11 +775,23 @@ function SellConfirmation({
     const after = have - 1;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] overflow-y-auto">
-                <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">
-                    Sell {player.name}?
-                </h3>
+        <Modal
+            open
+            onClose={onCancel}
+            title={`Sell ${player.name}?`}
+            maxWidth="md"
+            footer={
+                <>
+                    <Button variant="secondary" size="lg" className="flex-1" disabled={pending} onClick={onCancel}>
+                        Keep {player.name.split(' ')[0]}
+                    </Button>
+                    <Button size="lg" className="flex-1" icon={BanknotesIcon} loading={pending} onClick={onConfirm}>
+                        {pending ? 'Selling…' : `Sell for ${sc(player.sell_price)}`}
+                    </Button>
+                </>
+            }
+        >
+            <div>
                 <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     You'll get <span className="font-black text-emerald-600 dark:text-emerald-400">{sc(player.sell_price)}</span>{' '}
                     back in your bank, and they leave your squad straight away — including any lineup they're
@@ -846,26 +851,7 @@ function SellConfirmation({
                     </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-5">
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        disabled={pending}
-                        className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer"
-                    >
-                        Keep {player.name.split(' ')[0]}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onConfirm}
-                        disabled={pending}
-                        className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                        <BanknotesIcon className="w-4 h-4" />
-                        {pending ? 'Selling…' : `Sell for ${sc(player.sell_price)}`}
-                    </button>
-                </div>
             </div>
-        </div>
+        </Modal>
     );
 }

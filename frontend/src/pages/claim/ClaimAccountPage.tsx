@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowPathIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon } from '@heroicons/react/24/outline';
+import { Button, Field, Input, Select } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { claimApi, type ClaimablePlayerData, type VerifyClaimCodeData } from '../../services/api';
@@ -26,8 +27,6 @@ const NOT_LISTED = '__NOT_LISTED__';
 // not something a self-service claimant should pick).
 const CLAIM_POSITIONS = ['QB', 'Receiver', 'Center', 'Defender', 'Rusher', 'Allrounder'];
 
-const fieldClass = 'w-full min-h-11 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white';
-const smallFieldClass = 'w-full min-h-11 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm';
 
 export const ClaimAccountPage: React.FC = () => {
     const [step, setStep] = useState<Step>('code');
@@ -171,30 +170,25 @@ export const ClaimAccountPage: React.FC = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                     {step === 'code' && (
                         <form onSubmit={handleVerifyCode} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Team code
-                                </label>
-                                <input
+                            <Field label="Team code" htmlFor="claim-team-code" hint="Do not have a code? Ask your team manager for it.">
+                                <Input
+                                    id="claim-team-code"
                                     type="text"
                                     value={code}
                                     onChange={e => setCode(e.target.value.toUpperCase())}
                                     placeholder="e.g. A7KD92QP"
                                     autoComplete="off"
-                                    className={`${fieldClass} font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-sffl-red`}
                                 />
-                                <p className="mt-2 text-xs text-gray-400">
-                                    Do not have a code? Ask your team manager for it.
-                                </p>
-                            </div>
-                            <button
+                            </Field>
+                            <Button
                                 type="submit"
-                                disabled={submitting || !code.trim()}
-                                className="w-full inline-flex items-center justify-center gap-2 py-3 min-h-11 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
+                                size="lg"
+                                fullWidth
+                                loading={submitting}
+                                disabled={!code.trim()}
                             >
-                                {submitting && <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />}
                                 {submitting ? 'Checking' : 'Continue'}
-                            </button>
+                            </Button>
                         </form>
                     )}
 
@@ -213,24 +207,23 @@ export const ClaimAccountPage: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Find your name
-                                </label>
-                                <select
-                                    value={selectedPlayerId}
-                                    onChange={e => setSelectedPlayerId(e.target.value)}
-                                    className={`${fieldClass} focus:outline-none focus:ring-2 focus:ring-sffl-red`}
-                                >
-                                    <option value="">Select your name…</option>
-                                    {team.players.map(p => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.name}
-                                            {p.jersey_number ? ` — #${p.jersey_number}` : ''}
-                                            {p.position ? ` (${p.position})` : ''}
-                                        </option>
-                                    ))}
-                                    <option value={NOT_LISTED}>My name is not listed</option>
-                                </select>
+                                <Field label="Find your name" htmlFor="claim-player">
+                                    <Select
+                                        id="claim-player"
+                                        value={selectedPlayerId}
+                                        onChange={e => setSelectedPlayerId(e.target.value)}
+                                    >
+                                        <option value="">Select your name…</option>
+                                        {team.players.map(p => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.name}
+                                                {p.jersey_number ? ` — #${p.jersey_number}` : ''}
+                                                {p.position ? ` (${p.position})` : ''}
+                                            </option>
+                                        ))}
+                                        <option value={NOT_LISTED}>My name is not listed</option>
+                                    </Select>
+                                </Field>
                                 {team.players.length === 0 && (
                                     <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                                         Every player on this team has already been claimed. If you should be on
@@ -246,63 +239,46 @@ export const ClaimAccountPage: React.FC = () => {
                                         your team manager — your manager is asked to confirm they know you, then the
                                         league office adds you. It usually takes a little longer than a normal claim.
                                     </p>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                            Full name
-                                        </label>
-                                        <input
+                                    <Field label="Full name" htmlFor="claim-full-name">
+                                        <Input
+                                            id="claim-full-name"
                                             type="text"
                                             value={fullName}
                                             onChange={e => setFullName(e.target.value)}
-                                            className={smallFieldClass}
                                         />
-                                    </div>
+                                    </Field>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                                Jersey number
-                                            </label>
-                                            <input
+                                        <Field label="Jersey number" htmlFor="claim-jersey">
+                                            <Input
+                                                id="claim-jersey"
                                                 type="number"
                                                 value={jerseyNumber}
                                                 onChange={e => setJerseyNumber(e.target.value)}
-                                                className={smallFieldClass}
                                             />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                                Position
-                                            </label>
-                                            <select
+                                        </Field>
+                                        <Field label="Position" htmlFor="claim-position">
+                                            <Select
+                                                id="claim-position"
                                                 value={position}
                                                 onChange={e => setPosition(e.target.value)}
-                                                className={smallFieldClass}
                                             >
                                                 <option value="">Select position…</option>
                                                 {CLAIM_POSITIONS.map(pos => (
                                                     <option key={pos} value={pos}>{pos}</option>
                                                 ))}
-                                            </select>
-                                        </div>
+                                            </Select>
+                                        </Field>
                                     </div>
                                 </div>
                             )}
 
                             <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setStep('code')}
-                                    className="px-4 py-3 min-h-11 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                                >
+                                <Button variant="ghost" size="lg" onClick={() => setStep('code')}>
                                     Back
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleContinueFromPlayer}
-                                    className="flex-1 py-3 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
-                                >
+                                </Button>
+                                <Button size="lg" className="flex-1" onClick={handleContinueFromPlayer}>
                                     Continue
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -317,82 +293,56 @@ export const ClaimAccountPage: React.FC = () => {
                                 {team && <span className="text-gray-500 dark:text-gray-400"> · {team.team_name}</span>}
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Email address
-                                </label>
-                                <input
+                            <Field label="Email address" htmlFor="claim-email">
+                                <Input
+                                    id="claim-email"
                                     type="email"
                                     required
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     autoComplete="email"
-                                    className={fieldClass}
                                 />
-                            </div>
+                            </Field>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Phone number
-                                </label>
-                                <input
+                            <Field label="Phone number" htmlFor="claim-phone" hint="Helps your manager recognise you.">
+                                <Input
+                                    id="claim-phone"
                                     type="tel"
                                     value={phone}
                                     onChange={e => setPhone(e.target.value)}
                                     autoComplete="tel"
-                                    className={fieldClass}
                                 />
-                                <p className="mt-1 text-xs text-gray-400">
-                                    Helps your manager recognise you.
-                                </p>
-                            </div>
+                            </Field>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Password
-                                </label>
-                                <input
+                            <Field label="Password" htmlFor="claim-password" hint="At least 8 characters, with a number and a symbol.">
+                                <Input
+                                    id="claim-password"
                                     type="password"
                                     required
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     autoComplete="new-password"
-                                    className={fieldClass}
                                 />
-                                <p className="mt-1 text-xs text-gray-400">
-                                    At least 8 characters, with a number and a symbol.
-                                </p>
-                            </div>
+                            </Field>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Confirm password
-                                </label>
-                                <input
+                            <Field label="Confirm password" htmlFor="claim-confirm-password">
+                                <Input
+                                    id="claim-confirm-password"
                                     type="password"
                                     required
                                     value={confirmPassword}
                                     onChange={e => setConfirmPassword(e.target.value)}
                                     autoComplete="new-password"
-                                    className={fieldClass}
                                 />
-                            </div>
+                            </Field>
 
                             <div className="flex gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setStep('player')}
-                                    className="px-4 py-3 min-h-11 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                                >
+                                <Button variant="ghost" size="lg" onClick={() => setStep('player')}>
                                     Back
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="flex-1 py-3 min-h-11 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
-                                >
+                                </Button>
+                                <Button type="submit" size="lg" className="flex-1" loading={submitting}>
                                     Claim my account
-                                </button>
+                                </Button>
                             </div>
                         </form>
                     )}

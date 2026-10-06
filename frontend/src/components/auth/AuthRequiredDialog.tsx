@@ -1,7 +1,6 @@
 import React from "react";
-import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
-import { LockClosedIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { LockClosedIcon } from "@heroicons/react/24/outline";
+import { Button, ButtonLink, Modal } from "../ui";
 
 interface AuthRequiredDialogProps {
   open: boolean;
@@ -33,73 +32,45 @@ export const AuthRequiredDialog: React.FC<AuthRequiredDialogProps> = ({
   actionText = "use this feature",
   title = "Sign In Required",
   closeLabel = "Go Back",
-}) => {
-  if (!open) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-in fade-in duration-200"
-      data-dialog
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] overflow-y-auto overscroll-contain p-6 border border-gray-200 dark:border-gray-700 relative my-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {onClose && (
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        )}
-
-        <div className="flex flex-col items-center text-center space-y-4 pt-2">
-          <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 text-sffl-red flex items-center justify-center ring-8 ring-sffl-red/5">
-            <LockClosedIcon className="w-8 h-8" />
-          </div>
-
-          <div>
-            <h3 className="text-xl font-black text-sffl-navy dark:text-white">
-              {title}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              You need to be logged in to {actionText}.
-            </p>
-          </div>
-
-          <div className="w-full space-y-2 pt-2">
-            <Link
-              to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
-              state={{ returnUrl }}
-              className="w-full block text-center bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-transform active:scale-95 text-sm cursor-pointer"
-            >
-              Go to Login
-            </Link>
-            <Link
-              to={`/signup?returnUrl=${encodeURIComponent(returnUrl)}`}
-              state={{ returnUrl }}
-              className="w-full block text-center bg-sffl-navy hover:bg-sffl-navy/90 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl text-sm transition-colors cursor-pointer"
-            >
-              Create an Account
-            </Link>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="w-full bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 px-6 rounded-xl text-sm transition-colors cursor-pointer"
-              >
-                {closeLabel}
-              </button>
-            )}
-          </div>
-          <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
-            We'll bring you straight back here when you're done.
-          </p>
-        </div>
+}) => (
+  <Modal open={open} onClose={onClose} title={title} maxWidth="md">
+    <div className="flex flex-col items-center text-center space-y-4">
+      <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 text-sffl-red flex items-center justify-center ring-8 ring-sffl-red/5">
+        <LockClosedIcon className="w-8 h-8" aria-hidden="true" />
       </div>
-    </div>,
-    document.body,
-  );
-};
+
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        You need to be logged in to {actionText}.
+      </p>
+
+      <div className="w-full space-y-2 pt-2">
+        <ButtonLink
+          to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
+          state={{ returnUrl }}
+          variant="primary"
+          size="lg"
+          fullWidth
+        >
+          Go to Login
+        </ButtonLink>
+        <ButtonLink
+          to={`/signup?returnUrl=${encodeURIComponent(returnUrl)}`}
+          state={{ returnUrl }}
+          variant="navy"
+          size="lg"
+          fullWidth
+        >
+          Create an Account
+        </ButtonLink>
+        {onClose && (
+          <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
+            {closeLabel}
+          </Button>
+        )}
+      </div>
+      <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
+        We'll bring you straight back here when you're done.
+      </p>
+    </div>
+  </Modal>
+);

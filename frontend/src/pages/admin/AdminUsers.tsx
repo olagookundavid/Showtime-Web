@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { PencilSquareIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, Field, Input, Modal, Select } from '../../components/ui';
 import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
@@ -127,13 +128,13 @@ const AdminUsers = () => {
             sortValue: (u) => u.role,
             className: 'px-6 py-4',
             cell: (u) => (
-                <select
+                <Select
                     value={u.role}
                     onChange={(e) => {
                         if (e.target.value !== u.role) setPendingAction({ kind: 'role', user: u, role: e.target.value });
                     }}
                     aria-label={`Role for ${u.fullname || u.email}`}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sffl-red focus:border-sffl-red px-3 py-2 min-h-11 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors cursor-pointer min-w-30"
+                    className="min-w-30"
                 >
                     <option value="user">User</option>
                     {/* Player roles are display-only. They're granted solely by approving a
@@ -155,7 +156,7 @@ const AdminUsers = () => {
                     <option value="store_manager">Store Manager</option>
                     <option value="app_admin">App Admin</option>
                     <option value="admin">Admin</option>
-                </select>
+                </Select>
             ),
         },
         {
@@ -220,16 +221,16 @@ const AdminUsers = () => {
                 title="Users"
                 subtitle="Search users and manage roles & info."
                 actions={
-                    <>
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                         <label htmlFor="roleFilterSelect" className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Filter Role:</label>
-                        <select
+                        <Select
                             id="roleFilterSelect"
                             value={roleFilter}
                             onChange={(e) => {
                                 setRoleFilter(e.target.value);
                                 setPage(1);
                             }}
-                            className="border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red min-h-11"
+                            className="sm:w-56"
                         >
                             <option value="">All Roles</option>
                             <option value="admin">Admin</option>
@@ -247,8 +248,8 @@ const AdminUsers = () => {
                             <option value="content_creator">Content Creator</option>
                             <option value="store_manager">Store Manager</option>
                             <option value="user">User</option>
-                        </select>
-                    </>
+                        </Select>
+                    </div>
                 }
             />
 
@@ -278,63 +279,42 @@ const AdminUsers = () => {
 
             {/* Edit User Modal */}
             {editingUser && (
-                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setEditingUser(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">Edit User</h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 wrap-break-word">{editingUser.email}</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setEditingUser(null)}
-                                aria-label="Close"
-                                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Full Name *</label>
-                                <input
-                                    type="text"
-                                    value={editForm.fullname}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, fullname: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 min-h-11 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors text-sm font-semibold"
-                                    placeholder="Full Name"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Phone</label>
-                                <input
-                                    type="tel"
-                                    value={editForm.phone}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 min-h-11 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors text-sm font-semibold"
-                                    placeholder="Phone Number"
-                                />
-                            </div>
-                        </div>
-                        <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-gray-50 dark:bg-gray-800/90">
-                            <button
-                                type="button"
-                                onClick={() => setEditingUser(null)}
-                                className="px-5 py-2.5 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-sm transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={requestInfoSave}
-                                disabled={busy || !editForm.fullname.trim()}
-                                className="px-5 py-2.5 min-h-11 bg-sffl-red hover:bg-red-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
+                <Modal
+                    open
+                    onClose={() => setEditingUser(null)}
+                    title="Edit User"
+                    subtitle={editingUser.email}
+                    maxWidth="md"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
+                            <Button onClick={requestInfoSave} disabled={busy || !editForm.fullname.trim()}>
                                 Save Changes
-                            </button>
-                        </div>
+                            </Button>
+                        </>
+                    }
+                >
+                    <div className="space-y-4">
+                        <Field label="Full Name *" htmlFor="edit-user-fullname">
+                            <Input
+                                id="edit-user-fullname"
+                                type="text"
+                                value={editForm.fullname}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, fullname: e.target.value }))}
+                                placeholder="Full Name"
+                            />
+                        </Field>
+                        <Field label="Phone" htmlFor="edit-user-phone">
+                            <Input
+                                id="edit-user-phone"
+                                type="tel"
+                                value={editForm.phone}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                                placeholder="Phone Number"
+                            />
+                        </Field>
                     </div>
-                </div>
+                </Modal>
             )}
 
             <ConfirmDialog

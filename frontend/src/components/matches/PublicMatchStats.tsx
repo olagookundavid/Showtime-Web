@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicMatchStats, type TeamStat } from '../../services/api';
 import { StatsTable } from '../stats/StatsTable';
-import { Spinner } from '../ui';
+import { Button, Select, Spinner } from '../ui';
 
 export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
@@ -146,33 +146,31 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
             <div className="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                 {/* Player vs Team Sub-tabs */}
                 <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('players')}
+                    <Button
+                        variant={activeTab === 'players' ? 'navy' : 'secondary'}
                         aria-pressed={activeTab === 'players'}
-                        className={`min-h-11 px-3 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm ${activeTab === 'players' ? 'bg-sffl-navy text-white dark:bg-sffl-red' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                        onClick={() => setActiveTab('players')}
                     >
                         Player Stats ({derived.length})
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('teams')}
+                    </Button>
+                    <Button
+                        variant={activeTab === 'teams' ? 'navy' : 'secondary'}
                         aria-pressed={activeTab === 'teams'}
-                        className={`min-h-11 px-3 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm ${activeTab === 'teams' ? 'bg-sffl-navy text-white dark:bg-sffl-red' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                        onClick={() => setActiveTab('teams')}
                     >
                         Team Stats ({derivedTeamStats.length})
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
                     {/* Order By Dropdown */}
                     <div className="flex items-center gap-1.5 w-full sm:w-auto">
                         <label htmlFor={`match-stats-order-${matchId}`} className="shrink-0 text-[11px] font-bold text-gray-400">Order By:</label>
-                        <select
+                        <Select
                             id={`match-stats-order-${matchId}`}
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value)}
-                            className="flex-1 sm:flex-none min-w-0 min-h-11 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs font-bold border border-gray-200 dark:border-gray-600 cursor-pointer"
+                            className="flex-1 sm:flex-none min-w-0"
                         >
                             <option value="">Default (A to Z)</option>
                             <option value="passing_yards">Pass Yards (YDS)</option>
@@ -189,31 +187,31 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                             <option value="pass_deflections">Pass Deflections</option>
                             <option value="qb_sacks">Sacks Taken (QB)</option>
                             <option value="def_sacks">Defensive Sacks</option>
-                        </select>
+                        </Select>
                     </div>
 
                     {/* Team Filter Pills (Player Stats view only) */}
                     {activeTab === 'players' && teamsList.length > 0 && (
                         <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[11px] font-bold text-gray-400 mr-1">Filter Team:</span>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedTeamId('all')}
+                            <Button
+                                size="sm"
+                                variant={selectedTeamId === 'all' ? 'primary' : 'secondary'}
                                 aria-pressed={selectedTeamId === 'all'}
-                                className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                onClick={() => setSelectedTeamId('all')}
                             >
                                 All Teams
-                            </button>
+                            </Button>
                             {teamsList.map(t => (
-                                <button
+                                <Button
                                     key={t.id}
-                                    type="button"
-                                    onClick={() => setSelectedTeamId(t.id)}
+                                    size="sm"
+                                    variant={selectedTeamId === t.id ? 'primary' : 'secondary'}
                                     aria-pressed={selectedTeamId === t.id}
-                                    className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                    onClick={() => setSelectedTeamId(t.id)}
                                 >
                                     {t.shortName}
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     )}
@@ -228,15 +226,15 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                                 { id: 'RUSH', label: 'RUSH' },
                                 { id: 'DEF', label: 'DEF' },
                             ].map(p => (
-                                <button
+                                <Button
                                     key={p.id}
-                                    type="button"
-                                    onClick={() => setPositionFilter(p.id)}
+                                    size="sm"
+                                    variant={positionFilter === p.id ? 'navy' : 'secondary'}
                                     aria-pressed={positionFilter === p.id}
-                                    className={`min-h-11 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${positionFilter === p.id ? 'bg-sffl-navy dark:bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                    onClick={() => setPositionFilter(p.id)}
                                 >
                                     {p.label}
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     )}

@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { 
     UserGroupIcon,
     PencilSquareIcon, 
-    XMarkIcon, 
     LockClosedIcon, 
     ClockIcon, 
     SparklesIcon 
@@ -18,6 +17,7 @@ import {
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
+import { Modal, Select } from '../../components/ui';
 import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
 import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
 import { Spinner } from '../../components/ui/Spinner';
@@ -156,18 +156,19 @@ export function FantasyMyTeam() {
 
                     {/* Right Controls: GW Selector + Edit Button */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-                        <select
+                        <Select
                             aria-label="Gameweek"
+                            tone="dark"
                             value={selectedGWId}
                             onChange={(e) => setSelectedGWId(e.target.value)}
-                            className="w-full sm:w-auto min-w-0 min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
+                            className="w-full sm:w-auto min-w-0"
                         >
                             {gameweeks.map(gw => (
                                 <option key={gw.id} value={gw.id} className="text-gray-900 bg-white">
                                     Gameweek {gw.number} ({gw.status})
                                 </option>
                             ))}
-                        </select>
+                        </Select>
 
                         {!isLocked && (
                             <Link
@@ -215,29 +216,17 @@ export function FantasyMyTeam() {
 
             {/* Points Breakdown Modal */}
             {selectedPlayerForBreakdown && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
-                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">
-                                    Showtime Points Breakdown
-                                </span>
-                                <h3 className="text-lg font-black text-sffl-navy dark:text-white wrap-break-word">{selectedPlayerForBreakdown.player_name}</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    Slot: <strong>{selectedPlayerForBreakdown.slot}</strong> • Purchase Price: <strong>{formatFantasyPrice(selectedPlayerForBreakdown.purchase_price)}</strong>
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlayerForBreakdown(null)}
-                                aria-label="Close points breakdown"
-                                className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition"
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                <Modal
+                    open
+                    onClose={() => setSelectedPlayerForBreakdown(null)}
+                    title={selectedPlayerForBreakdown.player_name}
+                    subtitle="Showtime Points Breakdown"
+                    maxWidth="lg"
+                >
+                        <div className="space-y-4">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Slot: <strong>{selectedPlayerForBreakdown.slot}</strong> • Purchase Price: <strong>{formatFantasyPrice(selectedPlayerForBreakdown.purchase_price)}</strong>
+                            </p>
                             {breakdownLoading ? (
                                 <Spinner label="Loading points breakdown…" className="py-12" />
                             ) : !breakdownData || (
@@ -310,8 +299,7 @@ export function FantasyMyTeam() {
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
         </div>
     );

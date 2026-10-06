@@ -9,7 +9,9 @@ import {
   getNews,
 } from "../services/api";
 import { CompactMatchCard } from "../components/matches/CompactMatchCard";
-import { LightboxImage } from "../components/ui";
+import { ButtonLink, LightboxImage } from "../components/ui";
+import { DataTable } from "../components/ui/DataTable";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 // Hook for scroll animations
 function useScrollReveal() {
@@ -225,98 +227,93 @@ export default function Home() {
         <RevealSection className="lg:col-span-3">
           <div className="flex items-center justify-between mb-8 px-2">
             <h2 className="text-4xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
-              <span className="text-yellow-500 mr-3 shadow-md">●</span> LEAGUE
-              TABLE
+              <span className="inline-block w-3 h-3 rounded-full bg-yellow-500 mr-3 shadow-md align-middle" aria-hidden="true" />
+              LEAGUE TABLE
             </h2>
-            <Link
-              to="/standings"
-              className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2.5 px-5 rounded-full flex items-center min-h-11 bg-white/50 dark:bg-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 border border-black/5 dark:border-white/5"
-            >
-              Full Table <span className="ml-2">→</span>
-            </Link>
+            <ButtonLink to="/standings" variant="secondary" icon={ArrowRightIcon} iconPosition="right" className="rounded-full">
+              Full Table
+            </ButtonLink>
           </div>
           <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-4xl shadow-2xl overflow-hidden border border-white/30 dark:border-white/5">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-125">
-                <thead>
-                  <tr className="bg-sffl-navy/10 dark:bg-white/5 text-sffl-navy dark:text-gray-300 text-xs uppercase font-black">
-                    <th className="px-6 py-5 text-left w-14">#</th>
-                    <th className="px-6 py-5 text-left">Team</th>
-                    <th className="px-6 py-5 text-center">P</th>
-                    <th className="px-6 py-5 text-center">W</th>
-                    <th className="px-6 py-5 text-center">D</th>
-                    <th className="px-6 py-5 text-center">L</th>
-                    <th className="px-6 py-5 text-center">PD</th>
-                    <th className="px-6 py-5 text-center font-black">PCT</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200/50 dark:divide-white/5">
-                  {standings.length > 0 ? (
-                    standings.map((s, i) => (
-                      <tr
-                        key={s.id}
-                        className={`hover:bg-sffl-red/5 dark:hover:bg-sffl-red/10 transition-colors duration-300 ${i === 0 ? "bg-yellow-500/5" : ""}`}
-                      >
-                        <td className="px-6 py-4 font-black text-sffl-navy dark:text-white text-lg">
-                          {s.position}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-4">
-                            {s.team?.logo && (
-                              <LightboxImage
-                                src={s.team.logo}
-                                alt={s.team.name}
-                                thumbnailClassName="w-8 h-8 object-contain rounded-lg shadow-sm"
-                              />
-                            )}
-                            {s.team?.id ? (
-                              <Link
-                                to={`/teams/${s.team.id}`}
-                                className="font-bold text-base dark:text-white tracking-tight hover:text-sffl-red transition-colors"
-                              >
-                                {s.team.name}
-                              </Link>
-                            ) : (
-                              <span className="font-bold text-base dark:text-white tracking-tight">
-                                —
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold dark:text-gray-300">
-                          {s.played ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold dark:text-gray-300">
-                          {s.won ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold dark:text-gray-300">
-                          {s.drawn ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold dark:text-gray-300">
-                          {s.lost ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-bold dark:text-gray-300">
-                          {(s.goal_diff ?? 0) > 0 ? "+" : ""}
-                          {s.goal_diff ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-center font-black text-sffl-navy dark:text-white text-base bg-white/5">
-                          {s.pct != null ? `${s.pct}%` : "-"}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-6 py-12 text-center text-gray-400 italic"
-                      >
-                        No standings data available
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              compact
+              searchable={false}
+              paginated={false}
+              getRowId={(s) => s.id}
+              data={standings}
+              emptyMessage="No standings data available"
+              rowClassName={(s) =>
+                standings[0]?.id === s.id
+                  ? "bg-yellow-50 dark:bg-yellow-950/40"
+                  : "bg-white dark:bg-gray-800 hover:bg-sffl-red/5 dark:hover:bg-sffl-red/10"
+              }
+              columns={[
+                {
+                  header: "Team",
+                  className: "px-4 py-4 text-left",
+                  cell: (s) => (
+                    <span className="flex items-center gap-3 min-w-0">
+                      <span className="w-5 shrink-0 text-center font-black text-sffl-navy dark:text-white text-base">
+                        {s.position}
+                      </span>
+                      {s.team?.logo && (
+                        <LightboxImage
+                          src={s.team.logo}
+                          alt={s.team.name}
+                          thumbnailClassName="w-8 h-8 object-contain rounded-lg shadow-sm shrink-0"
+                        />
+                      )}
+                      {s.team?.id ? (
+                        <Link
+                          to={`/teams/${s.team.id}`}
+                          className="font-bold text-base dark:text-white tracking-tight hover:text-sffl-red transition-colors truncate"
+                        >
+                          {s.team.name}
+                        </Link>
+                      ) : (
+                        <span className="font-bold text-base dark:text-white tracking-tight">—</span>
+                      )}
+                    </span>
+                  ),
+                },
+                {
+                  header: "P",
+                  align: "center",
+                  className: "px-4 py-4 text-sm font-semibold dark:text-gray-300",
+                  cell: (s) => s.played ?? 0,
+                },
+                {
+                  header: "W",
+                  align: "center",
+                  className: "px-4 py-4 text-sm font-semibold dark:text-gray-300",
+                  cell: (s) => s.won ?? 0,
+                },
+                {
+                  header: "D",
+                  align: "center",
+                  className: "px-4 py-4 text-sm font-semibold dark:text-gray-300",
+                  cell: (s) => s.drawn ?? 0,
+                },
+                {
+                  header: "L",
+                  align: "center",
+                  className: "px-4 py-4 text-sm font-semibold dark:text-gray-300",
+                  cell: (s) => s.lost ?? 0,
+                },
+                {
+                  header: "PD",
+                  align: "center",
+                  className: "px-4 py-4 text-sm font-bold dark:text-gray-300",
+                  cell: (s) => `${(s.goal_diff ?? 0) > 0 ? "+" : ""}${s.goal_diff ?? 0}`,
+                },
+                {
+                  header: "PCT",
+                  align: "center",
+                  className: "px-4 py-4 font-black text-sffl-navy dark:text-white text-base",
+                  cell: (s) => (s.pct != null ? `${s.pct}%` : "-"),
+                },
+              ]}
+            />
           </div>
         </RevealSection>
 

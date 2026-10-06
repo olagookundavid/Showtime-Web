@@ -1,4 +1,3 @@
-import { LightboxImage } from '../../components/ui';
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -12,6 +11,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
+import { LightboxImage, Select } from '../../components/ui';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { usePermissions } from '../../hooks/usePermissions';
 
@@ -152,14 +152,14 @@ export const AdminStandings = () => {
                 title="Standings"
                 subtitle="Review and adjust the league table for each competition."
                 actions={
-                    <select
+                    <Select
                         aria-label="Competition"
                         value={selectedComp}
                         onChange={e => setSelectedComp(e.target.value)}
-                        className="w-full sm:w-72 max-w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm"
+                        className="w-full sm:w-72 max-w-full"
                     >
-                        {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
-                    </select>
+                        {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </Select>
                 }
             />
 

@@ -2,7 +2,7 @@
 
 Standing rules for all code under `frontend/`. Follow them without being asked. Add each new rule the owner gives here, and keep this file succinct.
 
-**Scope:** when you edit a file, apply every rule to the whole file (text icons, native `confirm()`/`alert()`, responsiveness gaps, hand-written tables, dashboard page headers, first-time usability), and to the components a page renders for responsiveness. Don't edit other files just for these rules.
+**Scope:** when you edit a file, apply every rule to the whole file (text icons, native `confirm()`/`alert()`, responsiveness gaps, hand-written tables, dashboard headers, first-time usability, §7 controls), and to the components a page renders for responsiveness. Don't edit other files just for these rules, except the §7 sweep: the owner wants every raw control converted across the app.
 
 ## 1. No text icons
 
@@ -12,7 +12,7 @@ Never use emoji, Unicode symbols or text as icons (`✅ 🔍 ⚡ ⭐ ✕ ✓ ←
 2. **Custom SVG**, only when no heroicon depicts the exact thing (a football, a gender symbol), never a loosely related one. Outline style: `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `strokeWidth={1.5}`, round caps and joins, sized with `className`. Used in more than one place? Make it a component in `src/components/icons/` (see `RunnerIcon.tsx`).
 
 - Size `w-4 h-4` beside text, `w-5 h-5` in headings and larger controls. Align with `inline-flex items-center gap-1.5`.
-- Decorative icons get `aria-hidden="true"`. Icon-only buttons get an `aria-label`.
+- Decorative icons get `aria-hidden="true"`. Icon-only buttons use `IconButton` (§7), which requires a `label`.
 - Loading: `ArrowPathIcon` with `animate-spin`, or `<Spinner />` (`src/components/ui/`).
 
 ## 2. Confirm every write, and logout
@@ -43,7 +43,7 @@ Every page you change or build works from a 320px phone to a wide monitor.
 - **Modals fit the viewport.**
   - Height: `max-h-[calc(100dvh-2rem)]` (prefer `dvh` to `vh`), with an `overflow-y-auto` body.
   - Width: `w-full` up to `max-w-*`, with a margin on small screens.
-  - Footer buttons stack or wrap.
+  - Footer buttons stack or wrap (`Modal`'s `footer` does this).
 - **Fixed chrome.**
   - Layout provides the page width (`--max-width-page`), the sticky navbar and the mobile bottom nav. Don't add a page-level max-width.
   - Clear the bottom nav with `pb-mobile-nav-2x` (`src/index.css`).
@@ -58,7 +58,7 @@ Every table uses `DataTable` (`src/components/ui/DataTable.tsx`, built on TanSta
   - Define columns once with `useMemo`. When a page shows the same columns twice, share them (see `AdminTickets.tsx`).
   - Keep `data` stable too: a module-level `const NO_ROWS: Row[] = []`, not an inline `?? []`.
 - **Server-paginated lists** pass `serverPage`, `totalServerPages` and `onPageChange`, plus `onSearchSubmit` for server search. A sortable header there only reorders the loaded rows. Local lists let `DataTable` search, sort and page in the browser.
-- **Other props:** `loading`, `paginated={false}`, `getRowId`, `emptyMessage`, `searchable={false}`, `compact` (no 800px minimum width, for tables in dialogs or narrow cards) and `headerActions` (toolbar filters and buttons).
+- **Other props:** `loading`, `paginated={false}`, `getRowId`, `emptyMessage`, `searchable={false}`, `compact` (no 800px minimum width, for tables in dialogs or narrow cards), `headerActions` (toolbar filters and buttons), `rowClassName` (row background; the frozen first cell takes it), `onRowClick`, `stickyHeader` with `maxHeight` (a header that stays on screen while a long list scrolls). A column can take `onSort`/`sortActive` for a sort the page controls, and `headerClassName` for tighter header padding.
 - **The same table on every screen.** On phones it scrolls sideways inside its card (`DataTable` does this). No card layout; the owner doesn't want one.
 - **The first column is frozen,** so it must name the row (player, team, match). Never lead with a narrow column like `#` or `Pos`; fold it into the name cell or put it second.
 - **Row actions.** Rows with actions end in an `Actions` column (`align: 'right'`) holding `<RowActions>` (`src/components/ui/RowActions.tsx`): a three-dot button on every row that opens a dropdown of all that row's actions. No inline action buttons. An action that can't run on a row stays in the menu, disabled, with a `hint` saying why.
@@ -85,3 +85,19 @@ Every UI change and new page must be easy for someone using the app for the firs
 - **Helpful empty states.** Say what's missing, why it matters, and give a link or button to fix it.
 - **Predictable.** Reuse the shared components and patterns above so every page behaves the same way.
 - **Check** by walking the page as a newcomer: can they tell where they are, what they can do, and how to get back?
+
+## 7. Controls
+
+Buttons, form fields and dialogs come from the shared primitives in `src/components/ui/`. Never style a raw `<button>`, `<input>`, `<select>`, `<textarea>` or `fixed inset-0` overlay with page classes. Look changes go in the primitive; layout (width, grid placement, margins) goes in `className`.
+
+- **Button:** `variant` (`primary | navy | secondary | outline | danger | ghost | link | success | info | warning`), `size` (`sm | md | lg`), `icon` (a heroicon) with `iconPosition`, `loading` (spinner, disabled), `fullWidth`. Defaults to `type="button"`. `ButtonLink` looks the same on a router link, for navigation only. An external `<a>` that looks like a button uses `buttonClass` (`ui/Button.tsx`).
+- **IconButton:** icon-only. `icon` and `label` (required; becomes the `aria-label` and tooltip). `variant` `ghost | secondary | danger`.
+- **Field:** `label` (text or ReactNode), `htmlFor` (the control's id; leave it out for a group of buttons), `hint`, `error`.
+- **Checkbox:** `label` and `hint` make a labelled row, and the whole row is the tap target. Without `label` it is the bare box, for a tile or row you draw yourself.
+- **Tabs:** an underline tab bar. `items` (`value`, `label`, optional `icon`), `value`, `onChange`, `aria-label`. Arrow keys move between tabs.
+- **Input, Textarea, Select:** native controls with the shared look. `invalid` gives an error border. `Select`'s chevron is built in.
+- **Modal:** `title`, `subtitle`, `footer` (Cancel first, primary last; stacked on phones), `maxWidth` (`md` to `4xl`). Omit `onClose` for a gate that can't be dismissed. A form goes in the body, and its submit button goes in the footer as `form="<id>"`. Render a `ConfirmDialog` outside the Modal, or its backdrop clicks close the Modal. Drawers, the image lightbox and the page loader are not dialogs and stay as they are.
+- **Pointer cursor:** set globally in `src/index.css` for buttons, selects, checkboxes and radios. Disabled controls show `not-allowed`. Don't add `cursor-pointer` per element.
+- **Stays raw:** radios (no primitive yet), selectable tiles and cards, list and picker rows, pitch nodes and their corner remove badges, accordion headers, table-cell links, inline text links, the OTP digit boxes, the honeypot fields in the newsletter form, borderless textareas inside a card, image overlay chips and carousel arrows. They keep page classes, but must still show the pointer cursor.
+- **On a dark surface** (hero bars, the navbar, dark modal headers): pass `tone="dark"` to Button, ButtonLink, IconButton, Input, Select, Textarea, Field, Checkbox or Tabs. Use it for every control on the surface.
+- **Text in controls** is `text-base` on phones and `sm:text-sm` above, because iOS zooms into smaller text. The `formStyles.ts` base class already does this.

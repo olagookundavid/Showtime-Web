@@ -12,14 +12,13 @@ import {
     PhotoIcon,
     PlusIcon,
     TrashIcon,
-    XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
     getAdminHeroSlides, createHeroSlide, updateHeroSlide, deleteHeroSlide,
     type HeroSlide,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
-import { ImageUploadField } from '../../components/ui';
+import { Button, Field, ImageUploadField, Input, Modal } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -57,8 +56,6 @@ const FAILURE: Record<PendingAction['kind'], string> = {
     move: 'Failed to reorder slides',
     delete: 'Failed to delete slide',
 };
-
-const slideButtonClass = 'flex-1 inline-flex items-center justify-center gap-1.5 px-3 min-h-11 rounded-lg text-xs font-bold transition disabled:opacity-30 disabled:cursor-not-allowed';
 
 export const AdminHeroSlides = () => {
     const queryClient = useQueryClient();
@@ -240,16 +237,15 @@ export const AdminHeroSlides = () => {
                     </>
                 }
                 actions={
-                    <button
-                        type="button"
+                    <Button
+                        icon={PlusIcon}
                         onClick={openCreate}
                         disabled={atCap}
-                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        className="w-full sm:w-auto"
                         title={atCap ? `Limit of ${MAX_SLIDES} reached — delete a slide to add another` : 'Add a new slide'}
                     >
-                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
                         Add Slide
-                    </button>
+                    </Button>
                 }
             />
 
@@ -299,56 +295,49 @@ export const AdminHeroSlides = () => {
                                     <p className="text-xs text-yellow-600 dark:text-yellow-400 italic">No destination set — slide won't be clickable.</p>
                                 )}
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
+                                        icon={ArrowUpIcon}
                                         onClick={() => requestMove(slide, 'up')}
                                         disabled={idx === 0}
-                                        className={`${slideButtonClass} bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`}
+                                        className="flex-1"
                                     >
-                                        <ArrowUpIcon className="w-4 h-4" aria-hidden="true" />
                                         Up
-                                    </button>
-                                    <button
-                                        type="button"
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        icon={ArrowDownIcon}
                                         onClick={() => requestMove(slide, 'down')}
                                         disabled={idx === sortedSlides.length - 1}
-                                        className={`${slideButtonClass} bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`}
+                                        className="flex-1"
                                     >
-                                        <ArrowDownIcon className="w-4 h-4" aria-hidden="true" />
                                         Down
-                                    </button>
+                                    </Button>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mt-auto">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
+                                        icon={PencilSquareIcon}
                                         onClick={() => openEdit(slide)}
-                                        className={`${slideButtonClass} bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50`}
+                                        className="flex-1"
                                     >
-                                        <PencilSquareIcon className="w-4 h-4" aria-hidden="true" />
                                         Edit
-                                    </button>
-                                    <button
-                                        type="button"
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        icon={slide.is_active ? EyeIcon : EyeSlashIcon}
                                         onClick={() => setPendingAction({ kind: 'toggle', slide, position: idx + 1 })}
-                                        className={`${slideButtonClass} ${slide.is_active
-                                            ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50'
-                                            : 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/50'
-                                            }`}
+                                        className="flex-1"
                                     >
-                                        {slide.is_active ? (
-                                            <><EyeIcon className="w-4 h-4" aria-hidden="true" /> Showing</>
-                                        ) : (
-                                            <><EyeSlashIcon className="w-4 h-4" aria-hidden="true" /> Hidden</>
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
+                                        {slide.is_active ? 'Showing' : 'Hidden'}
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        icon={TrashIcon}
                                         onClick={() => setPendingAction({ kind: 'delete', slide, position: idx + 1 })}
-                                        className={`${slideButtonClass} flex-none bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50`}
                                     >
-                                        <TrashIcon className="w-4 h-4" aria-hidden="true" />
                                         Delete
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -358,27 +347,22 @@ export const AdminHeroSlides = () => {
 
             {/* Add / Edit modal */}
             {showModal && (
-                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                                    {editingId ? 'Edit Carousel Slide' : 'Add Carousel Slide'}
-                                </h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                    Recommended: <strong>2:1 aspect ratio</strong> — ideally 1920×960 or 2000×1000.
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowModal(false)}
-                                aria-label="Close"
-                                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                            </button>
-                        </div>
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                <Modal
+                    open
+                    onClose={() => setShowModal(false)}
+                    title={editingId ? 'Edit Carousel Slide' : 'Add Carousel Slide'}
+                    subtitle="Recommended: 2:1 aspect ratio — ideally 1920×960 or 2000×1000."
+                    maxWidth="2xl"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+                            <Button icon={PhotoIcon} onClick={requestSave} disabled={busy}>
+                                {editingId ? 'Save Changes' : 'Add Slide'}
+                            </Button>
+                        </>
+                    }
+                >
+                    <div className="space-y-4">
                             <ImageUploadField
                                 label="Desktop Image"
                                 value={form.imageUrl}
@@ -402,44 +386,21 @@ export const AdminHeroSlides = () => {
 
                             <hr className="border-gray-200 dark:border-gray-700" />
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Destination (optional)
-                                </label>
-                                <input
+                            <Field
+                                label="Destination (optional)"
+                                htmlFor="slide-destination"
+                                hint="Where the slide links when clicked. Use an internal path such as /stats, a full external URL, or a news link such as /news/its-slug. Leave blank for a non-clickable slide."
+                            >
+                                <Input
+                                    id="slide-destination"
                                     type="text"
                                     value={form.destinationUrl}
                                     onChange={e => set('destinationUrl', e.target.value)}
                                     placeholder="/stats  or  /news/some-article-slug  or  https://example.com"
-                                    className="w-full min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
                                 />
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Where the slide links when clicked. Paste an internal path (e.g. <code>/stats</code>) or
-                                    a full external URL. To link to a news article, create it first in the News admin, then
-                                    paste its link here (e.g. <code>/news/its-slug</code>). Leave blank for a non-clickable slide.
-                                </p>
-                            </div>
+                            </Field>
                         </div>
-                        <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-gray-50 dark:bg-gray-800/90">
-                            <button
-                                type="button"
-                                onClick={() => setShowModal(false)}
-                                className="px-5 py-2.5 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-200 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={requestSave}
-                                disabled={busy}
-                                className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl shadow-sm disabled:opacity-50 transition-colors"
-                            >
-                                <PhotoIcon className="w-4 h-4" aria-hidden="true" />
-                                {editingId ? 'Save Changes' : 'Add Slide'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <ConfirmDialog

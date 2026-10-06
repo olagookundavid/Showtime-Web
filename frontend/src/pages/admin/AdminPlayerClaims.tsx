@@ -13,6 +13,7 @@ import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, Field, Input, Select, Tabs } from '../../components/ui';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
@@ -268,18 +269,15 @@ export const AdminPlayerClaims: React.FC = () => {
                                 ['Email', claim.claimed_email],
                                 ['Team', claim.team_name],
                             ]} />
-                            <label className="block">
-                                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                                    Reason <span className="text-sffl-red">*</span>
-                                </span>
-                                <input
+                            <Field label={<>Reason <span className="text-sffl-red">*</span></>} htmlFor="claim-reject-reason">
+                                <Input
+                                    id="claim-reject-reason"
                                     type="text"
                                     value={reason}
                                     onChange={e => setReason(e.target.value)}
                                     placeholder="Why is this claim being rejected?"
-                                    className="w-full min-h-11 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
                                 />
-                            </label>
+                            </Field>
                         </div>
                     ),
                 };
@@ -344,15 +342,15 @@ export const AdminPlayerClaims: React.FC = () => {
                 title="Account Claims"
                 subtitle="Team managers review their own squads. Use this to oversee every team and to undo a wrong approval."
                 actions={
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
+                        icon={UserCircleIcon}
                         onClick={() => setShowCodes(v => !v)}
                         aria-pressed={showCodes}
-                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 min-h-11 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 text-sm font-bold rounded-lg"
+                        className="w-full sm:w-auto"
                     >
-                        <UserCircleIcon className="w-4 h-4" aria-hidden="true" />
                         {showCodes ? 'Hide claim codes' : 'Show claim codes'}
-                    </button>
+                    </Button>
                 }
             />
 
@@ -367,23 +365,12 @@ export const AdminPlayerClaims: React.FC = () => {
                 />
             )}
 
-            <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700">
-                {KIND_TABS.map(([k, tabLabel]) => (
-                    <button
-                        key={k || 'all'}
-                        type="button"
-                        onClick={() => setKind(k)}
-                        aria-pressed={kind === k}
-                        className={`min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 transition-colors ${
-                            kind === k
-                                ? 'border-sffl-red text-sffl-red'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                    >
-                        {tabLabel}
-                    </button>
-                ))}
-            </div>
+            <Tabs
+                aria-label="Claim type"
+                items={KIND_TABS.map(([value, label]) => ({ value, label }))}
+                value={kind}
+                onChange={setKind}
+            />
 
             {kind === 'NEW_PLAYER' && (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -408,17 +395,17 @@ export const AdminPlayerClaims: React.FC = () => {
                 onSearchSubmit={(q) => setSearch(q.trim())}
                 emptyMessage="No claims match this filter."
                 headerActions={
-                    <select
+                    <Select
                         value={status}
                         onChange={e => setStatus(e.target.value)}
                         aria-label="Filter by status"
-                        className="w-full sm:w-auto min-h-11 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                        className="w-full sm:w-56"
                     >
                         <option value="PENDING">Awaiting review</option>
                         <option value="APPROVED">Approved</option>
                         <option value="REJECTED">Rejected</option>
                         <option value="">All statuses</option>
-                    </select>
+                    </Select>
                 }
             />
 

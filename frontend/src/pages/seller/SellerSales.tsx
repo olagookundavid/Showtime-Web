@@ -3,13 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { sellerGetSales, type InventorySale } from '../../services/api';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { Button, Field, Input } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 
 const SALES_PAGE_SIZE = 30;
 const NO_ROWS: InventorySale[] = [];
-
-const dateInputClass =
-    'min-h-11 px-3 py-1.5 border border-gray-300 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red';
 
 export const SellerSales = () => {
     const [salesPage, setSalesPage] = useState(1);
@@ -110,21 +108,15 @@ export const SellerSales = () => {
                 emptyMessage="No sales recorded yet."
                 headerActions={
                     <>
-                        <label className="flex items-center gap-2 text-sm font-bold dark:text-gray-300">
-                            From
-                            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className={dateInputClass} />
-                        </label>
-                        <label className="flex items-center gap-2 text-sm font-bold dark:text-gray-300">
-                            To
-                            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className={dateInputClass} />
-                        </label>
-                        <button
-                            type="button"
-                            onClick={handleApplyFilter}
-                            className="px-4 min-h-11 bg-sffl-navy text-white text-sm font-bold rounded-lg hover:bg-blue-900 transition-colors shadow-sm"
-                        >
+                        <Field label="From" htmlFor="sales-from" className="min-w-36">
+                            <Input id="sales-from" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+                        </Field>
+                        <Field label="To" htmlFor="sales-to" className="min-w-36">
+                            <Input id="sales-to" type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
+                        </Field>
+                        <Button variant="navy" className="self-end" onClick={handleApplyFilter}>
                             Apply Filter
-                        </button>
+                        </Button>
                     </>
                 }
             />

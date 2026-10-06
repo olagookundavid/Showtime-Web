@@ -30,6 +30,7 @@ import {
 import { AllocationsManager } from '../../components/admin/AllocationsManager';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, Checkbox, Field, IconButton, Input, Modal } from '../../components/ui';
 import { useDebounced } from '../../hooks/useDebounced';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
@@ -64,9 +65,6 @@ const formatCapacity = (capacity?: number) => (capacity ? String(capacity) : 'Un
 
 const visibilityLabel = (hidden?: boolean, code?: string) => (hidden ? `Hidden (code ${code || 'none'})` : 'Public');
 
-const modalInputClass = 'w-full min-h-11 px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red';
-const modalLabelClass = 'block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1.5';
-
 // ─── Shared modal frame ─────────────────────────────────────────────────────
 
 interface ModalFrameProps {
@@ -79,49 +77,27 @@ interface ModalFrameProps {
 }
 
 const ModalFrame = ({ title, subtitle, onClose, onSubmit, submitDisabled, children }: ModalFrameProps) => (
-    <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto animate-in fade-in duration-200">
-            {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 shrink-0">
-                <div className="min-w-0">
-                    <h2 className="text-xl font-black text-sffl-navy dark:text-white">{title}</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 wrap-break-word">{subtitle}</p>
-                </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Close"
-                    className="shrink-0 min-h-11 min-w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer"
-                >
-                    <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                </button>
-            </div>
-
-            <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0">
-                <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                    {children}
-                </div>
-
-                {/* Footer */}
-                <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-gray-50 dark:bg-gray-800/50 shrink-0">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-5 py-2.5 min-h-11 text-sm font-bold bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-xl transition cursor-pointer"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={submitDisabled}
-                        className="px-5 py-2.5 min-h-11 text-sm font-bold bg-sffl-red hover:bg-[#A52323] text-white rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
-                    >
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <Modal
+        open
+        onClose={onClose}
+        title={title}
+        subtitle={subtitle}
+        maxWidth="lg"
+        footer={
+            <>
+                <Button variant="secondary" onClick={onClose}>
+                    Cancel
+                </Button>
+                <Button type="submit" form="admin-modal-form" disabled={submitDisabled}>
+                    Save Changes
+                </Button>
+            </>
+        }
+    >
+        <form id="admin-modal-form" onSubmit={onSubmit} className="space-y-4">
+            {children}
+        </form>
+    </Modal>
 );
 
 // ─── Edit Event Day Modal ───────────────────────────────────────────────────
@@ -168,51 +144,42 @@ const EditEventDayModal = ({ eventDay, pending, onClose, onSubmit }: EditEventDa
             onSubmit={handleSubmit}
             submitDisabled={pending || !title.trim() || !date.trim()}
         >
-            <div>
-                <label className={modalLabelClass}>
-                    Title <span className="text-sffl-red">*</span>
-                </label>
-                <input
+            <Field label={<>Title <span className="text-sffl-red">*</span></>} htmlFor="edit-event-title">
+                <Input
+                    id="edit-event-title"
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. SFFL Game Day 5"
                     required
-                    className={modalInputClass}
                 />
-            </div>
+            </Field>
 
-            <div>
-                <label className={modalLabelClass}>
-                    Date <span className="text-sffl-red">*</span>
-                </label>
-                <input
+            <Field label={<>Date <span className="text-sffl-red">*</span></>} htmlFor="edit-event-date">
+                <Input
+                    id="edit-event-date"
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     required
-                    className={modalInputClass}
                 />
-            </div>
+            </Field>
 
-            <div>
-                <label className={modalLabelClass}>Venue</label>
-                <input
+            <Field label="Venue" htmlFor="edit-event-venue">
+                <Input
+                    id="edit-event-venue"
                     type="text"
                     value={venue}
                     onChange={(e) => setVenue(e.target.value)}
                     placeholder="e.g. Showtime Arena"
-                    className={modalInputClass}
                 />
-            </div>
+            </Field>
 
             <div className="pt-2">
                 <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                    <input
-                        type="checkbox"
+                    <Checkbox
                         checked={isActive}
                         onChange={(e) => setIsActive(e.target.checked)}
-                        className="w-4 h-4 shrink-0 rounded text-sffl-red focus:ring-sffl-red border-gray-300 dark:border-gray-600"
                     />
                     <div className="min-w-0">
                         <span className="text-sm font-bold text-gray-900 dark:text-white block">
@@ -302,75 +269,60 @@ const EditTierModal = ({ tier, pending, onClose, onSubmit }: EditTierModalProps)
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label className={modalLabelClass}>
-                        Tier Name <span className="text-sffl-red">*</span>
-                    </label>
-                    <input
+                <Field label={<>Tier Name <span className="text-sffl-red">*</span></>} htmlFor="edit-tier-name">
+                    <Input
+                        id="edit-tier-name"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. VIP"
                         required
-                        className={modalInputClass}
                     />
-                </div>
+                </Field>
 
-                <div>
-                    <label className={modalLabelClass}>
-                        Price (₦) <span className="text-sffl-red">*</span>
-                    </label>
-                    <input
+                <Field label={<>Price (₦) <span className="text-sffl-red">*</span></>} htmlFor="edit-tier-price">
+                    <Input
+                        id="edit-tier-price"
                         type="number"
                         min="0"
                         value={price}
                         onChange={(e) => setPrice(e.target.value)}
                         placeholder="5000"
                         required
-                        className={modalInputClass}
                     />
-                </div>
+                </Field>
             </div>
 
-            <div>
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                        Capacity (0 = Unlimited)
-                    </label>
-                    {tier.sold_count > 0 && (
-                        <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                            Min allowed: {tier.sold_count}
-                        </span>
-                    )}
-                </div>
-                <input
+            <Field
+                label="Capacity (0 = Unlimited)"
+                htmlFor="edit-tier-capacity"
+                hint={tier.sold_count > 0 ? `Min allowed: ${tier.sold_count}` : undefined}
+            >
+                <Input
+                    id="edit-tier-capacity"
                     type="number"
                     min={tier.sold_count > 0 ? tier.sold_count : 0}
                     value={capacity}
                     onChange={(e) => setCapacity(e.target.value)}
                     placeholder="0 for unlimited"
-                    className={modalInputClass}
                 />
-            </div>
+            </Field>
 
-            <div>
-                <label className={modalLabelClass}>Description</label>
-                <input
+            <Field label="Description" htmlFor="edit-tier-description">
+                <Input
+                    id="edit-tier-description"
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="e.g. VIP seating + refreshments"
-                    className={modalInputClass}
                 />
-            </div>
+            </Field>
 
             <div className="pt-2 space-y-3">
                 <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                    <input
-                        type="checkbox"
+                    <Checkbox
                         checked={isHidden}
                         onChange={(e) => setIsHidden(e.target.checked)}
-                        className="w-4 h-4 shrink-0 rounded text-sffl-red focus:ring-sffl-red border-gray-300 dark:border-gray-600"
                     />
                     <div className="min-w-0">
                         <span className="text-sm font-bold text-gray-900 dark:text-white block">
@@ -384,25 +336,23 @@ const EditTierModal = ({ tier, pending, onClose, onSubmit }: EditTierModalProps)
 
                 {isHidden && (
                     <div className="animate-in fade-in duration-150">
-                        <label className={modalLabelClass}>
-                            Access Code <span className="text-sffl-red">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={accessCode}
-                            onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                            placeholder="e.g. SFFLVIP"
-                            required={isHidden}
-                            className={`${modalInputClass} font-mono uppercase`}
-                        />
+                        <Field label={<>Access Code <span className="text-sffl-red">*</span></>} htmlFor="edit-tier-access-code">
+                            <Input
+                                id="edit-tier-access-code"
+                                type="text"
+                                value={accessCode}
+                                onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                                placeholder="e.g. SFFLVIP"
+                                required={isHidden}
+                                className="font-mono uppercase"
+                            />
+                        </Field>
                     </div>
                 )}
             </div>
         </ModalFrame>
     );
 };
-
-const inlineInputClass = 'w-full min-h-11 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-sffl-red';
 
 export const AdminEventDays = () => {
     const queryClient = useQueryClient();
@@ -666,24 +616,19 @@ export const AdminEventDays = () => {
         { name: 'Free', price: 0, desc: 'Complimentary Access' },
     ];
 
-    const headerButtonClass = 'px-3 py-2 min-h-11 text-[10px] font-black uppercase tracking-tight rounded-lg shadow-sm border transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer';
-
     return (
         <div className="space-y-6">
             <DashboardPageHeader
                 title="Event Days"
                 subtitle="Manage event dates, venues, ticket tiers, and allocations."
                 actions={
-                    <button
+                    <Button
+                        icon={showCreateForm ? XMarkIcon : PlusIcon}
                         onClick={() => setShowCreateForm(!showCreateForm)}
-                        className="shrink-0 inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        className="w-full sm:w-auto"
                     >
-                        {showCreateForm ? (
-                            <><XMarkIcon className="w-4 h-4" aria-hidden="true" /> Cancel</>
-                        ) : (
-                            <><PlusIcon className="w-4 h-4" aria-hidden="true" /> New Event Day</>
-                        )}
-                    </button>
+                        {showCreateForm ? 'Cancel' : 'New Event Day'}
+                    </Button>
                 }
             />
 
@@ -692,55 +637,53 @@ export const AdminEventDays = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 dark:border-gray-700 animate-in fade-in duration-200">
                     <h2 className="text-lg font-bold text-sffl-navy dark:text-white mb-4">Create New Event Day</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-1">Title *</label>
-                            <input
+                        <Field label="Title *" htmlFor="new-event-title">
+                            <Input
+                                id="new-event-title"
                                 type="text"
                                 value={newTitle}
                                 onChange={(e) => setNewTitle(e.target.value)}
                                 placeholder="e.g. SFFL Game Day 5"
-                                className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red"
                             />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-1">Date *</label>
-                            <input
+                        </Field>
+                        <Field label="Date *" htmlFor="new-event-date">
+                            <Input
+                                id="new-event-date"
                                 type="date"
                                 value={newDate}
                                 onChange={(e) => setNewDate(e.target.value)}
-                                className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red"
                             />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-1">Venue</label>
-                            <input
+                        </Field>
+                        <Field label="Venue" htmlFor="new-event-venue">
+                            <Input
+                                id="new-event-venue"
                                 type="text"
                                 value={newVenue}
                                 onChange={(e) => setNewVenue(e.target.value)}
                                 placeholder="e.g. Showtime Arena"
-                                className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red"
                             />
-                        </div>
+                        </Field>
                     </div>
-                    <button
+                    <Button
+                        variant="navy"
+                        icon={CheckIcon}
                         onClick={requestCreateEventDay}
                         disabled={busy || !newTitle.trim() || !newDate}
-                        className="mt-4 inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 w-full sm:w-auto bg-sffl-navy text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer"
+                        className="mt-4 w-full sm:w-auto"
                     >
-                        <CheckIcon className="w-4 h-4" aria-hidden="true" />
                         Create Event Day
-                    </button>
+                    </Button>
                 </div>
             )}
 
             {/* Search */}
             <div className="mb-4">
-                <input
+                <Input
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Search event days by title or date"
                     aria-label="Search event days"
-                    className="w-full sm:max-w-md min-h-11 px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-sffl-red"
+                    className="w-full sm:max-w-md"
                 />
                 {data && (
                     <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
@@ -797,52 +740,38 @@ export const AdminEventDays = () => {
 
                                     {/* Action Buttons */}
                                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                                        <button
-                                            onClick={() => setEditingEventDay(ed)}
-                                            className={`${headerButtonClass} border-white/20 bg-white/10 hover:bg-white/20 text-white`}
-                                        >
-                                            <PencilSquareIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                                            <span>Edit</span>
-                                        </button>
+                                        <Button variant="secondary" icon={PencilSquareIcon} onClick={() => setEditingEventDay(ed)}>
+                                            Edit
+                                        </Button>
 
-                                        <button
+                                        <Button
+                                            variant={ed.is_active ? 'success' : 'secondary'}
+                                            icon={ed.is_active ? EyeIcon : EyeSlashIcon}
                                             onClick={() => setPendingAction({ kind: 'toggle', eventDay: ed })}
-                                            className={`${headerButtonClass} ${ed.is_active ? 'bg-emerald-600 text-white border-transparent' : 'bg-white/5 border-white/10 hover:bg-white/10 text-gray-400'}`}
                                             title={ed.is_active ? 'Visible on Public Site' : 'Hidden from Public Site'}
                                         >
-                                            {ed.is_active ? (
-                                                <><EyeIcon className="w-3.5 h-3.5" aria-hidden="true" /> Visible</>
-                                            ) : (
-                                                <><EyeSlashIcon className="w-3.5 h-3.5" aria-hidden="true" /> Hidden</>
-                                            )}
-                                        </button>
+                                            {ed.is_active ? 'Visible' : 'Hidden'}
+                                        </Button>
 
-                                        <button
+                                        <Button
+                                            variant={addTierFor === ed.id ? 'primary' : 'secondary'}
+                                            icon={addTierFor === ed.id ? XMarkIcon : PlusIcon}
                                             onClick={() => { setAddTierFor(addTierFor === ed.id ? null : ed.id); setManageAllocationsFor(null); }}
-                                            className={`${headerButtonClass} ${addTierFor === ed.id ? 'bg-sffl-red text-white border-transparent' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}
                                         >
-                                            {addTierFor === ed.id ? (
-                                                <><XMarkIcon className="w-3.5 h-3.5" aria-hidden="true" /> Cancel Tier</>
-                                            ) : (
-                                                <><PlusIcon className="w-3.5 h-3.5" aria-hidden="true" /> Add Tier</>
-                                            )}
-                                        </button>
+                                            {addTierFor === ed.id ? 'Cancel tier' : 'Add tier'}
+                                        </Button>
 
-                                        <button
+                                        <Button
+                                            variant={manageAllocationsFor === ed.id ? 'primary' : 'secondary'}
                                             onClick={() => { setManageAllocationsFor(manageAllocationsFor === ed.id ? null : ed.id); setAddTierFor(null); }}
-                                            className={`${headerButtonClass} ${manageAllocationsFor === ed.id ? 'bg-sffl-red text-white border-transparent' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}
                                         >
                                             Allocations
-                                        </button>
+                                        </Button>
 
                                         {isPast && (
-                                            <button
-                                                onClick={() => setPendingAction({ kind: 'delete', eventDay: ed })}
-                                                className={`${headerButtonClass} border-transparent bg-red-600/80 hover:bg-red-600 text-white`}
-                                            >
-                                                <TrashIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                                            <Button variant="danger" icon={TrashIcon} onClick={() => setPendingAction({ kind: 'delete', eventDay: ed })}>
                                                 Delete
-                                            </button>
+                                            </Button>
                                         )}
                                     </div>
                                 </div>
@@ -874,22 +803,17 @@ export const AdminEventDays = () => {
                                                                     )}
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <button
-                                                                        type="button"
+                                                                    <IconButton
+                                                                        icon={PencilSquareIcon}
+                                                                        label={`Edit tier ${tier.name}`}
                                                                         onClick={() => setEditingTier({ eventDayId: ed.id, tier })}
-                                                                        className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors cursor-pointer"
-                                                                        aria-label={`Edit tier ${tier.name}`}
-                                                                    >
-                                                                        <PencilSquareIcon className="w-5 h-5" aria-hidden="true" />
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
+                                                                    />
+                                                                    <IconButton
+                                                                        icon={TrashIcon}
+                                                                        variant="danger"
+                                                                        label={`Delete tier ${tier.name}`}
                                                                         onClick={() => setPendingAction({ kind: 'deleteTier', eventDay: ed, tier })}
-                                                                        className="min-h-11 min-w-11 flex items-center justify-center text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors cursor-pointer"
-                                                                        aria-label={`Delete tier ${tier.name}`}
-                                                                    >
-                                                                        <TrashIcon className="w-5 h-5" aria-hidden="true" />
-                                                                    </button>
+                                                                    />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -922,49 +846,47 @@ export const AdminEventDays = () => {
                                             {/* Quick presets */}
                                             <div className="flex flex-wrap gap-2 mb-3">
                                                 {tierPresets.map(p => (
-                                                    <button
+                                                    <Button
                                                         key={p.name}
-                                                        type="button"
+                                                        variant="secondary"
+                                                        size="sm"
                                                         onClick={() => { setTierName(p.name); setTierPrice(String(p.price)); setTierDesc(p.desc); }}
-                                                        className="px-3.5 min-h-11 text-xs font-bold bg-white dark:bg-gray-600 text-gray-700 dark:text-white border border-gray-300 dark:border-gray-500 rounded-full shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-gray-500 transition-all cursor-pointer"
+                                                        className="rounded-full"
                                                     >
                                                         {p.name} (₦{p.price.toLocaleString()})
-                                                    </button>
+                                                    </Button>
                                                 ))}
                                             </div>
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                                <input type="text" value={tierName} onChange={(e) => setTierName(e.target.value)} placeholder="Tier name *" aria-label="Tier name" className={inlineInputClass} />
-                                                <input type="number" value={tierPrice} onChange={(e) => setTierPrice(e.target.value)} placeholder="Price (₦) *" aria-label="Price" className={inlineInputClass} />
-                                                <input type="number" value={tierCapacity} onChange={(e) => setTierCapacity(e.target.value)} placeholder="Capacity (0=unlimited)" aria-label="Capacity" className={inlineInputClass} />
-                                                <input type="text" value={tierDesc} onChange={(e) => setTierDesc(e.target.value)} placeholder="Description" aria-label="Description" className={inlineInputClass} />
+                                                <Input type="text" value={tierName} onChange={(e) => setTierName(e.target.value)} placeholder="Tier name *" aria-label="Tier name" />
+                                                <Input type="number" value={tierPrice} onChange={(e) => setTierPrice(e.target.value)} placeholder="Price (₦) *" aria-label="Price" />
+                                                <Input type="number" value={tierCapacity} onChange={(e) => setTierCapacity(e.target.value)} placeholder="Capacity (0=unlimited)" aria-label="Capacity" />
+                                                <Input type="text" value={tierDesc} onChange={(e) => setTierDesc(e.target.value)} placeholder="Description" aria-label="Description" />
                                             </div>
 
                                             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mt-3">
-                                                <label className="flex items-center gap-2 min-h-11 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                                                    <input type="checkbox" checked={isHidden} onChange={(e) => setIsHidden(e.target.checked)} className="rounded text-sffl-red focus:ring-sffl-red border-gray-300" />
-                                                    Hidden Tier? (Requires Code)
-                                                </label>
+                                                <Checkbox
+                                                    label="Hidden Tier? (Requires Code)"
+                                                    checked={isHidden}
+                                                    onChange={(e) => setIsHidden(e.target.checked)}
+                                                />
                                                 {isHidden && (
-                                                    <input type="text" value={accessCode} onChange={(e) => setAccessCode(e.target.value.toUpperCase())} placeholder="Access Code (e.g. SFFLFREE)" aria-label="Access code" className={`${inlineInputClass} sm:w-auto uppercase font-mono`} />
+                                                    <Input type="text" value={accessCode} onChange={(e) => setAccessCode(e.target.value.toUpperCase())} placeholder="Access Code (e.g. SFFLFREE)" aria-label="Access code" className="sm:w-64 font-mono uppercase" />
                                                 )}
                                             </div>
                                             <div className="flex flex-col-reverse sm:flex-row gap-2 mt-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { setAddTierFor(null); resetTierForm(); }}
-                                                    className="px-4 py-2 min-h-11 text-sm font-bold text-gray-500 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all cursor-pointer"
-                                                >
+                                                <Button variant="ghost" onClick={() => { setAddTierFor(null); resetTierForm(); }}>
                                                     Cancel
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
+                                                    variant="navy"
+                                                    icon={CheckIcon}
                                                     onClick={() => requestCreateTier(ed)}
                                                     disabled={busy || !tierName.trim() || !tierPrice}
-                                                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 bg-sffl-navy text-white rounded-lg shadow-sm hover:shadow-md text-sm font-bold hover:bg-blue-900 transition-all cursor-pointer disabled:opacity-50"
                                                 >
-                                                    <CheckIcon className="w-4 h-4" aria-hidden="true" />
                                                     Add Tier
-                                                </button>
+                                                </Button>
                                             </div>
                                         </div>
                                     )}
@@ -988,22 +910,12 @@ export const AdminEventDays = () => {
                         Page {data.page || page} of {data.total_pages} · {data.total} total
                     </span>
                     <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                            disabled={page <= 1}
-                            className="px-4 min-h-11 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
+                        <Button variant="secondary" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
                             Prev
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setPage((p) => Math.min(data.total_pages, p + 1))}
-                            disabled={page >= data.total_pages}
-                            className="px-4 min-h-11 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
+                        </Button>
+                        <Button variant="secondary" onClick={() => setPage((p) => Math.min(data.total_pages, p + 1))} disabled={page >= data.total_pages}>
                             Next
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

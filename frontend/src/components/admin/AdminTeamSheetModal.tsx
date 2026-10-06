@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { isDeletedPlayer, DELETED_TITLE } from "../common/DeletedPlayer";
-import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -20,6 +19,7 @@ import {
   type Player,
   type TeamSheetPlayer,
 } from "../../services/api";
+import { Button, Checkbox, IconButton, Input, Modal, Select, Tabs } from "../ui";
 import { Spinner } from "../ui/Spinner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -58,9 +58,6 @@ type PendingAction =
   | { kind: "save" }
   | { kind: "create" }
   | { kind: "offRoster"; player: Player };
-
-const inputClass =
-  "w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none";
 
 const playerCount = (n: number) => `${n} player${n !== 1 ? "s" : ""}`;
 
@@ -425,59 +422,49 @@ export const AdminTeamSheetModal = ({
 
   return (
     <>
-      {createPortal(
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden"
-          data-dialog
-          onClick={onClose}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-start gap-3">
-              <div className="min-w-0">
-                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                  Team Sheet
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 wrap-break-word">
-                  {match.home_team?.short_name} vs {match.away_team?.short_name}{" "}
-                  · {match.date?.split("T")[0]}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <XMarkIcon className="w-6 h-6" aria-hidden="true" />
-              </button>
+      <Modal
+        open
+        onClose={onClose}
+        title="Team Sheet"
+        subtitle={`${match.home_team?.short_name} vs ${match.away_team?.short_name} · ${match.date?.split("T")[0]}`}
+        maxWidth="2xl"
+        footer={
+          <>
+            <div className="flex gap-4 sm:flex-col sm:gap-0.5 sm:mr-auto self-center text-xs text-gray-500 dark:text-gray-400 font-semibold">
+              <div>Home: {playerCount(selectedHomePlayers.length)}</div>
+              <div>Away: {playerCount(selectedAwayPlayers.length)}</div>
             </div>
-
+            <Button variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+            <Button
+              loading={saveBothMutation.isPending}
+              disabled={loadingSheet}
+              onClick={() => setPendingAction({ kind: "save" })}
+            >
+              Save Both Sheets
+            </Button>
+          </>
+        }
+      >
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
-              {(["home", "away"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(tab);
-                    setSearchQuery("");
-                    setShowQuickAdd(false);
-                    setShowDropdown(false);
-                  }}
-                  className={`flex-1 min-w-0 truncate px-2 py-3 min-h-11 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? "border-sffl-red text-sffl-red" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}
-                >
-                  {tab === "home"
-                    ? match.home_team?.name
-                    : match.away_team?.name}
-                </button>
-              ))}
-            </div>
+            <Tabs
+              aria-label="Team"
+              className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-6 mb-4 sm:mb-6"
+              items={[
+                { value: "home", label: match.home_team?.name },
+                { value: "away", label: match.away_team?.name },
+              ]}
+              value={activeTab}
+              onChange={(tab) => {
+                setActiveTab(tab);
+                setSearchQuery("");
+                setShowQuickAdd(false);
+                setShowDropdown(false);
+              }}
+            />
 
-            <div className="p-4 sm:p-5 pb-10 sm:pb-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-5">
+            <div className="space-y-5">
               {loadingSheet ? (
                 <Spinner />
               ) : (
@@ -505,7 +492,7 @@ export const AdminTeamSheetModal = ({
                       Add Player to Roster
                     </label>
                     <div ref={searchRef} className="relative">
-                      <input
+                      <Input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => {
@@ -517,7 +504,7 @@ export const AdminTeamSheetModal = ({
                           searchQuery.length >= 2 && setShowDropdown(true)
                         }
                         placeholder="Search by player name…"
-                        className="w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-transparent outline-none"
+                        aria-label="Search players to add"
                       />
 
                       {/* Search Dropdown */}
@@ -577,8 +564,10 @@ export const AdminTeamSheetModal = ({
                               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 wrap-break-word">
                                 No player found for "{searchQuery}"
                               </p>
-                              <button
-                                type="button"
+                              <Button
+                                variant="link"
+                                size="sm"
+                                icon={PlusIcon}
                                 onClick={() => {
                                   setShowQuickAdd(true);
                                   setShowDropdown(false);
@@ -587,14 +576,9 @@ export const AdminTeamSheetModal = ({
                                     name: searchQuery,
                                   });
                                 }}
-                                className="inline-flex items-center gap-1.5 min-h-11 px-2 text-sm font-bold text-sffl-red hover:underline"
                               >
-                                <PlusIcon
-                                  className="w-4 h-4"
-                                  aria-hidden="true"
-                                />
                                 Create new player
-                              </button>
+                              </Button>
                             </div>
                           )}
                         </div>
@@ -608,8 +592,9 @@ export const AdminTeamSheetModal = ({
                           New Player — Quick Add
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <input
+                          <Input
                             type="text"
+                            aria-label="New player full name"
                             value={quickAdd.name}
                             onChange={(e) =>
                               setQuickAdd((f) => ({
@@ -618,9 +603,10 @@ export const AdminTeamSheetModal = ({
                               }))
                             }
                             placeholder="Full name *"
-                            className={`sm:col-span-3 ${inputClass}`}
+                            className="sm:col-span-3"
                           />
-                          <select
+                          <Select
+                            aria-label="New player position"
                             value={quickAdd.position}
                             onChange={(e) =>
                               setQuickAdd((f) => ({
@@ -628,7 +614,7 @@ export const AdminTeamSheetModal = ({
                                 position: e.target.value,
                               }))
                             }
-                            className={`sm:col-span-2 ${inputClass}`}
+                            className="sm:col-span-2"
                           >
                             <option value="">Position *</option>
                             {POSITIONS.map((pos) => (
@@ -636,9 +622,10 @@ export const AdminTeamSheetModal = ({
                                 {pos === "-" ? "- (No Role / Unassigned)" : pos}
                               </option>
                             ))}
-                          </select>
-                          <input
+                          </Select>
+                          <Input
                             type="number"
+                            aria-label="New player jersey number"
                             value={quickAdd.jersey_number}
                             onChange={(e) =>
                               setQuickAdd((f) => ({
@@ -647,28 +634,27 @@ export const AdminTeamSheetModal = ({
                               }))
                             }
                             placeholder="# Jersey"
-                            className={inputClass}
                           />
                         </div>
                         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-                          <button
-                            type="button"
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => {
                               setShowQuickAdd(false);
                               setSearchQuery("");
                             }}
-                            className="px-3 py-1.5 min-h-11 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
                           >
                             Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={requestCreate}
+                          </Button>
+                          <Button
+                            size="sm"
                             disabled={createMutation.isPending}
-                            className="px-4 py-1.5 min-h-11 text-sm font-bold bg-sffl-navy text-white rounded-lg hover:bg-sffl-navy-light transition-colors disabled:opacity-50"
+                            loading={createMutation.isPending}
+                            onClick={requestCreate}
                           >
                             Create & Add
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -701,17 +687,12 @@ export const AdminTeamSheetModal = ({
                               className="inline-flex items-center min-h-11 pl-3 bg-sffl-navy/10 dark:bg-sffl-navy/30 text-sffl-navy dark:text-white text-xs font-bold rounded-full"
                             >
                               {name}
-                              <button
-                                type="button"
+                              <IconButton
+                                variant="ghost"
+                                icon={XMarkIcon}
+                                label={`Remove ${name}`}
                                 onClick={() => togglePlayer(pid)}
-                                aria-label={`Remove ${name}`}
-                                className="min-h-11 min-w-11 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500"
-                              >
-                                <XMarkIcon
-                                  className="w-4 h-4"
-                                  aria-hidden="true"
-                                />
-                              </button>
+                              />
                             </span>
                           );
                         })}
@@ -744,12 +725,10 @@ export const AdminTeamSheetModal = ({
                                 : "hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer"
                             }`}
                           >
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={activeSelected.includes(player.id)}
                               onChange={() => togglePlayer(player.id)}
                               disabled={isDeletedPlayer(player)}
-                              className="w-4 h-4 shrink-0 text-sffl-red rounded border-gray-300 focus:ring-sffl-red dark:border-gray-600 disabled:cursor-not-allowed"
                             />
                             <div
                               className={`flex-1 min-w-0 wrap-break-word font-semibold text-sm ${
@@ -772,34 +751,7 @@ export const AdminTeamSheetModal = ({
               )}
             </div>
 
-            {/* Footer */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
-              <div className="flex gap-4 sm:flex-col sm:gap-0.5 text-xs text-gray-500 dark:text-gray-400 font-semibold">
-                <div>Home: {playerCount(selectedHomePlayers.length)}</div>
-                <div>Away: {playerCount(selectedAwayPlayers.length)}</div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition-all"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPendingAction({ kind: "save" })}
-                  disabled={saveBothMutation.isPending || loadingSheet}
-                  className="flex-1 sm:flex-none px-5 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:bg-red-700 transition-all disabled:opacity-50"
-                >
-                  Save Both Sheets
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+      </Modal>
 
       {/* Outside the overlay: portal clicks bubble through the React tree, so
                 inside it a backdrop click would also close the whole team sheet. */}

@@ -10,13 +10,21 @@ import {
   PencilSquareIcon,
   PlusIcon,
   TrashIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
-import { ImageUploadField, LightboxImage } from "../../components/ui";
+import {
+  Button,
+  Field,
+  ImageUploadField,
+  Input,
+  LightboxImage,
+  Modal,
+  Select,
+  Textarea,
+} from "../../components/ui";
 import {
   getPlayers,
   getTeams,
@@ -106,11 +114,6 @@ type PendingAction =
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_PLAYERS: Player[] = [];
-
-const inputClass =
-  "w-full min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2";
-const filterClass =
-  "w-full sm:w-auto max-w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white";
 
 export const AdminPlayers = () => {
   const queryClient = useQueryClient();
@@ -623,67 +626,62 @@ export const AdminPlayers = () => {
         title="Players"
         subtitle="Manage player profiles, positions and team assignments."
         actions={
-          <button
-            type="button"
+          <Button
+            icon={PlusIcon}
             onClick={openCreate}
             disabled={!canManage}
             title={canManage ? undefined : "View-only access to Players"}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-11 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto whitespace-nowrap"
           >
-            <PlusIcon className="w-4 h-4" aria-hidden="true" />
             Add Player
-          </button>
+          </Button>
         }
       />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
-        <select
+        <Select
           aria-label="Team"
           value={filterTeam}
           onChange={(e) => handleFilterChange(e.target.value)}
-          className={filterClass}
+          className="w-full sm:w-64"
         >
-          <option value="" className="truncate">
-            All Teams
-          </option>
-          <option value="FREE_AGENT" className="truncate">
-            Free Agents (no active contract)
-          </option>
+          <option value="">All Teams</option>
+          <option value="FREE_AGENT">Free Agents (no active contract)</option>
           {teams.map((t) => (
-            <option key={t.id} value={t.id} className="truncate">
+            <option key={t.id} value={t.id}>
               {t.name}
             </option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           aria-label="Squad"
           value={rosterStatus}
           onChange={(e) => {
             setRosterStatus(e.target.value as "main" | "reserve" | "all");
             setPage(1);
           }}
-          className={filterClass}
+          className="w-full sm:w-56"
         >
           <option value="all">All Squads</option>
           <option value="main">Main Squad Only</option>
           <option value="reserve">Reserves Only</option>
-        </select>
-        <div className="flex items-center justify-between sm:justify-start gap-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 min-h-11">
+        </Select>
+        <div className="flex items-center justify-between sm:justify-start gap-2">
           <label
             htmlFor="limitSelectInput"
             className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
           >
             Limit:
           </label>
-          <select
+          <Select
             id="limitSelectInput"
             value={limit}
             onChange={(e) => {
               setLimit(Number(e.target.value));
               setPage(1);
             }}
-            className="bg-transparent font-bold text-sm text-gray-900 dark:text-white focus:outline-none cursor-pointer min-h-11"
+            className="w-28"
           >
             <option value={10}>10</option>
             <option value={20}>20</option>
@@ -693,7 +691,7 @@ export const AdminPlayers = () => {
             <option value={500}>500</option>
             <option value={800}>800</option>
             <option value={1000}>1000</option>
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -717,64 +715,50 @@ export const AdminPlayers = () => {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden"
-          data-dialog
-          onClick={closeForm}
+        <Modal
+          open
+          onClose={closeForm}
+          title={editingId ? "Edit Player" : "Add Player"}
+          maxWidth="2xl"
+          footer={
+            <>
+              <Button variant="secondary" onClick={closeForm}>
+                Cancel
+              </Button>
+              <Button onClick={requestSave} disabled={saving} loading={saving}>
+                {editingId ? "Update" : "Create"}
+              </Button>
+            </>
+          }
         >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-between gap-3">
-              <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                {editingId ? "Edit Player" : "Add Player"}
-              </h2>
-              <button
-                type="button"
-                onClick={closeForm}
-                aria-label="Close"
-                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Name *
-                  </label>
-                  <input
+                <Field label="Name *" htmlFor="player-name">
+                  <Input
+                    id="player-name"
                     type="text"
                     value={form.name}
                     onChange={(e) => set("name", e.target.value)}
-                    className={inputClass}
                     placeholder="Player name"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Jersey Number *
-                  </label>
-                  <input
+                </Field>
+                <Field label="Jersey Number *" htmlFor="player-jersey">
+                  <Input
+                    id="player-jersey"
                     type="number"
                     value={form.jersey_number}
                     onChange={(e) => set("jersey_number", e.target.value)}
-                    className={inputClass}
                     min="1"
                     max="99"
                     placeholder="e.g. 10"
                     required
                   />
-                </div>
+                </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Primary Role
-                  </label>
-                  <select
+                <Field label="Primary Role" htmlFor="player-position">
+                  <Select
+                    id="player-position"
                     value={form.position || "-"}
                     onChange={(e) => {
                       const newPos = e.target.value;
@@ -783,103 +767,85 @@ export const AdminPlayers = () => {
                         set("secondary_position", "");
                       }
                     }}
-                    className={`${inputClass} z-50`}
                   >
-                    <option value="-" className="truncate">
-                      - (No Role / Unassigned)
-                    </option>
+                    <option value="-">- (No Role / Unassigned)</option>
                     {POSITIONS.filter((p) => p !== "-").map((p) => (
-                      <option key={p} value={p} className="truncate">
+                      <option key={p} value={p}>
                         {p}
                       </option>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Secondary Role{" "}
-                    <span className="text-xs font-normal text-gray-400">
-                      (Optional)
-                    </span>
-                  </label>
-                  <select
+                  </Select>
+                </Field>
+                <Field
+                  label={<>Secondary Role <span className="text-xs font-normal text-gray-400">(Optional)</span></>}
+                  htmlFor="player-secondary-position"
+                >
+                  <Select
+                    id="player-secondary-position"
                     value={form.secondary_position}
                     onChange={(e) => set("secondary_position", e.target.value)}
-                    className={`${inputClass} z-50`}
                   >
-                    <option value="" className="truncate">
-                      None (No Secondary Role)
-                    </option>
+                    <option value="">None (No Secondary Role)</option>
                     {SECONDARY_POSITIONS.filter((p) => p !== form.position).map(
                       (p) => (
-                        <option key={p} value={p} className="truncate">
+                        <option key={p} value={p}>
                           {p}
                         </option>
                       ),
                     )}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Gender
-                  </label>
-                  <select
+                <Field label="Gender" htmlFor="player-gender">
+                  <Select
+                    id="player-gender"
                     value={form.gender}
                     onChange={(e) => set("gender", e.target.value)}
-                    className={`${inputClass} z-50`}
                   >
                     <option value="">Select...</option>
                     <option value="M">Male (M)</option>
                     <option value="F">Female (F)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Team *
-                  </label>
-                  <select
+                  </Select>
+                </Field>
+                <Field label="Team *" htmlFor="player-team">
+                  <Select
+                    id="player-team"
                     value={form.team_id}
                     onChange={(e) => set("team_id", e.target.value)}
-                    className={`${inputClass} z-50 font-semibold text-sm`}
                   >
-                    <option value="" className="truncate">
+                    <option value="">
                       {editingId ? "Unassigned / Free Agent" : "Select..."}
                     </option>
                     {teams.map((t) => (
-                      <option key={t.id} value={t.id} className="truncate">
+                      <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Email{" "}
-                  <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
+              <Field
+                label={<>Email <span className="text-gray-400 font-normal">(optional)</span></>}
+                htmlFor="player-email"
+              >
+                <Input
+                  id="player-email"
                   type="email"
                   value={form.email}
                   onChange={(e) => set("email", e.target.value)}
-                  className={inputClass}
                   placeholder="player@example.com"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Bio
-                </label>
-                <textarea
+              </Field>
+              <Field label="Bio" htmlFor="player-bio">
+                <Textarea
+                  id="player-bio"
                   value={form.bio}
                   onChange={(e) => set("bio", e.target.value)}
                   rows={3}
-                  className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
                   placeholder="Player bio..."
                 />
-              </div>
+              </Field>
               <div>
                 <ImageUploadField
                   label="Player Image"
@@ -891,25 +857,7 @@ export const AdminPlayers = () => {
                 />
               </div>
             </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeForm}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 text-sm dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-11"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={requestSave}
-                disabled={saving}
-                className="px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-11 disabled:opacity-50"
-              >
-                {editingId ? "Update" : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Outside the form overlay: portal clicks bubble through the React tree,

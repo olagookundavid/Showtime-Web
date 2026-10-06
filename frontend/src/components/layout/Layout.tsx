@@ -11,6 +11,7 @@ import {
 } from "./LatestMatchesCarousel";
 import { useHideOnScrollDown } from "../../hooks/useHideOnScrollDown";
 import { NewsletterPopup } from "../newsletter/NewsletterPopup";
+import { Button, IconButton } from "../ui";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import {
   XMarkIcon,
@@ -198,14 +199,13 @@ export const Layout = () => {
                     Explore Showtime
                   </h2>
                 </div>
-                <button
-                  type="button"
+                <IconButton
+                  variant="ghost"
+                  icon={XMarkIcon}
+                  label="Close menu"
+                  className="-mr-2"
                   onClick={() => setIsMoreMenuOpen(false)}
-                  className="min-h-11 min-w-11 -mr-2 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full transition-colors"
-                  aria-label="Close menu"
-                >
-                  <XMarkIcon className="w-6 h-6" aria-hidden="true" />
-                </button>
+                />
               </div>
 
               {/* User / Auth Bar */}
@@ -703,14 +703,15 @@ export const Layout = () => {
               {/* Section 6: Auth Sign Out & Footer Info */}
               {isAuthenticated && (
                 <div className="mb-4">
-                  <button
-                    type="button"
+                  <Button
+                    variant="danger"
+                    fullWidth
+                    size="lg"
+                    icon={ArrowRightOnRectangleIcon}
                     onClick={() => setConfirmLogout(true)}
-                    className="w-full min-h-11 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 font-black py-3 rounded-xl active:scale-[0.98] transition-all text-xs uppercase tracking-wider"
                   >
-                    <ArrowRightOnRectangleIcon className="w-4 h-4" />
-                    <span>Sign Out</span>
-                  </button>
+                    Sign Out
+                  </Button>
                 </div>
               )}
 
@@ -723,14 +724,15 @@ export const Layout = () => {
             <div className="w-1/2 p-5 sm:p-6 overflow-y-auto overscroll-contain pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))]">
               {/* Back Header */}
               <div className="flex items-center gap-3 mb-5 shrink-0">
-                <button
-                  type="button"
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="-ml-2"
+                  icon={ChevronLeftIcon}
                   onClick={() => setActiveSubMenu("main")}
-                  className="min-h-11 flex items-center gap-1.5 p-2 -ml-2 text-sffl-red hover:bg-sffl-red/10 rounded-xl font-black text-xs uppercase tracking-wider transition-all"
                 >
-                  <ChevronLeftIcon className="w-5 h-5" aria-hidden="true" />
-                  <span>Back</span>
-                </button>
+                  Back
+                </Button>
                 <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
                 <h2 className="text-base font-black italic text-sffl-navy dark:text-white uppercase tracking-tight">
                   About Showtime

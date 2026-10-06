@@ -12,6 +12,7 @@ import {
     XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { Button, Field, Input, Tabs } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -33,16 +34,6 @@ type PendingAction =
     | { kind: 'withdraw'; contract: ContractData };
 
 const nameOf = (c: ContractData) => c.player?.name || 'Player';
-
-const tabClass = (active: boolean) =>
-    `min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 transition-colors ${
-        active
-            ? 'border-sffl-red text-sffl-red'
-            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-    }`;
-
-const inputClass =
-    'w-full min-h-11 px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sffl-red';
 
 const PlayerCell = ({ c }: { c: ContractData }) => (
     <div className="flex items-center gap-3 min-w-0">
@@ -346,18 +337,15 @@ export const TeamHeadContracts: React.FC = () => {
                                 ['Player', nameOf(contract)],
                                 ['Current contract', `${contract.matches_played} / ${contract.contract_length} matches`],
                             ]} />
-                            <label className="block">
-                                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                                    Extension length (team matches) <span className="text-sffl-red">*</span>
-                                </span>
-                                <input
+                            <Field label={<>Extension length (team matches) <span className="text-sffl-red">*</span></>} htmlFor="extend-length">
+                                <Input
+                                    id="extend-length"
                                     type="number"
                                     min="1"
                                     value={extendLength}
                                     onChange={e => setExtendLength(e.target.value)}
-                                    className={inputClass}
                                 />
-                            </label>
+                            </Field>
                         </div>
                     ),
                 };
@@ -407,29 +395,23 @@ export const TeamHeadContracts: React.FC = () => {
                 title="Contracts"
                 subtitle="Offer, extend and release contracts for the players on your roster."
                 actions={
-                    <button
-                        type="button"
-                        onClick={() => openTab('free-agents')}
-                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 min-h-11 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-lg shadow-md transition-colors"
-                    >
-                        <MagnifyingGlassIcon className="w-4 h-4" aria-hidden="true" />
+                    <Button className="w-full sm:w-auto" icon={MagnifyingGlassIcon} onClick={() => openTab('free-agents')}>
                         Find Free Agents
-                    </button>
+                    </Button>
                 }
             />
 
             {/* Tabs */}
-            <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700">
-                <button type="button" onClick={() => openTab('active')} aria-pressed={activeTab === 'active'} className={tabClass(activeTab === 'active')}>
-                    Active Contracts ({activeTotal})
-                </button>
-                <button type="button" onClick={() => openTab('pending')} aria-pressed={activeTab === 'pending'} className={tabClass(activeTab === 'pending')}>
-                    Pending Offers ({pendingTotal})
-                </button>
-                <button type="button" onClick={() => openTab('free-agents')} aria-pressed={activeTab === 'free-agents'} className={tabClass(activeTab === 'free-agents')}>
-                    Free Agents Market
-                </button>
-            </div>
+            <Tabs
+                aria-label="Contracts"
+                items={[
+                    { value: 'active', label: `Active Contracts (${activeTotal})` },
+                    { value: 'pending', label: `Pending Offers (${pendingTotal})` },
+                    { value: 'free-agents', label: 'Free Agents Market' },
+                ]}
+                value={activeTab}
+                onChange={openTab}
+            />
 
             {/* ── Tab 1: Active Contracts ── */}
             {activeTab === 'active' && (
@@ -485,20 +467,18 @@ export const TeamHeadContracts: React.FC = () => {
             {/* ── Tab 3: Free Agents ── */}
             {activeTab === 'free-agents' && (
                 <div className="space-y-4">
-                    <div className="relative w-full sm:max-w-md">
-                        <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
-                        <input
-                            type="search"
-                            aria-label="Search free agents"
-                            placeholder="Search free agents by name or position"
-                            value={freeAgentSearch}
-                            onChange={e => {
-                                setFreeAgentSearch(e.target.value);
-                                setFreeAgentPage(1);
-                            }}
-                            className="w-full min-h-11 pl-10 pr-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                        />
-                    </div>
+                    <Input
+                        type="search"
+                        aria-label="Search free agents"
+                        icon={MagnifyingGlassIcon}
+                        placeholder="Search free agents by name or position"
+                        value={freeAgentSearch}
+                        onChange={e => {
+                            setFreeAgentSearch(e.target.value);
+                            setFreeAgentPage(1);
+                        }}
+                        className="w-full sm:max-w-md"
+                    />
 
                     {freeAgentsLoading ? (
                         <Spinner label="Loading free agents" />
@@ -525,14 +505,9 @@ export const TeamHeadContracts: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            onClick={() => openOffer(p)}
-                                            className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 bg-sffl-red hover:bg-sffl-red/90 text-white text-xs font-bold rounded-lg transition-colors"
-                                        >
-                                            <DocumentTextIcon className="w-4 h-4" aria-hidden="true" />
+                                        <Button icon={DocumentTextIcon} onClick={() => openOffer(p)}>
                                             Offer Contract
-                                        </button>
+                                        </Button>
                                     </div>
                                 ))}
                             </div>
@@ -545,27 +520,26 @@ export const TeamHeadContracts: React.FC = () => {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFreeAgentPage(p => Math.max(1, p - 1))}
+                                        <Button
+                                            variant="secondary"
+                                            icon={ChevronLeftIcon}
                                             disabled={freeAgentPage <= 1}
-                                            className="inline-flex items-center gap-1 min-h-11 px-3 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                            onClick={() => setFreeAgentPage(p => Math.max(1, p - 1))}
                                         >
-                                            <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
                                             Previous
-                                        </button>
+                                        </Button>
                                         <span className="font-bold text-gray-700 dark:text-gray-300 px-2 whitespace-nowrap">
                                             Page {freeAgentPage} of {freeAgentTotalPages}
                                         </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFreeAgentPage(p => Math.min(freeAgentTotalPages, p + 1))}
+                                        <Button
+                                            variant="secondary"
+                                            icon={ChevronRightIcon}
+                                            iconPosition="right"
                                             disabled={freeAgentPage >= freeAgentTotalPages}
-                                            className="inline-flex items-center gap-1 min-h-11 px-3 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                            onClick={() => setFreeAgentPage(p => Math.min(freeAgentTotalPages, p + 1))}
                                         >
                                             Next
-                                            <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -580,6 +554,16 @@ export const TeamHeadContracts: React.FC = () => {
                 onClose={() => { if (!pendingAction) setSelectedPlayer(null); }}
                 title="Offer Contract"
                 maxWidth="md"
+                footer={selectedPlayer ? (
+                    <>
+                        <Button variant="secondary" onClick={() => setSelectedPlayer(null)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={submitOffer}>
+                            Send Contract Offer
+                        </Button>
+                    </>
+                ) : undefined}
             >
                 {selectedPlayer && (
                     <div className="space-y-4">
@@ -591,35 +575,20 @@ export const TeamHeadContracts: React.FC = () => {
                             </p>
                         </div>
 
-                        <label className="block">
-                            <span className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Contract Length (Team Matches)</span>
-                            <input
+                        <Field
+                            label="Contract Length (Team Matches)"
+                            htmlFor="contract-length"
+                            hint="Default is 13 matches (August standard)."
+                        >
+                            <Input
+                                id="contract-length"
                                 type="number"
                                 min="1"
                                 max="50"
                                 value={contractLength}
                                 onChange={e => setContractLength(e.target.value)}
-                                className={inputClass}
                             />
-                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 block">Default is 13 matches (August standard).</span>
-                        </label>
-
-                        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlayer(null)}
-                                className="flex-1 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={submitOffer}
-                                className="flex-1 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
-                            >
-                                Send Contract Offer
-                            </button>
-                        </div>
+                        </Field>
                     </div>
                 )}
             </Modal>

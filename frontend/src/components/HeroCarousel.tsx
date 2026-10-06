@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { IconButton } from "./ui";
 import { useAuth } from "../contexts/AuthContext";
 
 interface Slide {
@@ -110,34 +111,28 @@ export const HeroCarousel = () => {
       ))}
 
       {/* Navigation Arrows */}
-      <button
+      <IconButton
+        tone="dark"
+        variant="secondary"
+        icon={ChevronLeftIcon}
+        label="Previous slide"
+        className="absolute left-1 md:left-4 top-1/2 -translate-y-1/2 backdrop-blur-md"
         onClick={(e) => {
           e.preventDefault();
           prevSlide();
         }}
-        className="absolute left-1 md:left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 md:p-3 min-h-11 min-w-11 flex items-center justify-center rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] active:scale-95 z-20"
-        aria-label="Previous slide"
-      >
-        <ChevronLeftIcon
-          className="w-5 h-5 md:w-6 md:h-6"
-          strokeWidth={2.5}
-          aria-hidden="true"
-        />
-      </button>
-      <button
+      />
+      <IconButton
+        tone="dark"
+        variant="secondary"
+        icon={ChevronRightIcon}
+        label="Next slide"
+        className="absolute right-1 md:right-4 top-1/2 -translate-y-1/2 backdrop-blur-md"
         onClick={(e) => {
           e.preventDefault();
           nextSlide();
         }}
-        className="absolute right-1 md:right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 md:p-3 min-h-11 min-w-11 flex items-center justify-center rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] active:scale-95 z-20"
-        aria-label="Next slide"
-      >
-        <ChevronRightIcon
-          className="w-5 h-5 md:w-6 md:h-6"
-          strokeWidth={2.5}
-          aria-hidden="true"
-        />
-      </button>
+      />
 
       {/* Dot Indicators */}
       <div className="absolute bottom-0 md:bottom-2 left-1/2 -translate-x-1/2 flex z-20">

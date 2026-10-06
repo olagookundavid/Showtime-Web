@@ -3,6 +3,7 @@ import { BellIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { notificationsApi, type NotificationData } from '../../services/api';
 import toast from 'react-hot-toast';
+import { Button } from '../ui';
 import { Spinner } from '../ui/Spinner';
 
 /**
@@ -156,13 +157,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onDark = fal
                             )}
                         </div>
                         {unreadCount > 0 && (
-                            <button
-                                type="button"
-                                onClick={handleMarkAllRead}
-                                className="min-h-11 px-2 -mr-2 text-xs text-sffl-red hover:underline font-medium"
-                            >
+                            <Button variant="link" size="sm" className="-mr-2" onClick={handleMarkAllRead}>
                                 Mark all read
-                            </button>
+                            </Button>
                         )}
                     </div>
 

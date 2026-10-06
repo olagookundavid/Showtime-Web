@@ -21,9 +21,12 @@ import {
   ChevronUpIcon,
 } from "@heroicons/react/24/outline";
 import { Spinner } from "./Spinner";
+import { Button } from "./Button";
+import { Input } from "./Input";
 
 export interface Column<T> {
-  header: string;
+  /** Header text, or a node for a two-line label. */
+  header: ReactNode;
   accessor?: keyof T | string;
   cell?: (item: T) => ReactNode;
   sortable?: boolean;
@@ -31,6 +34,12 @@ export interface Column<T> {
   className?: string; // td className
   /** Aligns the header and the cells. */
   align?: "left" | "center" | "right";
+  /** Sort controlled by the page (e.g. leaders first, then back to default). Makes the header a button that calls this. Don't combine with `sortable`. */
+  onSort?: () => void;
+  /** With `onSort`: marks this column as the active sort. */
+  sortActive?: boolean;
+  /** Padding for the header label, when the default px-4 is too wide for a narrow column. */
+  headerClassName?: string;
 }
 
 interface DataTableProps<T> {
@@ -53,6 +62,14 @@ interface DataTableProps<T> {
   getRowId?: (row: T) => string;
   /** For a few short columns, e.g. inside a dialog: drops the 800px minimum width so the table fits its container. */
   compact?: boolean;
+  /** Row background and state classes, e.g. a highlighted or champion row. Include a background: the frozen first cell takes it. */
+  rowClassName?: (row: T) => string;
+  /** Makes each row clickable, e.g. to open the record. Keep a button in the row for keyboard users. */
+  onRowClick?: (row: T) => void;
+  /** Keeps the header row on screen while the rows scroll inside `maxHeight`. Needs `maxHeight`. */
+  stickyHeader?: boolean;
+  /** Tailwind max-height class for the scrolling area, e.g. "max-h-[70dvh]". */
+  maxHeight?: string;
 }
 
 // TanStack Table (v9) does the sorting, searching and paging; this file owns the markup and styling.
@@ -137,6 +154,10 @@ export function DataTable<T extends Record<string, any>>({
   paginated = true,
   getRowId,
   compact = false,
+  rowClassName,
+  onRowClick,
+  stickyHeader = false,
+  maxHeight,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [internalPage, setInternalPage] = useState(1);
@@ -169,7 +190,7 @@ export function DataTable<T extends Record<string, any>>({
     () =>
       columns.map((col, i) => ({
         id: String(i),
-        header: col.header,
+        header: () => col.header,
         accessorFn: (row: T) => {
           const value = col.sortValue
             ? col.sortValue(row)
@@ -224,8 +245,9 @@ export function DataTable<T extends Record<string, any>>({
   const totalPages = paginated ? table.getPageCount() : 1;
   const showToolbar = searchable || !!headerActions;
 
+  // The frozen cell takes its row's background (bg-inherit), so a highlighted row stays one colour.
   const cellClass = (col: Column<T>, first: boolean) =>
-    `${col.className || DEFAULT_CELL_CLASS}${col.align ? ` ${ALIGN_TEXT[col.align]}` : ""} ${ROW_DIVIDER} ${ROW_HOVER}${first ? ` ${STICKY_CELL} bg-white dark:bg-gray-800` : ""}`;
+    `${col.className || DEFAULT_CELL_CLASS}${col.align ? ` ${ALIGN_TEXT[col.align]}` : ""} ${ROW_DIVIDER} ${ROW_HOVER}${first ? ` ${STICKY_CELL} bg-inherit` : ""}`;
 
   return (
     <div className="space-y-4">
@@ -235,9 +257,10 @@ export function DataTable<T extends Record<string, any>>({
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {searchable && (
               <div className="flex gap-2 w-full sm:w-auto">
-                <input
+                <Input
                   type="text"
                   placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) =>
@@ -245,15 +268,10 @@ export function DataTable<T extends Record<string, any>>({
                     onSearchSubmit &&
                     onSearchSubmit(searchTerm)
                   }
-                  className="w-full sm:w-64 px-4 py-2 min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-sffl-red/20 outline-none text-gray-900 dark:text-gray-100 transition-colors"
+                  className="w-full sm:w-64"
                 />
                 {onSearchSubmit && (
-                  <button
-                    onClick={() => onSearchSubmit(searchTerm)}
-                    className="px-4 py-2 min-h-11 bg-sffl-red text-white text-xs font-bold rounded-lg shadow hover:bg-red-600 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                  >
-                    Search
-                  </button>
+                  <Button onClick={() => onSearchSubmit(searchTerm)}>Search</Button>
                 )}
               </div>
             )}
@@ -271,7 +289,7 @@ export function DataTable<T extends Record<string, any>>({
                     stays frozen. `isolate` keeps the frozen cells' z-index inside the table.
                     Borders sit on the cells (border-separate), because with border-collapse a sticky
                     cell's borders scroll away and the row lines vanish under the frozen column. */}
-        <div className="relative isolate overflow-x-auto">
+        <div className={`relative isolate overflow-x-auto${maxHeight ? ` overflow-y-auto ${maxHeight}` : ""}`}>
           <table
             className={`w-full text-left border-separate border-spacing-0 ${compact ? "" : "min-w-200"}`}
           >
@@ -283,7 +301,10 @@ export function DataTable<T extends Record<string, any>>({
                     const align = col?.align ?? "left";
                     const canSort = header.column.getCanSort();
                     const sorted = header.column.getIsSorted();
-                    const labelClass = `flex items-center gap-1.5 w-full min-h-11 px-4 py-2 ${ALIGN_FLEX[align]}`;
+                    const labelClass = `flex items-center gap-1.5 w-full min-h-11 ${col?.headerClassName ?? "px-4 py-2"} ${ALIGN_FLEX[align]}`;
+                    // A sticky header needs an opaque background; the frozen first header is also above the frozen cells.
+                    const headerSticky = stickyHeader ? " sticky top-0 z-20 bg-gray-50 dark:bg-gray-800" : "";
+                    const frozenHeader = i === 0 ? ` ${STICKY_CELL} bg-gray-50 dark:bg-gray-800${stickyHeader ? " z-30" : ""}` : "";
                     return (
                       <th
                         key={header.id}
@@ -297,9 +318,22 @@ export function DataTable<T extends Record<string, any>>({
                                 ? "none"
                                 : undefined
                         }
-                        className={`p-0 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 ${ALIGN_TEXT[align]}${i === 0 ? ` ${STICKY_CELL} bg-gray-50 dark:bg-gray-800` : ""}`}
+                        className={`p-0 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 ${ALIGN_TEXT[align]}${frozenHeader}${headerSticky}`}
                       >
-                        {canSort ? (
+                        {col?.onSort ? (
+                          <button
+                            type="button"
+                            onClick={col.onSort}
+                            className={`${labelClass} uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition ${col.sortActive ? "text-sffl-red" : ""}`}
+                          >
+                            <table.FlexRender header={header} />
+                            {col.sortActive ? (
+                              <ChevronDownIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                            ) : (
+                              <ChevronUpDownIcon className="w-4 h-4 opacity-40 shrink-0" aria-hidden="true" />
+                            )}
+                          </button>
+                        ) : canSort ? (
                           <button
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
@@ -343,7 +377,11 @@ export function DataTable<T extends Record<string, any>>({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="group">
+                  <tr
+                    key={row.id}
+                    onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                    className={`group ${rowClassName ? rowClassName(row.original) : "bg-white dark:bg-gray-800"}${onRowClick ? " cursor-pointer" : ""}`}
+                  >
                     {row.getAllCells().map((cell, i) => (
                       <td
                         key={cell.id}
@@ -392,13 +430,13 @@ export function DataTable<T extends Record<string, any>>({
                 : `Showing ${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, totalRows)} of ${totalRows}`}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
-            <button
-              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+            <Button
+              variant="secondary"
               disabled={currentPage <= 1}
-              className="px-3 md:px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs md:text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300"
+              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
             >
               Prev
-            </button>
+            </Button>
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
               const start = Math.max(
                 1,
@@ -407,28 +445,26 @@ export function DataTable<T extends Record<string, any>>({
               const p = start + i;
               if (p > totalPages) return null;
               return (
-                <button
+                <Button
                   key={p}
+                  variant={p === currentPage ? "primary" : "secondary"}
+                  className="min-w-11"
+                  aria-current={p === currentPage ? "page" : undefined}
                   onClick={() => handlePageChange(p)}
-                  className={`px-3 md:px-4 py-2 min-h-11 min-w-11 rounded-lg font-bold text-xs md:text-sm transition-all duration-300 ${
-                    p === currentPage
-                      ? "bg-sffl-red text-white shadow-md border-transparent"
-                      : "border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-                  }`}
                 >
                   {p}
-                </button>
+                </Button>
               );
             })}
-            <button
+            <Button
+              variant="secondary"
+              disabled={currentPage >= totalPages}
               onClick={() =>
                 handlePageChange(Math.min(totalPages, currentPage + 1))
               }
-              disabled={currentPage >= totalPages}
-              className="px-3 md:px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs md:text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300"
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       )}

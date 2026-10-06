@@ -1,14 +1,18 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { IconButton } from "./IconButton";
 
 type Props = {
   open: boolean;
-  onClose: () => void;
+  /** Omit to make a gate that can't be dismissed: no close button, Escape or backdrop click. */
+  onClose?: () => void;
   title?: string;
   subtitle?: string;
   children: React.ReactNode;
-  maxWidth?: "md" | "lg" | "xl" | "2xl";
+  /** Action buttons pinned below the body. Put Cancel first and the primary action last. */
+  footer?: React.ReactNode;
+  maxWidth?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
 };
 
 const widthClass: Record<NonNullable<Props["maxWidth"]>, string> = {
@@ -16,6 +20,8 @@ const widthClass: Record<NonNullable<Props["maxWidth"]>, string> = {
   lg: "max-w-lg",
   xl: "max-w-xl",
   "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
+  "4xl": "max-w-4xl",
 };
 
 // Lightweight modal: dark backdrop, scrollable inner card, ESC + click-outside
@@ -27,12 +33,13 @@ export const Modal = ({
   title,
   subtitle,
   children,
+  footer,
   maxWidth = "xl",
 }: Props) => {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose?.();
     };
     document.addEventListener("keydown", onKey);
     // Prevent background scroll while the modal is up.
@@ -59,9 +66,9 @@ export const Modal = ({
         onClick={(e) => e.stopPropagation()}
         className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
       >
-        {(title || subtitle) && (
+        {(title || subtitle || onClose) && (
           <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">
-            <div>
+            <div className="min-w-0">
               {title && (
                 <h2
                   id="modal-title"
@@ -76,19 +83,24 @@ export const Modal = ({
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="shrink-0 p-2.5 -mx-2.5 -mb-2.5 -mt-3.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white"
-            >
-              <XMarkIcon className="w-6 h-6" aria-hidden="true" />
-            </button>
+            {onClose && (
+              <IconButton
+                icon={XMarkIcon}
+                label="Close"
+                onClick={onClose}
+                className="-mx-2.5 -mb-2.5 -mt-3.5"
+              />
+            )}
           </div>
         )}
         <div className="overflow-y-auto overscroll-contain p-4 sm:p-6 pb-10 sm:pb-6 flex-1 min-h-0">
           {children}
         </div>
+        {footer && (
+          <div className="shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-4 sm:p-6 pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-700">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

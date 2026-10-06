@@ -8,7 +8,6 @@ import {
   BoltIcon,
   ArrowRightIcon,
   SparklesIcon,
-  ArrowPathIcon,
   CheckBadgeIcon,
   LockClosedIcon,
   ChartBarIcon,
@@ -20,6 +19,7 @@ import { Loader } from "../../components/ui/Loader";
 import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 import { Modal } from "../../components/ui/Modal";
+import { Button, ButtonLink, Field, Input } from "../../components/ui";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -107,20 +107,22 @@ export function FantasyHub() {
             money. You'll need an account to take part.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
+            <ButtonLink
               to="/login?returnUrl=%2Ffantasy"
               state={{ returnUrl: "/fantasy" }}
-              className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
+              variant="primary"
+              size="lg"
             >
               Go to Login
-            </Link>
-            <Link
+            </ButtonLink>
+            <ButtonLink
               to="/signup?returnUrl=%2Ffantasy"
               state={{ returnUrl: "/fantasy" }}
-              className="px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-bold text-sm transition-all active:scale-95"
+              variant="secondary"
+              size="lg"
             >
               Create an Account
-            </Link>
+            </ButtonLink>
           </div>
         </div>
 
@@ -152,12 +154,9 @@ export function FantasyHub() {
           No active fantasy season is currently open. Fixtures and player pools
           are being finalized. Stay tuned for kickoff!
         </p>
-        <Link
-          to="/"
-          className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
-        >
+        <ButtonLink to="/" variant="primary" size="lg">
           Return to Homepage
-        </Link>
+        </ButtonLink>
       </div>
     );
   }
@@ -216,12 +215,14 @@ export function FantasyHub() {
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 sm:gap-3">
             {entered ? (
               <>
-                <Link
+                <ButtonLink
                   to="/fantasy/dashboard"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95"
+                  variant="primary"
+                  icon={CheckBadgeIcon}
+                  className="uppercase tracking-wider shadow-md shadow-sffl-red/30"
                 >
-                  <CheckBadgeIcon className="w-4 h-4" /> Go To My Dashboard
-                </Link>
+                  Go To My Dashboard
+                </ButtonLink>
                 <Link
                   to="/fantasy/leagues"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
@@ -229,44 +230,38 @@ export function FantasyHub() {
                   <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse
                   Leagues
                 </Link>
-                <Link
+                <ButtonLink
                   to={
                     gameweek?.id
                       ? `/fantasy/analytics?gw=${gameweek.id}`
                       : "/fantasy/analytics"
                   }
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                  variant="secondary"
+                  tone="dark"
                 >
-                  <ChartBarIcon className="w-4 h-4 text-yellow-400" /> Weekly
-                  Report
-                </Link>
-                <Link
-                  to="/fantasy/my-team"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
-                >
-                  <ShieldCheckIcon className="w-4 h-4 text-emerald-400" /> My
-                  Active Squad
-                </Link>
-                <Link
-                  to="/fantasy/wallet"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
-                >
-                  <SparklesIcon className="w-4 h-4 text-yellow-400" /> Prize
-                  Wallet
-                </Link>
+                  <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
+                </ButtonLink>
+                <ButtonLink to="/fantasy/my-team" variant="secondary" tone="dark">
+                  <ShieldCheckIcon className="w-4 h-4 text-emerald-400" aria-hidden="true" /> My Active Squad
+                </ButtonLink>
+                <ButtonLink to="/fantasy/wallet" variant="secondary" tone="dark">
+                  <SparklesIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Prize Wallet
+                </ButtonLink>
               </>
             ) : (
               <>
-                <button
+                <Button
+                  variant="primary"
+                  className="uppercase tracking-wider shadow-md shadow-sffl-red/30"
+                  icon={ArrowRightIcon}
+                  iconPosition="right"
                   onClick={() => {
                     setTeamNameInput(getDefaultTeamName(user?.name));
                     setShowJoinModal(true);
                   }}
-                  type="button"
-                  className="inline-flex items-center gap-2 min-h-11 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95 cursor-pointer"
                 >
-                  Join This Season <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-                </button>
+                  Join This Season
+                </Button>
                 <Link
                   to="/fantasy/leagues"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
@@ -274,17 +269,17 @@ export function FantasyHub() {
                   <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse
                   Leagues
                 </Link>
-                <Link
+                <ButtonLink
                   to={
                     gameweek?.id
                       ? `/fantasy/analytics?gw=${gameweek.id}`
                       : "/fantasy/analytics"
                   }
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                  variant="secondary"
+                  tone="dark"
                 >
-                  <ChartBarIcon className="w-4 h-4 text-yellow-400" /> Weekly
-                  Report
-                </Link>
+                  <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
+                </ButtonLink>
               </>
             )}
           </div>
@@ -436,37 +431,44 @@ export function FantasyHub() {
               you confirm. Joining a mini-league is a separate, optional step.
             </p>
 
-            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
-              Team Name (3–40 characters)
-            </label>
-            <input
-              type="text"
-              aria-label="Team name"
-              value={teamNameInput}
-              onChange={(e) => setTeamNameInput(e.target.value)}
-              placeholder="e.g. Lagos Blitz"
-              maxLength={40}
-              className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-            />
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 mb-4">
-              {trimmedName.length === 0
-                ? "Team names must be unique across the season (3–40 characters)."
-                : nameValid
-                  ? `${trimmedName.length}/40 characters • Team names must be unique in this season`
-                  : "Team name must be between 3 and 40 characters."}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => enterMutation.mutate()}
-              disabled={!nameValid || enterMutation.isPending}
-              className="w-full min-h-11 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
+            <Field
+              label="Team Name (3–40 characters)"
+              htmlFor="fantasy-team-name"
+              hint={
+                trimmedName.length === 0
+                  ? "Team names must be unique across the season (3–40 characters)."
+                  : nameValid
+                    ? `${trimmedName.length}/40 characters • Team names must be unique in this season`
+                    : undefined
+              }
+              error={
+                trimmedName.length > 0 && !nameValid
+                  ? "Team name must be between 3 and 40 characters."
+                  : undefined
+              }
+              className="mb-4"
             >
-              {enterMutation.isPending && (
-                <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
-              )}
+              <Input
+                id="fantasy-team-name"
+                type="text"
+                value={teamNameInput}
+                onChange={(e) => setTeamNameInput(e.target.value)}
+                placeholder="e.g. Lagos Blitz"
+                maxLength={40}
+                invalid={trimmedName.length > 0 && !nameValid}
+              />
+            </Field>
+
+            <Button
+              variant="primary"
+              fullWidth
+              className="uppercase tracking-wider"
+              loading={enterMutation.isPending}
+              disabled={!nameValid}
+              onClick={() => enterMutation.mutate()}
+            >
               {enterMutation.isPending ? "Entering season…" : "Confirm & Enter Season"}
-            </button>
+            </Button>
           </div>
       </Modal>
 

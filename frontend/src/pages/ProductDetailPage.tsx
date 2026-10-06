@@ -20,6 +20,7 @@ import {
 import { LazyImage } from "../components/common/LazyImage";
 import { ProductDescription } from "../components/store/ProductDescription";
 import { StarRating } from "../components/store/StarRating";
+import { Button, IconButton } from "../components/ui";
 import { Modal } from "../components/ui/Modal";
 import {
   ReturnPolicyContent,
@@ -425,9 +426,11 @@ export const ProductDetailPage = () => {
                           stockByOptionValue[optIdx]?.[val.value] ?? 0;
                         const isValueSoldOut = stockForVal === 0;
                         return (
-                          <button
-                            type="button"
+                          <Button
                             key={val.value}
+                            size="sm"
+                            variant={isSelected ? "navy" : "secondary"}
+                            className={`uppercase ${isValueSoldOut ? "line-through" : ""}`}
                             disabled={isValueSoldOut}
                             aria-pressed={isSelected}
                             onClick={() => {
@@ -443,16 +446,9 @@ export const ProductDetailPage = () => {
                                 ? `${val.value}, sold out`
                                 : undefined
                             }
-                            className={`min-h-11 min-w-11 px-3 py-1.5 text-xs font-bold rounded-md border transition-all uppercase ${
-                              isValueSoldOut
-                                ? "bg-gray-100 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700 text-gray-400 line-through cursor-not-allowed"
-                                : isSelected
-                                  ? "bg-sffl-navy border-sffl-navy text-white dark:bg-white dark:border-white dark:text-sffl-navy shadow-sm"
-                                  : "bg-white dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500"
-                            }`}
                           >
                             {val.value}
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -487,30 +483,26 @@ export const ProductDetailPage = () => {
                   Quantity
                 </label>
                 <div className="inline-flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800/40">
-                  <button
-                    type="button"
+                  <IconButton
+                    variant="ghost"
+                    icon={MinusIcon}
+                    label="Decrease quantity"
                     onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    aria-label="Decrease quantity"
-                    className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <MinusIcon className="w-4 h-4" aria-hidden="true" />
-                  </button>
+                  />
                   <span
                     className="px-2 min-w-8 text-center text-sm font-bold text-gray-900 dark:text-white"
                     aria-live="polite"
                   >
                     {quantity}
                   </span>
-                  <button
-                    type="button"
+                  <IconButton
+                    variant="ghost"
+                    icon={PlusIcon}
+                    label="Increase quantity"
                     onClick={() =>
                       setQuantity((prev) => Math.min(activeStock, prev + 1))
                     }
-                    aria-label="Increase quantity"
-                    className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <PlusIcon className="w-4 h-4" aria-hidden="true" />
-                  </button>
+                  />
                 </div>
               </div>
             )}
@@ -519,37 +511,30 @@ export const ProductDetailPage = () => {
                             Cart on top, red Buy Now below for the impatient. */}
             <div className="space-y-2">
               {isVariantOutOfStock ? (
-                <button
-                  disabled
-                  className="w-full min-h-11 bg-gray-200 dark:bg-gray-700 text-gray-500 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider cursor-not-allowed shadow-sm"
-                >
+                <Button fullWidth size="lg" disabled>
                   Out of Stock
-                </button>
+                </Button>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
+                  <Button
+                    fullWidth
+                    size="lg"
+                    variant={addedToast ? "success" : "warning"}
+                    icon={addedToast ? CheckIcon : undefined}
                     aria-live="polite"
-                    className={`w-full min-h-11 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md ${
-                      addedToast
-                        ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                        : "bg-amber-400 hover:bg-amber-500 text-sffl-navy"
-                    }`}
+                    onClick={handleAddToCart}
                   >
-                    {addedToast && (
-                      <CheckIcon className="w-4 h-4" aria-hidden="true" />
-                    )}
                     {addedToast || "Add to Cart"}
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    icon={ArrowRightIcon}
+                    iconPosition="right"
                     onClick={handleBuyNow}
-                    className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md hover:shadow-sffl-red/20"
                   >
                     Buy Now
-                    <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-                  </button>
+                  </Button>
                 </>
               )}
               <p className="text-center text-[10px] text-sffl-navy dark:text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
@@ -563,28 +548,14 @@ export const ProductDetailPage = () => {
 
             {/* Share button — Amazon-style meta action below the CTA. */}
             <div className="pt-4 border-t dark:border-gray-700/40">
-              <button
-                type="button"
-                onClick={handleShare}
+              <Button
+                variant="ghost"
+                icon={shareToast ? CheckIcon : ArrowUpTrayIcon}
                 aria-live="polite"
-                className={`inline-flex items-center gap-2 min-h-11 text-xs font-bold transition-colors ${
-                  shareToast
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-sffl-navy dark:text-gray-200 hover:text-sffl-red"
-                }`}
+                onClick={handleShare}
               >
-                {shareToast ? (
-                  <>
-                    <CheckIcon className="w-4 h-4" aria-hidden="true" />
-                    {shareToast}
-                  </>
-                ) : (
-                  <>
-                    <ArrowUpTrayIcon className="w-4 h-4" aria-hidden="true" />
-                    Share
-                  </>
-                )}
-              </button>
+                {shareToast || "Share"}
+              </Button>
             </div>
 
             {/* Policy links — generous vertical rhythm, no horizontal
