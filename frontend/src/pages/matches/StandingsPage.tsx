@@ -7,6 +7,7 @@ import {
   getMatches,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
+  type Competition,
   type Match,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
@@ -15,6 +16,12 @@ import { StandingsTable } from "../../components/matches/StandingsTable";
 import { BracketView } from "../../components/matches/BracketView";
 import { MatchCard } from "../../components/matches/MatchCard";
 import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
+import {
+  isStageSlug,
+  resolveStageCompetition,
+  seasonIdOf,
+  stageSlugOf,
+} from "../../components/domain/seasonStages";
 import { Spinner } from "../../components/ui/Spinner";
 import { FootballIcon } from "../../components/icons/FootballIcon";
 import {
@@ -23,23 +30,19 @@ import {
   TrophyIcon,
 } from "@heroicons/react/24/outline";
 
+const STORAGE_KEY = "sffl_standings_comp";
+
 export const StandingsPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const compParam = searchParams.get("comp");
+  const stageParam = searchParams.get("stage");
   const teamParam = searchParams.get("team");
+  // The last competition picked here, so a bare /standings visit returns to it.
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(
-    () => {
-      return sessionStorage.getItem("sffl_standings_comp") || "";
-    },
+    () => sessionStorage.getItem(STORAGE_KEY) || "",
   );
   const [showLegend, setShowLegend] = useState(false);
-
-  useEffect(() => {
-    if (selectedCompetitionId) {
-      sessionStorage.setItem("sffl_standings_comp", selectedCompetitionId);
-    }
-  }, [selectedCompetitionId]);
 
   const { data: competitionsData, isLoading: compLoading } = useQuery({
     queryKey: ["publicCompetitions"],
@@ -53,76 +56,93 @@ export const StandingsPage = () => {
   );
   // The URL is the source of truth when a valid competition is supplied.
   // This avoids mirroring the query parameter into state from an effect.
-  const activeCompetitionId =
-    compParam && competitions.some((c) => c.id === compParam)
-      ? compParam
-      : selectedCompetitionId;
+  const urlComp = compParam
+    ? competitions.find((c) => c.id === compParam)
+    : undefined;
+  const activeCompetitionId = urlComp?.id ?? selectedCompetitionId;
   const selectedComp = competitions.find((c) => c.id === activeCompetitionId);
+
+  useEffect(() => {
+    if (activeCompetitionId) {
+      sessionStorage.setItem(STORAGE_KEY, activeCompetitionId);
+    }
+  }, [activeCompetitionId]);
 
   const dropdownComps = dropdownCompetitionsFor(competitions, selectedComp);
 
   // Pick the competition of the most recent match so the default lands on
   // the currently-running stage (regular season → playoffs → bowl) instead
-  // of just the newest competition row.
+  // of just the newest competition row. Its season is also the "current
+  // season" a stage link (?stage=cup) resolves in.
   const { data: latestMatchPage, isFetched: latestMatchFetched } = useQuery({
     queryKey: ["publicLatestMatchForDefault"],
     queryFn: () => getMatches(undefined, 1, 1, "FINISHED"),
     staleTime: 60_000,
   });
   const latestMatchCompetitionId = latestMatchPage?.data?.[0]?.competition?.id;
+  const latestMatchComp = competitions.find(
+    (c) => c.id === latestMatchCompetitionId,
+  );
+  const currentSeasonId =
+    (latestMatchComp && seasonIdOf(latestMatchComp)) || leagueComps[0]?.id;
 
+  // Keeps ?comp and ?stage naming the same competition. ?stage is what the
+  // League menu links with (it can't know competition ids) and what the menu
+  // reads to highlight the open stage; ?comp is what the page shows. Order:
+  //   1. ?comp valid and ?stage matches it → nothing to do.
+  //   2. ?comp valid, no ?stage (a Match Hub or team link) → add its stage.
+  //   3. ?stage given → that stage in ?comp's season, else the current
+  //      season, else the most recent one from any season.
+  //   4. Neither → the last pick here, then the latest match's competition.
   useEffect(() => {
     if (competitions.length === 0) return;
+    const stage = isStageSlug(stageParam) ? stageParam : null;
+    if (urlComp && stage === stageSlugOf(urlComp)) return;
 
-    if (compParam && competitions.some((c) => c.id === compParam)) {
-      return;
+    let target: Competition | undefined;
+    if (urlComp && !stage) {
+      target = urlComp;
+    } else if (stage) {
+      const seasonId = urlComp ? seasonIdOf(urlComp) : currentSeasonId;
+      if (!urlComp && !latestMatchFetched) return;
+      target = resolveStageCompetition(competitions, stage, seasonId);
     }
 
-    if (selectedCompetitionId) {
-      if (!compParam) {
-        const params = new URLSearchParams(searchParams);
-        params.set("comp", selectedCompetitionId);
-        setSearchParams(params, { replace: true });
-      }
-      return;
+    // A bare visit, or a stage no season has ever had.
+    if (!target) {
+      const remembered = competitions.find(
+        (c) => c.id === selectedCompetitionId,
+      );
+      if (!remembered && !latestMatchFetched) return;
+      target =
+        remembered ?? latestMatchComp ?? leagueComps[0] ?? competitions[0];
     }
+    if (!target) return;
 
-    if (!latestMatchFetched) return;
-
-    const timer = setTimeout(() => {
-      let initialCompId = "";
-      if (
-        latestMatchCompetitionId &&
-        competitions.some((c) => c.id === latestMatchCompetitionId)
-      ) {
-        initialCompId = latestMatchCompetitionId;
-      } else {
-        initialCompId = leagueComps[0]?.id || competitions[0]?.id;
-      }
-
-      if (initialCompId) {
-        const params = new URLSearchParams(searchParams);
-        params.set("comp", initialCompId);
-        setSearchParams(params, { replace: true });
-      }
-    }, 0);
-
-    return () => clearTimeout(timer);
+    const params = new URLSearchParams(searchParams);
+    params.set("comp", target.id);
+    params.set("stage", stageSlugOf(target));
+    setSearchParams(params, { replace: true });
   }, [
     competitions,
+    urlComp,
+    stageParam,
     selectedCompetitionId,
-    compParam,
+    currentSeasonId,
     latestMatchFetched,
-    latestMatchCompetitionId,
+    latestMatchComp,
     leagueComps,
     searchParams,
     setSearchParams,
   ]);
 
   const handleCompetitionChange = (compId: string) => {
+    const comp = competitions.find((c) => c.id === compId);
+    if (!comp) return;
     setSelectedCompetitionId(compId);
     const params = new URLSearchParams(searchParams);
     params.set("comp", compId);
+    params.set("stage", stageSlugOf(comp));
     setSearchParams(params, { replace: true });
   };
 
@@ -137,7 +157,7 @@ export const StandingsPage = () => {
       row?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 250);
     return () => clearTimeout(t);
-  }, [teamParam, selectedCompetitionId]);
+  }, [teamParam, activeCompetitionId]);
 
   // Find selected competition name
   const selectedCompetition = competitions.find(
@@ -209,7 +229,7 @@ export const StandingsPage = () => {
                 <Select
                   id="standings-competition"
                   tone="dark"
-                  value={selectedCompetitionId}
+                  value={activeCompetitionId}
                   onChange={(e) => handleCompetitionChange(e.target.value)}
                 >
                   {dropdownComps.map((c) => (
@@ -234,7 +254,7 @@ export const StandingsPage = () => {
       {competitions.length > 0 && (
         <SeasonStageTabs
           competitions={competitions}
-          currentId={selectedCompetitionId}
+          currentId={activeCompetitionId}
           onChange={handleCompetitionChange}
         />
       )}
@@ -248,7 +268,7 @@ export const StandingsPage = () => {
       )}
 
       {/* Knockout: bracket replaces the standings table */}
-      {isKnockout && selectedCompetitionId && (
+      {isKnockout && activeCompetitionId && (
         <div className="space-y-3 md:space-y-6">
           <div className="flex items-center gap-2 min-w-0">
             <FootballIcon
@@ -259,12 +279,12 @@ export const StandingsPage = () => {
               {selectedCompetition?.name}
             </h2>
           </div>
-          <BracketView competitionId={selectedCompetitionId} />
+          <BracketView competitionId={activeCompetitionId} />
         </div>
       )}
 
       {/* Matches-only (Preseason & Cup): matches list sorted latest first */}
-      {isMatchesOnly && selectedCompetitionId && !matchesLoading && (
+      {isMatchesOnly && activeCompetitionId && !matchesLoading && (
         <div className="space-y-4 md:space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -332,8 +352,8 @@ export const StandingsPage = () => {
                   match={m}
                   onClick={() => {
                     const params = new URLSearchParams();
-                    if (selectedCompetitionId)
-                      params.set("comp", selectedCompetitionId);
+                    if (activeCompetitionId)
+                      params.set("comp", activeCompetitionId);
                     navigate(`/matches/${m.id}?${params.toString()}`);
                   }}
                 />

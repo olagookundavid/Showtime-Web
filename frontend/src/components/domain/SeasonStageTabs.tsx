@@ -1,7 +1,6 @@
-import type { ComponentType, SVGProps } from "react";
-import { TrophyIcon } from "@heroicons/react/24/outline";
 import type { Competition } from "../../services/api";
 import { Button } from "../ui";
+import { STAGES, seasonIdOf } from "./seasonStages";
 
 interface SeasonStageTabsProps {
   competitions: Competition[];
@@ -9,17 +8,6 @@ interface SeasonStageTabsProps {
   onChange: (id: string) => void;
   className?: string;
 }
-
-const STAGES: {
-  format: string;
-  label: string;
-  icon?: ComponentType<SVGProps<SVGSVGElement>>;
-}[] = [
-  { format: "PRESEASON", label: "Preseason" },
-  { format: "SEASON", label: "Season" },
-  { format: "PLAYOFFS", label: "Playoffs", icon: TrophyIcon },
-  { format: "CUP", label: "Cup" },
-];
 
 // Up to four tabs (Preseason | Season | Playoffs | Cup) that switch the
 // selected competition between every stage attached to the same season. The
@@ -37,7 +25,7 @@ export const SeasonStageTabs = ({
   const current = competitions.find((c) => c.id === currentId);
   if (!current) return null; // e.g. "All Competitions" / nothing selected — no context for tabs
 
-  const seasonId = current.format === "SEASON" ? current.id : current.season_id;
+  const seasonId = seasonIdOf(current);
   if (!seasonId) return null; // an orphaned stage with no season link has nothing to switch between
 
   const stageComps = STAGES.map((stage) => ({

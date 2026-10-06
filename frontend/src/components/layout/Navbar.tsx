@@ -17,6 +17,10 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { NotificationBell } from "./NotificationBell";
 import { getInitials } from "../../utils/formatters";
 import { IconButton } from "../ui";
+import {
+  STANDINGS_MENU,
+  standingsStagePath,
+} from "../domain/seasonStages";
 
 type Menu = "league" | "stats" | "awards" | "store" | "user";
 
@@ -80,7 +84,9 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
   const { pathname, search } = location;
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(`${path}/`);
-  const tab = new URLSearchParams(search).get("tab");
+  const query = new URLSearchParams(search);
+  const tab = query.get("tab");
+  const stage = query.get("stage");
 
   const leagueActive = ["/matches", "/standings", "/teams"].some(isActive);
   const statsActive = isActive("/stats");
@@ -177,7 +183,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               </button>
 
               {openMenu === "league" && (
-                <div className="absolute top-full left-0 w-48 z-50 pt-2">
+                <div className="absolute top-full left-0 w-56 z-50 pt-2">
                   <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
                     <Link
                       to="/matches"
@@ -186,13 +192,21 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                     >
                       Matches
                     </Link>
-                    <Link
-                      to="/standings"
-                      aria-current={isActive("/standings") ? "page" : undefined}
-                      className={dropdownItem(isActive("/standings"))}
-                    >
-                      Standings
-                    </Link>
+                    {/* One entry per stage; each opens its tab on the
+                        Standings page (?stage=), which picks the competition. */}
+                    {STANDINGS_MENU.map(({ slug, label }) => {
+                      const active = isActive("/standings") && stage === slug;
+                      return (
+                        <Link
+                          key={slug}
+                          to={standingsStagePath(slug)}
+                          aria-current={active ? "page" : undefined}
+                          className={dropdownItem(active)}
+                        >
+                          {label}
+                        </Link>
+                      );
+                    })}
                     <Link
                       to="/teams"
                       aria-current={isActive("/teams") ? "page" : undefined}

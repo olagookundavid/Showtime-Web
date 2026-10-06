@@ -3,6 +3,7 @@ import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { BottomNav } from "./BottomNav";
 import { useState, useEffect, useRef } from "react";
+import type { ComponentType, SVGProps } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
 import {
@@ -42,6 +43,24 @@ import {
   ArrowRightOnRectangleIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
+import { FootballIcon } from "../icons/FootballIcon";
+import {
+  STANDINGS_MENU,
+  standingsStagePath,
+  type StageSlug,
+} from "../domain/seasonStages";
+
+// Icon and one-line hint for each stage tile in the More sheet's League
+// section. Labels and order come from STANDINGS_MENU.
+const STANDINGS_TILES: Record<
+  StageSlug,
+  { icon: ComponentType<SVGProps<SVGSVGElement>>; hint: string }
+> = {
+  season: { icon: TableCellsIcon, hint: "Table & Rankings" },
+  cup: { icon: StarIcon, hint: "Cup Matches & Results" },
+  playoffs: { icon: TrophyIcon, hint: "Bracket & Road to the Bowl" },
+  preseason: { icon: FootballIcon, hint: "Preseason Matches" },
+};
 
 export const Layout = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -233,7 +252,7 @@ export const Layout = () => {
                         className="relative p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sffl-navy dark:text-white hover:text-sffl-red transition-colors shrink-0"
                         aria-label={`Cart, ${cartCount} items`}
                       >
-                        <ShoppingCartIcon className="w-5 h-5" />
+                        <ShoppingCartIcon className="w-5 h-5" aria-hidden="true" />
                         {cartCount > 0 && (
                           <span className="absolute -top-1.5 -right-1.5 bg-sffl-red text-white text-[10px] font-black rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1">
                             {cartCount > 99 ? "99+" : cartCount}
@@ -250,10 +269,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-sffl-red" />
+                          <WrenchIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
                           <span>Admin Control Panel</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
+                        <ChevronRightIcon className="w-4 h-4 text-gray-300" aria-hidden="true" />
                       </Link>
                     )}
                     {user?.role === "app_admin" && (
@@ -263,10 +282,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-linear-to-r from-amber-500 to-yellow-600 text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-white" />
+                          <WrenchIcon className="w-4 h-4 text-white" aria-hidden="true" />
                           <span>App Admin Panel</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-amber-100" />
+                        <ChevronRightIcon className="w-4 h-4 text-amber-100" aria-hidden="true" />
                       </Link>
                     )}
                     {user?.role === "referee" && (
@@ -276,10 +295,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-sffl-red" />
+                          <WrenchIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
                           <span>Referee Portal</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
+                        <ChevronRightIcon className="w-4 h-4 text-gray-300" aria-hidden="true" />
                       </Link>
                     )}
                     {user?.role === "stats" && (
@@ -289,10 +308,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-amber-400" />
+                          <WrenchIcon className="w-4 h-4 text-amber-400" aria-hidden="true" />
                           <span>Stats Portal</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
+                        <ChevronRightIcon className="w-4 h-4 text-gray-300" aria-hidden="true" />
                       </Link>
                     )}
                     {user?.role === "team_head" && (
@@ -302,10 +321,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-emerald-700 text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <ShieldCheckIcon className="w-4 h-4 text-emerald-200" />
+                          <ShieldCheckIcon className="w-4 h-4 text-emerald-200" aria-hidden="true" />
                           <span>Team Manager Hub</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-emerald-200" />
+                        <ChevronRightIcon className="w-4 h-4 text-emerald-200" aria-hidden="true" />
                       </Link>
                     )}
                     {user?.role === "player" && (
@@ -315,10 +334,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-sffl-red text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <UserCircleIcon className="w-4 h-4 text-white" />
+                          <UserCircleIcon className="w-4 h-4 text-white" aria-hidden="true" />
                           <span>Player Portal</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-red-100" />
+                        <ChevronRightIcon className="w-4 h-4 text-red-100" aria-hidden="true" />
                       </Link>
                     )}
                     {user?.role === "ticketer" && (
@@ -328,10 +347,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <TicketIcon className="w-4 h-4 text-sffl-red" />
+                          <TicketIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
                           <span>Ticketing Desk</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
+                        <ChevronRightIcon className="w-4 h-4 text-gray-300" aria-hidden="true" />
                       </Link>
                     )}
                     {user?.role === "seller" && (
@@ -341,10 +360,10 @@ export const Layout = () => {
                         className="mt-3 flex items-center justify-between p-3 bg-emerald-700 text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <ShoppingBagIcon className="w-4 h-4 text-emerald-200" />
+                          <ShoppingBagIcon className="w-4 h-4 text-emerald-200" aria-hidden="true" />
                           <span>Store Merchant Portal</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-emerald-200" />
+                        <ChevronRightIcon className="w-4 h-4 text-emerald-200" aria-hidden="true" />
                       </Link>
                     )}
                   </>
@@ -370,7 +389,7 @@ export const Layout = () => {
                       className="relative p-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sffl-navy dark:text-white hover:text-sffl-red transition-colors shrink-0"
                       aria-label={`Cart, ${cartCount} items`}
                     >
-                      <ShoppingCartIcon className="w-5 h-5" />
+                      <ShoppingCartIcon className="w-5 h-5" aria-hidden="true" />
                       {cartCount > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 bg-sffl-red text-white text-[10px] font-black rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1">
                           {cartCount > 99 ? "99+" : cartCount}
@@ -400,7 +419,7 @@ export const Layout = () => {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-sffl-red/10 dark:bg-sffl-red/20 text-sffl-red flex items-center justify-center shrink-0">
-                        <UserGroupIcon className="w-5 h-5" />
+                        <UserGroupIcon className="w-5 h-5" aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -416,17 +435,17 @@ export const Layout = () => {
                         </p>
                       </div>
                     </div>
-                    <ChevronRightIcon className="w-4 h-4 text-sffl-red shrink-0 ml-2" />
+                    <ChevronRightIcon className="w-4 h-4 text-sffl-red shrink-0 ml-2" aria-hidden="true" />
                   </Link>
 
                   {/* Matches */}
                   <Link
                     to="/matches"
                     onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                    className="col-span-2 flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
-                      <CalendarIcon className="w-5 h-5" />
+                      <CalendarIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -438,24 +457,31 @@ export const Layout = () => {
                     </div>
                   </Link>
 
-                  {/* Standings */}
-                  <Link
-                    to="/standings"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center shrink-0">
-                      <TableCellsIcon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
-                        Standings
-                      </span>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                        Table & Rankings
-                      </p>
-                    </div>
-                  </Link>
+                  {/* Standings: one tile per stage, each opening its tab on
+                      the Standings page — the same list as the desktop menu. */}
+                  {STANDINGS_MENU.map(({ slug, label }) => {
+                    const { icon: Icon, hint } = STANDINGS_TILES[slug];
+                    return (
+                      <Link
+                        key={slug}
+                        to={standingsStagePath(slug)}
+                        onClick={() => setIsMoreMenuOpen(false)}
+                        className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center shrink-0">
+                          <Icon className="w-5 h-5" aria-hidden="true" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
+                            {label}
+                          </span>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                            {hint}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -473,7 +499,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                      <UserCircleIcon className="w-5 h-5" />
+                      <UserCircleIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -491,7 +517,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                      <ChartPieIcon className="w-5 h-5" />
+                      <ChartPieIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -510,7 +536,7 @@ export const Layout = () => {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                        <ChartBarIcon className="w-5 h-5" />
+                        <ChartBarIcon className="w-5 h-5" aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
                         <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -521,7 +547,7 @@ export const Layout = () => {
                         </p>
                       </div>
                     </div>
-                    <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                    <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />
                   </Link>
                 </div>
               </div>
@@ -540,7 +566,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <TicketIcon className="w-5 h-5" />
+                      <TicketIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -558,7 +584,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <ShoppingBagIcon className="w-5 h-5" />
+                      <ShoppingBagIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -578,7 +604,7 @@ export const Layout = () => {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center shrink-0">
-                          <ClipboardDocumentListIcon className="w-5 h-5" />
+                          <ClipboardDocumentListIcon className="w-5 h-5" aria-hidden="true" />
                         </div>
                         <div className="min-w-0">
                           <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -589,7 +615,7 @@ export const Layout = () => {
                           </p>
                         </div>
                       </div>
-                      <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                      <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />
                     </Link>
                   )}
                 </div>
@@ -609,7 +635,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-linear-to-br from-amber-500/10 to-yellow-500/10 dark:from-amber-950/40 dark:to-yellow-950/30 rounded-2xl border border-amber-300/50 dark:border-amber-700/50 active:scale-[0.98] transition-all shadow-xs"
                   >
                     <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                      <TrophyIcon className="w-5 h-5" />
+                      <TrophyIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-amber-700 dark:text-yellow-400 uppercase tracking-tight truncate block">
@@ -627,7 +653,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
-                      <NewspaperIcon className="w-5 h-5" />
+                      <NewspaperIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -645,7 +671,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
-                      <StarIcon className="w-5 h-5" />
+                      <StarIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -663,7 +689,7 @@ export const Layout = () => {
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
-                      <TrophyIcon className="w-5 h-5" />
+                      <TrophyIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
@@ -685,7 +711,7 @@ export const Layout = () => {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-sffl-red/10 dark:bg-sffl-red/20 text-sffl-red flex items-center justify-center shrink-0">
-                      <InformationCircleIcon className="w-5 h-5" />
+                      <InformationCircleIcon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight block">
@@ -696,7 +722,7 @@ export const Layout = () => {
                       </p>
                     </div>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0 ml-2" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0 ml-2" aria-hidden="true" />
                 </button>
               </div>
 
@@ -747,12 +773,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <InformationCircleIcon className="w-5 h-5 text-gray-400" />
+                    <InformationCircleIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       The League
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -761,12 +787,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <ScaleIcon className="w-5 h-5 text-gray-400" />
+                    <ScaleIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Gameplay Rules
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -775,12 +801,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <MapPinIcon className="w-5 h-5 text-gray-400" />
+                    <MapPinIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Showtime Arena
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -789,12 +815,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <BookOpenIcon className="w-5 h-5 text-gray-400" />
+                    <BookOpenIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Byelaws
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -803,12 +829,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <AcademicCapIcon className="w-5 h-5 text-gray-400" />
+                    <AcademicCapIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Education
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -817,12 +843,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <VideoCameraIcon className="w-5 h-5 text-gray-400" />
+                    <VideoCameraIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Media Guidelines
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -831,12 +857,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <UserGroupIcon className="w-5 h-5 text-gray-400" />
+                    <UserGroupIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Our Team
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -845,12 +871,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <SparklesIcon className="w-5 h-5 text-amber-500" />
+                    <SparklesIcon className="w-5 h-5 text-amber-500" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Sponsorships
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -859,12 +885,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <QuestionMarkCircleIcon className="w-5 h-5 text-gray-400" />
+                    <QuestionMarkCircleIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       FAQs
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -873,12 +899,12 @@ export const Layout = () => {
                   className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl active:scale-[0.98] transition-all border border-red-200 dark:border-red-900/50 shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <ShieldCheckIcon className="w-5 h-5" />
+                    <ShieldCheckIcon className="w-5 h-5" aria-hidden="true" />
                     <span className="font-black text-xs uppercase italic">
                       Whistleblower Hotline
                     </span>
                   </div>
-                  <ChevronRightIcon className="w-4 h-4" />
+                  <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
                 </Link>
 
                 <Link
@@ -889,7 +915,7 @@ export const Layout = () => {
                   <span className="font-bold text-xs text-gray-500 uppercase tracking-widest pl-1">
                     Privacy Policy
                   </span>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </Link>
               </div>
 
