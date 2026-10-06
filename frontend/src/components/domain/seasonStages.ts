@@ -42,7 +42,7 @@ export const stageSlugOf = (comp: Competition): StageSlug =>
 // The SEASON competition a competition belongs to: itself for a season, its
 // season link for a stage. Undefined for an orphaned stage.
 export const seasonIdOf = (comp: Competition): string | undefined =>
-  (comp.format || "SEASON") === "SEASON" ? comp.id : comp.season_id;
+  (comp.format || "SEASON") === "SEASON" ? comp.id : comp.season_id ?? undefined;
 
 // The competition for `slug` in season `seasonId`. When that season has no such
 // stage (no Cup yet, say), falls back to the most recent one from any season,
