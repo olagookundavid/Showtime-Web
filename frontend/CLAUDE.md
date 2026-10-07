@@ -15,12 +15,12 @@ Never use emoji, Unicode symbols or text as icons (`✅ 🔍 ⚡ ⭐ ✕ ✓ ←
 - Decorative icons get `aria-hidden="true"`. Icon-only buttons use `IconButton` (§7), which requires a `label`.
 - Loading: `ArrowPathIcon` with `animate-spin`, or `<Spinner />` (`src/components/ui/`).
 
-## 2. Confirm every write, and logout
+## 2. Confirm key writes, and logout
 
-Actions that create, update or delete data or change a record's state (saves, deletes, check-in, verify, approve, revoke, publish, send, reset, force), and logout, run only after a confirm dialog. Reading, filtering, sorting, paging, switching tabs, opening a form and marking notifications read don't.
+Key or destructive actions — delete, check-in, verify, approve, revoke, publish, send, reset, force — and logout run only after a confirm dialog. Plain saves/updates, and reading, filtering, sorting, paging, switching tabs, opening a form and marking notifications read, don't.
 
 - `ConfirmDialog` (`src/components/ui/ConfirmDialog.tsx`) props: `open`, `title`, `description?`, `body?`, `confirmLabel`, `tone`, `icon` (a heroicon), `pending`, `maxWidth?` (`'md'` unless the body needs room), `onConfirm`, `onCancel`. Name the affected record with a `ConfirmSummary` (`src/components/ui/ConfirmSummary.tsx`) in `body`.
-- Tone: `success` for positive completions (check in, approve), `info` for neutral changes and saves, `warning` for destructive, irreversible or forced actions (delete, revoke, reset, force).
+- Tone: `success` for positive completions (check in, approve), `info` for neutral changes, `warning` for revoke/reset/force, `danger` for delete — red, so a delete always reads as irreversible at a glance.
 - Logout: title "Log out?", `confirmLabel` "Log out", `tone="info"`, `icon={ArrowRightOnRectangleIcon}`. Exception (owner's call): the public `Navbar` account dropdown logs out immediately.
 - Never use `confirm()`, `window.confirm()` or `alert()`. Report results with `toast` from `react-hot-toast` (mounted in `App.tsx`).
 - Pattern (`src/pages/admin/AdminTickets.tsx`):
@@ -108,3 +108,11 @@ Buttons, form fields and dialogs come from the shared primitives in `src/compone
 Every domain/API type lives in `src/types/<domain>.ts` (fantasy module: `src/types/fantasy/<domain>.ts`, e.g. `core`, `wallet`, `squad`). Never declare one inline in a component or page, and never in `services/api.ts` — that file only imports types back from `src/types/` for its own function signatures. Add a new domain file when none fits; cross-domain references import from the other domain file (e.g. `types/badges.ts` imports `Player` from `types/players.ts`).
 
 **Stays local, not moved:** `*Props` interfaces; local UI-state unions whose only job is one component's `useState` (`PendingAction`, `FormState`, `EditorMode`, tab/filter state like `UnitFilter`); client-computed view types derived from already-fetched data (flattened table rows, tallies); hardcoded static content shapes (staff bios, FAQ entries).
+
+## 9. Barrel imports (index.ts)
+
+Every folder under `src/components/` (plus `utils/`, `hooks/`, `types/`, `contexts/`, `constants/`, and the eagerly-loaded part of `src/pages/`) re-exports its contents through that folder's `index.ts` — not just components, every colocated helper too (`adminNav.ts`, `potwUtils.ts`, `buttonStyles.ts`, `useTeamActions.ts`, ...). A new file isn't done until its barrel export is added in the same change.
+
+- **Cross-folder imports go through the barrel:** `from '../domain'`, not `from '../domain/seasonStages'`. The top-level `src/components/index.ts` re-aggregates every subfolder's barrel, so pages typically import from `../../components`, `../../utils`, `../../hooks` or `../../types`.
+- **Same-folder sibling imports stay direct** (`./seasonStages` from a file in the same folder) — the rule is about crossing folder boundaries, not internal organization.
+- **`pages/index.ts` covers only eagerly-loaded top-level pages.** Lazily-loaded routes (store, fantasy, admin, account, broadcast) intentionally bypass it via `lazy(() => import('./pages/...'))` for code-splitting — a deliberate second pattern, not a violation.
