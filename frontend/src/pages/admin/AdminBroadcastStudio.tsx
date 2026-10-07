@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -8,9 +8,12 @@ import {
   formatClock,
   calculateClockNow,
   overlayUrl,
+  overlayTargetUrl,
+  OVERLAY_LAYERS,
+  type BroadcastState,
   type GraphicEvent,
   type OverlayLayer,
-  OVERLAY_LAYERS,
+  type OverlayTarget,
 } from "../../types";
 import {
   Loader,
@@ -103,9 +106,22 @@ interface PlayLogItem {
   offense_team?: { name: string };
 }
 
-export function AdminBroadcastStudio() {
-  const { matchId } = useParams<{ matchId: string }>();
-  const id = matchId || "";
+interface BroadcastControlPanelProps {
+  /** The match these controls drive. */
+  matchId: string;
+  /** What the vMix links point at: this match, or the event day it's played on. */
+  overlayTarget: OverlayTarget;
+  /** The page header, given the loaded state (the match page names the teams). */
+  header?: (state: BroadcastState) => ReactNode;
+}
+
+/**
+ * The on-air controls for one match: scoreboard, clock, lower-thirds, preview
+ * and vMix links. Used by the match studio and by the event-day studio, which
+ * swaps the match it controls without reloading the page.
+ */
+export function BroadcastControlPanel({ matchId, overlayTarget, header }: BroadcastControlPanelProps) {
+  const id = matchId;
 
   const {
     state,
@@ -191,7 +207,8 @@ export function AdminBroadcastStudio() {
     );
   }
 
-  const fullOverlayUrl = overlayUrl(id);
+  // The preview always shows this match, even when the vMix links follow a day.
+  const matchOverlayUrl = overlayUrl(id);
   const clockInput = clockDraft ?? formatClock(calculateClockNow(state, now));
   const team = selectedTeam || state.home || "Home Team";
 
@@ -201,7 +218,7 @@ export function AdminBroadcastStudio() {
   };
 
   const copyUrl = (layer: OverlayLayer) => {
-    navigator.clipboard.writeText(overlayUrl(id, layer));
+    navigator.clipboard.writeText(overlayTargetUrl(overlayTarget, layer));
     setCopiedLayer(layer);
     setTimeout(
       () => setCopiedLayer((current) => (current === layer ? null : current)),
@@ -282,53 +299,25 @@ export function AdminBroadcastStudio() {
 
   return (
     <div className="space-y-6">
-      <DashboardPageHeader
-        back={{ to: "/admin/broadcast", label: "Back to matches" }}
-        title={
-          <span className="flex items-center gap-2">
-            <span>
-              {state.home} vs {state.away}
-            </span>
-          </span>
-        }
-        subtitle="On-air graphics control for vMix."
-        actions={
-          <>
-            <span
-              className={`px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5 ${
-                isConnected
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                  : "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}
-              />
-              {isConnected ? "Live sync active" : "Connecting..."}
-            </span>
-            <Button
-              variant="secondary"
-              icon={
-                copiedLayer === "all"
-                  ? ClipboardDocumentCheckIcon
-                  : ClipboardDocumentIcon
-              }
-              onClick={() => copyUrl("all")}
-              title="Copy the full vMix overlay URL (scorebug and lower-thirds)"
-            >
-              {copiedLayer === "all" ? "Copied URL!" : "vMix Overlay URL"}
-            </Button>
-          </>
-        }
-      />
+      {header?.(state)}
 
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-1">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-x-4">
         <Checkbox
           label="Manual only"
           hint="Run everything from what's on screen. Turn off to see the play-by-play score check and play queue."
           checked={manualOnly}
           onChange={(e) => handleManualOnlyChange(e.target.checked)}
         />
+        <span
+          className={`self-start sm:self-auto mb-3 sm:mb-0 shrink-0 px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5 ${
+            isConnected
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+              : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} aria-hidden="true" />
+          {isConnected ? 'Live sync active' : 'Connecting...'}
+        </span>
       </div>
 
       {/* Main Grid: Control Station on Left, Preview and Status on Right */}
@@ -763,7 +752,7 @@ export function AdminBroadcastStudio() {
             <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
               <span>Transparent overlay floats above camera feed</span>
               <a
-                href={fullOverlayUrl}
+                href={matchOverlayUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sffl-red hover:underline font-bold flex items-center gap-1"
@@ -798,11 +787,16 @@ export function AdminBroadcastStudio() {
                 lower-thirds on <b>Overlay 2</b>, so each can go on and off air
                 by itself. For a single input, use <b>Everything</b>.
               </p>
+              <p className="font-semibold text-gray-700 dark:text-gray-200">
+                {overlayTarget.kind === 'day'
+                  ? 'These links follow whichever match is on air today, so vMix keeps the same inputs all day.'
+                  : 'These links show this match only. To stream a whole match day, use the event day studio.'}
+              </p>
             </div>
 
             <ul className="space-y-3">
               {OVERLAY_LAYERS.map((layer) => {
-                const url = overlayUrl(id, layer.value);
+                const url = overlayTargetUrl(overlayTarget, layer.value);
                 const isCopied = copiedLayer === layer.value;
                 return (
                   <li
@@ -841,6 +835,26 @@ export function AdminBroadcastStudio() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** On-air control for a single match, with vMix links that follow that match. */
+export function AdminBroadcastStudio() {
+  const { matchId } = useParams<{ matchId: string }>();
+  const id = matchId || '';
+
+  return (
+    <BroadcastControlPanel
+      matchId={id}
+      overlayTarget={{ kind: 'match', matchId: id }}
+      header={(state) => (
+        <DashboardPageHeader
+          back={{ to: '/admin/broadcast?view=matches', label: 'Back to matches' }}
+          title={`${state.home} vs ${state.away}`}
+          subtitle="On-air graphics control for vMix. For a full match day on one stream, use the event day studio instead."
+        />
+      )}
+    />
   );
 }
 

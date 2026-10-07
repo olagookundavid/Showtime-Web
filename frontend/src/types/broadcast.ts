@@ -76,6 +76,43 @@ export function parseOverlayLayer(value: string | null): OverlayLayer {
 }
 
 export function overlayUrl(matchId: string, layer: OverlayLayer = 'all'): string {
-  const base = `${window.location.origin}/broadcast/${matchId}/overlay`;
+  return overlayTargetUrl({ kind: 'match', matchId }, layer);
+}
+
+/**
+ * What an overlay link follows: one match, or an event day, which shows
+ * whichever of that day's matches the producer has put on air. A live stream
+ * covers a whole match day, so vMix normally loads the day link once.
+ */
+export type OverlayTarget = { kind: 'match'; matchId: string } | { kind: 'day'; date: string };
+
+export function overlayPath(target: OverlayTarget): string {
+  return target.kind === 'day' ? `/broadcast/day/${target.date}/overlay` : `/broadcast/${target.matchId}/overlay`;
+}
+
+export function overlayTargetUrl(target: OverlayTarget, layer: OverlayLayer = 'all'): string {
+  const base = `${window.location.origin}${overlayPath(target)}`;
   return layer === 'all' ? base : `${base}?layer=${layer}`;
+}
+
+/** A date with matches, titled by its event day when one exists. */
+export interface BroadcastMatchDay {
+  date: string; // YYYY-MM-DD
+  match_count: number;
+  live_match_count: number;
+  event_title?: string;
+  event_venue?: string;
+  on_air_match_id?: string;
+}
+
+export interface BroadcastDayMatch {
+  id: string;
+  competition_name: string;
+  time: string; // HH:MM
+  venue: string;
+  status: string;
+  home_team: { name: string; logo: string };
+  away_team: { name: string; logo: string };
+  home_score: number | null;
+  away_score: number | null;
 }

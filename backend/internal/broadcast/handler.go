@@ -3,7 +3,9 @@ package broadcast
 import (
 	"log"
 	"net/http"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,19 +17,27 @@ type IBroadcastHandler interface {
 	GetPlayers(c *gin.Context)
 	ProducerWS(c *gin.Context)
 	ViewerWS(c *gin.Context)
+
+	ListDays(c *gin.Context)
+	GetDay(c *gin.Context)
+	SetDayOnAir(c *gin.Context)
+	DayOverlayState(c *gin.Context)
+	DayViewerWS(c *gin.Context)
 }
 
 type BroadcastHandler struct {
 	hub          *Hub
 	matchService services.IMatchService
 	playService  services.IPlayService
+	days         ports.IBroadcastStateRepository
 }
 
-func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playService services.IPlayService) *BroadcastHandler {
+func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playService services.IPlayService, days ports.IBroadcastStateRepository) *BroadcastHandler {
 	return &BroadcastHandler{
 		hub:          hub,
 		matchService: matchService,
 		playService:  playService,
+		days:         days,
 	}
 }
 
@@ -244,6 +254,177 @@ func (h *BroadcastHandler) ViewerWS(c *gin.Context) {
 		Send:       make(chan []byte, 256),
 		MatchID:    matchID,
 		IsProducer: false,
+	}
+
+	h.hub.Register(client)
+	go client.WritePump()
+	client.ReadPump()
+}
+
+// ── Event-day channels ──────────────────────────────────────────────────────
+// A live stream covers a whole match day, so vMix loads one overlay link per
+// day (/broadcast/day/:date/overlay) and the producer picks which of that
+// day's matches it shows. Each match keeps its own state; the day only points
+// at one of them.
+
+// dayParam returns the :date path param if it is a valid YYYY-MM-DD date.
+func dayParam(c *gin.Context) (string, bool) {
+	day := c.Param("date")
+	if _, err := time.Parse("2006-01-02", day); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "date must be YYYY-MM-DD"})
+		return "", false
+	}
+	return day, true
+}
+
+// dayOnAirState returns the state of the day's on-air match, or nil when the
+// day has none.
+func (h *BroadcastHandler) dayOnAirState(c *gin.Context, day string) (*BroadcastState, error) {
+	matchID, err := h.hub.DayOnAir(c.Request.Context(), day)
+	if err != nil || matchID == "" {
+		return nil, err
+	}
+	return h.ensureMatchState(c, matchID)
+}
+
+// ListDays returns match days, newest first, for the studio's day picker.
+func (h *BroadcastHandler) ListDays(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	days, total, err := h.days.ListMatchDays(c.Request.Context(), page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load match days"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":        days,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": (total + limit - 1) / limit,
+	})
+}
+
+// GetDay returns a day's summary, its matches and which one is on air.
+func (h *BroadcastHandler) GetDay(c *gin.Context) {
+	day, ok := dayParam(c)
+	if !ok {
+		return
+	}
+	ctx := c.Request.Context()
+
+	summary, err := h.days.GetMatchDay(ctx, day)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load match day"})
+		return
+	}
+	matches, err := h.days.ListDayMatches(ctx, day)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load the day's matches"})
+		return
+	}
+	// The hub's choice is authoritative (it may not be saved yet on a fresh day).
+	if onAir, err := h.hub.DayOnAir(ctx, day); err == nil {
+		summary.OnAirMatchID = onAir
+	}
+	c.JSON(http.StatusOK, gin.H{"day": summary, "matches": matches})
+}
+
+type setDayOnAirRequest struct {
+	// MatchID is the match to show; empty takes the day off air.
+	MatchID string `json:"match_id"`
+}
+
+// SetDayOnAir switches which match the day's overlay shows.
+func (h *BroadcastHandler) SetDayOnAir(c *gin.Context) {
+	day, ok := dayParam(c)
+	if !ok {
+		return
+	}
+	var req setDayOnAirRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "details": err.Error()})
+		return
+	}
+	ctx := c.Request.Context()
+
+	if req.MatchID != "" {
+		matches, err := h.days.ListDayMatches(ctx, day)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load the day's matches"})
+			return
+		}
+		found := false
+		for _, m := range matches {
+			if m.ID == req.MatchID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "that match is not on this day"})
+			return
+		}
+		if _, err := h.ensureMatchState(c, req.MatchID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "match not found", "details": err.Error()})
+			return
+		}
+	}
+
+	if err := h.hub.SetDayOnAir(ctx, day, req.MatchID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to switch the on-air match", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"date": day, "on_air_match_id": req.MatchID})
+}
+
+// DayOverlayState is the public initial state for an event-day overlay: the
+// on-air match's state, or null when nothing is on air.
+func (h *BroadcastHandler) DayOverlayState(c *gin.Context) {
+	day, ok := dayParam(c)
+	if !ok {
+		return
+	}
+	state, err := h.dayOnAirState(c, day)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load the on-air match"})
+		return
+	}
+	if state == nil {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+	c.JSON(http.StatusOK, state)
+}
+
+// DayViewerWS streams an event day's on-air match to a public overlay (vMix),
+// following it when the producer switches matches.
+func (h *BroadcastHandler) DayViewerWS(c *gin.Context) {
+	day, ok := dayParam(c)
+	if !ok {
+		return
+	}
+	// Load the on-air match first so the overlay gets its state on connect.
+	_, _ = h.dayOnAirState(c, day)
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("[BroadcastDayViewerWS] upgrade error: %v", err)
+		return
+	}
+
+	client := &Client{
+		Hub:  h.hub,
+		Conn: conn,
+		Send: make(chan []byte, 256),
+		Day:  day,
 	}
 
 	h.hub.Register(client)

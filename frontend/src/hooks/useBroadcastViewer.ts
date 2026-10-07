@@ -1,17 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from '../constants';
-import type { BroadcastState } from '../types';
-import { getWebSocketURL } from './useBroadcastProducer';
+import { overlayPath, type BroadcastState, type OverlayTarget } from '../types';
+import { getWebSocketURL, parseLatestState } from './useBroadcastProducer';
 
-export function useBroadcastViewer(matchId: string) {
+/**
+ * Follows an overlay target: one match, or an event day (whichever match is on
+ * air). state is null until loaded, and for a day with nothing on air.
+ */
+export function useBroadcastViewer(target: OverlayTarget) {
+  const path = overlayPath(target);
+  const hasTarget = target.kind === 'match' ? !!target.matchId : !!target.date;
   const [state, setState] = useState<BroadcastState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!matchId) return;
+    if (!hasTarget) return;
 
     let isMounted = true;
     let reconnectDelay = 1000;
@@ -20,9 +26,9 @@ export function useBroadcastViewer(matchId: string) {
     async function fetchInitialState() {
       try {
         const origin = new URL(API_URL, window.location.origin).origin;
-        const res = await axios.get(`${origin}/broadcast/${matchId}/overlay/state`);
-        if (isMounted && res.data) {
-          setState(res.data);
+        const res = await axios.get(`${origin}${path}/state`);
+        if (isMounted) {
+          setState(res.data || null);
         }
       } catch {
         // Will be populated when WebSocket connects
@@ -34,8 +40,7 @@ export function useBroadcastViewer(matchId: string) {
     function connectWS() {
       if (!isMounted) return;
 
-      const wsPath = `/broadcast/${matchId}/overlay/ws`;
-      const wsUrl = getWebSocketURL(wsPath);
+      const wsUrl = getWebSocketURL(`${path}/ws`);
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -49,8 +54,8 @@ export function useBroadcastViewer(matchId: string) {
       ws.onmessage = (event) => {
         if (!isMounted) return;
         try {
-          const updatedState = JSON.parse(event.data);
-          setState(updatedState);
+          // null means the event day has nothing on air: show a blank overlay.
+          setState(parseLatestState(event.data));
         } catch (e) {
           console.error('[useBroadcastViewer] WS parse error:', e);
         }
@@ -82,7 +87,7 @@ export function useBroadcastViewer(matchId: string) {
         wsRef.current.close();
       }
     };
-  }, [matchId]);
+  }, [path, hasTarget]);
 
   return { state, isConnected };
 }

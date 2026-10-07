@@ -14,6 +14,15 @@ export function getWebSocketURL(path: string): string {
   return `${protocol}//${parsed.host}${path}`;
 }
 
+/**
+ * The hub batches queued updates into one WebSocket frame, newline-separated
+ * (JSON from the server never contains a raw newline). Only the newest matters.
+ */
+export function parseLatestState(data: string): BroadcastState | null {
+  const parts = data.split('\n').filter((part) => part.trim() !== '');
+  return JSON.parse(parts[parts.length - 1]);
+}
+
 export function useBroadcastProducer(matchId: string) {
   const [state, setState] = useState<BroadcastState | null>(null);
   const [players, setPlayers] = useState<BroadcastPlayer[]>([]);
@@ -80,8 +89,8 @@ export function useBroadcastProducer(matchId: string) {
       ws.onmessage = (event) => {
         if (!isMounted) return;
         try {
-          const updatedState = JSON.parse(event.data);
-          setState(updatedState);
+          const updatedState = parseLatestState(event.data);
+          if (updatedState) setState(updatedState);
         } catch (e) {
           console.error('[useBroadcastProducer] WS parse error:', e);
         }

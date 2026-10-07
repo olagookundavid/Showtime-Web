@@ -147,6 +147,11 @@ const AdminBroadcastStudio = lazy(() =>
     default: m.AdminBroadcastStudio,
   })),
 );
+const AdminBroadcastDay = lazy(() =>
+  import("./pages/admin/AdminBroadcastDay").then((m) => ({
+    default: m.AdminBroadcastDay,
+  })),
+);
 const BroadcastOverlay = lazy(() =>
   import("./pages/BroadcastOverlay").then((m) => ({
     default: m.BroadcastOverlay,
@@ -612,6 +617,14 @@ function App() {
                         }
                       />
                       <Route
+                        path="broadcast/day/:date"
+                        element={
+                          <FeatureGuard feature="broadcast_studio">
+                            <AdminBroadcastDay />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
                         path="news"
                         element={
                           <FeatureGuard feature="news">
@@ -880,6 +893,10 @@ function App() {
                     {/* Public vMix Broadcast Overlay (Transparent, standalone) */}
                     <Route
                       path="/broadcast/:matchId/overlay"
+                      element={<BroadcastOverlay />}
+                    />
+                    <Route
+                      path="/broadcast/day/:date/overlay"
                       element={<BroadcastOverlay />}
                     />
 

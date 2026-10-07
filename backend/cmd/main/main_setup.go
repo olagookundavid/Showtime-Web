@@ -546,8 +546,9 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	totwHandler := transport.NewTOTWHandler(totwService)
 	potwHandler := transport.NewPOTWHandler(potwService)
 
-	broadcastHub := broadcast.NewHub(ports.NewBroadcastStateRepository(pool))
-	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService)
+	broadcastRepo := ports.NewBroadcastStateRepository(pool)
+	broadcastHub := broadcast.NewHub(broadcastRepo)
+	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService, broadcastRepo)
 
 	h := handlers.NewHandlers(
 		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,

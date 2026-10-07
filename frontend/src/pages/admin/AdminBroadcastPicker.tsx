@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { Competition, Match } from "../../types";
+import { useSearchParams } from "react-router-dom";
+import type { BroadcastMatchDay, Competition, Match } from "../../types";
 import {
   Loader,
   Button,
@@ -17,13 +18,17 @@ import {
   getMatches,
   sortCompetitionsBySeason,
 } from "../../services/api";
+import { getBroadcastDays } from "../../services/broadcastApi";
 import { usePermissions } from "../../hooks";
+import { formatMatchDate, lagosToday } from "../../utils";
 import {
   VideoCameraIcon,
   ArrowTopRightOnSquareIcon,
   ClipboardDocumentCheckIcon,
   ClipboardDocumentIcon,
   MapPinIcon,
+  CalendarDaysIcon,
+  SignalIcon,
 } from "@heroicons/react/24/outline";
 
 type StatusFilter = "ALL" | "LIVE" | "SCHEDULED" | "FINISHED" | "POSTPONED";
@@ -39,8 +44,10 @@ const STATUS_TABS: { value: StatusFilter; label: string }[] = [
 const PAGE_SIZE = 10;
 const NO_COMPETITIONS: Competition[] = [];
 const NO_MATCHES: Match[] = [];
+const NO_DAYS: BroadcastMatchDay[] = [];
 
-export function AdminBroadcastPicker() {
+/** Single-match view: pick a competition, then a match within it. */
+function MatchPicker() {
   // '' until the producer picks one; the page then shows the default competition.
   const [pickedCompId, setPickedCompId] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
@@ -111,11 +118,6 @@ export function AdminBroadcastPicker() {
 
   return (
     <div className="space-y-6">
-      <DashboardPageHeader
-        title="Broadcast Studio"
-        subtitle="Pick a competition, then a match, to launch on-air graphics control for vMix."
-      />
-
       {/* Filters: competition first, then status within it */}
       <div className="space-y-3">
         <Field
@@ -343,6 +345,122 @@ export function AdminBroadcastPicker() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+type PickerView = 'days' | 'matches';
+
+const VIEW_TABS: { value: PickerView; label: string }[] = [
+  { value: 'days', label: 'Match days' },
+  { value: 'matches', label: 'Single match' },
+];
+
+/** Event-day view: every date with matches, newest first. */
+function DayPicker() {
+  const [page, setPage] = useState(1);
+  const today = lagosToday();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['broadcastDays', page],
+    queryFn: () => getBroadcastDays(page, PAGE_SIZE),
+    refetchInterval: 30000,
+  });
+  const days = data?.data ?? NO_DAYS;
+  const totalPages = data?.total_pages ?? 0;
+
+  if (isLoading) {
+    return (
+      <div className="py-16 flex justify-center">
+        <Loader />
+      </div>
+    );
+  }
+  if (days.length === 0) {
+    return (
+      <div className="p-8 sm:p-12 text-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
+        <p className="font-semibold text-gray-700 dark:text-gray-200">No match days yet.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          A day appears here as soon as a match is scheduled on it.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {days.map((d) => {
+          const isToday = d.date === today;
+          const dateLabel = formatMatchDate(d.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+          return (
+            <li
+              key={d.date}
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm flex flex-col gap-3"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-gray-500 dark:text-gray-400">
+                  <CalendarDaysIcon className="w-4 h-4" aria-hidden="true" />
+                  {dateLabel}
+                </span>
+                {isToday && (
+                  <span className="px-2 py-0.5 rounded-full bg-sffl-navy text-white font-bold">Today</span>
+                )}
+                {d.live_match_count > 0 && (
+                  <span className="px-2 py-0.5 rounded-full border font-bold bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                    {d.live_match_count} live
+                  </span>
+                )}
+                {d.on_air_match_id && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sffl-red text-white font-bold">
+                    <SignalIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                    On air
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="font-black text-gray-900 dark:text-white text-base md:text-lg break-words">
+                  {d.event_title || dateLabel}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {d.match_count} {d.match_count === 1 ? 'match' : 'matches'}
+                  {d.event_venue ? ` · ${d.event_venue}` : ''}
+                </p>
+              </div>
+              <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                <ButtonLink to={`/admin/broadcast/day/${d.date}`} icon={VideoCameraIcon}>
+                  Open day studio
+                </ButtonLink>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {totalPages > 1 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />}
+    </div>
+  );
+}
+
+export function AdminBroadcastPicker() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view: PickerView = searchParams.get('view') === 'matches' ? 'matches' : 'days';
+
+  const setView = (next: PickerView) => {
+    setSearchParams(next === 'days' ? {} : { view: next }, { replace: true });
+  };
+
+  return (
+    <div className="space-y-6">
+      <DashboardPageHeader
+        title="Broadcast Studio"
+        subtitle={
+          view === 'days'
+            ? 'Stream a whole match day on one set of vMix links, switching matches as they kick off.'
+            : 'Pick a competition, then a match, to control graphics for that match alone.'
+        }
+      />
+      <Tabs items={VIEW_TABS} value={view} onChange={setView} aria-label="Broadcast by" />
+      {view === 'days' ? <DayPicker /> : <MatchPicker />}
     </div>
   );
 }

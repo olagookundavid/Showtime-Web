@@ -3,6 +3,7 @@ package broadcast
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -24,10 +25,13 @@ const (
 )
 
 // Store persists broadcast state so it survives a restart. Load returns nil
-// when nothing is stored for the match.
+// when nothing is stored for the match; LoadDayOnAir returns "" when a day has
+// no match on air.
 type Store interface {
 	Load(ctx context.Context, matchID string) ([]byte, error)
 	Save(ctx context.Context, matchID string, state []byte) error
+	LoadDayOnAir(ctx context.Context, day string) (string, error)
+	SaveDayOnAir(ctx context.Context, day, matchID string) error
 }
 
 var upgrader = websocket.Upgrader{
@@ -46,6 +50,9 @@ type Client struct {
 	Send       chan []byte
 	MatchID    string
 	IsProducer bool
+	// Day is set for an event-day overlay, which follows whichever match is on
+	// air that day instead of a fixed MatchID.
+	Day string
 }
 
 // Hub maintains the set of active clients and handles broadcasting state updates.
@@ -56,6 +63,12 @@ type Hub struct {
 	states    map[string]*BroadcastState
 	producers map[string]map[*Client]bool
 	viewers   map[string]map[*Client]bool
+
+	// Event-day channels: one overlay link per match day showing whichever
+	// match is on air. dayLoaded marks days whose saved choice has been read.
+	dayOnAir   map[string]string
+	dayLoaded  map[string]bool
+	dayViewers map[string]map[*Client]bool
 
 	store     Store
 	pendMu    sync.Mutex
@@ -69,14 +82,17 @@ type Hub struct {
 // NewHub initializes a broadcast hub. store may be nil for a memory-only hub.
 func NewHub(store Store) *Hub {
 	h := &Hub{
-		states:    make(map[string]*BroadcastState),
-		producers: make(map[string]map[*Client]bool),
-		viewers:   make(map[string]map[*Client]bool),
-		store:     store,
-		pending:   make(map[string][]byte),
-		wake:      make(chan struct{}, 1),
-		stop:      make(chan struct{}),
-		stopped:   make(chan struct{}),
+		states:     make(map[string]*BroadcastState),
+		producers:  make(map[string]map[*Client]bool),
+		viewers:    make(map[string]map[*Client]bool),
+		dayOnAir:   make(map[string]string),
+		dayLoaded:  make(map[string]bool),
+		dayViewers: make(map[string]map[*Client]bool),
+		store:      store,
+		pending:    make(map[string][]byte),
+		wake:       make(chan struct{}, 1),
+		stop:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 	}
 	if store != nil {
 		go h.persistLoop()
@@ -211,30 +227,41 @@ func (h *Hub) SetState(state *BroadcastState) {
 	h.broadcastData(cp.MatchID, data)
 }
 
-// Register registers a client with the hub.
+// clientGroups returns the set a client belongs in: producers or viewers keyed
+// by match, or event-day viewers keyed by date. Caller holds h.mu.
+func (h *Hub) clientGroups(c *Client) (map[string]map[*Client]bool, string) {
+	switch {
+	case c.Day != "":
+		return h.dayViewers, c.Day
+	case c.IsProducer:
+		return h.producers, c.MatchID
+	default:
+		return h.viewers, c.MatchID
+	}
+}
+
+// Register registers a client with the hub and sends it the current state.
 func (h *Hub) Register(c *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if c.IsProducer {
-		if _, ok := h.producers[c.MatchID]; !ok {
-			h.producers[c.MatchID] = make(map[*Client]bool)
-		}
-		h.producers[c.MatchID][c] = true
-	} else {
-		if _, ok := h.viewers[c.MatchID]; !ok {
-			h.viewers[c.MatchID] = make(map[*Client]bool)
-		}
-		h.viewers[c.MatchID][c] = true
+	groups, key := h.clientGroups(c)
+	if _, ok := groups[key]; !ok {
+		groups[key] = make(map[*Client]bool)
 	}
+	groups[key][c] = true
 
-	// Send current state to newly connected client immediately if present
-	if state, ok := h.states[c.MatchID]; ok {
+	matchID := c.MatchID
+	if c.Day != "" {
+		matchID = h.dayOnAir[c.Day]
+		if matchID == "" {
+			trySend(c, offAirMessage)
+			return
+		}
+	}
+	if state, ok := h.states[matchID]; ok {
 		if data, err := json.Marshal(state); err == nil {
-			select {
-			case c.Send <- data:
-			default:
-			}
+			trySend(c, data)
 		}
 	}
 }
@@ -244,55 +271,114 @@ func (h *Hub) Unregister(c *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if c.IsProducer {
-		if clients, ok := h.producers[c.MatchID]; ok {
-			if _, exists := clients[c]; exists {
-				delete(clients, c)
-				close(c.Send)
-				if len(clients) == 0 {
-					delete(h.producers, c.MatchID)
-				}
-			}
-		}
-	} else {
-		if clients, ok := h.viewers[c.MatchID]; ok {
-			if _, exists := clients[c]; exists {
-				delete(clients, c)
-				close(c.Send)
-				if len(clients) == 0 {
-					delete(h.viewers, c.MatchID)
-				}
+	groups, key := h.clientGroups(c)
+	if clients, ok := groups[key]; ok {
+		if _, exists := clients[c]; exists {
+			delete(clients, c)
+			close(c.Send)
+			if len(clients) == 0 {
+				delete(groups, key)
 			}
 		}
 	}
 }
 
-// broadcastData sends the serialized state to all producers and viewers for the given match.
+func trySend(c *Client, data []byte) {
+	select {
+	case c.Send <- data:
+	default:
+	}
+}
+
+// sendAll queues data for every client in the set, dropping any whose buffer
+// is full (a stalled connection). Caller holds h.mu for reading.
+func (h *Hub) sendAll(clients map[*Client]bool, data []byte) {
+	for c := range clients {
+		select {
+		case c.Send <- data:
+		default:
+			go h.Unregister(c)
+		}
+	}
+}
+
+// broadcastData sends a match's serialized state to its producers and viewers,
+// and to every event day that has the match on air.
 func (h *Hub) broadcastData(matchID string, data []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	// Send to producers
-	if clients, ok := h.producers[matchID]; ok {
-		for c := range clients {
-			select {
-			case c.Send <- data:
-			default:
-				go h.Unregister(c)
-			}
+	h.sendAll(h.producers[matchID], data)
+	h.sendAll(h.viewers[matchID], data)
+	for day, onAir := range h.dayOnAir {
+		if onAir == matchID {
+			h.sendAll(h.dayViewers[day], data)
+		}
+	}
+}
+
+// offAirMessage tells an event-day overlay that no match is on air, so it
+// shows nothing.
+var offAirMessage = []byte("null")
+
+// DayOnAir returns the match an event day's overlay shows ("" for none),
+// loading the saved choice the first time the day is asked about.
+func (h *Hub) DayOnAir(ctx context.Context, day string) (string, error) {
+	h.mu.RLock()
+	loaded := h.dayLoaded[day]
+	matchID := h.dayOnAir[day]
+	h.mu.RUnlock()
+	if loaded || h.store == nil {
+		return matchID, nil
+	}
+
+	stored, err := h.store.LoadDayOnAir(ctx, day)
+	if err != nil {
+		return "", err
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if !h.dayLoaded[day] {
+		h.dayLoaded[day] = true
+		h.dayOnAir[day] = stored
+	}
+	return h.dayOnAir[day], nil
+}
+
+// SetDayOnAir switches an event day's overlay to matchID ("" takes it off air).
+// The match's state must already be loaded. Its lower-third is cleared so a
+// graphic fired earlier doesn't replay as the match comes on air.
+func (h *Hub) SetDayOnAir(ctx context.Context, day, matchID string) error {
+	if matchID != "" {
+		if _, ok := h.GetState(matchID); !ok {
+			return fmt.Errorf("broadcast state for match %s is not loaded", matchID)
+		}
+	}
+	if h.store != nil {
+		if err := h.store.SaveDayOnAir(ctx, day, matchID); err != nil {
+			return err
 		}
 	}
 
-	// Send to viewers (vMix overlays)
-	if clients, ok := h.viewers[matchID]; ok {
-		for c := range clients {
-			select {
-			case c.Send <- data:
-			default:
-				go h.Unregister(c)
-			}
-		}
+	h.mu.Lock()
+	h.dayLoaded[day] = true
+	h.dayOnAir[day] = matchID
+	h.mu.Unlock()
+
+	if matchID == "" {
+		h.mu.RLock()
+		h.sendAll(h.dayViewers[day], offAirMessage)
+		h.mu.RUnlock()
+		return nil
 	}
+
+	state, ok := h.GetState(matchID)
+	if !ok {
+		return fmt.Errorf("broadcast state for match %s is not loaded", matchID)
+	}
+	state.Graphic = nil
+	h.SetState(state) // fans out to the day's overlays too
+	return nil
 }
 
 // ReadPump listens for incoming messages from the client.

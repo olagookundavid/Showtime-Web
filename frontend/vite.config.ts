@@ -27,8 +27,9 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
-      // Only the overlay's backend endpoints — /broadcast/:id/overlay itself is a SPA page.
-      '^/broadcast/[^/]+/overlay/(ws|state)$': {
+      // Only the overlays' backend endpoints (per match and per event day) —
+      // the /broadcast/.../overlay pages themselves are SPA routes.
+      '^/broadcast/(day/)?[^/]+/overlay/(ws|state)$': {
         target: 'http://localhost:8089',
         changeOrigin: true,
         ws: true,

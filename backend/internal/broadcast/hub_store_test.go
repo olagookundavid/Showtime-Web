@@ -10,10 +10,26 @@ import (
 type memStore struct {
 	mu    sync.Mutex
 	data  map[string][]byte
+	days  map[string]string
 	saves int
 }
 
-func newMemStore() *memStore { return &memStore{data: make(map[string][]byte)} }
+func newMemStore() *memStore {
+	return &memStore{data: make(map[string][]byte), days: make(map[string]string)}
+}
+
+func (s *memStore) LoadDayOnAir(_ context.Context, day string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.days[day], nil
+}
+
+func (s *memStore) SaveDayOnAir(_ context.Context, day, matchID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.days[day] = matchID
+	return nil
+}
 
 func (s *memStore) Load(_ context.Context, matchID string) ([]byte, error) {
 	s.mu.Lock()

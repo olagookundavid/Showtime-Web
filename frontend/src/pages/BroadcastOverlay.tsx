@@ -26,23 +26,26 @@ function TeamName({ name }: { name: string }) {
 }
 
 export function BroadcastOverlay() {
-  const { matchId } = useParams<{ matchId: string }>();
-  const id = matchId || "";
+  // /broadcast/:matchId/overlay follows one match; /broadcast/day/:date/overlay
+  // follows whichever match is on air that day.
+  const { matchId, date } = useParams<{ matchId?: string; date?: string }>();
   // ?layer=scorebug or ?layer=graphics gives vMix one part per input; no param shows both.
   const [searchParams] = useSearchParams();
   const layer = parseOverlayLayer(searchParams.get("layer"));
   const showScorebug = layer !== "graphics";
   const showGraphics = layer !== "scorebug";
 
-  const { state } = useBroadcastViewer(id);
+  const { state } = useBroadcastViewer(
+    date ? { kind: 'day', date } : { kind: 'match', matchId: matchId || '' },
+  );
   const [scale, setScale] = useState({ k: 1, x: 0, y: 0 });
 
   // Ticks while the clock runs so the countdown re-renders smoothly
   const [now, setNow] = useState(() => Date.now());
 
-  // Exit phase of the current graphic. A graphic whose id isn't recorded here is entering.
+  // Exit phase of the current graphic. A graphic whose key isn't recorded here is entering.
   const [graphicExit, setGraphicExit] = useState<{
-    id: number;
+    key: string;
     stage: "out" | "hidden";
   } | null>(null);
 
@@ -81,16 +84,18 @@ export function BroadcastOverlay() {
     return () => clearInterval(interval);
   }, [clockRunning]);
 
-  // Schedule the exit of each new graphic after its duration
-  const graphicId = state?.graphic ? state.graphic_id : 0;
+  // Schedule the exit of each new graphic after its duration. Graphic ids count
+  // per match, so the key includes the match: an event-day overlay switching
+  // matches must not mistake match B's graphic #3 for match A's.
+  const graphicKey = state?.graphic ? `${state.match_id}:${state.graphic_id}` : '';
   const graphicDuration = state?.graphic?.duration || 5500;
   useEffect(() => {
-    if (!graphicId) return;
+    if (!graphicKey) return;
     let hideTimer: ReturnType<typeof setTimeout> | undefined;
     const outTimer = setTimeout(() => {
-      setGraphicExit({ id: graphicId, stage: "out" });
+      setGraphicExit({ key: graphicKey, stage: "out" });
       hideTimer = setTimeout(
-        () => setGraphicExit({ id: graphicId, stage: "hidden" }),
+        () => setGraphicExit({ key: graphicKey, stage: "hidden" }),
         350,
       );
     }, graphicDuration);
@@ -98,7 +103,7 @@ export function BroadcastOverlay() {
       clearTimeout(outTimer);
       clearTimeout(hideTimer);
     };
-  }, [graphicId, graphicDuration]);
+  }, [graphicKey, graphicDuration]);
 
   if (!state) {
     return (
@@ -108,7 +113,7 @@ export function BroadcastOverlay() {
 
   const clockDisplay = formatClock(calculateClockNow(state, now));
 
-  const exitStage = graphicExit?.id === graphicId ? graphicExit.stage : null;
+  const exitStage = graphicExit?.key === graphicKey ? graphicExit.stage : null;
   const activeGraphic: GraphicEvent | null =
     state.graphic && exitStage !== "hidden" ? state.graphic : null;
   const animClass = exitStage ?? "enter";
@@ -200,7 +205,7 @@ export function BroadcastOverlay() {
       {/* 2. Lower-Third Graphic Banner; left out of a scorebug-only input */}
       {showGraphics && activeGraphic && (
         <div
-          key={graphicId}
+          key={graphicKey}
           className={`graphic-banner ${animClass} ${activeGraphic.compact ? "compact-mode" : ""} ${
             !activeGraphic.player ? "no-avatar" : ""
           }`}

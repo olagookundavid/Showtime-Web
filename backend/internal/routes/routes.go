@@ -49,6 +49,9 @@ func Routes(app *api.Application) *gin.Engine {
 	// Public broadcast overlay WebSocket and state for vMix and browser overlay displays
 	r.GET("/broadcast/:matchId/overlay/ws", app.Handlers.BroadcastHandler.ViewerWS)
 	r.GET("/broadcast/:matchId/overlay/state", app.Handlers.BroadcastHandler.GetState)
+	// Event-day overlay: one link per match day, showing whichever match is on air
+	r.GET("/broadcast/day/:date/overlay/ws", app.Handlers.BroadcastHandler.DayViewerWS)
+	r.GET("/broadcast/day/:date/overlay/state", app.Handlers.BroadcastHandler.DayOverlayState)
 	// expvar exposes runtime internals (and can leak command-line flags such as
 	// the DB DSN / token key) — lock it behind admin auth instead of public.
 	debugGroup := r.Group("/debug", commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
@@ -374,6 +377,15 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		broadcastAdminGroup.PUT("/state", app.Handlers.BroadcastHandler.UpdateState)
 		broadcastAdminGroup.GET("/players", app.Handlers.BroadcastHandler.GetPlayers)
 		broadcastAdminGroup.GET("/ws", app.Handlers.BroadcastHandler.ProducerWS)
+	}
+
+	// Event days: pick which of a day's matches the day's overlay shows
+	broadcastDaysGroup := adminRoutes.Group("/broadcast/days")
+	broadcastDaysGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "broadcast_studio"))
+	{
+		broadcastDaysGroup.GET("", app.Handlers.BroadcastHandler.ListDays)
+		broadcastDaysGroup.GET("/:date", app.Handlers.BroadcastHandler.GetDay)
+		broadcastDaysGroup.PUT("/:date/on-air", app.Handlers.BroadcastHandler.SetDayOnAir)
 	}
 
 	playersGroup := adminRoutes.Group("/players")
