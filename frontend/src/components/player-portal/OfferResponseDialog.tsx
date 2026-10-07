@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { playerPortalApi, type ContractData } from '../../services/api';
+import { playerPortalApi } from '../../services/api';
+import type { OfferResponse } from '../../types/contracts';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { apiError } from './apiError';
-
-export type OfferResponse = { contract: ContractData; action: 'accept' | 'reject' };
 
 interface OfferResponseDialogProps {
     /** The offer and the answer waiting to be confirmed. null keeps the dialog closed. */

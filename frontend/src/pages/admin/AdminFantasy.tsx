@@ -34,20 +34,9 @@ import {
     formatFantasyPrice,
     getCompetitions
 } from '../../services/api';
-import type {
-    FantasySeason,
-    FantasyGameweek,
-    AdminLeagueRow,
-    AdminLeagueMemberRow,
-    AdminManagerRow,
-    AdminPlayerPriceRow,
-    OwedRow,
-    PayoutRequest,
-    PayoutStatus,
-    PrizeAward,
-    SettlementResult,
-    ScheduledMatchDay
-} from '../../services/api';
+import type { FantasySeason, FantasyGameweek, ScheduledMatchDay } from '../../types/fantasy/core';
+import type { AdminLeagueRow, AdminLeagueMemberRow, AdminManagerRow, AdminPlayerPriceRow, SettlementResult } from '../../types/fantasy/admin';
+import type { OwedRow, PayoutRequest, PayoutStatus, PrizeAward } from '../../types/fantasy/wallet';
 import { Loader } from '../../components/ui/Loader';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';

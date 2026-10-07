@@ -24,9 +24,8 @@ import {
   searchTicketsByEmail,
   getEventDays,
   getAllEventDays,
-  type TicketResponse,
-  type EventDayResponse,
 } from "../../services/api";
+import type { TicketResponse, EventDayResponse } from "../../types/tickets";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatMatchDate } from "../../utils/dateUtils";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";

@@ -38,13 +38,10 @@ import {
   fantasyApi,
   fantasySeasonApi,
   fantasySquadApi,
-  type FantasySlot,
-  type FantasyPlayerListItem,
-  type Squad,
-  type SquadPlayer,
-  type FantasySeason,
   formatFantasyPrice,
 } from "../../services/api";
+import type { FantasySlot, FantasyPlayerListItem, FantasySeason } from "../../types/fantasy/core";
+import type { Squad, SquadPlayer } from "../../types/fantasy/squad";
 import { formatStatNumber } from "../../utils/formatters";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader } from "../../components/ui/Loader";

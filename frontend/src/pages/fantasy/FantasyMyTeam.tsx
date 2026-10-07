@@ -8,13 +8,13 @@ import {
     ClockIcon, 
     SparklesIcon 
 } from '@heroicons/react/24/outline';
-import { 
-    fantasyApi, 
+import {
+    fantasyApi,
     fantasySeasonApi,
     fantasySquadApi,
-    type FantasyLineupPick,
     formatFantasyPrice,
 } from '../../services/api';
+import type { FantasyLineupPick } from '../../types/fantasy/core';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
 import { Modal, Select } from '../../components/ui';

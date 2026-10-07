@@ -1,6 +1,6 @@
 import { type ComponentProps, type ReactNode } from 'react';
-import { type HeroIcon, type Tone } from './Button';
-import { fieldControlClass, fieldControlDarkClass, fieldInvalidClass } from './formStyles';
+import { type HeroIcon, type Shape, type Tone } from './Button';
+import { fieldControlClass, fieldControlDarkClass, fieldInvalidClass, fieldShapeClass } from './formStyles';
 
 type InputProps = ComponentProps<'input'> & {
     /** Red border for a failed validation. Pair with Field's `error`. */
@@ -11,10 +11,12 @@ type InputProps = ComponentProps<'input'> & {
     action?: ReactNode;
     /** `dark` for a field on a dark surface. */
     tone?: Tone;
+    /** `square` for sharp corners (store pages). */
+    shape?: Shape;
 };
 
 /** Text-like input. `className` sets the width of the field box, not the input. */
-export const Input = ({ invalid = false, icon: Icon, action, tone = 'light', className = '', ...props }: InputProps) => {
+export const Input = ({ invalid = false, icon: Icon, action, tone = 'light', shape = 'round', className = '', ...props }: InputProps) => {
     const padding = `${Icon ? 'pl-9' : 'pl-3'} ${action ? 'pr-11' : 'pr-3'}`;
     const dark = tone === 'dark';
 
@@ -22,7 +24,7 @@ export const Input = ({ invalid = false, icon: Icon, action, tone = 'light', cla
         <div className={`relative min-w-0 ${className}`}>
             <input
                 aria-invalid={invalid || undefined}
-                className={`${dark ? fieldControlDarkClass : fieldControlClass} min-h-11 ${padding} ${invalid ? fieldInvalidClass : ''}`}
+                className={`${dark ? fieldControlDarkClass : fieldControlClass} ${fieldShapeClass(shape)} min-h-11 ${padding} ${invalid ? fieldInvalidClass : ''}`}
                 {...props}
             />
             {Icon && (

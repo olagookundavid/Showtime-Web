@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 import { TrophyIcon } from "@heroicons/react/24/outline";
-import type { Competition } from "../../services/api";
+import type { Competition } from "../../types/matches";
 import { Button } from "../ui";
 
 interface SeasonStageTabsProps {

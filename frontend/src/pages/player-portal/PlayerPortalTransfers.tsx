@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { playerPortalApi, type TransferData } from '../../services/api';
+import { playerPortalApi } from '../../services/api';
+import type { TransferData } from '../../types/transfers';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';

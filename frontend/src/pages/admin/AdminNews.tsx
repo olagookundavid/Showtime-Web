@@ -13,8 +13,8 @@ import {
 import { PlayIcon } from '@heroicons/react/24/solid';
 import {
     getNews, createNews, updateNews, deleteNews,
-    type News, type CreateNewsPayload,
 } from '../../services/api';
+import type { News, CreateNewsPayload } from '../../types/news';
 import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';

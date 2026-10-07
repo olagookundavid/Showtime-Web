@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
+    ArchiveBoxArrowDownIcon,
     ArchiveBoxIcon,
+    ArrowUturnLeftIcon,
     CheckIcon,
     ExclamationTriangleIcon,
     EyeIcon,
@@ -22,11 +24,8 @@ import {
     saveAdminProductVariants,
     saveAdminProductImages,
     getAdminOrders,
-    type Order,
-    type StoreProduct,
-    type ProductImage,
-    type ProductOption,
 } from '../../services/api';
+import type { Order, StoreProduct, ProductImage, ProductOption } from '../../types/store';
 import { Loader } from '../../components/ui/Loader';
 import { ImageUploadField } from '../../components/ui/ImageUploadField';
 import { DataTable, type Column } from '../../components/ui/DataTable';
@@ -38,6 +37,7 @@ import { DiscountCodesPanel } from '../../components/admin/DiscountCodesPanel';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { STANDARD_PRODUCT_TAGS } from '../../constants';
 
 type Tab = 'PRODUCTS' | 'ORDERS' | 'DISCOUNTS';
 
@@ -47,7 +47,13 @@ const TABS: { key: Tab; label: string; icon: ComponentType<{ className?: string 
     { key: 'DISCOUNTS', label: 'Discount Codes', icon: TagIcon },
 ];
 
-const STANDARD_TAGS = ['Jerseys', 'Merch', 'Books', 'Others'];
+type ProductStatusFilter = 'active' | 'draft' | 'all';
+
+const PRODUCT_STATUS_FILTERS: { key: ProductStatusFilter; label: string }[] = [
+    { key: 'active', label: 'Active' },
+    { key: 'draft', label: 'Draft' },
+    { key: 'all', label: 'All' },
+];
 
 const ORDERS_PAGE_SIZE = 20;
 const NO_ORDERS: Order[] = [];
@@ -92,7 +98,7 @@ const emptyOption = (): OptionDraft => ({ name: '', drives_price: false, values:
 
 type EditorMode = { kind: 'create' } | { kind: 'edit'; product: StoreProduct };
 
-type PendingAction = { kind: 'save' } | { kind: 'delete'; product: StoreProduct };
+type PendingAction = { kind: 'save' } | { kind: 'archive'; product: StoreProduct } | { kind: 'reactivate'; product: StoreProduct };
 
 const MAX_OPTIONS = 3;
 
@@ -194,11 +200,26 @@ export const AdminStore = () => {
     const [fulfillmentFilter, setFulfillmentFilter] = useState('');
     const navigate = useNavigate();
 
+    // Products state
+    const [productStatusFilter, setProductStatusFilter] = useState<ProductStatusFilter>('active');
+
     // Queries
     const { data: products, isLoading: loadingProducts } = useQuery({
         queryKey: ['adminStoreProducts'],
         queryFn: getAdminStoreProducts,
     });
+
+    const productCounts = useMemo(() => {
+        const all = products?.length ?? 0;
+        const active = products?.filter(p => p.is_active).length ?? 0;
+        return { active, draft: all - active, all };
+    }, [products]);
+
+    const visibleProducts = useMemo(() => {
+        if (!products) return undefined;
+        if (productStatusFilter === 'all') return products;
+        return products.filter(p => productStatusFilter === 'active' ? p.is_active : !p.is_active);
+    }, [products, productStatusFilter]);
 
     const { data: ordersData, isLoading: loadingOrders } = useQuery({
         queryKey: ['adminOrders', ordersPage, paymentFilter, fulfillmentFilter],
@@ -459,15 +480,29 @@ export const AdminStore = () => {
         try {
             if (action.kind === 'save') {
                 await saveEditor();
-            } else {
+            } else if (action.kind === 'archive') {
                 await deleteAdminStoreProduct(action.product.id);
                 queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
-                toast.success('Product deleted.');
+                toast.success('Product archived.');
+            } else {
+                const p = action.product;
+                await updateAdminStoreProduct(p.id, {
+                    name: p.name,
+                    description: p.description,
+                    price: p.price,
+                    quantity: p.quantity,
+                    threshold: p.threshold,
+                    is_active: true,
+                    tags: p.tags || [],
+                    options: p.options,
+                });
+                queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
+                toast.success('Product reactivated.');
             }
         } catch (err) {
             toast.error(getApiErrorMessage(
                 err,
-                err instanceof Error && err.message ? err.message : action.kind === 'save' ? 'Failed to save product' : 'Failed to delete product',
+                err instanceof Error && err.message ? err.message : action.kind === 'save' ? 'Failed to save product' : action.kind === 'archive' ? 'Failed to archive product' : 'Failed to reactivate product',
             ));
         } finally {
             setBusy(false);
@@ -545,13 +580,29 @@ export const AdminStore = () => {
         },
     ], [navigate]);
 
-    const dialog = pendingAction?.kind === 'delete'
+    const dialog = pendingAction?.kind === 'archive'
         ? {
-            title: 'Delete this product?',
-            description: undefined,
-            confirmLabel: 'Delete Product',
+            title: 'Archive this product?',
+            description: "It's hidden from the storefront and marked Draft — not deleted, so past orders keep their product details. You can bring it back anytime with Reactivate.",
+            confirmLabel: 'Archive Product',
             tone: 'warning' as const,
-            icon: TrashIcon,
+            icon: ArchiveBoxArrowDownIcon,
+            body: (
+                <ConfirmSummary rows={[
+                    ['Product', pendingAction.product.name],
+                    ['Price', `₦${pendingAction.product.price.toLocaleString()}`],
+                    ['Stock', String(pendingAction.product.quantity)],
+                    ['Variants', String(pendingAction.product.variants?.length || 0)],
+                ]} />
+            ),
+        }
+        : pendingAction?.kind === 'reactivate'
+        ? {
+            title: 'Reactivate this product?',
+            description: 'It becomes visible in the storefront again, with its existing price, stock and variants.',
+            confirmLabel: 'Reactivate Product',
+            tone: 'success' as const,
+            icon: ArrowUturnLeftIcon,
             body: (
                 <ConfirmSummary rows={[
                     ['Product', pendingAction.product.name],
@@ -618,74 +669,107 @@ export const AdminStore = () => {
                             <p className="text-gray-500 font-bold">No products yet. Click "Create Product" to add your first item.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {products.map(p => {
-                                const primaryImg = p.images?.find(i => i.is_primary)?.image_url || p.images?.[0]?.image_url || '';
-                                return (
-                                    <div key={p.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5 shadow-lg flex flex-col justify-between">
-                                        <div className="space-y-4">
-                                            <div className="h-48 w-full bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-gray-100 dark:border-gray-700">
-                                                {primaryImg ? (
-                                                    <img src={primaryImg} alt={p.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="text-gray-400 text-xs italic">No image</div>
-                                                )}
-                                                <div className="absolute top-3 right-3 bg-sffl-navy/90 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full">
-                                                    ₦{p.price.toLocaleString()}
-                                                </div>
-                                            </div>
+                        <div className="space-y-5">
+                            <div role="group" aria-label="Filter by product status" className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</span>
+                                {PRODUCT_STATUS_FILTERS.map(({ key, label }) => (
+                                    <Button
+                                        key={key}
+                                        size="sm"
+                                        variant={productStatusFilter === key ? 'navy' : 'secondary'}
+                                        aria-pressed={productStatusFilter === key}
+                                        onClick={() => setProductStatusFilter(key)}
+                                    >
+                                        {label} ({productCounts[key]})
+                                    </Button>
+                                ))}
+                            </div>
 
-                                            <div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <h3 className="font-black text-lg truncate min-w-0 dark:text-white">{p.name}</h3>
-                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${p.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
-                                                        {p.is_active ? 'ACTIVE' : 'DRAFT'}
-                                                    </span>
-                                                </div>
-                                                {p.tags && p.tags.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-1.5">
-                                                        {p.tags.map(t => (
-                                                            <span key={t} className="inline-flex items-center gap-1 bg-sffl-red/10 text-sffl-red text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                                <TagIcon className="w-3 h-3" aria-hidden="true" />
-                                                                {t}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-8">
-                                                    {p.description || 'No description provided.'}
-                                                </p>
-
-                                                <div className="grid grid-cols-3 gap-2 mt-4 text-[10px] bg-gray-50 dark:bg-gray-900/40 p-2 rounded-xl border border-gray-100 dark:border-gray-700 text-center">
-                                                    <div>
-                                                        <div className="text-gray-400 font-bold uppercase">Stock</div>
-                                                        <div className={`font-black mt-0.5 ${p.quantity <= p.threshold ? 'text-red-500' : 'text-sffl-navy dark:text-white'}`}>
-                                                            {p.quantity}
+                            {!visibleProducts || visibleProducts.length === 0 ? (
+                                <div className="bg-white dark:bg-gray-800 p-8 sm:p-12 rounded-2xl text-center border border-gray-200 dark:border-gray-700">
+                                    <p className="text-gray-500 font-bold">
+                                        {productStatusFilter === 'draft'
+                                            ? 'No draft products. Products you archive will show up here.'
+                                            : 'No active products. Check the Draft or All filter.'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {visibleProducts.map(p => {
+                                        const primaryImg = p.images?.find(i => i.is_primary)?.image_url || p.images?.[0]?.image_url || '';
+                                        return (
+                                            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5 shadow-lg flex flex-col justify-between">
+                                                <div className="space-y-4">
+                                                    <div className="h-48 w-full bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-gray-100 dark:border-gray-700">
+                                                        {primaryImg ? (
+                                                            <img src={primaryImg} alt={p.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="text-gray-400 text-xs italic">No image</div>
+                                                        )}
+                                                        <div className="absolute top-3 right-3 bg-sffl-navy/90 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full">
+                                                            ₦{p.price.toLocaleString()}
                                                         </div>
                                                     </div>
+
                                                     <div>
-                                                        <div className="text-gray-400 font-bold uppercase">Variants</div>
-                                                        <div className="font-black mt-0.5 text-sffl-navy dark:text-white">{p.variants?.length || 0}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-gray-400 font-bold uppercase">Images</div>
-                                                        <div className="font-black mt-0.5 text-sffl-navy dark:text-white">{p.images?.length || 0}</div>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <h3 className="font-black text-lg truncate min-w-0 dark:text-white">{p.name}</h3>
+                                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${p.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
+                                                                {p.is_active ? 'ACTIVE' : 'DRAFT'}
+                                                            </span>
+                                                        </div>
+                                                        {p.tags && p.tags.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                {p.tags.map(t => (
+                                                                    <span key={t} className="inline-flex items-center gap-1 bg-sffl-red/10 text-sffl-red text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                                        <TagIcon className="w-3 h-3" aria-hidden="true" />
+                                                                        {t}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-8">
+                                                            {p.description || 'No description provided.'}
+                                                        </p>
+
+                                                        <div className="grid grid-cols-3 gap-2 mt-4 text-[10px] bg-gray-50 dark:bg-gray-900/40 p-2 rounded-xl border border-gray-100 dark:border-gray-700 text-center">
+                                                            <div>
+                                                                <div className="text-gray-400 font-bold uppercase">Stock</div>
+                                                                <div className={`font-black mt-0.5 ${p.quantity <= p.threshold ? 'text-red-500' : 'text-sffl-navy dark:text-white'}`}>
+                                                                    {p.quantity}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-gray-400 font-bold uppercase">Variants</div>
+                                                                <div className="font-black mt-0.5 text-sffl-navy dark:text-white">{p.variants?.length || 0}</div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-gray-400 font-bold uppercase">Images</div>
+                                                                <div className="font-black mt-0.5 text-sffl-navy dark:text-white">{p.images?.length || 0}</div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-                                            <Button variant="navy" icon={PencilSquareIcon} onClick={() => handleOpenEdit(p)}>
-                                                Edit Product
-                                            </Button>
-                                            <Button variant="danger" icon={TrashIcon} onClick={() => setPendingAction({ kind: 'delete', product: p })}>
-                                                Delete
-                                            </Button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                                                <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                                                    <Button variant="navy" icon={PencilSquareIcon} onClick={() => handleOpenEdit(p)}>
+                                                        Edit Product
+                                                    </Button>
+                                                    {p.is_active ? (
+                                                        <Button variant="warning" icon={ArchiveBoxArrowDownIcon} onClick={() => setPendingAction({ kind: 'archive', product: p })}>
+                                                            Archive
+                                                        </Button>
+                                                    ) : (
+                                                        <Button variant="success" icon={ArrowUturnLeftIcon} onClick={() => setPendingAction({ kind: 'reactivate', product: p })}>
+                                                            Reactivate
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
                 </>
@@ -834,7 +918,7 @@ export const AdminStore = () => {
                                         Product tags <span className="text-sffl-red">* (Required)</span>
                                     </span>
                                     <div className="flex flex-wrap gap-2 items-center">
-                                        {STANDARD_TAGS.map(t => {
+                                        {STANDARD_PRODUCT_TAGS.map(t => {
                                             const selected = formData.tags.includes(t);
                                             return (
                                                 <Button
@@ -856,7 +940,7 @@ export const AdminStore = () => {
                                             );
                                         })}
 
-                                        {formData.tags.filter(t => !STANDARD_TAGS.includes(t)).map(customTag => (
+                                        {formData.tags.filter(t => !STANDARD_PRODUCT_TAGS.includes(t)).map(customTag => (
                                             <Button
                                                 key={customTag}
                                                 variant="navy"

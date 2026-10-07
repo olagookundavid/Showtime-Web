@@ -7,8 +7,9 @@ import {
 } from '@heroicons/react/24/outline';
 import {
     getGallery, createGallery, updateGallery, deleteGallery, getCompetitions,
-    type Gallery, type CreateGalleryPayload, type Competition,
 } from '../../services/api';
+import type { Gallery, CreateGalleryPayload } from '../../types/gallery';
+import type { Competition } from '../../types/matches';
 import { Button, Field, Input, Modal, Select } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';

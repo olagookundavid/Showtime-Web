@@ -9,8 +9,8 @@ import {
     getTeams,
     addTeamToCompetition,
     removeTeamFromCompetition,
-    type Team,
 } from '../../services/api';
+import type { Team } from '../../types/matches';
 import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';

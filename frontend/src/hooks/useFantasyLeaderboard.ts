@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fantasyApi, type Leaderboard, type LeaderboardEntry } from '../services/api';
+import { fantasyApi } from '../services/api';
+import type { Leaderboard, LeaderboardEntry } from '../types/fantasy/leagues';
+import { OVERALL } from '../constants';
 
 /** Managers shown per page in the windowed part of the table. */
 export const LEADERBOARD_LIMIT = 10;
-
-/** Scope value meaning "every manager in the season" rather than one league. */
-export const OVERALL = 'overall';
 
 const EMPTY_BOARD: Leaderboard = { data: [], total: 0, total_pages: 0, my_rank: 0, my_entry: null };
 

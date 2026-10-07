@@ -22,10 +22,8 @@ import {
     getAdminPaymentMethods,
     createAdminPaymentMethod,
     toggleAdminPaymentMethod,
-    type InventoryProduct,
-    type InventorySale,
-    type PaymentMethod
 } from '../../services/api';
+import type { InventoryProduct, InventorySale, PaymentMethod } from '../../types/inventory';
 import { Loader } from '../../components/ui/Loader';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';

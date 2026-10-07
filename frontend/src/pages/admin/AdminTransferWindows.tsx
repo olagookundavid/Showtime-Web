@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   adminTransfersApi,
   contractsApi,
-  type TransferWindowData,
-  type Player,
 } from "../../services/api";
+import type { TransferWindowData } from "../../types/transfers";
+import type { Player } from "../../types/players";
 import toast from "react-hot-toast";
 import {
   CheckCircleIcon,

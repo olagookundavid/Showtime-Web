@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { transfersApi, type TeamBudgetData } from '../../services/api';
+import { transfersApi } from '../../services/api';
+import type { TeamBudgetData } from '../../types/transfers';
 import toast from 'react-hot-toast';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { Spinner } from '../../components/ui/Spinner';

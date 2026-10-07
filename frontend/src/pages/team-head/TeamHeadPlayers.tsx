@@ -2,7 +2,13 @@ import { useState, useMemo, useCallback } from 'react';
 import { isDeletedPlayer, deletedRowClass, DeletedPlayerName } from '../../components/domain/DeletedPlayer';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import api, { moveToReserve, graduatePlayer, getTeamRosterSummary, type RosterSummary } from '../../services/api';
+import api, { moveToReserve, graduatePlayer, getTeamRosterSummary } from '../../services/api';
+import type { RosterSummary, TeamHeadPlayer as Player } from '../../types/players';
+import type { PaginatedResponse } from '../../types/common';
+import {
+    PLAYER_POSITIONS_WITH_UNASSIGNED as POSITIONS,
+    SECONDARY_PLAYER_POSITIONS as SECONDARY_POSITIONS,
+} from '../../constants';
 import { Button, Field, Input, LightboxImage, ImageUploadField, Select, Textarea } from '../../components/ui';
 import toast from 'react-hot-toast';
 import {
@@ -25,30 +31,6 @@ import { Modal } from '../../components/ui/Modal';
 import { useTeamHeadTeam } from '../../components/team-head/useTeamHeadTeam';
 import { getApiErrorMessage } from '../../utils/apiError';
 
-interface Player {
-    id: string;
-    name: string;
-    position: string;
-    secondary_position?: string;
-    gender?: string;
-    jersey_number: number;
-    email?: string;
-    image: string;
-    team_id: string;
-    bio: string;
-    is_reserve?: boolean;
-    /** 'active' | 'inactive'. Deleting only deactivates (migration 088). */
-    status?: string;
-}
-
-interface PaginatedPlayerResponse {
-    data: Player[];
-    total: number;
-    page: number;
-    limit: number;
-    total_pages: number;
-}
-
 type RosterTab = 'main' | 'reserve' | 'all';
 
 type PendingAction =
@@ -56,12 +38,6 @@ type PendingAction =
     | { kind: 'reserve'; player: Player }
     | { kind: 'graduate'; player: Player };
 
-// Center is rated identically to Receiver (same formula) — see
-// backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder', '-'];
-// All-Rounder already means "plays anywhere", so it says nothing as a second
-// role — it is a main role only, and the server refuses it as a secondary.
-const SECONDARY_POSITIONS = POSITIONS.filter(p => p !== 'Allrounder' && p !== '-');
 const PAGE_SIZES = [10, 20, 50, 100, 200, 500, 800, 1000];
 const NO_PLAYERS: Player[] = [];
 const FULL_SQUAD_HINT = 'Main squad is at capacity (25/25). Move an active player to reserves first.';
@@ -88,7 +64,7 @@ const TeamHeadPlayers = () => {
     });
 
     // Locked to team.id (manager's own team) with full pagination, search & roster tab
-    const { data: responseData, isLoading: loading, error: queryError } = useQuery<PaginatedPlayerResponse>({
+    const { data: responseData, isLoading: loading, error: queryError } = useQuery<PaginatedResponse<Player>>({
         queryKey: ['teamHeadPlayers', team?.id, page, limit, search, rosterTab],
         queryFn: async () => {
             const res = await api.get('/team-head/players', {

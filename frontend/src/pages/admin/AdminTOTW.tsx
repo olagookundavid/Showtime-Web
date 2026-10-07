@@ -15,13 +15,12 @@ import {
   getAllEventDays,
   getPlayers,
   getAdminPlayerDayStats,
-  type TOTWListItem,
-  type TOTWPlayerSlot,
-  type Competition,
-  type EventDayResponse,
-  type Player,
-  type CreateNewsPayload,
 } from "../../services/api";
+import type { TOTWListItem, TOTWPlayerSlot } from "../../types/totw";
+import type { CreateNewsPayload } from "../../types/news";
+import type { Player } from "../../types/players";
+import type { EventDayResponse } from "../../types/tickets";
+import type { Competition } from "../../types/matches";
 import { Loader } from "../../components/ui/Loader";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";

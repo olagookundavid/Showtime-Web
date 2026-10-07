@@ -1,4 +1,4 @@
-import type { Match } from '../services/api';
+import type { Match } from '../types/matches';
 
 export const generateGoogleCalendarLink = (match: Match): string => {
     const formatTime = (date: Date) => date.toISOString().replace(/-|:|\.\d\d\d/g, '');

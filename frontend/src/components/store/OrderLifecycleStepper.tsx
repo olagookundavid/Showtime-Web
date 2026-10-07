@@ -1,5 +1,5 @@
 import { NoSymbolIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import type { Order } from '../../services/api';
+import type { Order } from '../../types/store';
 
 type StepState = 'done' | 'current' | 'upcoming';
 
@@ -44,7 +44,7 @@ const stepsForOrder = (order: Order): Step[] => {
 const circleClass = (state: StepState): string => {
     switch (state) {
         case 'done':
-            return 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/30';
+            return 'bg-emerald-500 border-emerald-500 text-white  shadow-emerald-500/30';
         case 'current':
             return 'bg-white dark:bg-gray-900 border-sffl-red text-sffl-red ring-4 ring-sffl-red/20 animate-pulse';
         case 'upcoming':
@@ -69,7 +69,7 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
     // would mislead the customer.
     if (order.payment_status === 'failed') {
         return (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-2xl p-5 flex items-start gap-4">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-none p-5 flex items-start gap-4">
                 <XCircleIcon className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
                 <div className="space-y-1">
                     <h3 className="font-black text-red-700 dark:text-red-300 uppercase tracking-wider text-sm">Payment Failed</h3>
@@ -83,7 +83,7 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
 
     if (order.fulfillment_status === 'cancelled') {
         return (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-2xl p-5 flex items-start gap-4">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-none p-5 flex items-start gap-4">
                 <NoSymbolIcon className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
                 <div className="space-y-1">
                     <h3 className="font-black text-red-700 dark:text-red-300 uppercase tracking-wider text-sm">Order Cancelled</h3>
@@ -98,7 +98,7 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
     const steps = stepsForOrder(order);
 
     return (
-        <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-4 sm:p-6 shadow-sm">
+        <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-none p-4 sm:p-6 ">
             <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-navy dark:text-gray-400 mb-5">Order Status</h3>
 
             {/* Stepper. Steps render as a flex row; on narrow screens the labels

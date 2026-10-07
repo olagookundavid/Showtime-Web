@@ -173,12 +173,11 @@ select option {
   background: #c62828;
 }
 
-/* The page's own scrollbar: a thin red thumb on a dark navy track, in both
-   modes. The dark class sits on <html> itself, hence html.dark rather than a
-   descendant selector. */
+/* The page's own scrollbar: a red thumb on a light track in light mode, and on
+   the navy track in dark mode. The dark class sits on <html> itself, hence
+   html.dark rather than a descendant selector. */
 html {
-  scrollbar-width: 1.2rem;
-  scrollbar-color: #c62828 #001f3f;
+  scrollbar-color: #c62828 #f5f5f5;
 }
 html.dark {
   scrollbar-color: #c62828 #001f3f;

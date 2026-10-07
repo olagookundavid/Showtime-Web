@@ -49,16 +49,10 @@ import {
   setPBPLock,
   rederiveSituations,
   overrideMatchMVP,
-  type SituationUpdate,
-  type Match,
-  type Competition,
-  type TeamSheetPlayer,
-  type MatchTeamSheet,
-  type GamePlay,
-  type PlayPayload,
-  type GameRulesPayload,
-  type TeamStat,
 } from "../../services/api";
+import type { Match, Competition, TeamSheetPlayer, MatchTeamSheet, GameRulesPayload } from "../../types/matches";
+import type { SituationUpdate, GamePlay, PlayPayload } from "../../types/playByPlay";
+import type { TeamStat } from "../../types/stats";
 import { isReturnTD } from "../../utils/playClassification";
 import { StatsTable } from "../../components/stats/StatsTable";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";

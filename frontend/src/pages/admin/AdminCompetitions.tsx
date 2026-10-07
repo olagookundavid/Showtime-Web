@@ -25,8 +25,8 @@ import {
   getCompetitions,
   getTeams,
   getTeamsByCompetition,
-  type Team,
 } from "../../services/api";
+import type { Team, CompetitionWithTeamIds as Competition } from "../../types/matches";
 import {
   Button,
   ButtonLink,
@@ -40,17 +40,6 @@ import {
   Select,
 } from "../../components/ui";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-
-interface Competition {
-  id: string;
-  name: string;
-  logo: string;
-  status?: string;
-  format?: string; // PRESEASON | SEASON | PLAYOFFS | CUP
-  season_id?: string | null;
-  tie_breaker_rule?: string;
-  team_ids?: string[];
-}
 
 type ApiError = {
   response?: {

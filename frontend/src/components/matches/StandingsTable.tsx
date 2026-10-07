@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import type { Standing } from "../../services/api";
+import type { Standing } from "../../types/matches";
 import { LightboxImage } from "../ui";
 import { DataTable, type Column } from "../ui/DataTable";
 import { formatStatNumber } from "../../utils/formatters";

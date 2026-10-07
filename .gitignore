@@ -50,7 +50,6 @@ backend/internal/sql/seeds/*
 !backend/internal/sql/seeds/seed_fantasy_opening_prices.sql
 
 
-
 # Living requirements for the fantasy feature — the working state of the build,
 # kept in the repo so it sits next to the code it describes, but untracked at
 # the user's request.

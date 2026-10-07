@@ -4,11 +4,9 @@ import {
   XMarkIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import {
-  discountsApi,
-  type CheckoutItemPayload,
-  type DiscountPreview,
-} from "../../services/api";
+import { discountsApi } from "../../services/api";
+import type { CheckoutItemPayload } from "../../types/store";
+import type { DiscountPreview } from "../../types/discounts";
 import { Button, IconButton, Input } from "../ui";
 
 interface DiscountCodeInputProps {
@@ -142,7 +140,7 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
 
   if (applied) {
     return (
-      <div className="rounded-xl border border-green-200 dark:border-green-800/60 bg-green-50 dark:bg-green-900/20 p-3.5">
+      <div className="border border-green-200 dark:border-green-800/60 bg-green-50 dark:bg-green-900/20 p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2.5 min-w-0">
             <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
@@ -209,10 +207,12 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
           placeholder="Enter code"
           autoCapitalize="characters"
           disabled={disabled || checking}
+          shape="square"
           className="flex-1"
         />
         <Button
           variant="navy"
+          shape="square"
           className="whitespace-nowrap"
           loading={checking}
           disabled={disabled || !code.trim()}

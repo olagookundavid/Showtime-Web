@@ -5,12 +5,9 @@ import {
   PhotoIcon,
   PlayCircleIcon,
 } from '@heroicons/react/24/outline';
-import {
-  saveTOTWArticle,
-  type TeamOfTheWeek,
-  type News,
-  type CreateNewsPayload,
-} from '../../services/api';
+import { saveTOTWArticle } from '../../services/api';
+import type { News, CreateNewsPayload } from '../../types/news';
+import type { TeamOfTheWeek } from '../../types/totw';
 import { NewsContentEditor } from '../admin/NewsContentEditor';
 import { Button, Field, Input, Modal, Textarea } from '../ui';
 import { ImageUploadField } from '../ui/ImageUploadField';

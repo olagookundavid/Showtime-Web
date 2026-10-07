@@ -8,7 +8,8 @@ import {
     UserCircleIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { adminClaimsApi, type ClaimCodeData, type ClaimKind, type PlayerClaimData } from '../../services/api';
+import { adminClaimsApi } from '../../services/api';
+import type { ClaimCodeData, ClaimKind, PlayerClaimData } from '../../types/claims';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';

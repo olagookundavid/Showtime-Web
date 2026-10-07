@@ -8,18 +8,9 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Button, Field, Input, Modal, Select } from '../../components/ui';
 import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
+import type { UserResponse } from '../../types/users';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-
-interface UserResponse {
-    id: string;
-    fullname: string;
-    email: string;
-    phone?: string;
-    role: string;
-    created_at: string;
-    updated_at: string;
-}
 
 const PAGE_SIZE = 10;
 const NO_ROWS: UserResponse[] = [];

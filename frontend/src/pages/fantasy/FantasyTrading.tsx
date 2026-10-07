@@ -16,11 +16,9 @@ import {
     fantasyApi,
     fantasySquadApi,
     formatFantasyPrice as sc,
-    type FantasyPlayerListItem,
-    type MarketSort,
-    type Squad,
-    type SquadPlayer,
 } from '../../services/api';
+import type { FantasyPlayerListItem, MarketSort } from '../../types/fantasy/core';
+import type { Squad, SquadPlayer } from '../../types/fantasy/squad';
 import { Loader } from '../../components/ui/Loader';
 import { Button, Input, Modal } from '../../components/ui';
 import { useDebounced } from '../../hooks/useDebounced';

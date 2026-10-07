@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { API_URL } from '../../services/api';
+import { API_URL } from '../../constants';
 import { useBroadcastProducer } from '../../hooks/useBroadcastProducer';
 import { formatClock, calculateClockNow, type GraphicEvent } from '../../types/broadcast';
 import { Loader } from '../../components/ui/Loader';

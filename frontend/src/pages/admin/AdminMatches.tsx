@@ -22,11 +22,8 @@ import {
   updateMatch,
   deleteMatch,
   getAdminTeamSheet,
-  type Match,
-  type Competition,
-  type Team,
-  type CreateMatchPayload,
 } from "../../services/api";
+import type { Match, Competition, Team, CreateMatchPayload, MatchWithTeamIds } from "../../types/matches";
 import { Loader } from "../../components/ui/Loader";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { DataTable, type Column } from "../../components/ui/DataTable";
@@ -34,7 +31,7 @@ import { RowActions } from "../../components/ui/RowActions";
 import { Button, Field, Input, Modal, Select } from "../../components/ui";
 import { AdminTeamSheetModal } from "../../components/admin/AdminTeamSheetModal";
 import { AdminKnockoutBracket } from "../../components/admin/AdminKnockoutBracket";
-import { KNOCKOUT_STAGES } from "../../components/matches/BracketView";
+import { KNOCKOUT_STAGES } from "../../constants";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -95,12 +92,6 @@ const NO_MATCHES: Match[] = [];
 
 // Every save and delete goes through the confirm dialog first.
 type PendingAction = { kind: "save" } | { kind: "delete"; match: Match };
-
-type MatchWithTeamIds = Match & {
-  competition_id?: string;
-  home_team_id?: string;
-  away_team_id?: string;
-};
 
 const formatSummaryDate = (date: string) =>
   formatMatchDate(date, {

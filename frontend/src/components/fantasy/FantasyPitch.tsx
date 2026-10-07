@@ -6,16 +6,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import {
-  type FantasyLineupPick,
-  type FantasySlot,
-  type FantasyPlayerListItem,
-  formatFantasyPrice,
-} from "../../services/api";
-import {
-  FantasyPlayerModal,
-  type FantasyPlayerModalData,
-} from "./FantasyPlayerModal";
+import { formatFantasyPrice } from "../../services/api";
+import type { FantasyLineupPick, FantasySlot, FantasyPlayerListItem, FantasyPlayerModalData, PitchPlayerItem } from "../../types/fantasy/core";
+import { FantasyPlayerModal } from "./FantasyPlayerModal";
 import {
   PlusIcon,
   ArrowsRightLeftIcon,
@@ -305,28 +298,6 @@ function slotAtPoint(x: number, y: number): FantasySlot | null {
     .elementFromPoint(x, y)
     ?.closest<HTMLElement>("[data-pitch-slot]");
   return (el?.dataset.pitchSlot as FantasySlot | undefined) ?? null;
-}
-
-export interface PitchPlayerItem {
-  slot: FantasySlot;
-  player_id?: string;
-  player_name?: string;
-  player_image?: string;
-  position?: string;
-  gender?: string;
-  team_id?: string;
-  team_name?: string;
-  team_short_name?: string;
-  team_logo?: string;
-  price?: number;
-  current_price?: number;
-  purchase_price?: number;
-  points?: number;
-  isInactiveClub?: boolean;
-  isDeleted?: boolean;
-  isReserve?: boolean;
-  isInvalid?: boolean;
-  invalidReason?: string;
 }
 
 export interface FantasyPitchProps {

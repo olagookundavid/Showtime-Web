@@ -7,7 +7,7 @@ import {
   ClockIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
-import type { TeamOfTheWeek } from "../../services/api";
+import type { TeamOfTheWeek } from "../../types/totw";
 import { NewsContent } from "../news/NewsContent";
 import { YouTubeEmbed } from "../news/YouTubeEmbed";
 import { Button, LightboxImage } from "../ui";

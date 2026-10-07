@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { MapPinIcon } from "@heroicons/react/24/outline";
-import type { Match } from "../../services/api";
+import type { Match } from "../../types/matches";
 import { formatMatchTime, formatMatchDate } from "../../utils/dateUtils";
 import { LightboxImage } from "../ui";
 

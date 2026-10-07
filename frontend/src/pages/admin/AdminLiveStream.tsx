@@ -9,7 +9,8 @@ import {
     SignalIcon,
     VideoCameraIcon,
 } from '@heroicons/react/24/outline';
-import { liveApi, type AdminLiveStatus } from '../../services/api';
+import { liveApi } from '../../services/api';
+import type { AdminLiveStatus } from '../../types/livestream';
 import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';

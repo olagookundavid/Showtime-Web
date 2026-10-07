@@ -1,5 +1,6 @@
 // Reusable UI Components with Dark Mode Support
 export { Button, ButtonLink } from './Button';
+export type { HeroIcon } from './Button';
 export { IconButton } from './IconButton';
 export { Field } from './Field';
 export { Input } from './Input';
@@ -26,6 +27,10 @@ export { LightboxImage } from './LightboxImage';
 export { Spinner } from './Spinner';
 export { Loader } from './Loader';
 export { BackButton } from './BackButton';
+export type { BackButtonProps } from './BackButton';
 export { CopyableEmail } from './CopyableEmail';
 export { LazyImage } from './LazyImage';
+export { buttonClass, iconSize, shapeStyles } from './buttonStyles';
+export type { Variant, Size, Tone, Shape } from './buttonStyles';
+export { fieldControlClass, fieldControlDarkClass, fieldShapeClass, fieldInvalidClass } from './formStyles';
 

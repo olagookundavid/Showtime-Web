@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { TrophyIcon, UserCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { DataTable, type Column } from '../ui/DataTable';
-import type { POTWNominee, POTWPoll } from '../../services/api';
+import type { POTWNominee, POTWPoll } from '../../types/potw';
 
 // Single-series charts: one navy hue on light surfaces, a lighter blue step on
 // dark ones (both validated >= 3:1 against their surface). The unfilled track is

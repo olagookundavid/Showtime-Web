@@ -34,10 +34,13 @@ import {
   restorePlayer,
   moveToReserve,
   graduatePlayer,
-  type Player,
-  type Team,
-  type CreatePlayerPayload,
 } from "../../services/api";
+import type { Team } from "../../types/matches";
+import type { Player, CreatePlayerPayload } from "../../types/players";
+import {
+  PLAYER_POSITIONS_WITH_UNASSIGNED as POSITIONS,
+  SECONDARY_PLAYER_POSITIONS as SECONDARY_POSITIONS,
+} from "../../constants";
 import {
   isDeletedPlayer,
   DeletedPlayerName,
@@ -87,22 +90,6 @@ const emptyForm: FormData = {
   email: "",
 };
 
-// Center is rated identically to Receiver (same formula) — see
-// backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = [
-  "Defender",
-  "Receiver",
-  "Center",
-  "QB",
-  "Rusher",
-  "Allrounder",
-  "-",
-];
-// All-Rounder already means "plays anywhere", so it says nothing as a second
-// role — it is a main role only, and the server refuses it as a secondary.
-const SECONDARY_POSITIONS = POSITIONS.filter(
-  (p) => p !== "Allrounder" && p !== "-",
-);
 
 // Every write on this page goes through the confirm dialog first.
 type PendingAction =

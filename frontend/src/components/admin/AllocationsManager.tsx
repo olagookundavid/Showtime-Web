@@ -7,8 +7,8 @@ import {
     adminCreateOrUpdateAllocation,
     adminDeleteAllocation,
     getTeams,
-    type TeamTicketAllocation,
 } from '../../services/api';
+import type { TeamTicketAllocation } from '../../types/tickets';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { Spinner } from '../ui/Spinner';

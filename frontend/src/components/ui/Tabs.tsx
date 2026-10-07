@@ -17,10 +17,12 @@ interface TabsProps<T extends string> {
     className?: string;
     /** `dark` for a tab bar on a dark surface. */
     tone?: Tone;
+    /** Share the bar's width evenly between tabs from md up. Phones keep their natural widths. */
+    fill?: boolean;
 }
 
 /** An underline tab bar. Arrow keys move between tabs, and the selected tab is the only one in the tab order. */
-export const Tabs = <T extends string>({ items, value, onChange, 'aria-label': ariaLabel, className = '', tone = 'light' }: TabsProps<T>) => {
+export const Tabs = <T extends string>({ items, value, onChange, 'aria-label': ariaLabel, className = '', tone = 'light', fill = false }: TabsProps<T>) => {
     const dark = tone === 'dark';
 
     const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -53,7 +55,7 @@ export const Tabs = <T extends string>({ items, value, onChange, 'aria-label': a
                         tabIndex={active ? 0 : -1}
                         onClick={() => onChange(item.value)}
                         onKeyDown={(e) => onKeyDown(e, index)}
-                        className={`inline-flex items-center gap-2 min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red ${
+                        className={`inline-flex items-center gap-2 min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 whitespace-nowrap ${fill ? 'md:flex-1 md:justify-center' : ''} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red ${
                             active
                                 ? 'border-sffl-red text-sffl-red'
                                 : dark

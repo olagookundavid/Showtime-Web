@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { API_URL } from '../services/api';
+import { API_URL } from '../constants';
 import { calculateClockNow, type BroadcastState, type BroadcastPlayer, type GraphicEvent } from '../types/broadcast';
 
 export function getWebSocketURL(path: string): string {

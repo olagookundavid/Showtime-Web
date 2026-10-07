@@ -12,7 +12,8 @@ import {
   LockClosedIcon,
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
-import { fantasySeasonApi, type LeaderboardEntry } from "../../services/api";
+import { fantasySeasonApi } from "../../services/api";
+import type { LeaderboardEntry } from "../../types/fantasy/leagues";
 import { useAuth } from "../../contexts/AuthContext";
 import { AuthRequiredDialog } from "../../components/auth/AuthRequiredDialog";
 import { Loader } from "../../components/ui/Loader";

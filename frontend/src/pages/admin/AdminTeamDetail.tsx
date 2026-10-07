@@ -21,19 +21,17 @@ import {
   getTeamManagers,
   getTeamsByCompetition,
   sortCompetitionsBySeason,
-  type Competition,
-  type Match,
-  type Player,
-  type Team,
 } from "../../services/api";
+import type { Competition, Match, Team } from "../../types/matches";
+import type { Player } from "../../types/players";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePermissions } from "../../hooks/usePermissions";
 import { adminSectionsFor } from "../../components/admin/adminNav";
 import {
-  MAX_MAIN_SQUAD,
   teamManagersKey,
   useTeamActions,
 } from "../../components/admin/useTeamActions";
+import { MAX_MAIN_SQUAD } from "../../constants";
 import { TeamActionDialogs } from "../../components/admin/TeamActionDialogs";
 import { TeamStatusBadge } from "../../components/admin/TeamStatusBadge";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";

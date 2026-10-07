@@ -25,12 +25,12 @@ export const AD_SLOTS = {
     newsArticle: '',    // in-article unit on a news detail page (NewsDetail)
     matchesFeed: '',    // matches hub (MatchHub)
     matchDetail: '',    // match detail page (MatchDetail)
-    standings: '',      // standings table page (StandingsPage)
-    stats: '',          // stats page (StatsPage)
+    standings: '',      // standings table page (Standings)
+    stats: '',          // stats page (Stats)
     playerDetail: '',   // player profile (PlayerDetail)
     teamDetail: '',     // team page (TeamDetail)
-    gallery: '',        // gallery page (GalleryPage)
-    landing: '',        // homepage (LandingPage) — keep below the fold
+    gallery: '',        // gallery page (Gallery)
+    landing: '',        // homepage (Landing) — keep below the fold
 } as const;
 
 export type AdSlotName = keyof typeof AD_SLOTS;

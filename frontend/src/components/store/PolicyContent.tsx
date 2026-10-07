@@ -33,10 +33,10 @@ export const ReturnPolicyContent = () => (
             <p>If your return is approved, we'll send instructions and the return address below:</p>
         </section>
 
-        <section className="space-y-2 bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 rounded-xl p-4">
+        <section className="space-y-2 bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 rounded-none p-4">
             <h3 className="font-black text-sffl-navy dark:text-white uppercase tracking-wider text-xs">Return Address</h3>
             <p className="font-bold text-sffl-navy dark:text-white">3 Akinyemi Avenue, Lekki, Lagos, Nigeria</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic">Note: Items sent back without requesting a return first will not be accepted.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 not-italic">Note: Items sent back without requesting a return first will not be accepted.</p>
         </section>
 
         <section className="space-y-2">
@@ -267,7 +267,7 @@ export const ShippingPolicyContent = () => (
             <p>If you have any questions about shipping, tracking, or delivery, please reach out through our 24-hour support channel:</p>
             <p className="font-bold"><a href="mailto:support@showtimestore.com" className="text-sffl-red underline">support@showtimestore.com</a></p>
             <p className="font-bold"><a href="tel:+2349036682255" className="text-sffl-red underline">+234 90 FOOTBALL (+234 903 668 2255)</a></p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic pt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 not-italic pt-2">
                 Thank you for shopping with Showtime Store. We're committed to delivering your favorite flag football gear quickly, reliably, and at the best possible value.
             </p>
         </section>

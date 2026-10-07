@@ -9,8 +9,8 @@ import {
   getPlayers,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-  type Team,
 } from "../../services/api";
+import type { Team } from "../../types/matches";
 import { Loader } from "../../components/ui/Loader";
 import { Button, Field, Select } from "../../components/ui";
 import { BackButton } from "../../components/ui/BackButton";

@@ -8,10 +8,9 @@ import {
   getTeams,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-  type Match,
-  type Competition,
-  type PaginatedResponse,
 } from "../../services/api";
+import type { PaginatedResponse } from "../../types/common";
+import type { Match, Competition } from "../../types/matches";
 import { Loader } from "../../components/ui/Loader";
 import { Button, ButtonLink, Field, Select, Spinner } from "../../components/ui";
 import { MatchCard } from "../../components/matches/MatchCard";

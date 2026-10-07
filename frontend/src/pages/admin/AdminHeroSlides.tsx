@@ -15,8 +15,8 @@ import {
 } from '@heroicons/react/24/outline';
 import {
     getAdminHeroSlides, createHeroSlide, updateHeroSlide, deleteHeroSlide,
-    type HeroSlide,
 } from '../../services/api';
+import type { HeroSlide } from '../../types/heroSlides';
 import { Loader } from '../../components/ui/Loader';
 import { Button, Field, ImageUploadField, Input, Modal } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';

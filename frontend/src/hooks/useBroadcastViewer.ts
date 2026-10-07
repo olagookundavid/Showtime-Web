@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { API_URL } from '../services/api';
+import { API_URL } from '../constants';
 import type { BroadcastState } from '../types/broadcast';
 import { getWebSocketURL } from './useBroadcastProducer';
 

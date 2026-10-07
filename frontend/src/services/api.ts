@@ -1,6 +1,54 @@
 import axios from 'axios';
-
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8089/api/v1';
+import { API_URL, COMMENTS_PAGE_SIZE } from '../constants';
+import type { AuthUser, ResetPasswordPayload } from '../types/auth';
+import type { PaginatedResponse, GenericApiResponse, Paged } from '../types/common';
+import type { News, CreateNewsPayload } from '../types/news';
+import type { RelivePlaylist } from '../types/relive';
+import type { LiveStatus, AdminLiveStatus } from '../types/livestream';
+import type { Gallery, CreateGalleryPayload } from '../types/gallery';
+import type { HeroSlide, CreateHeroSlidePayload, UpdateHeroSlidePayload } from '../types/heroSlides';
+import type { SeasonGraphic, SeasonMVP, UpsertSeasonGraphicPayload, CreateSeasonMVPPayload, UpdateSeasonMVPPayload } from '../types/teamOfSeason';
+import type { Player, RosterSummary, CreatePlayerPayload } from '../types/players';
+import type { Badge, PlayerBadgeAward, PlayerBadge, CreateBadgePayload, UpdateBadgePayload, AwardBadgePayload } from '../types/badges';
+import type { GamePlay, PlayPayload, SituationUpdate, BulkRecomputeResult } from '../types/playByPlay';
+import type { TicketTierResponse, EventDayResponse, TicketResponse, PurchaseTicketPayload, GiftTicketPayload, TeamTicketAllocation, CreateReferralPayload, ReferralResponse, ReferralStatsResponse } from '../types/tickets';
+import type { AdminAnalyticsResponse } from '../types/analytics';
+import type { PlayerStat, TeamStat, UpsertPlayerStatPayload, StatsCompare } from '../types/stats';
+import type { InventoryProduct, InventorySale, SalesReportResponse, PaymentMethod } from '../types/inventory';
+import type { ProductImage, ProductOption, StoreProduct, ProductReview, CreateProductReviewPayload, ReviewSort, CheckoutItemPayload, CheckoutPayload, CheckoutResponseData, Order, SavedAddress, AdminVariantPayload } from '../types/store';
+import type { DiscountCode, SaveDiscountCodePayload, DiscountTarget, DiscountPreview } from '../types/discounts';
+import type { ContractData, IssueContractPayload } from '../types/contracts';
+import type { TransferData, TransferBidData, TeamBudgetData, TransferWindowData } from '../types/transfers';
+import type { NotificationData } from '../types/notifications';
+import type { VerifyClaimCodeData, SubmitClaimPayload, SubmitClaimData, MyClaimStatusData, ClaimKind, PlayerClaimData, ClaimCodeData } from '../types/claims';
+import type { AppSettingsData } from '../types/settings';
+import type { CommentData, CommentPage } from '../types/comments';
+import type { TeamOfTheWeek, TOTWListItem, SaveTOTWPayload } from '../types/totw';
+import type { POTWPoll, POTWPollSummary, SavePOTWPollPayload } from '../types/potw';
+import type { TeamManager, ManagerCandidate } from '../types/adminTeams';
+import type { FantasySlot, FantasySeason, FantasyGameweek, FantasyPlayerListItem, MarketSort, FantasyLineupResponse, FantasyTeamLineupDetailResponse, ScheduledMatchDay } from '../types/fantasy/core';
+import type { GameweekReportResponse, PlayerGWBreakdownResponse, PlayerPriceHistoryResponse } from '../types/fantasy/reports';
+import type { FantasyWallet, PayoutStatus, PayoutRequest, LeagueFinance, MoneyOwed } from '../types/fantasy/wallet';
+import type { FantasyLeague, JoinLeagueResponse, Leaderboard, LeaderboardEntry, LeagueJoinPreview } from '../types/fantasy/leagues';
+import type { DashboardTeam, FantasyDashboard } from '../types/fantasy/dashboard';
+import type { Squad, SquadReadiness } from '../types/fantasy/squad';
+import type { AdminFantasyOverview, AdminManagerRow, AdminLeagueRow, AdminLeagueMemberRow, SettlementResult, AdminPlayerPriceRow } from '../types/fantasy/admin';
+import type {
+    Competition,
+    Team,
+    Match,
+    MatchTeamSheet,
+    MatchDetail,
+    Standing,
+    CreateMatchPayload,
+    SaveTeamSheetPayload,
+    ImportMatchPlayerRow,
+    ImportMatchResult,
+    CreateStandingPayload,
+    BracketEntryPayload,
+    GameRules,
+    GameRulesPayload,
+} from '../types/matches';
 
 const api = axios.create({
     baseURL: API_URL,
@@ -49,18 +97,6 @@ api.interceptors.response.use(
 );
 
 // ─── Auth Types ───────────────────────────────────────────────────────────────
-export interface AuthUser {
-    id: string;
-    full_name: string;
-    email: string;
-    phone?: string;
-    user_type: string; // 'admin' | 'user' | 'team_head' | 'ticketer'
-    email_verified?: boolean;
-    created_at: string;
-    updated_at: string;
-    access_token?: string;
-}
-
 interface AuthApiResponse {
     message: string;
     data: AuthUser;
@@ -99,12 +135,6 @@ export const updateOwnProfile = async (fullName: string, phone: string): Promise
     await api.put('/auth/profile', { fullname: fullName, phone });
 };
 
-export interface ResetPasswordPayload {
-    email: string;
-    otp: string;
-    new_password: string;
-}
-
 export const forgotPassword = async (email: string): Promise<void> => {
     await api.post('/auth/forgot-password', { email });
 };
@@ -113,32 +143,7 @@ export const resetPassword = async (payload: ResetPasswordPayload): Promise<void
     await api.post('/auth/reset-password', payload);
 };
 
-// ─── Generic Paginated Response ───────────────────────────────────────────────
-export interface PaginatedResponse<T> {
-    data: T[];
-    total: number;
-    page: number;
-    limit: number;
-    total_pages: number;
-}
-
 // ─── News ─────────────────────────────────────────────────────────────────────
-export interface News {
-    id: string;
-    title: string;
-    slug: string;
-    excerpt: string;
-    content: string;
-    featured_image: string;
-    featured_media_type: 'image' | 'youtube';
-    featured_youtube_url: string;
-    author: string;
-    category: string;
-    published_at: string;
-    created_at: string;
-    comments_enabled?: boolean;
-}
-
 export const getNews = async (
     page = 1,
     limit = 10,
@@ -171,22 +176,6 @@ export const getNewsById = async (id: string) => {
 };
 
 // ─── RELIVE / YouTube Playlist ────────────────────────────────────────────────
-export interface ReliveVideo {
-    id: string;
-    video_id: string;
-    title: string;
-    thumbnail: string;
-    max_thumbnail: string;
-    published_at: string;
-    link: string;
-}
-
-export interface RelivePlaylist {
-    title: string;
-    playlist_id: string;
-    videos: ReliveVideo[];
-}
-
 export const getRelivePlaylist = async (playlistId?: string): Promise<RelivePlaylist> => {
     const url = playlistId ? `/relive?playlist_id=${encodeURIComponent(playlistId)}` : '/relive';
     const response = await api.get<{ data: RelivePlaylist }>(url);
@@ -194,26 +183,6 @@ export const getRelivePlaylist = async (playlistId?: string): Promise<RelivePlay
 };
 
 // ─── Live stream ──────────────────────────────────────────────────────────────
-export interface LiveStatus {
-    is_live: boolean;
-    is_video?: boolean;
-    mode?: 'auto' | 'on' | 'off' | 'video';
-    video_id?: string;
-    title?: string;
-    /** 'auto' = detected from the channel, 'manual' = an admin override decided it. */
-    source: 'auto' | 'manual';
-}
-
-export interface AdminLiveStatus extends LiveStatus {
-    mode: 'auto' | 'on' | 'off' | 'video';
-    override_video_id: string;
-    override_title: string;
-    detected_live: boolean;
-    detected_video_id?: string;
-    detected_title?: string;
-    channel_handle: string;
-}
-
 export const getLiveStatus = async (): Promise<LiveStatus> => {
     const response = await api.get<LiveStatus>('/live');
     return response.data;
@@ -231,17 +200,6 @@ export const liveApi = {
 };
 
 // ─── Gallery ──────────────────────────────────────────────────────────────────
-export interface Gallery {
-    id: string;
-    competition_id?: string | null;
-    game_week: string;
-    date: string;
-    players_photo_url: string;
-    fans_photo_url: string;
-    created_at: string;
-    competition?: Competition | null;
-}
-
 export const getGallery = async (page = 1, limit = 10, competitionId?: string) => {
     let url = `/gallery?page=${page}&limit=${limit}`;
     if (competitionId) {
@@ -257,50 +215,6 @@ export const getGallery = async (page = 1, limit = 10, competitionId?: string) =
 // instead. It's "hidden" in the sense that it's excluded from /news and the
 // News admin list; see backend news.is_hero_only. Kept read-only so those
 // old slides keep rendering/linking correctly.
-export interface HeroSlideNews {
-    id: string;
-    slug: string;
-    title: string;
-    excerpt: string;
-    content: string;
-    category: string;
-    featured_media_type: 'image' | 'youtube';
-    featured_youtube_url: string;
-}
-
-export interface HeroSlide {
-    id: string;
-    image_url: string;
-    mobile_image_url?: string;
-    // Where the slide links to — an internal path (e.g. "/stats",
-    // "/news/some-slug") or a full external URL. Empty/absent means
-    // non-clickable.
-    destination_url?: string;
-    display_order: number;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-    // Legacy fallback for slides created before destination_url existed.
-    news_slug?: string;
-    news?: HeroSlideNews;
-}
-
-export interface CreateHeroSlidePayload {
-    image_url: string;
-    mobile_image_url?: string;
-    destination_url?: string;
-    display_order?: number;
-    is_active?: boolean;
-}
-
-export interface UpdateHeroSlidePayload {
-    image_url?: string;
-    mobile_image_url?: string;
-    destination_url?: string;
-    display_order?: number;
-    is_active?: boolean;
-}
-
 // Public: only active slides — what MainHeroCarousel renders.
 export const getHeroSlides = async (): Promise<HeroSlide[]> => {
     const response = await api.get<{ data: HeroSlide[] }>('/hero-slides');
@@ -329,45 +243,6 @@ export const deleteHeroSlide = async (id: string) => {
 };
 
 // ─── Team of the Season + MVPs ─────────────────────────────────────────────────
-export interface SeasonGraphic {
-    id: string;
-    category: 'offense' | 'defense';
-    image_url: string;
-    mobile_image_url?: string;
-}
-
-export interface SeasonMVP {
-    id: string;
-    player_id: string;
-    label: string;
-    display_order: number;
-    is_active: boolean;
-    player_name: string;
-    player_image: string;
-    player_jersey_number: number;
-    player_position: string;
-    team_name: string;
-    team_logo: string;
-}
-
-export interface UpsertSeasonGraphicPayload {
-    category: 'offense' | 'defense';
-    image_url: string;
-    mobile_image_url?: string;
-}
-
-export interface CreateSeasonMVPPayload {
-    player_id: string;
-    label: string;
-    display_order?: number;
-}
-
-export interface UpdateSeasonMVPPayload {
-    label?: string;
-    display_order?: number;
-    is_active?: boolean;
-}
-
 // Public
 export const getSeasonGraphics = async (): Promise<SeasonGraphic[]> => {
     const res = await api.get<{ data: SeasonGraphic[] }>('/season/graphics', { params: { limit: 200 } });
@@ -411,16 +286,6 @@ export const deleteSeasonMVP = async (id: string) => {
 };
 
 // ─── Match Hub Types ──────────────────────────────────────────────────────────
-export interface Competition {
-    id: string;
-    name: string;
-    logo: string;
-    status: string;
-    format?: string; // PRESEASON | SEASON | PLAYOFFS | CUP
-    season_id?: string | null;
-    tie_breaker_rule?: string;
-}
-
 // Sort competitions newest-season first. We parse the trailing Roman numeral
 // in the name (e.g. "Showtime Bowl Series XIV" → 14) so the order is based on
 // the actual season, not the creation timestamp — that way late data fixes
@@ -481,91 +346,6 @@ export const dropdownCompetitionsFor = (competitions: Competition[], selected?: 
     return list;
 };
 
-export interface Team {
-    id: string;
-    name: string;
-    short_name: string;
-    logo: string;
-    status?: string;
-}
-
-export interface Match {
-    id: string;
-    competition: Competition;
-    home_team: Team;
-    away_team: Team;
-    date: string;
-    start_time: string;
-    venue: string;
-    status: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED';
-    home_score?: number;
-    away_score?: number;
-    highlights_url?: string;
-    ticket_url?: string;
-    round?: string;
-    bracket_pos?: number;
-    feeds_match_id?: string;
-    feeds_slot?: 'HOME' | 'AWAY';
-    second_leg_match_id?: string | null;
-    pbp_locked?: boolean;
-    mvp_player_id?: string | null;
-    mvp_overridden?: boolean;
-    home_coverage?: number;
-    away_coverage?: number;
-}
-
-export interface TeamSheetPlayer {
-    player_id: string;
-    name: string;
-    jersey_number: number;
-    position: string;
-    /** Second role, when the player has one. Stat entry offers both roles' fields. */
-    secondary_position?: string | null;
-    gender?: string;
-    image: string;
-    // Per-match rating (Receiver/Defender/Rusher only). Null/absent for QB and
-    // undetermined "-" positions, and for rateable players with no activity.
-    rating?: number | null;
-    rating_status?: string;
-    /**
-     * 'active' | 'inactive'. A player deleted after this sheet was named stays
-     * on it — the appearance happened. Stat entry must still work for them, so
-     * this only marks them visually.
-     */
-    status?: string;
-    is_starter?: boolean;
-    starter_unit?: 'OFFENSE' | 'DEFENSE';
-    position_slot?: string;
-    order_index?: number;
-}
-
-export interface MatchTeamSheet {
-    home_team: TeamSheetPlayer[];
-    away_team: TeamSheetPlayer[];
-    home_coverage?: number;
-    away_coverage?: number;
-}
-
-export interface MatchDetail {
-    match: Match;
-    team_sheet: MatchTeamSheet;
-}
-
-export interface Standing {
-    id: string;
-    team: Team;
-    position: number;
-    played: number;
-    won: number;
-    drawn: number;
-    lost: number;
-    goals_for: number;
-    goals_against: number;
-    goal_diff: number;
-    pct: number;
-    l5: string;
-}
-
 // ─── Match Hub Service ────────────────────────────────────────────────────────
 export const getCompetitions = async (page: number = 1, limit: number = 100, status?: string): Promise<PaginatedResponse<Competition>> => {
     let url = `/matches/competitions?page=${page}&limit=${limit}`;
@@ -622,37 +402,6 @@ export const getTeams = async (page: number = 1, limit: number = 20): Promise<Pa
 };
 
 // ─── Players ──────────────────────────────────────────────────────────────────
-export interface Player {
-    id: string;
-    name: string;
-    jersey_number: number;
-    position: string;
-    secondary_position?: string;
-    gender?: string;
-    team: Team;
-    bio: string;
-    image: string;
-    email?: string;
-    // 'active' | 'inactive'. Deleting a player only deactivates them, so their
-    // stats and history survive; anything listing them renders an inactive
-    // player greyed out rather than hiding them. Absent on older responses,
-    // which are treated as active.
-    status?: string;
-    is_reserve?: boolean;
-    mvp_count?: number;
-    tier?: 'Superstar' | 'Star' | 'Starter' | 'Prospect' | string;
-    badges?: PlayerBadge[];
-}
-
-export interface RosterSummary {
-    main_count: number;
-    reserve_count: number;
-    max_main_limit: number;
-    can_add_or_promote: boolean;
-    allrounder_count: number;
-    max_allrounder_limit: number;
-}
-
 export const getTeamRosterSummary = async (teamId?: string): Promise<RosterSummary> => {
     const url = teamId ? `/team-head/roster-summary?team_id=${teamId}` : `/team-head/roster-summary`;
     const response = await api.get<RosterSummary>(url);
@@ -699,58 +448,7 @@ export const getPlayerById = async (id: string): Promise<Player> => {
 
 // ─── Admin Mutation Types ─────────────────────────────────────────────────────
 
-export interface CreateNewsPayload {
-    title: string;
-    excerpt?: string;
-    content: string;
-    featured_image?: string;
-    featured_media_type?: 'image' | 'youtube';
-    featured_youtube_url?: string;
-    author?: string;
-    category?: string;
-    comments_enabled?: boolean;
-}
 
-export interface CreateGalleryPayload {
-    competition_id?: string | null;
-    game_week: string;
-    date: string;
-    players_photo_url: string;
-    fans_photo_url: string;
-}
-
-export interface CreateMatchPayload {
-    competition_id: string;
-    home_team_id: string; // '' = TBD slot (knockout brackets only)
-    away_team_id: string; // '' = TBD slot (knockout brackets only)
-    date: string;
-    start_time: string;
-    venue?: string;
-    status?: string;
-    home_score?: number | null;
-    away_score?: number | null;
-    highlights_url?: string;
-    ticket_url?: string;
-    round?: string;
-    bracket_pos?: number | null;
-    feeds_match_id?: string | null;
-    feeds_slot?: string;
-    second_leg_match_id?: string | null;
-    mvp_player_id?: string | null;
-    mvp_overridden?: boolean;
-}
-
-export interface CreatePlayerPayload {
-    name: string;
-    jersey_number?: number;
-    position?: string;
-    secondary_position?: string;
-    gender?: string;
-    team_id: string;
-    bio?: string;
-    image?: string;
-    email: string;
-}
 
 // ─── News Mutations ───────────────────────────────────────────────────────────
 export const createNews = async (payload: CreateNewsPayload) => {
@@ -801,21 +499,6 @@ export const deleteMatch = async (id: string) => {
 };
 
 // ─── Team Sheet Mutations ─────────────────────────────────────────────────────
-export interface TeamSheetSlotPayload {
-    player_id: string;
-    is_starter: boolean;
-    starter_unit?: 'OFFENSE' | 'DEFENSE';
-    position_slot?: string;
-    order_index?: number;
-}
-
-export interface SaveTeamSheetPayload {
-    team_id: string;
-    player_ids?: string[];
-    players?: TeamSheetSlotPayload[];
-    coverage?: number;
-}
-
 export const saveTeamSheet = async (matchId: string, payload: SaveTeamSheetPayload) => {
     const response = await api.post(`/admin/matches/${matchId}/team-sheets`, payload);
     return response.data;
@@ -837,45 +520,6 @@ export const saveTeamHeadTeamSheet = async (matchId: string, payload: SaveTeamSh
 };
 
 // ─── Bulk historical-data CSV import ──────────────────────────────────────────
-export interface ImportMatchPlayerRow {
-    side: 'home' | 'away';
-    player_name: string;
-    jersey_number?: number;
-    position?: string;
-    passing_attempts?: number;
-    rushing_attempts?: number;
-    completed_passes?: number;
-    passing_tds?: number;
-    rushing_tds?: number;
-    interceptions_thrown?: number;
-    receptions?: number;
-    receiving_tds?: number;
-    extra_points_tds?: number;
-    drops?: number;
-    flag_pulls?: number;
-    pass_deflections?: number;
-    interceptions?: number;
-    defensive_tds?: number;
-    safety?: number;
-    qb_sacks?: number;
-    def_sacks?: number;
-    defensive_xp_tds?: number;
-}
-
-export interface ImportMatchResult {
-    players_created: number;
-    players_matched: number;
-    sheet_rows: number;
-    stat_rows: number;
-    created_players?: Array<{
-        id: string;
-        name: string;
-        team_id: string;
-        jersey_number: number;
-        position: string;
-    }>;
-}
-
 export const importMatchCsv = async (matchId: string, rows: ImportMatchPlayerRow[]): Promise<ImportMatchResult> => {
     const res = await api.post<{ message: string; data: ImportMatchResult }>(
         `/admin/matches/${matchId}/import`,
@@ -908,17 +552,6 @@ export const restorePlayer = async (id: string) => {
 };
 
 // ─── Standing Mutations ───────────────────────────────────────────────────────
-export interface CreateStandingPayload {
-    competition_id: string;
-    team_id: string;
-    won?: number;
-    drawn?: number;
-    lost?: number;
-    goals_for?: number;
-    goals_against?: number;
-    l5?: string;
-}
-
 export const createStanding = async (payload: CreateStandingPayload) => {
     const response = await api.post('/admin/matches/standings', payload);
     return response.data;
@@ -935,77 +568,6 @@ export const deleteStanding = async (id: string) => {
 };
 
 // ─── Event Days & Tickets ─────────────────────────────────────────────────────
-export interface TicketTierResponse {
-    id: string;
-    event_day_id: string;
-    name: string;
-    price: number;
-    capacity: number;
-    sold_count: number;
-    available: number;
-    description: string;
-    is_hidden: boolean;
-    access_code?: string;
-}
-
-export interface EventDayMatch {
-    id: string;
-    home_team: string;
-    away_team: string;
-    start_time: string;
-    status: string;
-    venue: string;
-}
-
-export interface EventDayResponse {
-    id: string;
-    title: string;
-    date: string;
-    venue: string;
-    is_active: boolean;
-    tiers: TicketTierResponse[];
-    matches: EventDayMatch[];
-    created_at: string;
-}
-
-export interface TicketResponse {
-    id: string;
-    event_day_id: string;
-    tier_id: string;
-        email: string;
-    name?: string;
-    phone?: string;
-
-    quantity: number;
-    unit_price: number;
-    total_amount: number;
-    status: string;
-    paystack_reference?: string;
-    ticket_code?: string;
-    checked_in_at?: string;
-    checked_in_by?: string;
-    authorization_url?: string;
-    tier_name?: string;
-    event_title?: string;
-    event_date?: string;
-    event_venue?: string;
-    referral_code?: string;
-    created_at: string;
-}
-
-export interface PurchaseTicketPayload {
-    event_day_id: string;
-    tier_id: string;
-    email: string;
-    name: string;
-    phone: string;
-    quantity: number;
-    referral_code?: string;
-    /** Distinct from referral_code (attribution only) — this one changes price. */
-    discount_code?: string;
-}
-
-
 // Event Day endpoints
 export const getEventDays = async (code?: string): Promise<EventDayResponse[]> => {
     const url = code ? `/event-days?code=${encodeURIComponent(code)}` : '/event-days';
@@ -1029,15 +591,6 @@ export const purchaseTicket = async (payload: PurchaseTicketPayload): Promise<Ti
     const response = await api.post<TicketResponse>('/tickets/purchase', payload);
     return response.data;
 };
-
-export interface GiftTicketPayload {
-    event_day_id: string;
-    tier_id: string;
-    email: string;
-    name: string;
-    phone?: string;
-    quantity: number;
-}
 
 // App Admin: issue a complimentary ticket (no payment, sends confirmation email)
 export const giftTicket = async (payload: GiftTicketPayload): Promise<TicketResponse> => {
@@ -1210,16 +763,6 @@ export const deleteTeam = async (id: string) => {
     return response.data;
 };
 
-// A team head assigned to a team. created_at is when they were assigned.
-export interface TeamManager {
-    id: string;
-    user_id: string;
-    team_id: string;
-    created_at: string;
-    user_full_name?: string;
-    user_email?: string;
-}
-
 export const getTeamManagers = async (teamId: string): Promise<TeamManager[]> => {
     const response = await api.get<{ data: TeamManager[] | null }>(`/admin/teams/${teamId}/managers`);
     return response.data.data || [];
@@ -1228,14 +771,6 @@ export const getTeamManagers = async (teamId: string): Promise<TeamManager[]> =>
 // Every team_head user, with whichever team they currently manage (if any) —
 // powers the "Assign Team Head" dropdown so it can show ALL team_head users
 // (not just unassigned ones) and explain why a name is greyed out.
-export interface ManagerCandidate {
-    user_id: string;
-    full_name: string;
-    email: string;
-    assigned_team_id?: string;
-    assigned_team_name?: string;
-}
-
 export const getManagerCandidates = async (): Promise<ManagerCandidate[]> => {
     const response = await api.get<{ data: ManagerCandidate[] }>('/admin/teams/manager-candidates');
     return response.data.data || [];
@@ -1278,13 +813,6 @@ export const deleteCompetition = async (id: string) => {
 
 // One first-round slot of a knockout bracket: a matchup or a bye.
 // Adjacent slots pair up: winners of slots 1 & 2 meet next round, 3 & 4 meet, etc.
-export interface BracketEntryPayload {
-    bye: boolean;
-    team_id?: string;
-    home_team_id?: string;
-    away_team_id?: string;
-}
-
 export const generateBracket = async (
     competitionId: string,
     payload: { entries: BracketEntryPayload[]; date: string; time?: string; venue?: string },
@@ -1298,43 +826,12 @@ export const resetBracket = async (competitionId: string) => {
     return response.data;
 };
 
-export interface GenericApiResponse<T> {
-    message: string;
-    data: T;
-}
-
-export interface SalesByTier {
-    tier_name: string;
-    total_amount: number;
-    quantity: number;
-}
-
-export interface AdminAnalyticsResponse {
-    total_revenue: number;
-    total_tickets_sold: number;
-    total_users: number;
-    recent_sales: TicketResponse[];
-    users_by_role: Record<string, number>;
-    sales_by_tier: SalesByTier[];
-}
-
 export const getAdminAnalytics = async (): Promise<GenericApiResponse<AdminAnalyticsResponse>> => {
     const response = await api.get<GenericApiResponse<AdminAnalyticsResponse>>('/admin/analytics');
     return response.data;
 };
 
 // ─── Team Allocations ─────────────────────────────────────────────────────────
-
-export interface TeamTicketAllocation {
-    id: string;
-    event_day_id: string;
-    team_id: string;
-    allocated_count: number;
-    issued_count: number;
-    team_name?: string;
-    event_title?: string;
-    team?: Team;
-}
 
 export const adminGetAllocations = async (eventDayId: string): Promise<TeamTicketAllocation[]> => {
     const response = await api.get<{ data: TeamTicketAllocation[] }>(`/admin/allocations/event-day/${eventDayId}`);
@@ -1362,122 +859,6 @@ export const issueTeamTicket = async (payload: { event_day_id: string; name: str
 };
 
 // ─── Stats ───────────────────────────────────────────────────────────────────
-
-export interface PlayerStat {
-    player_id: string;
-    player_name: string;
-    player_image: string;
-    player_jersey_number: number;
-    player_position: string;
-    player_secondary_position?: string;
-    team_id: string;
-    team_name: string;
-    team_short_name: string;
-    team_logo: string;
-    apps: number;
-    passing_attempts: number;
-    rushing_attempts: number;
-    completed_passes: number;
-    incomplete_passes: number;
-    uncatchable_passes: number;
-    thrown_away_passes: number;
-    batted_down_passes: number;
-    targets: number;
-    passing_yards: number;
-    rushing_yards: number;
-    receiving_yards: number;
-    passing_tds: number;
-    rushing_tds: number;
-    interceptions_thrown: number;
-    receptions: number;
-    receiving_tds: number;
-    extra_points_tds: number;
-    xp_attempts: number;
-    xp_good: number;
-    xp_fail: number;
-    drops: number;
-    flag_pulls: number;
-    pass_deflections: number;
-    interceptions: number;
-    defensive_tds: number;
-    safety: number;
-    safety_conceded: number;
-    qb_sacks: number;
-    def_sacks: number;
-    defensive_xp_tds: number;
-}
-
-export interface TeamStat {
-    team_id: string;
-    team_name: string;
-    team_short_name: string;
-    team_logo: string;
-    passing_attempts: number;
-    rushing_attempts: number;
-    completed_passes: number;
-    incomplete_passes: number;
-    uncatchable_passes: number;
-    thrown_away_passes: number;
-    batted_down_passes: number;
-    targets: number;
-    passing_yards: number;
-    rushing_yards: number;
-    receiving_yards: number;
-    passing_tds: number;
-    rushing_tds: number;
-    interceptions_thrown: number;
-    receptions: number;
-    receiving_tds: number;
-    extra_points_tds: number;
-    xp_attempts: number;
-    xp_good: number;
-    xp_fail: number;
-    drops: number;
-    flag_pulls: number;
-    pass_deflections: number;
-    interceptions: number;
-    defensive_tds: number;
-    safety: number;
-    safety_conceded: number;
-    qb_sacks: number;
-    def_sacks: number;
-    defensive_xp_tds: number;
-    // Team-only stats
-    punts: number;
-    first_downs: number;
-    turnovers: number;
-    penalties: number;
-    penalty_yards: number;
-    total_plays: number;
-    drives: number;
-}
-
-export interface UpsertPlayerStatPayload {
-    player_id: string;
-    team_id: string;
-    match_id: string;
-    competition_id: string;
-    match_date: string;
-    passing_attempts: number;
-    rushing_attempts: number;
-    completed_passes: number;
-    passing_tds: number;
-    rushing_tds: number;
-    interceptions_thrown: number;
-    receptions: number;
-    receiving_tds: number;
-    extra_points_tds: number;
-    drops: number;
-    flag_pulls: number;
-    pass_deflections: number;
-    interceptions: number;
-    defensive_tds: number;
-    safety: number;
-    qb_sacks: number;
-    def_sacks: number;
-    defensive_xp_tds: number;
-}
-
 export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, playerId?: string, search?: string, sort?: string, teamId?: string, position?: string): Promise<PaginatedResponse<PlayerStat>> => {
     let url = '/stats/players';
     const params = new URLSearchParams();
@@ -1534,63 +915,6 @@ export const getStatDates = async (compId?: string): Promise<string[]> => {
 };
 
 // ─── Inventory Management ─────────────────────────────────────────────────────
-
-export interface InventoryProduct {
-    id: string;
-    name: string;
-    sku: string;
-    description: string;
-    price: number;
-    quantity: number;
-    threshold: number;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface InventorySale {
-    id: string;
-    product_id: string;
-    product_name: string;
-    seller_id: string;
-    seller_name: string;
-    quantity_sold: number;
-    unit_price: number;
-    total_amount: number;
-    payment_method: string;
-    notes: string;
-    sold_at: string;
-}
-
-export interface SalesReportResponse {
-    period: string; // daily, weekly, monthly
-    from_date: string;
-    to_date: string;
-    total_revenue: number;
-    total_units: number;
-    by_product: {
-        product_id: string;
-        product_name: string;
-        units_sold: number;
-        revenue: number;
-    }[];
-    by_seller: {
-        seller_id: string;
-        seller_name: string;
-        units_sold: number;
-        revenue: number;
-    }[];
-    by_payment_method: {
-        payment_method: string;
-        revenue: number;
-    }[];
-}
-
-export interface PaymentMethod {
-    id: string;
-    name: string;
-    is_active: boolean;
-}
 
 // ─── Admin Inventory Api ──────────────────────────────────────────────────────
 export const getAdminProducts = async (page = 1, limit = 20, search?: string, activeOnly?: boolean) => {
@@ -1683,148 +1007,6 @@ export const sellerGetPaymentMethods = async () => {
 };
 
 // ─── Store / E-commerce Interfaces & APIs ─────────────────────────────────────
-export interface ProductImage {
-    id: string;
-    image_url: string;
-    is_primary: boolean;
-    display_order: number;
-}
-
-export interface ProductOptionValue {
-    value: string;
-    price?: number; // only present when the parent option drives price
-}
-
-export interface ProductOption {
-    name: string;
-    drives_price: boolean;
-    values: ProductOptionValue[];
-}
-
-export interface ProductVariant {
-    id: string;
-    option1_value?: string;
-    option2_value?: string;
-    option3_value?: string;
-    sku: string;
-    quantity: number;
-    price: number;      // derived server-side from the pricing option
-    image_url?: string; // optional pin to a product image
-}
-
-export interface StoreProduct {
-    id: string;
-    name: string;
-    sku: string;
-    description: string;
-    price: number;
-    quantity: number;
-    threshold: number;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-    images: ProductImage[];
-    options: ProductOption[];
-    variants: ProductVariant[];
-    rating_avg: number;
-    rating_count: number;
-    created_by_name?: string;
-    tags?: string[];
-}
-
-export interface ProductReview {
-    id: string;
-    product_id: string;
-    user_id: string;
-    user_name: string;
-    verified_purchase: boolean;
-    rating: number;
-    title?: string;
-    body?: string;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface CreateProductReviewPayload {
-    rating: number;
-    title?: string;
-    body?: string;
-}
-
-export type ReviewSort = 'newest' | 'highest' | 'lowest';
-
-export interface CheckoutItemPayload {
-    product_id: string;
-    variant_id?: string;
-    quantity: number;
-}
-
-export interface CheckoutPayload {
-    customer_name: string;
-    customer_email: string;
-    customer_phone: string;
-    shipping_country: string;
-    shipping_state: string;
-    shipping_city: string;
-    shipping_address: string;
-    shipping_postal_code: string;
-    items: CheckoutItemPayload[];
-    /** Optional. An invalid code fails the checkout rather than being ignored. */
-    discount_code?: string;
-}
-
-export interface CheckoutResponseData {
-    order_reference: string;
-    paystack_url: string;
-    paystack_ref: string;
-    paystack_access_code: string;
-}
-
-export interface OrderItem {
-    id: string;
-    product_id: string;
-    product_name: string;
-    variant_id?: string;
-    variant_label?: string; // snapshot like "Size: M, Color: Navy"
-    quantity: number;
-    unit_price: number;
-    total_price: number;
-}
-
-export interface Order {
-    id: string;
-    order_reference: string;
-    user_id?: string;
-    customer_name: string;
-    customer_email: string;
-    customer_phone: string;
-    shipping_country: string;
-    shipping_state: string;
-    shipping_city: string;
-    shipping_address: string;
-    shipping_postal_code: string;
-    total_amount: number;
-    discount_code?: string;
-    discount_amount: number;
-    payment_status: 'pending' | 'paid' | 'failed';
-    fulfillment_status: 'pending' | 'shipped' | 'delivered' | 'cancelled';
-    paystack_reference?: string;
-    created_at: string;
-    updated_at: string;
-    items: OrderItem[];
-}
-
-export interface SavedAddress {
-    id: string;
-    recipient_name: string;
-    phone: string;
-    country: string;
-    state: string;
-    city: string;
-    street_address: string;
-    postal_code: string;
-}
-
 export const getStoreProducts = async (): Promise<StoreProduct[]> => {
     const response = await api.get<{ data: StoreProduct[] }>('/store/products');
     return response.data.data || [];
@@ -1919,17 +1101,6 @@ export const cancelAdminStoreOrder = async (id: string): Promise<Order> => {
     return response.data.data;
 };
 
-// Variant rows sent up are pure combination + stock + optional image pin —
-// price is derived server-side from the product's pricing option.
-export type AdminVariantPayload = {
-    option1_value?: string;
-    option2_value?: string;
-    option3_value?: string;
-    sku?: string;
-    quantity: number;
-    image_url?: string;
-};
-
 export const saveAdminProductVariants = async (productId: string, variants: AdminVariantPayload[]): Promise<any> => {
     const response = await api.post(`/admin/store/products/${productId}/variants`, variants);
     return response.data;
@@ -1966,29 +1137,6 @@ export const deleteAdminProductReview = async (id: string): Promise<any> => {
 
 // ─── Ticket Referrals ────────────────────────────────────────────────────────
 
-export interface CreateReferralPayload {
-    name: string;
-    email?: string;
-}
-
-export interface ReferralResponse {
-    id: string;
-    code: string;
-    name: string;
-    email?: string;
-    created_at: string;
-}
-
-export interface ReferralStatsResponse {
-    id: string;
-    code: string;
-    name: string;
-    email?: string;
-    tickets_sold: number;
-    total_revenue: number;
-    created_at: string;
-}
-
 export const createReferralCode = async (payload: CreateReferralPayload): Promise<ReferralResponse> => {
     const response = await api.post<ReferralResponse>('/tickets/referrals', payload);
     return response.data;
@@ -2007,92 +1155,6 @@ export const adminListReferrals = async (page = 1, limit = 10, search?: string) 
 };
 
 // ─── Play-by-Play (Step 1) ────────────────────────────────────────────────────
-
-// Official code strings from the stat sheet (FG = Flag Pull, KO = Throw-Off).
-export const PLAY_TYPE_CODES = ['CP', 'INC', 'TDP', 'INT', 'SACK', 'SCR', 'HM', 'TA', 'XP-P', 'RUN', 'QBR', 'SWP', 'REV', 'PAT-R', 'PUNT', 'KO', 'SAF'] as const;
-// INC and SAF aren't on the official sheet's Result Codes list but are accepted
-// by the backend as practical extensions — see domain.ResultCodes comment.
-export const RESULT_CODES = ['1D', '1DG', 'TD', 'XP', 'XPF', 'TO', 'INT', 'OB', 'FG', 'DB', 'IH', 'EH', 'EG', 'INC', 'SAF'] as const;
-export const PENALTY_CODES = ['FS', 'OFF', 'ENC', 'DOG', 'OPI', 'DPI', 'FGD', 'HLD', 'RPC', 'IMP', 'SUB', 'IF', 'MOT', 'FAV', 'UF'] as const;
-
-// Player subset hydrated onto a play (name + jersey for display).
-export interface PlayPlayer {
-    id: string;
-    name: string;
-    jersey_number: number;
-    position: string;
-}
-
-export interface GamePlay {
-    id: string;
-    match_id: string;
-    seq: number;
-    drive_no: number;
-    quarter: number;
-    clock?: string;
-    offense_team_id?: string;
-    down?: number;
-    to_go?: number;
-    ball_on?: string;
-    play_type?: string;
-    off_qb_id?: string;
-    target_id?: string;
-    yards?: number;
-    result?: string;
-    defender_id?: string;
-    rusher_id?: string;
-    center_id?: string;
-    dropped: boolean;
-    batted_down: boolean;
-    uncatchable: boolean;
-    returned_for_td: boolean;
-    penalty?: string;
-    penalty_team_id?: string;
-    penalty_player_id?: string;
-    penalty_yards?: number;
-    home_score_after?: number;
-    away_score_after?: number;
-    notes?: string;
-    // Hydrated relations
-    offense_team?: Team;
-    off_qb?: PlayPlayer;
-    target?: PlayPlayer;
-    defender?: PlayPlayer;
-    rusher?: PlayPlayer;
-    center?: PlayPlayer;
-    penalty_player?: PlayPlayer;
-}
-
-// Mirrors backend dto.PlayRequest — every field optional; match_id is in the URL.
-export interface PlayPayload {
-    drive_no?: number;
-    quarter?: number;
-    clock?: string;
-    offense_team_id?: string;
-    down?: number | null;
-    to_go?: number | null;
-    ball_on?: string;
-    play_type?: string;
-    off_qb_id?: string;
-    target_id?: string;
-    yards?: number | null;
-    result?: string;
-    defender_id?: string;
-    rusher_id?: string;
-    center_id?: string;
-    dropped?: boolean;
-    batted_down?: boolean;
-    uncatchable?: boolean;
-    returned_for_td?: boolean;
-    penalty?: string;
-    penalty_team_id?: string;
-    penalty_player_id?: string;
-    penalty_yards?: number | null;
-    home_score_after?: number | null;
-    away_score_after?: number | null;
-    notes?: string;
-    seq?: number;
-}
 
 // Public read (used by the match page timeline later).
 export const getMatchPlays = async (matchId: string): Promise<GamePlay[]> => {
@@ -2124,14 +1186,6 @@ export const deletePlay = async (matchId: string, playId: string) => {
 // Re-derive the down/distance/possession/drive of plays after a mid-sequence
 // insert. The client computes the new snapshots (same logic as live entry) and
 // sends them; the server applies them and recomputes the score.
-export interface SituationUpdate {
-    id: string;
-    drive_no: number;
-    down: number | null;
-    to_go: number | null;
-    offense_team_id?: string;
-}
-
 export const rederiveSituations = async (matchId: string, plays: SituationUpdate[]) => {
     const res = await api.post(`/admin/matches/${matchId}/plays/rederive-situations`, { plays });
     return res.data;
@@ -2140,24 +1194,6 @@ export const rederiveSituations = async (matchId: string, plays: SituationUpdate
 // Bulk re-derive of stats for every match that HAS a play log. Matches without
 // one (e.g. the historical Excel imports) are excluded server-side, and scores /
 // standings are never touched — stats only. App Admin only.
-export interface BulkRecomputeMatch {
-    match_id: string;
-    label: string;
-    date: string;
-    plays: number;
-    players: number;
-    error?: string;
-}
-
-export interface BulkRecomputeResult {
-    dry_run: boolean;
-    matches_found: number;
-    matches_updated: number;
-    players_updated: number;
-    failed: number;
-    matches: BulkRecomputeMatch[];
-}
-
 export const recomputeAllStats = async (opts: { competitionId?: string; dryRun?: boolean } = {}): Promise<BulkRecomputeResult> => {
     const params = new URLSearchParams();
     if (opts.competitionId) params.set('competition_id', opts.competitionId);
@@ -2176,11 +1212,6 @@ export const setPBPLock = async (matchId: string, locked: boolean): Promise<bool
 };
 
 // Step 2 — stats derived from the play log vs the currently-stored manual stats.
-export interface StatsCompare {
-    derived: PlayerStat[];
-    current: PlayerStat[];
-}
-
 export const getStatsCompare = async (matchId: string): Promise<StatsCompare> => {
     const res = await api.get<StatsCompare>(`/admin/matches/${matchId}/stats-compare`);
     return { derived: res.data.derived || [], current: res.data.current || [] };
@@ -2213,20 +1244,6 @@ export const overrideMatchMVP = async (
 };
 
 // Step 3 — scoring rules + score recompute.
-export interface GameRules {
-    competition_id: string;
-    td_points: number;
-    xp_run_points: number;
-    xp_pass_points: number;
-    safety_points: number;
-    def_return_points: number;
-    downs_per_series: number;
-    yards_to_first_down: number;
-    first_down_model: string;
-}
-
-export type GameRulesPayload = Omit<GameRules, 'competition_id'>;
-
 export const getGameRules = async (competitionId: string): Promise<GameRules> => {
     const res = await api.get<{ data: GameRules }>(`/admin/competitions/${competitionId}/game-rules`);
     return res.data.data;
@@ -2248,141 +1265,6 @@ export const commitScore = async (matchId: string): Promise<{ home_score: number
 };
 
 // ─── Contracts, Transfers, Player Portal & Notifications ───────────────────────
-
-export interface ContractData {
-    id: string;
-    player_id: string;
-    team_id: string;
-    status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'REJECTED';
-    contract_length: number;
-    matches_at_start: number;
-    matches_played: number;
-    matches_remaining: number;
-    player_value: number;
-    offered_by?: string;
-    offered_at: string;
-    accepted_at?: string;
-    expired_at?: string;
-    terminated_at?: string;
-    termination_reason?: string;
-    notes?: string;
-    created_at: string;
-    updated_at: string;
-    player?: {
-        id: string;
-        name: string;
-        jersey_number: number;
-        position: string;
-        image: string;
-    };
-    team?: {
-        id: string;
-        name: string;
-        short_name: string;
-        logo: string;
-    };
-}
-
-export interface IssueContractPayload {
-    player_id: string;
-    contract_length?: number;
-    player_value?: number;
-    notes?: string;
-}
-
-export interface TransferData {
-    id: string;
-    type: 'REQUEST' | 'LISTING' | 'DIRECT_SALE';
-    status: 'PENDING' | 'REVIEW' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
-    player_id: string;
-    from_team_id: string;
-    to_team_id?: string;
-    initiated_by?: string;
-    asking_price?: number;
-    notes?: string;
-    review_notes?: string;
-    completed_at?: string;
-    from_team_approved: boolean;
-    to_team_approved: boolean;
-    created_at: string;
-    updated_at: string;
-    player?: {
-        id: string;
-        name: string;
-        jersey_number: number;
-        position: string;
-        image: string;
-    };
-    from_team?: {
-        id: string;
-        name: string;
-        short_name: string;
-        logo: string;
-    };
-    to_team?: {
-        id: string;
-        name: string;
-        short_name: string;
-        logo: string;
-    };
-    bids?: TransferBidData[];
-}
-
-export interface TransferBidData {
-    id: string;
-    transfer_id: string;
-    bidder_team_id: string;
-    bid_value: number;
-    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
-    bidder_id?: string;
-    created_at: string;
-    bidder_team?: {
-        id: string;
-        name: string;
-        short_name: string;
-        logo: string;
-    };
-}
-
-export interface TeamBudgetData {
-    id: string;
-    team_id: string;
-    total_budget: number;
-    spent: number;
-    remaining: number;
-    created_at: string;
-    updated_at: string;
-    team?: {
-        id: string;
-        name: string;
-        short_name: string;
-        logo: string;
-    };
-}
-
-export interface TransferWindowData {
-    id: string;
-    name: string;
-    opens_at: string;
-    closes_at: string;
-    is_active: boolean;
-    is_open: boolean;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface NotificationData {
-    id: string;
-    user_id: string;
-    type: string;
-    title: string;
-    message: string;
-    reference_type?: string;
-    reference_id?: string;
-    is_read: boolean;
-    created_at: string;
-}
-
 // Contract API
 export const contractsApi = {
     issue: async (data: IssueContractPayload): Promise<ContractData> => {
@@ -2546,109 +1428,6 @@ export const adminTransfersApi = {
 // identifies themselves to their team manager, who is the only party able to confirm
 // who they are; approval is what mints the account.
 
-export interface ClaimablePlayerData {
-    id: string;
-    name: string;
-    jersey_number?: number;
-    position?: string;
-}
-
-export interface VerifyClaimCodeData {
-    team_id: string;
-    team_name: string;
-    team_logo?: string;
-    players: ClaimablePlayerData[];
-}
-
-export interface SubmitClaimPayload {
-    code: string;
-    email: string;
-    password: string;
-    phone?: string;
-    player_id?: string;
-    full_name?: string;
-    proposed_jersey_number?: number;
-    proposed_position?: string;
-}
-
-export interface SubmitClaimData {
-    claim_id: string;
-    status: string;
-    access_token?: string;
-    user_id: string;
-    user_type: string;
-    message: string;
-}
-
-export interface MyClaimStatusData {
-    has_claim: boolean;
-    claim_id?: string;
-    claim_kind?: ClaimKind;
-    status?: 'PENDING' | 'APPROVED' | 'REJECTED';
-    team_name?: string;
-    player_name?: string;
-    claimed_email?: string;
-    claimed_phone?: string;
-    claimed_photo?: string;
-    email_verified: boolean;
-    reject_reason?: string;
-    created_at?: string;
-}
-
-export type ClaimKind = 'ROSTER' | 'NEW_PLAYER';
-export type ClaimEndorsement = 'ENDORSED' | 'DECLINED';
-
-export interface PlayerClaimData {
-    id: string;
-    player_id?: string;
-    team_id: string;
-    team_name?: string;
-    // ROSTER claims are the team manager's to decide. NEW_PLAYER requests — from
-    // people not on the roster — are decided by the league office; a manager's part
-    // is to endorse or decline, which is advisory.
-    claim_kind: ClaimKind;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
-
-    endorsement?: ClaimEndorsement;
-    endorsed_by_name?: string;
-    endorsed_at?: string;
-    endorsement_note?: string;
-
-    claimed_email: string;
-    claimed_phone?: string;
-    claimed_photo?: string;
-    email_verified: boolean;
-
-    is_new_player_request: boolean;
-    proposed_name?: string;
-    proposed_jersey_number?: number;
-    proposed_position?: string;
-
-    player_name?: string;
-    player_jersey_number?: number;
-    player_position?: string;
-    player_image?: string;
-    past_teams?: string[];
-    matches_played: number;
-
-    reject_reason?: string;
-    reviewed_by?: string;
-    reviewed_at?: string;
-    created_at: string;
-}
-
-export interface ClaimCodeData {
-    id: string;
-    team_id: string;
-    team_name?: string;
-    code: string;
-    expires_at?: string;
-    max_uses: number;
-    uses: number;
-    revoked: boolean;
-    created_at: string;
-}
-
 export const claimApi = {
     // Public — the claim page
     verifyCode: async (code: string): Promise<VerifyClaimCodeData> => {
@@ -2738,10 +1517,6 @@ export const adminClaimsApi = {
     },
 };
 
-export interface AppSettingsData {
-    app_font_id: string;
-}
-
 // Site-wide display settings. The read is public (every visitor needs the app
 // font on boot); only an admin can write, which is what makes the choice apply
 // to everyone rather than just the browser that made it.
@@ -2755,37 +1530,6 @@ export const appSettingsApi = {
         return res.data;
     },
 };
-
-export interface CommentData {
-    id: string;
-    entity_type: string;
-    entity_id: string;
-    user_id: string;
-    user_full_name: string;
-    user_avatar?: string;
-    user_role: string;
-    content: string;
-    parent_id?: string;
-    likes_count: number;
-    is_liked_by_caller: boolean;
-    created_at: string;
-    updated_at: string;
-    replies: CommentData[];
-}
-
-/** One page of a thread. `total` counts top-level comments (what pages are made
- *  of); `total_all` includes replies and is the count shown on the thread. */
-export interface CommentPage {
-    data: CommentData[];
-    total: number;
-    total_all: number;
-    page: number;
-    limit: number;
-    total_pages: number;
-    has_more: boolean;
-}
-
-export const COMMENTS_PAGE_SIZE = 30;
 
 export const commentsApi = {
     getComments: async (
@@ -2819,64 +1563,6 @@ export const commentsApi = {
 };
 
 // ─── Discount codes ───────────────────────────────────────────────────────────
-
-/** Who may redeem a code. Defaults to 'all'. */
-export type DiscountAudience = 'all' | 'authenticated' | 'guest';
-
-/** One product or ticket tier a code covers, with its own naira reduction. */
-export interface DiscountCodeItem {
-    id?: string;
-    entity_type: 'product' | 'ticket_tier';
-    entity_id: string;
-    entity_name?: string;
-    entity_price?: number;
-    amount_off: number;
-}
-
-export interface DiscountCode {
-    id: string;
-    code: string;
-    description: string;
-    max_uses?: number | null;
-    used_count: number;
-    expires_at?: string | null;
-    audience: DiscountAudience;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-    items: DiscountCodeItem[];
-    is_expired: boolean;
-    is_exhausted: boolean;
-}
-
-export interface SaveDiscountCodePayload {
-    code: string;
-    description?: string;
-    max_uses?: number | null;
-    expires_at?: string | null;
-    audience?: DiscountAudience;
-    is_active?: boolean;
-    items: { entity_type: 'product' | 'ticket_tier'; entity_id: string; amount_off: number }[];
-}
-
-/** A product or tier selectable in the admin code editor. */
-export interface DiscountTarget {
-    entity_type: 'product' | 'ticket_tier';
-    entity_id: string;
-    name: string;
-    price: number;
-}
-
-export interface DiscountPreview {
-    code: string;
-    valid: boolean;
-    /** Why the code was rejected. Safe to show to the buyer verbatim. */
-    message?: string;
-    lines: { entity_type: string; entity_id: string; name: string; amount_off: number }[];
-    original_amount: number;
-    discount_amount: number;
-    final_amount: number;
-}
 
 export const discountsApi = {
     list: async (): Promise<DiscountCode[]> => {
@@ -2921,317 +1607,12 @@ export const discountsApi = {
 
 // ─── Fantasy Module Types & API ──────────────────────────────────────────────
 
-export type FantasySlot =
-    | 'QB_M'
-    | 'QB_F'
-    | 'REC_1'
-    | 'REC_2'
-    | 'REC_3'
-    | 'REC_4'
-    | 'REC_5'
-    | 'RUSHER'
-    | 'DEF_1'
-    | 'DEF_2'
-    | 'DEF_3'
-    | 'DEF_4'
-    | 'DEF_5'
-    | 'DEF_6';
-
-export interface FantasySeason {
-    id: string;
-    competition_id: string;
-    name: string;
-    squad_size: number;
-    budget: number;
-    min_female_offense: number;
-    min_female_defense: number;
-    max_per_club: number;
-    lock_mins_before: number;
-    status: 'DRAFT' | 'ACTIVE' | 'COMPLETED';
-    created_at: string;
-}
-
-export interface FantasyGameweek {
-    id: string;
-    season_id: string;
-    number: number;
-    event_day_id: string;
-    deadline: string;
-    status: 'SCHEDULED' | 'LOCKED' | 'LIVE' | 'FINALIZED';
-}
-
-export interface FantasyPlayerListItem {
-    player_id: string;
-    player_name: string;
-    player_image: string;
-    position: string;
-    gender: string;
-    team_id: string;
-    team_name: string;
-    team_short_name: string;
-    team_logo: string;
-    price: number;
-    rating: number;
-    total_points: number;
-
-    /** Ownership across the season's managers: how many hold them now, as a
-     *  percentage, and how many times they have been signed and sold. */
-    owned_by: number;
-    selected_by_pct: number;
-    transfers_in: number;
-    transfers_out: number;
-}
-
-/** How the market list is ordered. Every option is applied by the server. */
-export type MarketSort =
-    | ''
-    | 'price_desc'
-    | 'price_asc'
-    | 'rating'
-    | 'points'
-    | 'selected'
-    | 'owned'
-    | 'transfers_in'
-    | 'transfers_out'
-    | 'name';
-
-export interface FantasyLineupPick {
-    slot: FantasySlot;
-    player_id: string;
-    player_name?: string;
-    player_image?: string;
-    position?: string;
-    gender?: string;
-    team_id?: string;
-    team_name?: string;
-    team_short_name?: string;
-    team_logo?: string;
-    purchase_price: number;
-    current_price: number;
-    points: number;
-    player_status?: string;
-    team_active?: boolean;
-    is_reserve?: boolean;
-    is_eligible?: boolean;
-}
-
-export interface FantasyLineupResponse {
-    id: string;
-    team_id: string;
-    team_name: string;
-    gameweek_id: string;
-    total_spent: number;
-    remaining_budget: number;
-    points: number;
-    /** PARTIAL is a sheet still being filled in: saved, but never scored. */
-    status: 'PARTIAL' | 'DRAFT' | 'LOCKED';
-    is_rollover: boolean;
-    /** True when the sheet is finished and passes every rule — ready to publish. */
-    complete: boolean;
-    /** True when the lineup is live and earning points. Publishing is always the manager's own action. */
-    published: boolean;
-    /** What stands between this sheet and being publishable. Empty once complete. */
-    blocking_reason?: string;
-    picks: FantasyLineupPick[];
-}
-
-export interface FantasyTeamLineupDetailResponse {
-    team_id: string;
-    team_name: string;
-    manager_name: string;
-    season_id: string;
-    gameweek_id: string;
-    gameweek_number: number;
-    gameweek_status: string;
-    deadline_passed: boolean;
-    is_private: boolean;
-    private_reason?: string;
-    points: number;
-    total_spent: number;
-    is_rollover: boolean;
-    picks: FantasyLineupPick[];
-}
-
-export interface GameweekSummaryStats {
-    average_points: number;
-    highest_points: number;
-    highest_scoring_team: string;
-    lowest_points: number;
-    total_managers: number;
-}
-
-export interface MostOwnedPlayerItem {
-    player_id: string;
-    player_name: string;
-    player_image: string;
-    position: string;
-    gender: string;
-    team_id: string;
-    team_name: string;
-    team_short_name: string;
-    team_logo: string;
-    current_price: number;
-    ownership_count: number;
-    ownership_percentage: number;
-    points: number;
-}
-
-export interface TopScoringPlayerItem {
-    player_id: string;
-    player_name: string;
-    player_image: string;
-    position: string;
-    gender: string;
-    team_id: string;
-    team_name: string;
-    team_short_name: string;
-    team_logo: string;
-    price: number;
-    points: number;
-    ownership_percentage: number;
-}
-
-export interface ClubPointsItem {
-    club_id: string;
-    club_name: string;
-    club_short_name: string;
-    club_logo: string;
-    total_points: number;
-    active_player_count: number;
-    average_points_per_player: number;
-    top_scorer_name: string;
-    top_scorer_points: number;
-}
-
-export interface GameweekReportResponse {
-    season_id: string;
-    gameweek_id: string;
-    gameweek_number: number;
-    gameweek_status: string;
-    summary: GameweekSummaryStats;
-    most_owned: MostOwnedPlayerItem[];
-    top_scorers: TopScoringPlayerItem[];
-    club_points: ClubPointsItem[];
-    dream_team: FantasyLineupPick[];
-    dream_team_total_points: number;
-    differentials: TopScoringPlayerItem[];
-}
-
-export interface PointsBreakdown {
-    version: string;
-    passing_yards_pts: number;
-    passing_tds_pts: number;
-    interceptions_thrown_pts: number;
-    qb_sacks_pts: number;
-    rushing_yards_pts: number;
-    rushing_tds_pts: number;
-    receptions_pts: number;
-    receiving_yards_pts: number;
-    receiving_tds_pts: number;
-    drops_pts: number;
-    xp_good_pts: number;
-    extra_point_tds_pts: number;
-    bad_snaps_pts: number;
-    offensive_positive: number;
-    offensive_negative: number;
-    offensive_total: number;
-    flag_pulls_pts: number;
-    pass_deflections_pts: number;
-    interceptions_pts: number;
-    def_sacks_pts: number;
-    defensive_tds_pts: number;
-    defensive_xp_tds_pts: number;
-    safety_pts: number;
-    safety_conceded_pts: number;
-    defensive_total: number;
-    net_total: number;
-}
-
-export interface PlayerGWBreakdownResponse {
-    player_id: string;
-    player_name: string;
-    match_id: string;
-    match_label: string;
-    gameweek_number?: number;
-    is_nearest_week?: boolean;
-    points: number;
-    total_points?: number;
-    selected_by_pct?: number;
-    breakdown: PointsBreakdown;
-}
-
-export interface PlayerPriceHistoryItem {
-    gameweek_id?: string;
-    gameweek_number: number;
-    gameweek_label: string;
-    price: number;
-    calculated_price: number;
-    change: number;
-    percentage_change: number;
-    rating: number;
-    is_overridden: boolean;
-    created_at: string;
-}
-
-export interface PlayerPriceHistoryResponse {
-    player_id: string;
-    player_name: string;
-    current_price: number;
-    base_price: number;
-    total_change: number;
-    total_points?: number;
-    selected_by_pct?: number;
-    history: PlayerPriceHistoryItem[];
-}
-
-export interface FantasyLeague {
-    id: string;
-    season_id: string;
-    name: string;
-    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
-    invite_code?: string;
-    // Absent/empty for the system-owned OVERALL league, which has no human owner.
-    created_by_user_id?: string;
-    entry_fee: number;
-    max_members: number;
-    member_count: number;
-    createdAt?: string;
-}
-
-export interface JoinLeagueResponse {
-    league_id: string;
-    league_name: string;
-    paystack_url?: string;
-    paystack_ref?: string;
-    paystack_access_code?: string;
-}
-
-// my_rank is the signed-in viewer's own position, 0 when anonymous or not in
-// the table. The UI uses it to open on their page rather than page 1.
-export interface Leaderboard {
-    data: LeaderboardEntry[];
-    total: number;
-    total_pages: number;
-    my_rank: number;
-    my_entry?: LeaderboardEntry | null;
-}
-
 interface RawLeaderboard {
     data: LeaderboardEntry[] | null;
     total: number;
     total_pages: number;
     my_rank?: number;
     my_entry?: LeaderboardEntry | null;
-}
-
-export interface LeaderboardEntry {
-    rank: number;
-    user_id: string;
-    user_name: string;
-    team_name: string;
-    team_id: string;
-    gw_points: number;
-    total_points: number;
 }
 
 export const fantasyApi = {
@@ -3444,13 +1825,6 @@ export const fantasyApi = {
     },
 };
 
-export interface ScheduledMatchDay {
-    date: string;
-    match_count: number;
-    earliest_kickoff: string;
-    event_day_id?: string;
-}
-
 // ─── Fantasy Wallet, Payouts & Admin Finance ─────────────────────────────────
 
 // Every amount below is integer kobo (₦1 = 100 kobo), matching the Paystack
@@ -3460,200 +1834,7 @@ export const koboToNaira = (kobo: number) => kobo / 100;
 export const formatKobo = (kobo: number) =>
     `₦${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export type WalletTransactionType = 'WINNINGS' | 'PAYOUT' | 'PAYOUT_REVERSAL' | 'ADJUSTMENT';
-
-export interface WalletTransaction {
-    id: string;
-    amount_kobo: number; // signed: credits positive, debits negative
-    type: WalletTransactionType;
-    league_id?: string;
-    league_name?: string;
-    description: string;
-    created_at: string;
-}
-
-export interface BankDetails {
-    bank_name: string;
-    account_number: string;
-    account_name: string;
-}
-
-export interface FantasyWallet {
-    balance_kobo: number;
-    pending_payout_kobo: number;
-    lifetime_won_kobo: number;
-    lifetime_paid_kobo: number;
-    min_payout_kobo: number;
-    can_request_payout: boolean;
-    last_bank_details?: BankDetails;
-    transactions: WalletTransaction[];
-}
-
-export type PayoutStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'REJECTED' | 'CANCELLED';
-
-export interface PayoutRequest {
-    id: string;
-    user_id: string;
-    user_name?: string;
-    user_email?: string;
-    amount_kobo: number;
-    status: PayoutStatus;
-    bank_name: string;
-    account_number: string;
-    account_name: string;
-    user_notes: string;
-    admin_notes: string;
-    payment_reference?: string;
-    processed_at?: string;
-    created_at: string;
-}
-
-export interface PrizeAward {
-    user_id: string;
-    team_id: string;
-    team_name: string;
-    user_name: string;
-    rank: number;
-    points: number;
-    amount_kobo: number;
-    shared_with: number; // >1 when the position was tied
-    description: string;
-}
-
-export interface PrizeTier {
-    rank: number;
-    percent: number;
-    amount_kobo: number;
-}
-
-export interface LeagueFinance {
-    league_id: string;
-    league_name: string;
-    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
-    entry_fee_kobo: number;
-    paid_members: number;
-    pending_members: number;
-    gross_entry_kobo: number;
-    platform_cut_kobo: number;
-    prize_pool_kobo: number;
-    cut_percent: number;
-    settled: boolean;
-    settled_at?: string;
-    prize_structure: PrizeTier[];
-    awards: PrizeAward[]; // projected before settlement, actual after
-}
-
-export interface AdminFantasyOverview {
-    season_id: string;
-    season_name: string;
-    status: string;
-    total_managers: number;
-    total_lineups: number;
-    total_leagues: number;
-    paid_leagues: number;
-    gross_entry_kobo: number;
-    platform_cut_kobo: number;
-    prize_pool_kobo: number;
-    cut_percent: number;
-    unsettled_leagues: number;
-    wallet_liability_kobo: number;
-    pending_payout_kobo: number;
-    pending_payout_count: number;
-    paid_out_kobo: number;
-}
-
-export interface AdminManagerRow {
-    rank: number;
-    user_id: string;
-    user_name: string;
-    user_email: string;
-    team_id: string;
-    team_name: string;
-    total_points: number;
-    lineup_count: number;
-    league_count: number;
-    wallet_balance_kobo: number;
-    created_at: string;
-}
-
-export interface AdminLeagueRow {
-    league_id: string;
-    name: string;
-    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
-    invite_code?: string;
-    owner_name?: string;
-    entry_fee_kobo: number;
-    max_members: number;
-    member_count: number;
-    paid_members: number;
-    pending_members: number;
-    gross_entry_kobo: number;
-    platform_cut_kobo: number;
-    prize_pool_kobo: number;
-    settled: boolean;
-    settled_at?: string;
-    created_at: string;
-}
-
-export interface AdminLeagueMemberRow {
-    user_id: string;
-    user_name: string;
-    user_email: string;
-    team_id: string;
-    team_name: string;
-    total_points: number;
-    payment_status: 'FREE' | 'PENDING' | 'PAID' | 'FAILED';
-    paystack_reference?: string;
-    joined_at: string;
-}
-
-export interface SettlementResult {
-    leagues_settled: number;
-    leagues_skipped: number;
-    total_awarded_kobo: number;
-    platform_cut_kobo: number;
-    awards: PrizeAward[];
-}
-
-export interface Paged<T> {
-    data: T[];
-    total: number;
-    page: number;
-    limit: number;
-    total_pages: number;
-}
-
 // ─── Season entry & dashboard ────────────────────────────────────────────────
-
-export interface DashboardTeam {
-    id: string;
-    name: string;
-    total_points: number;
-    gameweek_points: number;
-    overall_rank: number;
-    total_managers: number;
-}
-
-export interface DashboardLeagueRow {
-    league_id: string;
-    name: string;
-    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
-    member_count: number;
-    my_rank: number;
-    entry_fee_kobo: number;
-}
-
-export interface FantasyDashboard {
-    season: FantasySeason;
-    // false until the manager has deliberately joined the season.
-    entered: boolean;
-    team?: DashboardTeam;
-    lineup?: FantasyLineupResponse;
-    current_gameweek?: FantasyGameweek;
-    deadline_passed: boolean;
-    leagues: DashboardLeagueRow[];
-    top_managers: LeaderboardEntry[];
-}
 
 export const fantasySeasonApi = {
     // Works before entry too: an un-entered visitor gets the season and
@@ -3673,30 +1854,6 @@ export const fantasySeasonApi = {
     },
 };
 
-export interface LeagueJoinPreview {
-    league_id: string;
-    name: string;
-    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
-    owner_name?: string;
-    invite_code?: string;
-    entry_fee_kobo: number;
-    member_count: number;
-    max_members: number; // 0 = unlimited
-    is_full: boolean;
-    already_member: boolean;
-    membership_status?: 'FREE' | 'PENDING' | 'PAID' | 'FAILED';
-    // Set when this manager paid into the league and then left. The entry is
-    // gone and the league cannot be rejoined.
-    forfeited: boolean;
-    // Already net of the platform's cut — the figure that will actually be
-    // shared out. The cut itself is only shown to whoever creates a league.
-    prize_pool_kobo: number;
-    prize_structure: PrizeTier[];
-    // Entry fees are never returned once paid.
-    refundable: boolean;
-    settled: boolean;
-}
-
 /** Fantasy prices are in fantasy millions — the unit the pricing model works in.
  *  Defined once so the label cannot drift between screens. */
 export const formatFantasyPrice = (v: number | null | undefined): string => {
@@ -3705,89 +1862,6 @@ export const formatFantasyPrice = (v: number | null | undefined): string => {
 };
 
 // ─── Squad & trading ─────────────────────────────────────────────────────────
-
-export interface SquadPlayer {
-    id: string;
-    player_id: string;
-    name: string;
-    image?: string;
-    position: string;
-    gender: string;
-    club_id: string;
-    club_name?: string;
-    club_short_name?: string;
-    club_logo?: string;
-    purchase_price: number;
-    current_price: number;
-    /** In this gameweek's starting fourteen. Subs score nothing until brought in. */
-    starting: boolean;
-    /** False if the player's club has been deactivated or is not participating. */
-    team_active?: boolean;
-    /**
-     * 'active' | 'inactive'. A squad can hold someone deleted after they were
-     * signed: the row survives (migration 088), so the manager still sees what
-     * they paid for, greyed out, instead of finding a gap in their squad. Like
-     * an inactive club, they cannot be fielded.
-     */
-    player_status?: string;
-    /** On their club's reserve list: can sit on the bench, cannot start. */
-    is_reserve?: boolean;
-    sell_price: number;
-    /** Always true — the squad carries no restrictions. */
-    can_sell: boolean;
-    /** Selling them would leave a squad that cannot field a legal fourteen. The
-     *  sale still goes through; this is what the confirmation warns about. */
-    breaks_lineup: boolean;
-    /** A woman whose sale leaves her unit with no margin on the female minimum. */
-    quota_critical: boolean;
-}
-
-export interface SquadRules {
-    budget: number;
-    min_female_offense: number;
-    min_female_defense: number;
-    max_per_club: number;
-}
-
-export interface Squad {
-    players: SquadPlayer[];
-    bank: number;
-    squad_value: number;
-    female_offense: number;
-    female_defense: number;
-    squad_size: number;
-    squad_min: number;
-    squad_max: number;
-    starting_xi: number;
-    starters: number;
-    subs: number;
-    rules: SquadRules;
-    readiness: SquadReadiness;
-    /** The market shuts while a gameweek is being played and reopens once its
-     *  scores are final. When false, `market_closed_reason` says why. */
-    market_open: boolean;
-    market_closed_reason?: string;
-}
-
-/** One line of the squad checklist. Guidance for the squad screen — the lineup
- *  selector is what actually enforces these. */
-export interface SquadRequirement {
-    key: string;
-    label: string;
-    have: number;
-    need: number;
-    met: boolean;
-    hint?: string;
-}
-
-export interface SquadReadiness {
-    requirements: SquadRequirement[];
-    /** A legal starting fourteen can be drawn from the squad. */
-    ready: boolean;
-    /** Squad is under fourteen, so the match day would be forfeited. */
-    forfeits: boolean;
-    blocker?: string;
-}
 
 const normaliseSquad = (s: Squad): Squad => ({
     ...s,
@@ -3869,55 +1943,6 @@ export const fantasyWalletApi = {
         return res.data.data;
     },
 };
-
-// One person the platform owes money to, for the admin's obligation view.
-export interface OwedRow {
-    user_id: string;
-    user_name: string;
-    user_email: string;
-    /** Still in their wallet — they have not asked for it yet. */
-    balance_kobo: number;
-    /** Already committed to an open request, so out of the balance. */
-    pending_payout_kobo: number;
-    total_owed_kobo: number;
-    lifetime_won_kobo: number;
-    lifetime_paid_kobo: number;
-    has_requested: boolean;
-    open_requests: number;
-    /** The account last submitted on a request; blank until they give us one. */
-    bank_name?: string;
-    account_number?: string;
-    account_name?: string;
-}
-
-export interface MoneyOwed {
-    rows: OwedRow[];
-    /** These totals cover everyone owed money, not just the page in `rows`. */
-    total_owed_kobo: number;
-    requested_kobo: number;
-    unrequested_kobo: number;
-    people: number;
-    awaiting_details: number;
-    page: number;
-    limit: number;
-    total_pages: number;
-}
-
-export interface AdminPlayerPriceRow {
-    player_id: string;
-    player_name: string;
-    player_image: string;
-    position: string;
-    gender: string;
-    team_id: string;
-    team_name: string;
-    team_short_name: string;
-    team_logo: string;
-    price: number;
-    calculated_price: number;
-    is_overridden: boolean;
-    rating: number;
-}
 
 export const fantasyAdminApi = {
     // Returns every season including DRAFT ones. `getActiveSeason` only ever
@@ -4051,82 +2076,6 @@ export const fantasyAdminApi = {
 };
 
 // ─── Badges & Honors ──────────────────────────────────────────────────────────
-export interface Badge {
-    id: string;
-    code: string;
-    name: string;
-    description: string;
-    icon: string;
-    category: string;
-    color_scheme: string;
-    is_system: boolean;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface PlayerBadgeAward {
-    id: string;
-    player_id: string;
-    badge_id: string;
-    competition_id?: string;
-    competition_name?: string;
-    season_id?: string;
-    season?: string;
-    match_id?: string;
-    totw_id?: string;
-    reason: string;
-    awarded_by?: string;
-    created_at: string;
-    badge?: Badge;
-    player?: Player;
-    competition?: Competition;
-}
-
-export interface PlayerBadge {
-    id: string;
-    player_id: string;
-    badge_id: string;
-    code: string;
-    name: string;
-    description: string;
-    icon: string;
-    category: string;
-    color_scheme: string;
-    count: number;
-    last_awarded_at: string;
-    awards?: PlayerBadgeAward[];
-}
-
-export interface CreateBadgePayload {
-    code: string;
-    name: string;
-    description?: string;
-    icon?: string;
-    category?: string;
-    color_scheme?: string;
-}
-
-export interface UpdateBadgePayload {
-    name: string;
-    description?: string;
-    icon?: string;
-    category?: string;
-    color_scheme?: string;
-}
-
-export interface AwardBadgePayload {
-    player_id: string;
-    badge_id: string;
-    competition_id?: string;
-    season_id?: string;
-    season?: string;
-    event_day_id?: string;
-    match_id?: string;
-    reason?: string;
-    increment?: number;
-    count?: number;
-}
-
 export const getBadges = async (): Promise<Badge[]> => {
     const res = await api.get<{ data: Badge[] }>('/badges');
     return res.data.data;
@@ -4177,77 +2126,6 @@ export const getAdminBadgeAwards = async (params?: { badge_id?: string; player_i
 };
 
 // ─── Team of the Week (TOTW) ──────────────────────────────────────────────────
-export interface TOTWPlayerSlot {
-    player_id: string;
-    slot_code: string;
-    position: string;
-    unit: 'Offence' | 'Defence';
-    coord_x?: string;
-    coord_y?: string;
-    rating: number;
-    stat1_value?: string;
-    stat1_label?: string;
-    stat2_value?: string;
-    stat2_label?: string;
-    stat3_value?: string;
-    stat3_label?: string;
-    is_player_of_the_week?: boolean;
-}
-
-export interface TOTWPlayer extends TOTWPlayerSlot {
-    id: string;
-    totw_id: string;
-    display_order: number;
-    player?: Player;
-}
-
-export interface TeamOfTheWeek {
-    id: string;
-    competition_id: string;
-    event_day_id?: string;
-    player_of_the_week_id?: string;
-    week_title: string;
-    headline: string;
-    sub_headline: string;
-    news_id?: string | null;
-    is_published: boolean;
-    published_at?: string;
-    created_at: string;
-    updated_at: string;
-    competition?: Competition;
-    news?: News | null;
-    players: TOTWPlayer[];
-}
-
-export interface TOTWListItem {
-    id: string;
-    competition_id: string;
-    competition_name?: string;
-    competition_logo?: string;
-    event_day_id?: string;
-    player_of_the_week_id?: string;
-    week_title: string;
-    headline: string;
-    sub_headline?: string;
-    news_id?: string | null;
-    is_published: boolean;
-    published_at?: string;
-    created_at: string;
-}
-
-export interface SaveTOTWPayload {
-    competition_id: string;
-    event_day_id?: string;
-    player_of_the_week_id?: string;
-    week_title: string;
-    headline: string;
-    sub_headline?: string;
-    news_id?: string | null;
-    news_article?: CreateNewsPayload;
-    is_published: boolean;
-    players: TOTWPlayerSlot[];
-}
-
 export const getLatestTOTW = async (competitionId?: string): Promise<TeamOfTheWeek> => {
     const res = await api.get<{ data: TeamOfTheWeek }>('/totw/latest', {
         params: competitionId ? { competition_id: competitionId } : undefined,
@@ -4300,74 +2178,6 @@ export const publishAdminTOTW = async (id: string, is_published: boolean): Promi
 };
 
 // ── Player of the Week fan vote ─────────────────────────────────────────────
-
-export type POTWPollStatus = 'scheduled' | 'open' | 'closed';
-
-export interface POTWNominee {
-    player_id: string;
-    name: string;
-    image?: string;
-    jersey_number: number;
-    position: string;
-    team_name?: string;
-    team_logo?: string;
-    display_order: number;
-    totw_position?: string;
-    rating: number;
-    stat1_value?: string;
-    stat1_label?: string;
-    stat2_value?: string;
-    stat2_label?: string;
-    stat3_value?: string;
-    stat3_label?: string;
-    /** Present only once results are visible (after the deadline, or for admins). */
-    votes?: number;
-    percent?: number;
-    is_winner: boolean;
-}
-
-export interface POTWPoll {
-    id: string;
-    totw_id: string;
-    week_title: string;
-    headline: string;
-    competition_id: string;
-    competition_name?: string;
-    totw_published: boolean;
-    status: POTWPollStatus;
-    opens_at: string;
-    closes_at: string;
-    /** Server clock at response time, so countdowns ignore a wrong device clock. */
-    server_time: string;
-    finalized_at?: string;
-    winner_player_id?: string;
-    winner_source?: 'VOTE' | 'ADMIN';
-    total_votes: number;
-    results_visible: boolean;
-    my_vote?: string;
-    nominees: POTWNominee[];
-    votes_by_day?: { day: string; votes: number }[];
-}
-
-export interface POTWPollSummary {
-    id: string;
-    totw_id: string;
-    week_title: string;
-    competition_name?: string;
-    status: POTWPollStatus;
-    opens_at: string;
-    closes_at: string;
-    total_votes: number;
-    winner_player_id?: string;
-    winner_name?: string;
-    winner_source?: 'VOTE' | 'ADMIN';
-}
-
-export interface SavePOTWPollPayload {
-    nominee_ids: string[];
-    opens_at?: string;
-    closes_at: string;
-}
 
 /** The newest open or closed vote; null when there has never been one. */
 export const getCurrentPOTWPoll = async (): Promise<POTWPoll | null> => {

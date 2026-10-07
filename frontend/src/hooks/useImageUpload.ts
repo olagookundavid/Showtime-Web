@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import imageCompression from 'browser-image-compression';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8089/api/v1';
+import { API_URL } from '../constants';
 
 interface PresignResponse {
   status: boolean;

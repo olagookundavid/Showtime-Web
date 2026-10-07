@@ -19,15 +19,15 @@ import {
   fantasyApi,
   fantasySeasonApi,
   formatKobo,
-  type LeaderboardEntry,
 } from "../../services/api";
+import type { LeaderboardEntry } from "../../types/fantasy/leagues";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   useFantasyLeaderboard,
   num,
   rankBadgeClass,
-  OVERALL,
 } from "../../hooks/useFantasyLeaderboard";
+import { OVERALL } from "../../constants";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 import { BackButton } from "../../components/ui/BackButton";
 import { Button, ButtonLink, IconButton, Select } from "../../components/ui";

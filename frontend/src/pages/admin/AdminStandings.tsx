@@ -5,8 +5,8 @@ import { LockClosedIcon, TrashIcon } from '@heroicons/react/24/outline';
 import {
     getStandings, getCompetitions,
     deleteStanding,
-    type Standing, type Competition,
 } from '../../services/api';
+import type { Standing, Competition } from '../../types/matches';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { DataTable, type Column } from '../../components/ui/DataTable';

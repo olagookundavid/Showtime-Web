@@ -8,15 +8,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { FemaleIcon } from '../icons/FemaleIcon';
 import { MaleIcon } from '../icons/MaleIcon';
-import {
-    fantasyApi,
-    formatFantasyPrice,
-    type FantasyGameweek,
-    type FantasyLineupPick,
-} from '../../services/api';
+import { fantasyApi, formatFantasyPrice } from '../../services/api';
+import type { FantasyGameweek, FantasyLineupPick, FantasyPlayerModalData } from '../../types/fantasy/core';
 import { Button, Field, Modal, Select } from '../ui';
 import { FantasyPitch } from './FantasyPitch';
-import { FantasyPlayerModal, type FantasyPlayerModalData } from './FantasyPlayerModal';
+import { FantasyPlayerModal } from './FantasyPlayerModal';
 
 interface FantasyTeamModalProps {
     isOpen: boolean;

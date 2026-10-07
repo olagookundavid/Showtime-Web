@@ -20,10 +20,8 @@ import { Spinner } from '../../components/ui/Spinner';
 import {
     fantasyWalletApi,
     formatKobo,
-    type PayoutRequest,
-    type PayoutStatus,
-    type WalletTransaction,
 } from '../../services/api';
+import type { PayoutRequest, PayoutStatus, WalletTransaction } from '../../types/fantasy/wallet';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
 import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';

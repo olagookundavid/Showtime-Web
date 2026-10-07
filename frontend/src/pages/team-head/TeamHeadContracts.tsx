@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { contractsApi, type ContractData, type Player } from '../../services/api';
+import { contractsApi } from '../../services/api';
+import type { ContractData } from '../../types/contracts';
+import type { Player } from '../../types/players';
 import toast from 'react-hot-toast';
 import {
     ArrowPathIcon,

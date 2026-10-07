@@ -20,8 +20,8 @@ import {
   fantasyApi,
   fantasyLeagueApi,
   formatKobo,
-  type FantasyLeague,
 } from "../../services/api";
+import type { FantasyLeague } from "../../types/fantasy/leagues";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader } from "../../components/ui/Loader";
 import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";

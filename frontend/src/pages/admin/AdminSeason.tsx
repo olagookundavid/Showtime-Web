@@ -19,9 +19,9 @@ import {
   updateSeasonMVP,
   deleteSeasonMVP,
   getPlayers,
-  type SeasonMVP,
-  type Player,
 } from "../../services/api";
+import type { SeasonMVP } from "../../types/teamOfSeason";
+import type { Player } from "../../types/players";
 import { Loader } from "../../components/ui/Loader";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";

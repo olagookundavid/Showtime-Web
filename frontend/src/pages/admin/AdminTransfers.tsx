@@ -2,9 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   adminTransfersApi,
   transfersApi,
-  type TransferData,
-  type TeamBudgetData,
 } from "../../services/api";
+import type { TransferData, TeamBudgetData } from "../../types/transfers";
 import toast from "react-hot-toast";
 import { BanknotesIcon, BoltIcon } from "@heroicons/react/24/outline";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";

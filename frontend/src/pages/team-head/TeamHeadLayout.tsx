@@ -7,7 +7,7 @@ import {
     TEAM_HEAD_HOME,
     TEAM_HEAD_NAV_SECTIONS,
 } from '../../components/team-head/teamHeadNav';
-import type { TeamHeadOutletContext, TeamHeadTeam } from '../../components/team-head/useTeamHeadTeam';
+import type { TeamHeadOutletContext, TeamHeadTeam } from '../../types/teamHead';
 
 const TeamHeadLayout = () => {
     // Surfaces how many players are waiting on this manager to confirm who they are.

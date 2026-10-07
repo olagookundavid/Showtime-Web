@@ -23,10 +23,10 @@ import {
   fantasySeasonApi,
   fantasyWalletApi,
   formatKobo,
-  type FantasyLineupPick,
-  type DashboardLeagueRow,
-  type LeaderboardEntry,
 } from "../../services/api";
+import type { FantasyLineupPick } from "../../types/fantasy/core";
+import type { DashboardLeagueRow } from "../../types/fantasy/dashboard";
+import type { LeaderboardEntry } from "../../types/fantasy/leagues";
 import { Loader } from "../../components/ui/Loader";
 import { formatStatDecimal } from "../../utils/formatters";
 import { useAuth } from "../../contexts/AuthContext";
@@ -35,15 +35,13 @@ import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 import { Spinner } from "../../components/ui/Spinner";
 import { Button, IconButton } from "../../components/ui";
-import {
-  FantasyPlayerModal,
-  type FantasyPlayerModalData,
-} from "../../components/fantasy/FantasyPlayerModal";
+import { FantasyPlayerModal } from "../../components/fantasy/FantasyPlayerModal";
+import type { FantasyPlayerModalData } from "../../types/fantasy/core";
 import {
   useFantasyLeaderboard,
   rankBadgeClass,
-  OVERALL,
 } from "../../hooks/useFantasyLeaderboard";
+import { OVERALL } from "../../constants";
 
 /** Everything off the wire is treated as possibly-missing: a brand new season
  *  legitimately has no team, no lineup, no leagues and no managers. */

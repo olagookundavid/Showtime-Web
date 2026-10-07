@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { transfersApi, contractsApi, getTeams, type TransferData, type TransferBidData, type TeamBudgetData, type TransferWindowData, type ContractData, type Team } from '../../services/api';
+import { transfersApi, contractsApi, getTeams } from '../../services/api';
+import type { Team } from '../../types/matches';
+import type { TransferData, TransferBidData, TeamBudgetData, TransferWindowData } from '../../types/transfers';
+import type { ContractData } from '../../types/contracts';
 import toast from 'react-hot-toast';
 import {
     ArrowsRightLeftIcon,

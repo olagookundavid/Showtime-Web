@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
-import { getMatches, type Match } from '../../services/api';
+import { getMatches } from '../../services/api';
+import type { Match } from '../../types/matches';
 import { Spinner } from '../ui';
 import { MatchCard } from './BracketView';
 

@@ -1,5 +1,6 @@
 import { type ButtonHTMLAttributes } from 'react';
-import { type HeroIcon, type Tone } from './Button';
+import { type HeroIcon, type Shape, type Tone } from './Button';
+import { shapeStyles } from './buttonStyles';
 
 interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
     icon: HeroIcon;
@@ -8,6 +9,8 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
     variant?: 'ghost' | 'secondary' | 'danger';
     /** `dark` for a button on a dark surface. */
     tone?: Tone;
+    /** `square` for sharp corners (store pages). */
+    shape?: Shape;
 }
 
 const variantStyles = {
@@ -28,6 +31,7 @@ export const IconButton = ({
     label,
     variant = 'ghost',
     tone = 'light',
+    shape = 'round',
     type = 'button',
     className = '',
     ...props
@@ -36,7 +40,7 @@ export const IconButton = ({
         type={type}
         aria-label={label}
         title={label}
-        className={`inline-flex items-center justify-center shrink-0 min-h-11 min-w-11 rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-sffl-red disabled:cursor-not-allowed disabled:opacity-50 ${tone === 'dark' ? darkVariantStyles[variant] : variantStyles[variant]} ${className}`}
+        className={`inline-flex items-center justify-center shrink-0 min-h-11 min-w-11 ${shapeStyles[shape]} transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-sffl-red disabled:cursor-not-allowed disabled:opacity-50 ${tone === 'dark' ? darkVariantStyles[variant] : variantStyles[variant]} ${className}`}
         {...props}
     >
         <Icon className="w-5 h-5" aria-hidden="true" />

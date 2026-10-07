@@ -11,7 +11,8 @@ import {
     NoSymbolIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { teamHeadClaimsApi, type ClaimCodeData, type PlayerClaimData } from '../../services/api';
+import { teamHeadClaimsApi } from '../../services/api';
+import type { ClaimCodeData, PlayerClaimData } from '../../types/claims';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { Button, Field, Tabs, Textarea } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';

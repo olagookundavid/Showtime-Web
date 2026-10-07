@@ -4,12 +4,10 @@ import { Link } from "react-router-dom";
 import {
   getPublicMatchStats,
   getMatchPlays,
-  type Match,
-  type MatchTeamSheet,
-  type TeamSheetPlayer,
-  type PlayerStat,
-  type GamePlay,
 } from "../../services/api";
+import type { Match, MatchTeamSheet, TeamSheetPlayer, UnifiedMvpResult } from "../../types/matches";
+import type { GamePlay } from "../../types/playByPlay";
+import type { PlayerStat } from "../../types/stats";
 import { Button, LightboxImage } from "../ui";
 import { DataTable } from "../ui/DataTable";
 import {
@@ -72,19 +70,6 @@ function calculatePlayerFantasyPoints(s: PlayerStat): number {
     defXpTds +
     safety;
   return Math.max(0, Math.round(total * 10) / 10);
-}
-
-interface UnifiedMvpResult {
-  playerId: string;
-  playerName: string;
-  playerImage?: string;
-  playerJerseyNumber?: number;
-  playerPosition?: string;
-  teamName?: string;
-  teamId?: string;
-  fp: number;
-  rating?: number | null;
-  statSummary?: string;
 }
 
 /**

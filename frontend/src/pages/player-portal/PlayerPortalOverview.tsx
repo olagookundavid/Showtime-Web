@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, ChevronRightIcon, EnvelopeIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { playerPortalApi, type ContractData } from '../../services/api';
+import { playerPortalApi } from '../../services/api';
+import type { ContractData } from '../../types/contracts';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { RunnerIcon } from '../../components/icons/RunnerIcon';
 import { Button } from '../../components/ui';
 import { Spinner } from '../../components/ui/Spinner';
 import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
-import { OfferResponseDialog, type OfferResponse } from '../../components/player-portal/OfferResponseDialog';
+import { OfferResponseDialog } from '../../components/player-portal/OfferResponseDialog';
+import type { OfferResponse } from '../../types/contracts';
 import { PLAYER_PORTAL_CONTRACTS_PATH } from '../../components/player-portal/playerPortalNav';
 import { apiError } from '../../components/player-portal/apiError';
 

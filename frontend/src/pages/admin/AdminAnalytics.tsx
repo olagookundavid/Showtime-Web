@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Loader } from '../../components/ui/Loader';
 import { DataTable, type Column } from '../../components/ui/DataTable';
-import { getAdminAnalytics, type TicketResponse } from '../../services/api';
+import { getAdminAnalytics } from '../../services/api';
+import type { TicketResponse } from '../../types/tickets';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTheme } from '../../contexts/ThemeContext';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';

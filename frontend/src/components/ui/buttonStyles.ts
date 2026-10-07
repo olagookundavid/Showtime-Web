@@ -1,8 +1,10 @@
 export type Variant = 'primary' | 'navy' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'link' | 'success' | 'info' | 'warning';
 export type Size = 'sm' | 'md' | 'lg';
 export type Tone = 'light' | 'dark';
+/** `square` drops the corner radius for pages that use sharp, catalogue-style edges (the store). */
+export type Shape = 'round' | 'square' | 'circle';
 
-const baseStyles = 'inline-flex items-center justify-center gap-2 min-h-11 font-bold rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 focus:outline-none focus:ring-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100';
+const baseStyles = 'inline-flex items-center justify-center gap-2 min-h-11 font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 focus:outline-none focus:ring-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100';
 
 const variantStyles: Record<Variant, string> = {
     primary: 'bg-sffl-red hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700 focus:ring-red-500',
@@ -38,6 +40,12 @@ export const iconSize: Record<Size, string> = {
     lg: 'w-5 h-5'
 };
 
+export const shapeStyles: Record<Shape, string> = {
+    round: 'rounded-lg',
+    square: 'rounded-none',
+    circle: 'rounded-full',
+};
+
 /** Button classes for an element that is not a `<button>` (an external `<a>`). */
-export const buttonClass = (variant: Variant, size: Size, fullWidth: boolean, className: string, tone: Tone = 'light') =>
-    `${baseStyles} ${(tone === 'dark' && darkVariantStyles[variant]) || variantStyles[variant]} ${sizeStyles[size]} ${fullWidth ? 'w-full' : ''} ${className}`;
+export const buttonClass = (variant: Variant, size: Size, fullWidth: boolean, className: string, tone: Tone = 'light', shape: Shape = 'round') =>
+    `${baseStyles} ${shapeStyles[shape]} ${(tone === 'dark' && darkVariantStyles[variant]) || variantStyles[variant]} ${sizeStyles[size]} ${fullWidth ? 'w-full' : ''} ${className}`;

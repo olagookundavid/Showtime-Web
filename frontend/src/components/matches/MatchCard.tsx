@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { CalendarDaysIcon, TicketIcon } from "@heroicons/react/24/outline";
-import type { Match } from "../../services/api";
+import type { Match } from "../../types/matches";
 import { generateGoogleCalendarLink } from "../../utils/calendarUtils";
 import { formatMatchTime, formatMatchDate } from "../../utils/dateUtils";
 import { Button, ButtonLink, LightboxImage } from "../ui";

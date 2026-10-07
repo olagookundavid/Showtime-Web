@@ -13,13 +13,11 @@ import {
   getCompetitions,
   getAllEventDays,
   getPlayers,
-  type Badge,
-  type PlayerBadgeAward,
-  type CreateBadgePayload,
-  type Competition,
-  type EventDayResponse,
-  type Player,
 } from "../../services/api";
+import type { Competition } from "../../types/matches";
+import type { Player } from "../../types/players";
+import type { Badge, PlayerBadgeAward, CreateBadgePayload } from "../../types/badges";
+import type { EventDayResponse } from "../../types/tickets";
 import { Loader } from "../../components/ui/Loader";
 import { Spinner } from "../../components/ui/Spinner";
 import { ImageUploadField } from "../../components/ui/ImageUploadField";

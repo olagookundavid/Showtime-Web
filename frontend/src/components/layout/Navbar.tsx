@@ -5,7 +5,6 @@ import {
   Bars3Icon,
   ChevronDownIcon,
   MoonIcon,
-  ShoppingCartIcon,
   SunIcon,
   Squares2X2Icon,
   ShoppingBagIcon,
@@ -18,7 +17,7 @@ import { NotificationBell } from "./NotificationBell";
 import { getInitials } from "../../utils/formatters";
 import { IconButton } from "../ui";
 
-type Menu = "league" | "stats" | "awards" | "store" | "user";
+type Menu = "league" | "stats" | "awards" | "user";
 
 const PORTAL_LINKS: Record<string, { to: string; label: string }> = {
   admin: { to: "/admin", label: "Admin" },
@@ -308,61 +307,15 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               Fantasy
             </Link>
 
-            {/* Store */}
-            <div
-              className="relative group"
-              onMouseEnter={() => openOnHover("store")}
-              onMouseLeave={closeOnLeave}
+            {/* Store: one link into the store layout, which holds the
+                Gameday Tickets and Showtime Store tabs. */}
+            <Link
+              to="/store"
+              aria-current={storeActive ? "page" : undefined}
+              className={navItem(storeActive)}
             >
-              <button
-                type="button"
-                onClick={() => toggleMenu("store")}
-                aria-expanded={openMenu === "store"}
-                aria-haspopup="true"
-                className={`${navItem(storeActive)} gap-1 uppercase aria-expanded:after:scale-x-100`}
-              >
-                STORE
-                <ChevronDownIcon className="w-3 h-3" aria-hidden="true" />
-              </button>
-
-              {openMenu === "store" && (
-                <div className="absolute top-full left-0 w-48 z-50 pt-2">
-                  <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
-                    <Link
-                      to="/tickets"
-                      aria-current={isActive("/tickets") ? "page" : undefined}
-                      className={dropdownItem(isActive("/tickets"))}
-                    >
-                      Gameday Tickets
-                    </Link>
-                    <Link
-                      to="/store"
-                      aria-current={
-                        isActive("/store") && !isActive("/store/orders")
-                          ? "page"
-                          : undefined
-                      }
-                      className={dropdownItem(
-                        isActive("/store") && !isActive("/store/orders"),
-                      )}
-                    >
-                      Merch Store
-                    </Link>
-                    {isAuthenticated && (
-                      <Link
-                        to="/store/orders"
-                        aria-current={
-                          isActive("/store/orders") ? "page" : undefined
-                        }
-                        className={dropdownItem(isActive("/store/orders"))}
-                      >
-                        My Orders
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+              Store
+            </Link>
           </div>
 
           {/* Actions - Right: cart icon and the account dropdown. */}
@@ -373,7 +326,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
               className="relative min-h-11 min-w-11 flex items-center justify-center text-white hover:text-sffl-red transition-colors"
             >
-              <ShoppingCartIcon className="w-6 h-6" aria-hidden="true" />
+              <ShoppingBagIcon className="w-6 h-6" aria-hidden="true" />
               {cartCount > 0 && (
                 <span className="absolute top-0.5 right-0 bg-sffl-red text-white text-[10px] font-black rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1">
                   {cartCount > 99 ? "99+" : cartCount}
@@ -506,7 +459,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               aria-label={`Cart, ${cartCount} items`}
               className="relative min-h-11 min-w-11 flex items-center justify-center text-white hover:text-sffl-red transition-colors"
             >
-              <ShoppingCartIcon className="w-6 h-6" aria-hidden="true" />
+              <ShoppingBagIcon className="w-6 h-6" aria-hidden="true" />
               {cartCount > 0 && (
                 <span className="absolute top-0.5 right-0.5 bg-sffl-red text-white text-[9px] font-black rounded-full min-w-4 h-4 flex items-center justify-center px-1 shadow-md">
                   {cartCount > 99 ? "99+" : cartCount}

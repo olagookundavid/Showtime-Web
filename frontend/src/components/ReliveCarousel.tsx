@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getRelivePlaylist, type ReliveVideo } from "../services/api";
+import { getRelivePlaylist } from "../services/api";
+import type { ReliveVideo } from "../types/relive";
 import { Loader } from "./ui/Loader";
 import { Modal } from "./ui";
 import { buttonClass } from "./ui/buttonStyles";

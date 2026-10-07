@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExclamationTriangleIcon, PaperAirplaneIcon, TicketIcon } from '@heroicons/react/24/outline';
-import { getTeamAllocations, issueTeamTicket, getPlayers, type Player, type TeamTicketAllocation } from '../../services/api';
+import { getTeamAllocations, issueTeamTicket, getPlayers } from '../../services/api';
+import type { TeamTicketAllocation } from '../../types/tickets';
+import type { Player } from '../../types/players';
 import toast from 'react-hot-toast';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 import { Button, Field, Input, Select } from '../../components/ui';

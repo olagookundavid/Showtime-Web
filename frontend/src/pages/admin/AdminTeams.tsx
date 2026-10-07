@@ -15,17 +15,14 @@ import {
   getAdminTeams,
   getManagerCandidates,
   getPlayers,
-  type Team,
 } from "../../services/api";
+import type { Team } from "../../types/matches";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
 import { Button, LightboxImage } from "../../components/ui";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import {
-  MANAGER_CANDIDATES_KEY,
-  MAX_MAIN_SQUAD,
-  useTeamActions,
-} from "../../components/admin/useTeamActions";
+import { useTeamActions } from "../../components/admin/useTeamActions";
+import { MANAGER_CANDIDATES_KEY, MAX_MAIN_SQUAD } from "../../constants";
 import { TeamActionDialogs } from "../../components/admin/TeamActionDialogs";
 import { TeamStatusBadge } from "../../components/admin/TeamStatusBadge";
 import { getApiErrorMessage } from "../../utils/apiError";

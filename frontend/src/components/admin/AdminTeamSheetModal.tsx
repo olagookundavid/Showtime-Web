@@ -15,10 +15,10 @@ import {
   getPlayers,
   saveTeamSheet,
   createPlayer,
-  type Match,
-  type Player,
-  type TeamSheetPlayer,
 } from "../../services/api";
+import type { Match, TeamSheetPlayer } from "../../types/matches";
+import type { Player } from "../../types/players";
+import { PLAYER_POSITIONS_WITH_UNASSIGNED } from "../../constants";
 import { Button, Checkbox, IconButton, Input, Modal, Select, Tabs } from "../ui";
 import { Spinner } from "../ui/Spinner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -34,18 +34,6 @@ interface QuickAddForm {
   position: string;
   jersey_number: string;
 }
-
-// Center is rated identically to Receiver (same formula) — see
-// backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = [
-  "Defender",
-  "Receiver",
-  "Center",
-  "QB",
-  "Rusher",
-  "Allrounder",
-  "-",
-];
 
 const emptyQuickAdd: QuickAddForm = {
   name: "",
@@ -617,7 +605,7 @@ export const AdminTeamSheetModal = ({
                             className="sm:col-span-2"
                           >
                             <option value="">Position *</option>
-                            {POSITIONS.map((pos) => (
+                            {PLAYER_POSITIONS_WITH_UNASSIGNED.map((pos) => (
                               <option key={pos} value={pos}>
                                 {pos === "-" ? "- (No Role / Unassigned)" : pos}
                               </option>

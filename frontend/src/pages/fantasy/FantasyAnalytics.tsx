@@ -11,7 +11,8 @@ import {
   ArrowPathIcon,
   FireIcon,
 } from "@heroicons/react/24/outline";
-import { fantasyApi, type FantasyLineupPick } from "../../services/api";
+import { fantasyApi } from "../../services/api";
+import type { FantasyLineupPick } from "../../types/fantasy/core";
 import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
 import { Button, Select } from "../../components/ui";
 import { DataTable } from "../../components/ui/DataTable";

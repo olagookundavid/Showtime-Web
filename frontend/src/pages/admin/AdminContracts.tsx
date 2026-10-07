@@ -3,8 +3,8 @@ import { isAxiosError } from "axios";
 import {
   adminTransfersApi,
   contractsApi,
-  type ContractData,
 } from "../../services/api";
+import type { ContractData } from "../../types/contracts";
 import toast from "react-hot-toast";
 import {
   CheckBadgeIcon,

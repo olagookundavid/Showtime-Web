@@ -100,4 +100,11 @@ Buttons, form fields and dialogs come from the shared primitives in `src/compone
 - **Pointer cursor:** set globally in `src/index.css` for buttons, selects, checkboxes and radios. Disabled controls show `not-allowed`. Don't add `cursor-pointer` per element.
 - **Stays raw:** radios (no primitive yet), selectable tiles and cards, list and picker rows, pitch nodes and their corner remove badges, accordion headers, table-cell links, inline text links, the OTP digit boxes, the honeypot fields in the newsletter form, borderless textareas inside a card, image overlay chips and carousel arrows. They keep page classes, but must still show the pointer cursor.
 - **On a dark surface** (hero bars, the navbar, dark modal headers): pass `tone="dark"` to Button, ButtonLink, IconButton, Input, Select, Textarea, Field, Checkbox or Tabs. Use it for every control on the surface.
+- **Sharp corners:** `shape="square"` on Button, ButtonLink, IconButton, Input, Select, Textarea and Modal. The store uses it; the default is round, so other pages don't change.
 - **Text in controls** is `text-base` on phones and `sm:text-sm` above, because iOS zooms into smaller text. The `formStyles.ts` base class already does this.
+
+## 8. Types
+
+Every domain/API type lives in `src/types/<domain>.ts` (fantasy module: `src/types/fantasy/<domain>.ts`, e.g. `core`, `wallet`, `squad`). Never declare one inline in a component or page, and never in `services/api.ts` — that file only imports types back from `src/types/` for its own function signatures. Add a new domain file when none fits; cross-domain references import from the other domain file (e.g. `types/badges.ts` imports `Player` from `types/players.ts`).
+
+**Stays local, not moved:** `*Props` interfaces; local UI-state unions whose only job is one component's `useState` (`PendingAction`, `FormState`, `EditorMode`, tab/filter state like `UnitFilter`); client-computed view types derived from already-fetched data (flattened table rows, tallies); hardcoded static content shapes (staff bios, FAQ entries).

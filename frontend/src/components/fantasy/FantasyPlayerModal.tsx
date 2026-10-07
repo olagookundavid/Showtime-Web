@@ -16,29 +16,10 @@ import { DataTable, type Column } from "../ui/DataTable";
 import {
   fantasyApi,
   formatFantasyPrice,
-  type PlayerPriceHistoryItem,
 } from "../../services/api";
+import type { PlayerPriceHistoryItem } from "../../types/fantasy/reports";
+import type { FantasyPlayerModalData } from "../../types/fantasy/core";
 import { formatStatDecimal, formatStatNumber } from "../../utils/formatters";
-
-export interface FantasyPlayerModalData {
-  playerId: string;
-  playerName: string;
-  playerImage?: string | null;
-  position?: string;
-  gender?: string;
-  teamName?: string;
-  teamShortName?: string;
-  teamLogo?: string;
-  price?: number;
-  currentPrice?: number;
-  purchasePrice?: number;
-  points?: number;
-  totalPoints?: number;
-  rating?: number;
-  ownedByPct?: number;
-  gameweekId?: string;
-  gameweekNumber?: number;
-}
 
 interface FantasyPlayerModalProps {
   isOpen: boolean;

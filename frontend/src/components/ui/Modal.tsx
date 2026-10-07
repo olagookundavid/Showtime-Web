@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { IconButton } from "./IconButton";
+import type { Shape } from "./Button";
 
 type Props = {
   open: boolean;
@@ -13,6 +14,8 @@ type Props = {
   /** Action buttons pinned below the body. Put Cancel first and the primary action last. */
   footer?: React.ReactNode;
   maxWidth?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
+  /** `square` for sharp corners (store pages). */
+  shape?: Shape;
 };
 
 const widthClass: Record<NonNullable<Props["maxWidth"]>, string> = {
@@ -23,6 +26,10 @@ const widthClass: Record<NonNullable<Props["maxWidth"]>, string> = {
   "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",
 };
+
+// Open modals, oldest first. Escape closes only the newest, so a dialog opened
+// from inside another one (a policy from the quick view) doesn't close both.
+const openModals: string[] = [];
 
 // Lightweight modal: dark backdrop, scrollable inner card, ESC + click-outside
 // to close. Rendered through a portal so it escapes whatever stacking context
@@ -35,21 +42,31 @@ export const Modal = ({
   children,
   footer,
   maxWidth = "xl",
+  shape = "round",
 }: Props) => {
+  const id = useId();
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose?.();
-    };
-    document.addEventListener("keydown", onKey);
+    openModals.push(id);
     // Prevent background scroll while the modal is up.
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", onKey);
+      const index = openModals.indexOf(id);
+      if (index >= 0) openModals.splice(index, 1);
       document.body.style.overflow = prevOverflow;
     };
-  }, [open, onClose]);
+  }, [open, id]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && openModals[openModals.length - 1] === id) onClose?.();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose, id]);
 
   if (!open) return null;
 
@@ -64,7 +81,7 @@ export const Modal = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
+        className={`bg-white dark:bg-gray-800 ${shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
       >
         {(title || subtitle || onClose) && (
           <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">

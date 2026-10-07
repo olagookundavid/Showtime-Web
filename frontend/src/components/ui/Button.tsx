@@ -1,9 +1,9 @@
 import { type ButtonHTMLAttributes, type ComponentType, type ReactNode } from 'react';
 import { Link, type LinkProps } from 'react-router-dom';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
-import { buttonClass, iconSize, type Size, type Tone, type Variant } from './buttonStyles';
+import { buttonClass, iconSize, type Shape, type Size, type Tone, type Variant } from './buttonStyles';
 
-export type { Tone } from './buttonStyles';
+export type { Shape, Tone } from './buttonStyles';
 
 export type HeroIcon = ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
 
@@ -12,6 +12,8 @@ interface SharedProps {
     size?: Size;
     /** `dark` for buttons on a dark surface (hero bars, dark headers). */
     tone?: Tone;
+    /** `square` for sharp corners (store pages). */
+    shape?: Shape;
     /** Heroicon shown beside the label. Use IconButton when there is no label. */
     icon?: HeroIcon;
     iconPosition?: 'left' | 'right';
@@ -29,6 +31,7 @@ export const Button = ({
     variant = 'primary',
     size = 'md',
     tone = 'light',
+    shape = 'round',
     icon: Icon,
     iconPosition = 'left',
     loading = false,
@@ -51,7 +54,7 @@ export const Button = ({
             type={type}
             disabled={disabled || loading}
             aria-busy={loading || undefined}
-            className={buttonClass(variant, size, fullWidth, className, tone)}
+            className={buttonClass(variant, size, fullWidth, className, tone, shape)}
             {...props}
         >
             {iconPosition === 'left' && iconNode}
@@ -67,6 +70,7 @@ export const ButtonLink = ({
     variant = 'primary',
     size = 'md',
     tone = 'light',
+    shape = 'round',
     icon: Icon,
     iconPosition = 'left',
     fullWidth = false,
@@ -78,7 +82,7 @@ export const ButtonLink = ({
     const iconNode = Icon ? <Icon className={iconClass} aria-hidden="true" /> : null;
 
     return (
-        <Link to={to} className={buttonClass(variant, size, fullWidth, className, tone)} {...props}>
+        <Link to={to} className={buttonClass(variant, size, fullWidth, className, tone, shape)} {...props}>
             {iconPosition === 'left' && iconNode}
             {children}
             {iconPosition === 'right' && iconNode}

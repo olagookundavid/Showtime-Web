@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { adminListReferrals, type ReferralStatsResponse } from '../../services/api';
+import { adminListReferrals } from '../../services/api';
+import type { ReferralStatsResponse } from '../../types/tickets';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 

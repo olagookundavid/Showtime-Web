@@ -36,7 +36,6 @@ import {
   ChartBarIcon,
   ChartPieIcon,
   TrophyIcon,
-  ShoppingCartIcon,
   UserCircleIcon,
   ClipboardDocumentListIcon,
   ArrowRightOnRectangleIcon,
@@ -53,6 +52,9 @@ export const Layout = () => {
   // Folds away while reading down the page. It also folds while a dialog is
   // open, but that half is done in CSS — see .chrome-carousel in index.css.
   const hideMatchStrip = useHideOnScrollDown();
+  // The store has no use for match scores, so its pages leave the strip out.
+  const isStorePage =
+    location.pathname === "/store" || location.pathname.startsWith("/store/");
 
   // The sticky chrome's height, published as a CSS variable so dialogs can
   // open below it instead of being cut off by it. It is measured rather than
@@ -122,28 +124,31 @@ export const Layout = () => {
                 this wrapper the outer sticky is what actually pins. */}
       <div ref={chromeRef} className="sticky top-0 z-50">
         <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
-        {/* Reading down the page, the scores roll up out of the way and
+        {/* Store pages skip the strip entirely, so it is not mounted there. */}
+        {!isStorePage && (
+          /* Reading down the page, the scores roll up out of the way and
                     give the content back its room; the first flick upward brings
                     them straight back. The 0fr/1fr grid animates to the row's
-                    own height, so nothing here has to know how tall it is. */}
-        <div
-          className={`chrome-carousel grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
-            hideMatchStrip
-              ? "grid-rows-[0fr] opacity-0"
-              : "grid-rows-[1fr] opacity-100"
-          }`}
-          // Collapsed, the tiles are still in the DOM: `inert` keeps
-          // them out of the tab order and off screen readers, so
-          // nobody tabs into a row they cannot see.
-          inert={hideMatchStrip ? true : undefined}
-        >
-          {/* min-w-0 lets this grid item shrink to the viewport. Without it the
-              column grows to the tiles' combined width, the carousel is sized
-              to its own content, and there is nothing left to scroll. */}
-          <div className="min-h-0 min-w-0">
-            <LatestMatchesCarousel />
+                    own height, so nothing here has to know how tall it is. */
+          <div
+            className={`chrome-carousel grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+              hideMatchStrip
+                ? "grid-rows-[0fr] opacity-0"
+                : "grid-rows-[1fr] opacity-100"
+            }`}
+            // Collapsed, the tiles are still in the DOM: `inert` keeps
+            // them out of the tab order and off screen readers, so
+            // nobody tabs into a row they cannot see.
+            inert={hideMatchStrip ? true : undefined}
+          >
+            {/* min-w-0 lets this grid item shrink to the viewport. Without it the
+                column grows to the tiles' combined width, the carousel is sized
+                to its own content, and there is nothing left to scroll. */}
+            <div className="min-h-0 min-w-0">
+              <LatestMatchesCarousel />
+            </div>
           </div>
-        </div>
+        )}
       </div>
       {/* Home-only info strip sits below the sticky chrome and scrolls
                 away with the rest of the page. */}
@@ -233,7 +238,7 @@ export const Layout = () => {
                         className="relative p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sffl-navy dark:text-white hover:text-sffl-red transition-colors shrink-0"
                         aria-label={`Cart, ${cartCount} items`}
                       >
-                        <ShoppingCartIcon className="w-5 h-5" />
+                        <ShoppingBagIcon className="w-5 h-5" />
                         {cartCount > 0 && (
                           <span className="absolute -top-1.5 -right-1.5 bg-sffl-red text-white text-[10px] font-black rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1">
                             {cartCount > 99 ? "99+" : cartCount}
@@ -370,7 +375,7 @@ export const Layout = () => {
                       className="relative p-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sffl-navy dark:text-white hover:text-sffl-red transition-colors shrink-0"
                       aria-label={`Cart, ${cartCount} items`}
                     >
-                      <ShoppingCartIcon className="w-5 h-5" />
+                      <ShoppingBagIcon className="w-5 h-5" />
                       {cartCount > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 bg-sffl-red text-white text-[10px] font-black rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1">
                           {cartCount > 99 ? "99+" : cartCount}
@@ -562,7 +567,7 @@ export const Layout = () => {
                     </div>
                     <div className="min-w-0">
                       <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
-                        Merch Store
+                        Showtime Store
                       </span>
                       <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
                         Kits & Official Merch

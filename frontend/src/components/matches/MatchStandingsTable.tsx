@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRightIcon, TrophyIcon } from "@heroicons/react/24/outline";
-import type { Standing } from "../../services/api";
+import type { Standing } from "../../types/matches";
 import { formatStatNumber } from "../../utils/formatters";
 import { ButtonLink } from "../ui";
 import { DataTable, type Column } from "../ui/DataTable";

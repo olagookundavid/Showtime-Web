@@ -11,12 +11,8 @@ import {
     MagnifyingGlassIcon,
     XMarkIcon,
 } from '@heroicons/react/24/outline';
-import {
-    discountsApi,
-    type DiscountAudience,
-    type DiscountCode,
-    type DiscountTarget,
-} from '../../services/api';
+import { discountsApi } from '../../services/api';
+import type { DiscountAudience, DiscountCode, DiscountTarget } from '../../types/discounts';
 import { Button, Checkbox, Field, IconButton, Input, Modal, Select } from '../ui';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';

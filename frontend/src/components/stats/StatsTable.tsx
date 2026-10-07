@@ -4,15 +4,12 @@ import {
   DeletedPlayerName,
   DELETED_TITLE,
 } from "../domain/DeletedPlayer";
-import type { PlayerStat, TeamStat } from "../../services/api";
+import type { PlayerStat, TeamStat } from "../../types/stats";
 import { Link } from "react-router-dom";
 import { LightboxImage, Spinner } from "../ui";
 import { DataTable, type Column } from "../ui/DataTable";
-import {
-  normalizePosition,
-  ALL_STAT_DEFINITIONS,
-  POSITION_STAT_KEYS,
-} from "../../utils/positionStatsMatrix";
+import { normalizePosition } from "../../utils/positionStatsMatrix";
+import { ALL_STAT_DEFINITIONS, POSITION_STAT_KEYS } from "../../constants";
 import { formatStatNumber } from "../../utils/formatters";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 

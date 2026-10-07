@@ -12,18 +12,18 @@ import {
 import {
   getManagerCandidates,
   getTeamManagers,
-  type Team,
-  type TeamManager,
 } from "../../services/api";
+import type { Team } from "../../types/matches";
+import type { TeamManager } from "../../types/adminTeams";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ConfirmSummary } from "../ui/ConfirmSummary";
 import { Spinner } from "../ui/Spinner";
 import { Button, Field, ImageUploadField, Input, Modal, Select } from "../ui";
 import {
-  MANAGER_CANDIDATES_KEY,
   teamManagersKey,
   type TeamActionDialogsProps,
 } from "./useTeamActions";
+import { MANAGER_CANDIDATES_KEY } from "../../constants";
 
 const NO_MANAGERS: TeamManager[] = [];
 

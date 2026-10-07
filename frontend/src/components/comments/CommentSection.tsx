@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  commentsApi,
-  COMMENTS_PAGE_SIZE,
-  type CommentData,
-} from "../../services/api";
+import { commentsApi } from "../../services/api";
+import { COMMENTS_PAGE_SIZE } from "../../constants";
+import type { CommentData } from "../../types/comments";
 import { AuthRequiredDialog } from "../auth/AuthRequiredDialog";
 import toast from "react-hot-toast";
 import { Button, IconButton, Textarea } from "../ui";

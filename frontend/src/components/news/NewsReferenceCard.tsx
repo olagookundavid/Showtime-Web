@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { getNewsBySlug, type News } from "../../services/api";
+import { getNewsBySlug } from "../../services/api";
+import type { News } from "../../types/news";
 import { parseYouTubeId, youTubeThumbnailUrl } from "../../utils/newsContent";
 
 interface NewsReferenceCardProps {

@@ -8,7 +8,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { FootballIcon } from "../icons/FootballIcon";
 import { useQuery } from "@tanstack/react-query";
-import { getMatches, type Match } from "../../services/api";
+import { getMatches } from "../../services/api";
+import type { Match, BracketColumn } from "../../types/matches";
 import { Spinner } from "../ui";
 
 /**
@@ -28,20 +29,6 @@ interface BracketViewProps {
   compact?: boolean;
   viewAllLink?: string;
 }
-
-export interface BracketColumn {
-  title: string;
-  matches: Match[];
-}
-
-// The fixed knockout stages, in playing order. `value` is what's stored in the
-// match's `round`; `label` is what the admin picks in the form.
-export const KNOCKOUT_STAGES = [
-  { value: "Wildcard", label: "Wildcard" },
-  { value: "Playoff 1", label: "Playoffs 1" },
-  { value: "Playoff 2", label: "Playoffs 2" },
-  { value: "Bowl", label: "Bowl — Final" },
-] as const;
 
 // Friendly column titles per stage rank.
 const STAGE_TITLES = ["Wildcards", "Playoffs 1", "Playoffs 2", "Bowl"];

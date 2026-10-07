@@ -15,8 +15,8 @@ import {
     updateOrderFulfillment,
     verifyAdminStoreOrder,
     cancelAdminStoreOrder,
-    type Order,
 } from '../../services/api';
+import type { Order } from '../../types/store';
 import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';

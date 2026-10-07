@@ -8,8 +8,8 @@ import {
   getStatDates,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-  type PlayerBadge,
 } from "../../services/api";
+import type { PlayerBadge } from "../../types/badges";
 import { Loader } from "../../components/ui/Loader";
 import { Spinner } from "../../components/ui";
 import { useSearchParams } from "react-router-dom";

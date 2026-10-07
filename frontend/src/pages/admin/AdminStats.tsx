@@ -8,12 +8,10 @@ import {
   upsertPlayerStat,
   getPlayerStatById,
   recomputeAllStats,
-  type Competition,
-  type Match,
-  type TeamSheetPlayer,
-  type BulkRecomputeResult,
-  type UpsertPlayerStatPayload,
 } from "../../services/api";
+import type { Competition, Match, TeamSheetPlayer } from "../../types/matches";
+import type { BulkRecomputeResult } from "../../types/playByPlay";
+import type { UpsertPlayerStatPayload } from "../../types/stats";
 import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
@@ -29,10 +27,8 @@ import { Button, Checkbox, Field, Input, LightboxImage, Modal, Select } from "..
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
 import { usePermissions } from "../../hooks/usePermissions";
-import {
-  ALL_STAT_DEFINITIONS,
-  getStatsForPosition,
-} from "../../utils/positionStatsMatrix";
+import { getStatsForPosition } from "../../utils/positionStatsMatrix";
+import { ALL_STAT_DEFINITIONS } from "../../constants";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 const STAT_FIELDS = ALL_STAT_DEFINITIONS.filter((s) => !s.teamOnly);

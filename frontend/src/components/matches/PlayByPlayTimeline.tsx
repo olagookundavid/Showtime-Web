@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { API_URL, getMatchPlays, type GamePlay } from '../../services/api';
+import { getMatchPlays } from '../../services/api';
+import { API_URL } from '../../constants';
+import type { GamePlay } from '../../types/playByPlay';
 import { Spinner } from '../ui';
 import { ClockIcon, FlagIcon } from '@heroicons/react/24/outline';
 import { FootballIcon } from '../icons/FootballIcon';
