@@ -5,9 +5,14 @@ import {
   getPublicMatchStats,
   getMatchPlays,
 } from "../../services/api";
-import type { Match, MatchTeamSheet, TeamSheetPlayer, UnifiedMvpResult } from "../../types/matches";
-import type { GamePlay } from "../../types/playByPlay";
-import type { PlayerStat } from "../../types/stats";
+import type {
+  Match,
+  MatchTeamSheet,
+  TeamSheetPlayer,
+  UnifiedMvpResult,
+  GamePlay,
+  PlayerStat,
+} from "../../types";
 import { Button, LightboxImage } from "../ui";
 import { DataTable } from "../ui/DataTable";
 import {
@@ -21,7 +26,7 @@ import {
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { FootballIcon } from "../icons/FootballIcon";
 import { Spinner } from "../ui/Spinner";
-import { formatStatNumber, formatStatDecimal } from "../../utils/formatters";
+import { formatStatNumber, formatStatDecimal } from "../../utils";
 
 // Calibrated SFFL Fantasy scoring arithmetic (domain.FantasyWeights)
 function calculatePlayerFantasyPoints(s: PlayerStat): number {

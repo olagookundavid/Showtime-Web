@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UserPlusIcon } from '@heroicons/react/24/outline';
-import { Button, Field, Input, Select } from '../../components/ui';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Button, Field, Input, Select, ConfirmDialog, ConfirmSummary } from '../../components';
 import { claimApi } from '../../services/api';
-import type { ClaimablePlayerData, VerifyClaimCodeData } from '../../types/claims';
+import type { ClaimablePlayerData, VerifyClaimCodeData } from '../../types';
 import { PLAYER_POSITIONS as CLAIM_POSITIONS } from '../../constants';
 
 /**

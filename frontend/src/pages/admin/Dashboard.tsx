@@ -9,10 +9,8 @@ import {
     TicketIcon,
     UsersIcon,
 } from '@heroicons/react/24/outline';
-import { Loader } from '../../components/ui/Loader';
-import { FootballIcon } from '../../components/icons/FootballIcon';
+import { Loader, FootballIcon, DashboardPageHeader } from '../../components';
 import { getAdminAnalytics } from '../../services/api';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 // Simple Nigerian Naira formatter
 const formatNaira = (amount: number) => {

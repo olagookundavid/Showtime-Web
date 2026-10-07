@@ -3,15 +3,10 @@ import {
   adminTransfersApi,
   transfersApi,
 } from "../../services/api";
-import type { TransferData, TeamBudgetData } from "../../types/transfers";
+import type { TransferData, TeamBudgetData } from "../../types";
 import toast from "react-hot-toast";
 import { BanknotesIcon, BoltIcon } from "@heroicons/react/24/outline";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { Button, Field, Input } from "../../components/ui";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Button, Field, Input, DashboardPageHeader } from "../../components";
 
 const DEFAULT_BUDGET = "15000000";
 

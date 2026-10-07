@@ -4,7 +4,7 @@ import {
   getSeasonGraphics,
   getSeasonMVPs,
 } from "../../services/api";
-import type { SeasonGraphic } from "../../types/teamOfSeason";
+import type { SeasonGraphic } from "../../types";
 
 // Homepage seasonal block shown directly under the hero: two "Team of the
 // Season" graphics (offense / defense) and a "Meet our MVPs" grid. Renders

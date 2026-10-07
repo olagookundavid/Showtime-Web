@@ -9,9 +9,13 @@ import {
   getPlayerStatById,
   recomputeAllStats,
 } from "../../services/api";
-import type { Competition, Match, TeamSheetPlayer } from "../../types/matches";
-import type { BulkRecomputeResult } from "../../types/playByPlay";
-import type { UpsertPlayerStatPayload } from "../../types/stats";
+import type {
+  Competition,
+  Match,
+  TeamSheetPlayer,
+  BulkRecomputeResult,
+  UpsertPlayerStatPayload,
+} from "../../types";
 import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
@@ -19,17 +23,10 @@ import {
   LockClosedIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
-import { Loader } from "../../components/ui/Loader";
-import { Spinner } from "../../components/ui/Spinner";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { Button, Checkbox, Field, Input, LightboxImage, Modal, Select } from "../../components/ui";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { usePermissions } from "../../hooks/usePermissions";
-import { getStatsForPosition } from "../../utils/positionStatsMatrix";
+import { Loader, Spinner, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, Input, LightboxImage, Modal, Select, DataTable, type Column, RowActions, DashboardPageHeader } from "../../components";
+import { usePermissions } from "../../hooks";
+import { getStatsForPosition } from "../../utils";
 import { ALL_STAT_DEFINITIONS } from "../../constants";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 const STAT_FIELDS = ALL_STAT_DEFINITIONS.filter((s) => !s.teamOnly);
 

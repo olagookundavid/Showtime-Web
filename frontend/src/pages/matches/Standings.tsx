@@ -8,15 +8,8 @@ import {
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
 } from "../../services/api";
-import type { Match } from "../../types/matches";
-import { Loader } from "../../components/ui/Loader";
-import { Field, Select } from "../../components/ui";
-import { StandingsTable } from "../../components/matches/StandingsTable";
-import { BracketView } from "../../components/matches/BracketView";
-import { MatchCard } from "../../components/matches/MatchCard";
-import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
-import { Spinner } from "../../components/ui/Spinner";
-import { FootballIcon } from "../../components/icons/FootballIcon";
+import type { Match } from "../../types";
+import { Loader, Field, Select, StandingsTable, BracketView, MatchCard, SeasonStageTabs, Spinner, FootballIcon } from "../../components";
 import {
   ChevronDownIcon,
   ChevronUpIcon,

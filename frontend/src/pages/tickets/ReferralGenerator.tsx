@@ -13,8 +13,8 @@ import {
   createReferralCode,
   lookupReferrals,
 } from "../../services/api";
-import type { ReferralResponse } from "../../types/tickets";
-import { Button, Field, Input } from "../../components/ui";
+import type { ReferralResponse } from "../../types";
+import { Button, Field, Input } from "../../components";
 
 export const ReferralGenerator: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"generate" | "lookup">("generate");

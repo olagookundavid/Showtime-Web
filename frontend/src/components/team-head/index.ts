@@ -5,4 +5,4 @@ export {
   TEAM_HEAD_BOTTOM_NAV,
 } from './teamHeadNav';
 export { useTeamHeadTeam } from './useTeamHeadTeam';
-export type { TeamHeadTeam, TeamHeadOutletContext } from '../../types/teamHead';
+export type { TeamHeadTeam, TeamHeadOutletContext } from '../../types';

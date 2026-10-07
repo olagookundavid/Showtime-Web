@@ -2,15 +2,10 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, Field, Input, Modal, Select } from '../../components/ui';
+import { DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, Input, Modal, Select, DashboardPageHeader } from '../../components';
 import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
-import type { UserResponse } from '../../types/users';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { UserResponse } from '../../types';
+import { getApiErrorMessage } from '../../utils';
 
 const PAGE_SIZE = 10;
 const NO_ROWS: UserResponse[] = [];

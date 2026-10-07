@@ -13,14 +13,9 @@ import {
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { fantasySeasonApi } from "../../services/api";
-import type { LeaderboardEntry } from "../../types/fantasy/leagues";
-import { useAuth } from "../../contexts/AuthContext";
-import { AuthRequiredDialog } from "../../components/auth/AuthRequiredDialog";
-import { Loader } from "../../components/ui/Loader";
-import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
-import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
-import { Modal } from "../../components/ui/Modal";
-import { Button, ButtonLink, Field, Input } from "../../components/ui";
+import type { LeaderboardEntry } from "../../types";
+import { useAuth } from "../../contexts";
+import { AuthRequiredDialog, Loader, FantasyPitch, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;

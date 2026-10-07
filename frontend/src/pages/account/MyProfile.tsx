@@ -2,13 +2,10 @@ import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UserCircleIcon, KeyIcon } from '@heroicons/react/24/outline';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts';
 import { updateOwnProfile } from '../../services/api';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { ROLE_LABELS } from '../../components/dashboard/dashboardNav';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, Field, Input } from '../../components/ui';
+import { getApiErrorMessage } from '../../utils';
+import { ROLE_LABELS, ConfirmDialog, ConfirmSummary, Button, Field, Input } from '../../components';
 
 export const MyProfile = () => {
     const { isAuthenticated, isLoading, user, refreshUser } = useAuth();

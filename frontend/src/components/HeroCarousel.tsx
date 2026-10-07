@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { IconButton } from "./ui";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts";
 
 interface Slide {
   id: number;

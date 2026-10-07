@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from '../constants';
-import type { BroadcastState } from '../types/broadcast';
+import type { BroadcastState } from '../types';
 import { getWebSocketURL } from './useBroadcastProducer';
 
 export function useBroadcastViewer(matchId: string) {

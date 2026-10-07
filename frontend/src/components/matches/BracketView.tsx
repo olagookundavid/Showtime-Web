@@ -9,7 +9,7 @@ import {
 import { FootballIcon } from "../icons/FootballIcon";
 import { useQuery } from "@tanstack/react-query";
 import { getMatches } from "../../services/api";
-import type { Match, BracketColumn } from "../../types/matches";
+import type { Match, BracketColumn } from "../../types";
 import { Spinner } from "../ui";
 
 /**

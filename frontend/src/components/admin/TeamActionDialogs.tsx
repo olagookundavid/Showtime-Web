@@ -13,8 +13,7 @@ import {
   getManagerCandidates,
   getTeamManagers,
 } from "../../services/api";
-import type { Team } from "../../types/matches";
-import type { TeamManager } from "../../types/adminTeams";
+import type { Team, TeamManager } from "../../types";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ConfirmSummary } from "../ui/ConfirmSummary";
 import { Spinner } from "../ui/Spinner";

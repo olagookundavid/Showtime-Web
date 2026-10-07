@@ -1,12 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { useAuth } from "../../contexts/AuthContext";
-import { DashboardShell } from "../../components/dashboard/DashboardShell";
-import {
-  adminBottomNavFor,
-  adminSectionsFor,
-  adminBrandLabelFor,
-} from "../../components/admin/adminNav";
+import { useAuth } from "../../contexts";
+import { DashboardShell, adminBottomNavFor, adminSectionsFor, adminBrandLabelFor } from "../../components";
 
 export const AdminLayout = () => {
   const { user } = useAuth();

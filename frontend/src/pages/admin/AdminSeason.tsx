@@ -20,13 +20,8 @@ import {
   deleteSeasonMVP,
   getPlayers,
 } from "../../services/api";
-import type { SeasonMVP } from "../../types/teamOfSeason";
-import type { Player } from "../../types/players";
-import { Loader } from "../../components/ui/Loader";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { Button, Field, IconButton, ImageUploadField, Input } from "../../components/ui";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import type { SeasonMVP, Player } from "../../types";
+import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, ImageUploadField, Input, DashboardPageHeader } from "../../components";
 
 type Cat = "offense" | "defense";
 type GraphicState = { image_url: string; mobile_image_url: string };

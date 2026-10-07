@@ -2,16 +2,8 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getMatchDetail, getPublicMatchStats } from '../../services/api';
-import { Loader } from '../../components/ui/Loader';
-import { Button, LightboxImage } from '../../components/ui';
-import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
-import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
-import { MatchSummaryTab, getUnifiedMatchMvp } from '../../components/matches/MatchSummaryTab';
-import { MatchTeamSheetTab } from '../../components/matches/MatchTeamSheetTab';
-import { CommentSection } from '../../components/comments/CommentSection';
-import { BackButton } from '../../components/ui/BackButton';
-import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
-import { FootballIcon } from '../../components/icons/FootballIcon';
+import { Loader, Button, LightboxImage, PlayByPlayTimeline, PublicMatchStats, MatchSummaryTab, getUnifiedMatchMvp, MatchTeamSheetTab, CommentSection, BackButton, FootballIcon } from '../../components';
+import { formatMatchTime, formatMatchDate } from '../../utils';
 import { MapPinIcon, PlayIcon, TicketIcon } from '@heroicons/react/24/outline';
 
 export const MatchDetail = () => {

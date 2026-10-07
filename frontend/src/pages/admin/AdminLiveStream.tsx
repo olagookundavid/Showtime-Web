@@ -10,13 +10,9 @@ import {
     VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import { liveApi } from '../../services/api';
-import type { AdminLiveStatus } from '../../types/livestream';
-import { Loader } from '../../components/ui/Loader';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, Field, IconButton, Input } from '../../components/ui';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { AdminLiveStatus } from '../../types';
+import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, DashboardPageHeader } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 type Mode = 'auto' | 'on' | 'off' | 'video';
 

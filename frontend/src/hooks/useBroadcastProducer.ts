@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../constants';
-import { calculateClockNow, type BroadcastState, type BroadcastPlayer, type GraphicEvent } from '../types/broadcast';
+import { calculateClockNow, type BroadcastState, type BroadcastPlayer, type GraphicEvent } from '../types';
 
 export function getWebSocketURL(path: string): string {
   // Check if API_URL is absolute or relative

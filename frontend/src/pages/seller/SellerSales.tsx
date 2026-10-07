@@ -2,10 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { sellerGetSales } from '../../services/api';
-import type { InventorySale } from '../../types/inventory';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { Button, Field, Input } from '../../components/ui';
-import { DataTable, type Column } from '../../components/ui/DataTable';
+import type { InventorySale } from '../../types';
+import { DashboardPageHeader, Button, Field, Input, DataTable, type Column } from '../../components';
 
 const SALES_PAGE_SIZE = 30;
 const NO_ROWS: InventorySale[] = [];

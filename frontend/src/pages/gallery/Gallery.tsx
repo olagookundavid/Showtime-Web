@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getGallery, getCompetitions, getMatches, sortCompetitionsBySeason, dropdownCompetitionsFor } from '../../services/api';
-import type { Gallery as GalleryEntry } from '../../types/gallery';
-import type { Competition } from '../../types/matches';
-import { Loader } from '../../components/ui/Loader';
-import { Spinner } from '../../components/ui';
-import { DataTable } from '../../components/ui/DataTable';
-import { FootballIcon } from '../../components/icons/FootballIcon';
+import type { Gallery as GalleryEntry, Competition } from '../../types';
+import { Loader, Spinner, DataTable, FootballIcon, Pagination, Field, Select, SeasonStageTabs } from '../../components';
 import { UserGroupIcon } from '@heroicons/react/24/outline';
-import { Pagination } from '../../components/ui/Pagination';
-import { Field, Select } from '../../components/ui';
-import { SeasonStageTabs } from '../../components/domain/SeasonStageTabs';
 
 const ALL = 'ALL';
 

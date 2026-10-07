@@ -1,5 +1,5 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts';
 import { AuthRequiredDialog } from './AuthRequiredDialog';
 
 interface ProtectedRouteProps {

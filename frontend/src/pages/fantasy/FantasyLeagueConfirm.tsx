@@ -7,7 +7,7 @@ import {
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { fantasyApi } from '../../services/api';
-import { Loader } from '../../components/ui/Loader';
+import { Loader } from '../../components';
 
 /**
  * Where Paystack returns a manager after paying a league entry fee.

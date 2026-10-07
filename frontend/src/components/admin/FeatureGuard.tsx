@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { usePermissions } from "../../hooks/usePermissions";
+import { usePermissions } from "../../hooks";
 import type { FeatureKey } from "../../config/featureAccess";
 
 /**

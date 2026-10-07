@@ -14,13 +14,9 @@ import {
     fantasySquadApi,
     formatFantasyPrice,
 } from '../../services/api';
-import type { FantasyLineupPick } from '../../types/fantasy/core';
-import { useAuth } from '../../contexts/AuthContext';
-import { Loader } from '../../components/ui/Loader';
-import { Modal, Select } from '../../components/ui';
-import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
-import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
-import { Spinner } from '../../components/ui/Spinner';
+import type { FantasyLineupPick } from '../../types';
+import { useAuth } from '../../contexts';
+import { Loader, Modal, Select, FantasyBackLink, FantasyPitch, Spinner } from '../../components';
 
 export function FantasyMyTeam() {
     // Shares the hub/dashboard query key, so this is a cache hit.

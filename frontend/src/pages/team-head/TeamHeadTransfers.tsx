@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { transfersApi, contractsApi, getTeams } from '../../services/api';
-import type { Team } from '../../types/matches';
-import type { TransferData, TransferBidData, TeamBudgetData, TransferWindowData } from '../../types/transfers';
-import type { ContractData } from '../../types/contracts';
+import type {
+    Team,
+    TransferData,
+    TransferBidData,
+    TeamBudgetData,
+    TransferWindowData,
+    ContractData,
+} from '../../types';
 import toast from 'react-hot-toast';
 import {
     ArrowsRightLeftIcon,
@@ -17,15 +22,8 @@ import {
     UserPlusIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { Button, Field, Input, Select, Tabs, Textarea } from '../../components/ui';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions, type RowAction } from '../../components/ui/RowActions';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Modal } from '../../components/ui/Modal';
-import { Spinner } from '../../components/ui/Spinner';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { DashboardPageHeader, Button, Field, Input, Select, Tabs, Textarea, DataTable, type Column, RowActions, type RowAction, ConfirmDialog, ConfirmSummary, Modal, Spinner } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 type Tab = 'market' | 'my-listings' | 'incoming' | 'outgoing';
 

@@ -9,17 +9,9 @@ import {
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
 } from "../../services/api";
-import type { PaginatedResponse } from "../../types/common";
-import type { Match, Competition } from "../../types/matches";
-import { Loader } from "../../components/ui/Loader";
-import { Button, ButtonLink, Field, Select, Spinner } from "../../components/ui";
-import { MatchCard } from "../../components/matches/MatchCard";
-import { MatchStandingsTable } from "../../components/matches/MatchStandingsTable";
-import { BracketView } from "../../components/matches/BracketView";
-import { CompactMatchesWidget } from "../../components/matches/CompactMatchesWidget";
-import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
-import { FootballIcon } from "../../components/icons/FootballIcon";
-import { lagosToday } from "../../utils/dateUtils";
+import type { PaginatedResponse, Match, Competition } from "../../types";
+import { Loader, Button, ButtonLink, Field, Select, Spinner, MatchCard, MatchStandingsTable, BracketView, CompactMatchesWidget, SeasonStageTabs, FootballIcon } from "../../components";
+import { lagosToday } from "../../utils";
 import {
   ChevronDownIcon,
   TrophyIcon,

@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getNews } from '../../services/api';
-import { Pagination } from '../../components/ui/Pagination';
-import { LightboxImage, Spinner } from '../../components/ui';
-import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
+import { Pagination, LightboxImage, Spinner } from '../../components';
+import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils';
 import { NewspaperIcon, PlayIcon } from '@heroicons/react/24/solid';
 
 export const NewsList = () => {

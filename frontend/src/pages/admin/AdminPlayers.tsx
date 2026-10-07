@@ -11,20 +11,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import {
-  Button,
-  Field,
-  ImageUploadField,
-  Input,
-  LightboxImage,
-  Modal,
-  Select,
-  Textarea,
-} from "../../components/ui";
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Button, Field, ImageUploadField, Input, LightboxImage, Modal, Select, Textarea, isDeletedPlayer, DeletedPlayerName, deletedRowClass, DashboardPageHeader } from "../../components";
 import {
   getPlayers,
   getTeams,
@@ -35,19 +22,12 @@ import {
   moveToReserve,
   graduatePlayer,
 } from "../../services/api";
-import type { Team } from "../../types/matches";
-import type { Player, CreatePlayerPayload } from "../../types/players";
+import type { Team, Player, CreatePlayerPayload } from "../../types";
 import {
   PLAYER_POSITIONS_WITH_UNASSIGNED as POSITIONS,
   SECONDARY_PLAYER_POSITIONS as SECONDARY_POSITIONS,
 } from "../../constants";
-import {
-  isDeletedPlayer,
-  DeletedPlayerName,
-  deletedRowClass,
-} from "../../components/domain/DeletedPlayer";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { usePermissions } from "../../hooks/usePermissions";
+import { usePermissions } from "../../hooks";
 
 interface FormData {
   name: string;

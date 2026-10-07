@@ -6,8 +6,8 @@ import {
   UserIcon,
   ArrowRightIcon,
 } from "@heroicons/react/24/outline";
-import { useAuth } from "../../contexts/AuthContext";
-import { useNewsletterPrompt } from "../../hooks/useNewsletterPrompt";
+import { useAuth } from "../../contexts";
+import { useNewsletterPrompt } from "../../hooks";
 import { Button, IconButton, Input } from "../ui";
 
 /** Brevo's hosted form endpoint. Dormant until this is set in environment (.env). */

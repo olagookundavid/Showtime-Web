@@ -8,14 +8,9 @@ import {
   getLatestTOTW,
   getCurrentPOTWPoll,
 } from "../../services/api";
-import type { POTWPoll } from "../../types/potw";
-import type { TOTWListItem, TeamOfTheWeek as TeamOfTheWeekData } from "../../types/totw";
-import { useAuth } from "../../contexts/AuthContext";
-import { TeamOfTheWeekModule } from "../../components/totw/TeamOfTheWeekModule";
-import { TOTWEditorialStory } from "../../components/totw/TOTWEditorialStory";
-import { TOTWStoryModal } from "../../components/totw/TOTWStoryModal";
-import { POTWCountdown } from "../../components/potw/POTWCountdown";
-import { Button, ButtonLink } from "../../components/ui";
+import type { POTWPoll, TOTWListItem, TeamOfTheWeek as TeamOfTheWeekData } from "../../types";
+import { useAuth } from "../../contexts";
+import { TeamOfTheWeekModule, TOTWEditorialStory, TOTWStoryModal, POTWCountdown, Button, ButtonLink } from "../../components";
 import {
   CalendarDaysIcon,
   TrophyIcon,

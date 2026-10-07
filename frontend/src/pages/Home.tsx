@@ -1,4 +1,4 @@
-import { Loader } from "../components/ui/Loader";
+import { Loader, CompactMatchCard, ButtonLink, LightboxImage, DataTable } from "../components";
 import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -8,9 +8,6 @@ import {
   getCompetitions,
   getNews,
 } from "../services/api";
-import { CompactMatchCard } from "../components/matches/CompactMatchCard";
-import { ButtonLink, LightboxImage } from "../components/ui";
-import { DataTable } from "../components/ui/DataTable";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 // Hook for scroll animations

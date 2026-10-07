@@ -1,15 +1,9 @@
-import { MainHeroCarousel } from "../components/MainHeroCarousel";
-import { LiveHero } from "../components/LiveHero";
-import { useLiveStream } from "../hooks/useLiveStream";
-import { ReliveCarousel } from "../components/ReliveCarousel";
-import { HeroCarousel } from "../components/HeroCarousel";
-import { TeamOfTheWeekModule } from "../components/totw/TeamOfTheWeekModule";
+import { MainHeroCarousel, LiveHero, ReliveCarousel, HeroCarousel, TeamOfTheWeekModule, Loader, LightboxImage } from "../components";
+import { useLiveStream } from "../hooks";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getNews } from "../services/api";
-import { Loader } from "../components/ui/Loader";
 import { ArrowPathIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
-import { LightboxImage } from "../components/ui/LightboxImage";
 
 export const Landing = () => {
   // While the channel is live or a featured video is active, the hero displays

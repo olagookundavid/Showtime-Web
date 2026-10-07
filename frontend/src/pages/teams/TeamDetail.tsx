@@ -10,13 +10,9 @@ import {
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
 } from "../../services/api";
-import type { Team } from "../../types/matches";
-import { Loader } from "../../components/ui/Loader";
-import { Button, Field, Select } from "../../components/ui";
-import { BackButton } from "../../components/ui/BackButton";
-import { formatStatNumber } from "../../utils/formatters";
-import { Spinner } from "../../components/ui/Spinner";
-import { FootballIcon } from "../../components/icons/FootballIcon";
+import type { Team } from "../../types";
+import { Loader, Button, Field, Select, BackButton, Spinner, FootballIcon } from "../../components";
+import { formatStatNumber } from "../../utils";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,

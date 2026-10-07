@@ -9,14 +9,9 @@ import {
     XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { adminClaimsApi } from '../../services/api';
-import type { ClaimCodeData, ClaimKind, PlayerClaimData } from '../../types/claims';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, Field, Input, Select, Tabs } from '../../components/ui';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { ClaimCodeData, ClaimKind, PlayerClaimData } from '../../types';
+import { DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, Input, Select, Tabs, DashboardPageHeader } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 const NO_CLAIMS: PlayerClaimData[] = [];
 const NO_CODES: ClaimCodeData[] = [];

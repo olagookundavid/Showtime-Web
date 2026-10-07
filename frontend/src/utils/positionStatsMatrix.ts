@@ -7,7 +7,7 @@
  * 2. If a player has a position, only the designated stats for that position are shown.
  * 3. If a player has no position (unassigned / '-'), all stats are shown.
  */
-import type { StatDefinition, NormalizedPosition } from '../types/stats';
+import type { StatDefinition, NormalizedPosition } from '../types';
 import { ALL_STAT_DEFINITIONS, POSITION_STAT_KEYS } from '../constants';
 
 /**

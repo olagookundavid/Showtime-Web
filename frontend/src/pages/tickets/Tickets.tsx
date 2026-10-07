@@ -7,23 +7,14 @@ import {
   purchaseTicket,
   getUserProfile,
 } from "../../services/api";
-import type { AuthUser } from "../../types/auth";
-import type { EventDayResponse, TicketTierResponse, PurchaseTicketPayload } from "../../types/tickets";
-import type { DiscountPreview } from "../../types/discounts";
-import { DiscountCodeInput } from "../../components/discounts/DiscountCodeInput";
-import {
-  Button,
-  ButtonLink,
-  Checkbox,
-  Field,
-  IconButton,
-  Input,
-  Modal,
-} from "../../components/ui";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { Spinner } from "../../components/ui/Spinner";
-import { FootballIcon } from "../../components/icons/FootballIcon";
+import type {
+  AuthUser,
+  EventDayResponse,
+  TicketTierResponse,
+  PurchaseTicketPayload,
+  DiscountPreview,
+} from "../../types";
+import { DiscountCodeInput, Button, ButtonLink, Checkbox, Field, IconButton, Input, Modal, ConfirmDialog, ConfirmSummary, Spinner, FootballIcon } from "../../components";
 import {
   CalendarDaysIcon,
   CheckIcon,
@@ -42,7 +33,7 @@ import {
   toFirstName,
 } from "../../services/newsletter";
 
-import { formatMatchTime } from "../../utils/dateUtils";
+import { formatMatchTime } from "../../utils";
 
 // Answers only describe what the purchase flow does today.
 const FAQS = [

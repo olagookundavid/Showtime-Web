@@ -3,13 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { MagnifyingGlassIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import { sellerGetProducts, sellerLogSale, sellerGetPaymentMethods } from '../../services/api';
-import type { InventoryProduct, PaymentMethod } from '../../types/inventory';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { Button, Field, Input, Select, Textarea } from '../../components/ui';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Spinner } from '../../components/ui/Spinner';
-import { getApiErrorMessage } from '../../utils/apiError';
+import type { InventoryProduct, PaymentMethod } from '../../types';
+import { DashboardPageHeader, Button, Field, Input, Select, Textarea, ConfirmDialog, ConfirmSummary, Spinner } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 const cardClass = 'bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 dark:border-gray-700';
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import type { StoreProduct } from "../../types/store";
+import type { StoreProduct } from "../../types";
 import { IconButton } from "../ui";
 import { LazyImage } from "../ui/LazyImage";
 

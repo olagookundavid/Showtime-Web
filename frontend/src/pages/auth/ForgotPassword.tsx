@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts';
 import { ArrowLeftIcon, EnvelopeIcon, KeyIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { Button, Field, IconButton, Input } from '../../components/ui';
+import { Button, Field, IconButton, Input } from '../../components';
 
 type Step = 'email' | 'otp' | 'password' | 'success';
 

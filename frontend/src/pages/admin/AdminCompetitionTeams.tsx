@@ -10,12 +10,8 @@ import {
     addTeamToCompetition,
     removeTeamFromCompetition,
 } from '../../services/api';
-import type { Team } from '../../types/matches';
-import { Loader } from '../../components/ui/Loader';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, LightboxImage, Select } from '../../components/ui';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { Team } from '../../types';
+import { Loader, ConfirmDialog, ConfirmSummary, Button, LightboxImage, Select, DashboardPageHeader } from '../../components';
 
 // Adding and removing a team both go through the confirm dialog first.
 type PendingAction = { kind: 'add'; team: Team } | { kind: 'remove'; team: Team };

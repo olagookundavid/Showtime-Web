@@ -14,16 +14,9 @@ import { PlayIcon } from '@heroicons/react/24/solid';
 import {
     getNews, createNews, updateNews, deleteNews,
 } from '../../services/api';
-import type { News, CreateNewsPayload } from '../../types/news';
-import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea } from '../../components/ui';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { NewsContentEditor } from '../../components/admin/NewsContentEditor';
-import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { News, CreateNewsPayload } from '../../types';
+import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, NewsContentEditor, DashboardPageHeader } from '../../components';
+import { parseYouTubeId, youTubeThumbnailUrl, getApiErrorMessage } from '../../utils';
 
 interface ArticleForm {
     title: string; excerpt: string; content: string;

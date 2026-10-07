@@ -1,4 +1,4 @@
-import type { GamePlay } from '../types/playByPlay';
+import type { GamePlay } from '../types';
 
 // Shared play-outcome classifiers. Kept in one place because they're read from
 // three surfaces (the public timeline, the admin play editor, and the fantasy

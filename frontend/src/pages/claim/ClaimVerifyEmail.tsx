@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { claimApi } from "../../services/api";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
-import { Spinner } from "../../components/ui/Spinner";
+import { Spinner } from "../../components";
 
 /**
  * Landing page for the confirm-your-email link. Verification is informational: it proves

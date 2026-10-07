@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useBroadcastViewer } from '../hooks/useBroadcastViewer';
-import { calculateClockNow, formatClock, type GraphicEvent } from '../types/broadcast';
+import { useBroadcastViewer } from '../hooks';
+import { calculateClockNow, formatClock, type GraphicEvent } from '../types';
 import './BroadcastOverlay.css';
 
 export function BroadcastOverlay() {

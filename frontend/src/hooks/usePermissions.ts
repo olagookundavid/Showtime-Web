@@ -1,4 +1,4 @@
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts";
 import { accessFor, type AccessLevel, type FeatureKey } from "../config/featureAccess";
 
 /** Reads the signed-in user's role against the shared admin feature-access matrix. */

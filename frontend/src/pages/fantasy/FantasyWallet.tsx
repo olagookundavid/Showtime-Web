@@ -13,18 +13,13 @@ import {
     BuildingLibraryIcon,
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
-import { Button, Field, Input, Textarea } from '../../components/ui';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Spinner } from '../../components/ui/Spinner';
+import { Button, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Spinner, Loader, FantasyBackLink } from '../../components';
 import {
     fantasyWalletApi,
     formatKobo,
 } from '../../services/api';
-import type { PayoutRequest, PayoutStatus, WalletTransaction } from '../../types/fantasy/wallet';
-import { useAuth } from '../../contexts/AuthContext';
-import { Loader } from '../../components/ui/Loader';
-import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
+import type { PayoutRequest, PayoutStatus, WalletTransaction } from '../../types';
+import { useAuth } from '../../contexts';
 
 const STATUS_STYLES: Record<PayoutStatus, string> = {
     PENDING: 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300',

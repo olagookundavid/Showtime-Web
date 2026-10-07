@@ -1,4 +1,4 @@
-import { Loader } from "../../components/ui/Loader";
+import { Loader, AllocationsManager, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, IconButton, Input, Modal, DashboardPageHeader } from "../../components";
 import React, { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -25,22 +25,9 @@ import {
   updateTicketTier,
   deleteTicketTier,
 } from "../../services/api";
-import type { EventDayResponse, TicketTierResponse } from "../../types/tickets";
-import { AllocationsManager } from "../../components/admin/AllocationsManager";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import {
-  Button,
-  Checkbox,
-  Field,
-  IconButton,
-  Input,
-  Modal,
-} from "../../components/ui";
-import { useDebounced } from "../../hooks/useDebounced";
-import { getApiErrorMessage } from "../../utils/apiError";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { usePermissions } from "../../hooks/usePermissions";
+import type { EventDayResponse, TicketTierResponse } from "../../types";
+import { useDebounced, usePermissions } from "../../hooks";
+import { getApiErrorMessage } from "../../utils";
 
 type EventDayPayload = Parameters<typeof updateEventDay>[1];
 type TierPayload = Parameters<typeof updateTicketTier>[2];

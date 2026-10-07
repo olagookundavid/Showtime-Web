@@ -1,6 +1,4 @@
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions, type RowAction } from "../../components/ui/RowActions";
+import { ConfirmDialog, DataTable, type Column, RowActions, type RowAction, DashboardPageHeader, Button, IconButton, Input, Select } from "../../components";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -25,11 +23,9 @@ import {
   getEventDays,
   getAllEventDays,
 } from "../../services/api";
-import type { TicketResponse, EventDayResponse } from "../../types/tickets";
-import { useAuth } from "../../contexts/AuthContext";
-import { formatMatchDate } from "../../utils/dateUtils";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { Button, IconButton, Input, Select } from "../../components/ui";
+import type { TicketResponse, EventDayResponse } from "../../types";
+import { useAuth } from "../../contexts";
+import { formatMatchDate } from "../../utils";
 
 type ApiError = {
   response?: {

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getMatches } from '../../services/api';
-import type { Match } from '../../types/matches';
-import { Loader } from '../../components/ui/Loader';
-import { Button, ButtonLink } from '../../components/ui';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { Match } from '../../types';
+import { Loader, Button, ButtonLink, DashboardPageHeader } from '../../components';
 import { VideoCameraIcon, ArrowTopRightOnSquareIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 const FILTERS = ['ALL', 'LIVE', 'SCHEDULED', 'FINISHED'] as const;

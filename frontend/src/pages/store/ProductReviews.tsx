@@ -9,7 +9,7 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts";
 import {
   getStoreProduct,
   getProductReviews,
@@ -17,13 +17,8 @@ import {
   createProductReview,
   deleteAdminProductReview,
 } from "../../services/api";
-import type { StoreProduct, ReviewSort } from "../../types/store";
-import { StarRating } from "../../components/store/StarRating";
-import { Loader } from "../../components/ui/Loader";
-import { BackButton } from "../../components/ui/BackButton";
-import { Button, Field, Input, Select, Textarea } from "../../components/ui";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
+import type { StoreProduct, ReviewSort } from "../../types";
+import { StarRating, Loader, BackButton, Button, Field, Input, Select, Textarea, ConfirmDialog, ConfirmSummary } from "../../components";
 
 export const ProductReviews = () => {
   const { id } = useParams<{ id: string }>();

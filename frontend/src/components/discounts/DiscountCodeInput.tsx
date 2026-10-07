@@ -5,8 +5,7 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { discountsApi } from "../../services/api";
-import type { CheckoutItemPayload } from "../../types/store";
-import type { DiscountPreview } from "../../types/discounts";
+import type { CheckoutItemPayload, DiscountPreview } from "../../types";
 import { Button, IconButton, Input } from "../ui";
 
 interface DiscountCodeInputProps {

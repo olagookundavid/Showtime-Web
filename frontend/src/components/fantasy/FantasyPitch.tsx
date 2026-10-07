@@ -7,7 +7,13 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { formatFantasyPrice } from "../../services/api";
-import type { FantasyLineupPick, FantasySlot, FantasyPlayerListItem, FantasyPlayerModalData, PitchPlayerItem } from "../../types/fantasy/core";
+import type {
+  FantasyLineupPick,
+  FantasySlot,
+  FantasyPlayerListItem,
+  FantasyPlayerModalData,
+  PitchPlayerItem,
+} from "../../types";
 import { FantasyPlayerModal } from "./FantasyPlayerModal";
 import {
   PlusIcon,

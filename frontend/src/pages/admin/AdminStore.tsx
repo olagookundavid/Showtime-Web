@@ -25,18 +25,10 @@ import {
     saveAdminProductImages,
     getAdminOrders,
 } from '../../services/api';
-import type { Order, StoreProduct, ProductImage, ProductOption } from '../../types/store';
-import { Loader } from '../../components/ui/Loader';
-import { ImageUploadField } from '../../components/ui/ImageUploadField';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea } from '../../components/ui';
-import { DiscountCodesPanel } from '../../components/admin/DiscountCodesPanel';
-import { useImageUpload } from '../../hooks/useImageUpload';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { Order, StoreProduct, ProductImage, ProductOption } from '../../types';
+import { Loader, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea, DiscountCodesPanel, DashboardPageHeader } from '../../components';
+import { useImageUpload } from '../../hooks';
+import { getApiErrorMessage } from '../../utils';
 import { STANDARD_PRODUCT_TAGS } from '../../constants';
 
 type Tab = 'PRODUCTS' | 'ORDERS' | 'DISCOUNTS';

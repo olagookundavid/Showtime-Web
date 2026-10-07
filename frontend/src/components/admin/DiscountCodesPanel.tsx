@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { useDebounced } from '../../hooks/useDebounced';
+import { useDebounced } from '../../hooks';
 import {
     ArrowRightIcon,
     PlusIcon,
@@ -12,12 +12,12 @@ import {
     XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { discountsApi } from '../../services/api';
-import type { DiscountAudience, DiscountCode, DiscountTarget } from '../../types/discounts';
+import type { DiscountAudience, DiscountCode, DiscountTarget } from '../../types';
 import { Button, Checkbox, Field, IconButton, Input, Modal, Select } from '../ui';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { Spinner } from '../ui/Spinner';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getApiErrorMessage } from '../../utils';
 
 type ItemDraft = {
     entity_type: 'product' | 'ticket_tier';

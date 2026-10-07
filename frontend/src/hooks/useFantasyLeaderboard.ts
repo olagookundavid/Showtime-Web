@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fantasyApi } from '../services/api';
-import type { Leaderboard, LeaderboardEntry } from '../types/fantasy/leagues';
+import type { Leaderboard, LeaderboardEntry } from '../types';
 import { OVERALL } from '../constants';
 
 /** Managers shown per page in the windowed part of the table. */

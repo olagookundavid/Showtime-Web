@@ -20,21 +20,12 @@ import {
   fantasySeasonApi,
   formatKobo,
 } from "../../services/api";
-import type { LeaderboardEntry } from "../../types/fantasy/leagues";
-import { useAuth } from "../../contexts/AuthContext";
-import {
-  useFantasyLeaderboard,
-  num,
-  rankBadgeClass,
-} from "../../hooks/useFantasyLeaderboard";
+import type { LeaderboardEntry } from "../../types";
+import { useAuth } from "../../contexts";
+import { useFantasyLeaderboard, num, rankBadgeClass } from "../../hooks";
 import { OVERALL } from "../../constants";
-import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
-import { BackButton } from "../../components/ui/BackButton";
-import { Button, ButtonLink, IconButton, Select } from "../../components/ui";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { DataTable } from "../../components/ui/DataTable";
-import { Spinner } from "../../components/ui/Spinner";
-import { formatStatDecimal } from "../../utils/formatters";
+import { FantasyTeamModal, BackButton, Button, ButtonLink, IconButton, Select, ConfirmDialog, DataTable, Spinner } from "../../components";
+import { formatStatDecimal } from "../../utils";
 
 const pts = (v: number | null | undefined): string =>
   formatStatDecimal(num(v), 2);

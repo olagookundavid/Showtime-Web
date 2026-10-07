@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ChevronRightIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { LightboxImage } from '../../components/ui';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { TEAM_HEAD_NAV_SECTIONS } from '../../components/team-head/teamHeadNav';
-import { useTeamHeadTeam } from '../../components/team-head/useTeamHeadTeam';
+import { LightboxImage, DashboardPageHeader, TEAM_HEAD_NAV_SECTIONS, useTeamHeadTeam } from '../../components';
 
 // Every page but this one, straight from the sidebar, so the two never disagree.
 const QUICK_ACTIONS = TEAM_HEAD_NAV_SECTIONS.flatMap(s => s.links).filter(l => !l.end);

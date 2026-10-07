@@ -6,8 +6,8 @@ import { getTeams, getPlayers, getNews } from '../../services/api';
 import { FootballIcon } from '../icons/FootballIcon';
 import { Button, Field, Input, Textarea } from '../ui';
 import { Spinner } from '../ui/Spinner';
-import { useImageUpload } from '../../hooks/useImageUpload';
-import { parseYouTubeId, parseNewsRefUrl } from '../../utils/newsContent';
+import { useImageUpload } from '../../hooks';
+import { parseYouTubeId, parseNewsRefUrl } from '../../utils';
 
 // Article body editor: a plain textarea plus a toolbar that inserts news tags
 // at the cursor. Media tags ([image:...], [youtube:...], [news:...]) are inserted as their

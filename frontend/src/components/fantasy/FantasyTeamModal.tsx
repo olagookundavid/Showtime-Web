@@ -9,7 +9,7 @@ import {
 import { FemaleIcon } from '../icons/FemaleIcon';
 import { MaleIcon } from '../icons/MaleIcon';
 import { fantasyApi, formatFantasyPrice } from '../../services/api';
-import type { FantasyGameweek, FantasyLineupPick, FantasyPlayerModalData } from '../../types/fantasy/core';
+import type { FantasyGameweek, FantasyLineupPick, FantasyPlayerModalData } from '../../types';
 import { Button, Field, Modal, Select } from '../ui';
 import { FantasyPitch } from './FantasyPitch';
 import { FantasyPlayerModal } from './FantasyPlayerModal';

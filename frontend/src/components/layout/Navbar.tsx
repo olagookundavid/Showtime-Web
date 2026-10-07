@@ -10,11 +10,9 @@ import {
   ShoppingBagIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
-import { useAuth } from "../../contexts/AuthContext";
-import { useCart } from "../../contexts/CartContext";
-import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth, useCart, useTheme } from "../../contexts";
 import { NotificationBell } from "./NotificationBell";
-import { getInitials } from "../../utils/formatters";
+import { getInitials } from "../../utils";
 import { IconButton } from "../ui";
 
 type Menu = "league" | "stats" | "awards" | "user";

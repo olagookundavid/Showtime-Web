@@ -23,18 +23,11 @@ import {
   deleteMatch,
   getAdminTeamSheet,
 } from "../../services/api";
-import type { Match, Competition, Team, CreateMatchPayload, MatchWithTeamIds } from "../../types/matches";
-import { Loader } from "../../components/ui/Loader";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { Button, Field, Input, Modal, Select } from "../../components/ui";
-import { AdminTeamSheetModal } from "../../components/admin/AdminTeamSheetModal";
-import { AdminKnockoutBracket } from "../../components/admin/AdminKnockoutBracket";
+import type { Match, Competition, Team, CreateMatchPayload, MatchWithTeamIds } from "../../types";
+import { Loader, ConfirmDialog, DataTable, type Column, RowActions, Button, Field, Input, Modal, Select, AdminTeamSheetModal, AdminKnockoutBracket, DashboardPageHeader } from "../../components";
 import { KNOCKOUT_STAGES } from "../../constants";
-import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { usePermissions } from "../../hooks/usePermissions";
+import { formatMatchDate, formatMatchTime } from "../../utils";
+import { usePermissions } from "../../hooks";
 
 interface FormData {
   competition_id: string;

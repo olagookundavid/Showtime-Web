@@ -13,9 +13,9 @@ import {
   ShoppingBagIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
-import type { ProductVariant, StoreProduct } from "../../types/store";
-import { useCart } from "../../contexts/CartContext";
-import { findVariantByValues, getVariantPrice } from "../../utils/storeStock";
+import type { ProductVariant, StoreProduct } from "../../types";
+import { useCart } from "../../contexts";
+import { findVariantByValues, getVariantPrice } from "../../utils";
 import { Button, IconButton, Modal } from "../ui";
 import { ProductDescription } from "./ProductDescription";
 import { ProductGallery } from "./ProductGallery";

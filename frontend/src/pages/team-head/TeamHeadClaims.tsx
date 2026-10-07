@@ -12,13 +12,9 @@ import {
     XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { teamHeadClaimsApi } from '../../services/api';
-import type { ClaimCodeData, PlayerClaimData } from '../../types/claims';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { Button, Field, Tabs, Textarea } from '../../components/ui';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Spinner } from '../../components/ui/Spinner';
-import { getApiErrorMessage } from '../../utils/apiError';
+import type { ClaimCodeData, PlayerClaimData } from '../../types';
+import { DashboardPageHeader, Button, Field, Tabs, Textarea, ConfirmDialog, ConfirmSummary, Spinner } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 

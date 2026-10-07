@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { getStoreProduct } from "../../services/api";
-import type { StoreProduct } from "../../types/store";
+import type { StoreProduct } from "../../types";
 import { ButtonLink, Modal } from "../ui";
 import { Spinner } from "../ui/Spinner";
 import { ProductOverview } from "./ProductOverview";

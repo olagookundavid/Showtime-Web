@@ -22,29 +22,12 @@ import {
   getTeamsByCompetition,
   sortCompetitionsBySeason,
 } from "../../services/api";
-import type { Competition, Match, Team } from "../../types/matches";
-import type { Player } from "../../types/players";
-import { useAuth } from "../../contexts/AuthContext";
-import { usePermissions } from "../../hooks/usePermissions";
-import { adminSectionsFor } from "../../components/admin/adminNav";
-import {
-  teamManagersKey,
-  useTeamActions,
-} from "../../components/admin/useTeamActions";
+import type { Competition, Match, Team, Player } from "../../types";
+import { useAuth } from "../../contexts";
+import { usePermissions } from "../../hooks";
+import { adminSectionsFor, teamManagersKey, useTeamActions, TeamActionDialogs, TeamStatusBadge, DashboardPageHeader, DataTable, type Column, Loader, Spinner, Button, LightboxImage, DeletedPlayerName, deletedRowClass, isDeletedPlayer } from "../../components";
 import { MAX_MAIN_SQUAD } from "../../constants";
-import { TeamActionDialogs } from "../../components/admin/TeamActionDialogs";
-import { TeamStatusBadge } from "../../components/admin/TeamStatusBadge";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { Loader } from "../../components/ui/Loader";
-import { Spinner } from "../../components/ui/Spinner";
-import { Button, LightboxImage } from "../../components/ui";
-import {
-  DeletedPlayerName,
-  deletedRowClass,
-  isDeletedPlayer,
-} from "../../components/domain/DeletedPlayer";
-import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
+import { formatMatchDate, formatMatchTime } from "../../utils";
 
 type Result = "W" | "D" | "L";
 

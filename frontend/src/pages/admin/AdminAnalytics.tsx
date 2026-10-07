@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { Loader } from '../../components/ui/Loader';
-import { DataTable, type Column } from '../../components/ui/DataTable';
+import { Loader, DataTable, type Column, DashboardPageHeader } from '../../components';
 import { getAdminAnalytics } from '../../services/api';
-import type { TicketResponse } from '../../types/tickets';
+import type { TicketResponse } from '../../types';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useTheme } from '../../contexts/ThemeContext';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { useTheme } from '../../contexts';
 
 const PIE_COLORS = ['#001F3F', '#C62828', '#22c55e', '#f59e0b', '#a855f7'];
 

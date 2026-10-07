@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts';
 import { getCustomerOrders } from '../../services/api';
-import { BackButton } from '../../components/ui/BackButton';
-import { Button } from '../../components/ui';
+import { BackButton, Button } from '../../components';
 
 const statusBadge = (kind: 'payment' | 'fulfillment', value: string) => {
     const base = 'text-[10px] font-black px-2 py-0.5 rounded-none uppercase tracking-wider';

@@ -2,15 +2,10 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExclamationTriangleIcon, PaperAirplaneIcon, TicketIcon } from '@heroicons/react/24/outline';
 import { getTeamAllocations, issueTeamTicket, getPlayers } from '../../services/api';
-import type { TeamTicketAllocation } from '../../types/tickets';
-import type { Player } from '../../types/players';
+import type { TeamTicketAllocation, Player } from '../../types';
 import toast from 'react-hot-toast';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { Button, Field, Input, Select } from '../../components/ui';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Spinner } from '../../components/ui/Spinner';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { DashboardPageHeader, Button, Field, Input, Select, ConfirmDialog, ConfirmSummary, Spinner } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 type IssueForm = { playerId: string; name: string; email: string };
 

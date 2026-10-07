@@ -16,13 +16,9 @@ import {
     verifyAdminStoreOrder,
     cancelAdminStoreOrder,
 } from '../../services/api';
-import type { Order } from '../../types/store';
-import { Loader } from '../../components/ui/Loader';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, ButtonLink } from '../../components/ui';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { Order } from '../../types';
+import { Loader, ConfirmDialog, ConfirmSummary, Button, ButtonLink, DashboardPageHeader } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 type PendingAction = 'verify' | 'shipped' | 'delivered' | 'cancel';
 

@@ -8,7 +8,7 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { getTicketByReference } from "../../services/api";
-import { Loader } from "../../components/ui/Loader";
+import { Loader } from "../../components";
 
 export const TicketConfirmation = () => {
   const [searchParams] = useSearchParams();

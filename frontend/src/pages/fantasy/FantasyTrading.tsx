@@ -17,11 +17,9 @@ import {
     fantasySquadApi,
     formatFantasyPrice as sc,
 } from '../../services/api';
-import type { FantasyPlayerListItem, MarketSort } from '../../types/fantasy/core';
-import type { Squad, SquadPlayer } from '../../types/fantasy/squad';
-import { Loader } from '../../components/ui/Loader';
-import { Button, Input, Modal } from '../../components/ui';
-import { useDebounced } from '../../hooks/useDebounced';
+import type { FantasyPlayerListItem, MarketSort, Squad, SquadPlayer } from '../../types';
+import { Loader, Button, Input, Modal } from '../../components';
+import { useDebounced } from '../../hooks';
 
 const num = (v: number | null | undefined): number =>
     typeof v === 'number' && Number.isFinite(v) ? v : 0;

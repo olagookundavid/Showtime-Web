@@ -9,13 +9,10 @@ import {
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
 } from "../../services/api";
-import type { PlayerBadge } from "../../types/badges";
-import { Loader } from "../../components/ui/Loader";
-import { Spinner } from "../../components/ui";
+import type { PlayerBadge } from "../../types";
+import { Loader, Spinner, SeasonStageTabs, BackButton, BadgeImage, CrownIcon, SproutIcon, Button, Field, Select, Modal } from "../../components";
 import { useSearchParams } from "react-router-dom";
-import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
-import { getStatsForPosition } from "../../utils/positionStatsMatrix";
-import { BackButton } from "../../components/ui/BackButton";
+import { getStatsForPosition, formatStatNumber } from "../../utils";
 import {
   ChartBarIcon,
   ListBulletIcon,
@@ -24,12 +21,6 @@ import {
   ShieldCheckIcon,
   TrophyIcon,
 } from "@heroicons/react/24/outline";
-import { BadgeImage } from "../../components/domain/BadgeImage";
-import { CrownIcon } from "../../components/icons/CrownIcon";
-import { SproutIcon } from "../../components/icons/SproutIcon";
-import { formatStatNumber } from "../../utils/formatters";
-import { Button, Field, Select } from "../../components/ui";
-import { Modal } from "../../components/ui/Modal";
 
 const StatCard = ({
   label,

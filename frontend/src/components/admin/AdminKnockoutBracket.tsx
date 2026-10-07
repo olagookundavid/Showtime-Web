@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ArrowRightIcon, ArrowUturnLeftIcon, PlusIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import { resetBracket } from '../../services/api';
-import type { Match } from '../../types/matches';
+import type { Match } from '../../types';
 import { buildBracketColumns, winnerSide, championOf, ChampionCard } from '../matches/BracketView';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';

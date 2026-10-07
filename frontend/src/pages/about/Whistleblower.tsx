@@ -1,5 +1,5 @@
 import { EnvelopeIcon } from '@heroicons/react/24/outline';
-import { CopyableEmail } from '../../components/ui/CopyableEmail';
+import { CopyableEmail } from '../../components';
 
 export const Whistleblower = () => {
     return (

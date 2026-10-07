@@ -11,11 +11,8 @@ import {
   TruckIcon,
 } from "@heroicons/react/24/outline";
 import { getStoreProducts } from "../../services/api";
-import type { StoreProduct } from "../../types/store";
-import { Button, Input, Select } from "../../components/ui";
-import { ProductCard } from "../../components/store/ProductCard";
-import { QuickViewModal } from "../../components/store/QuickViewModal";
-import { StoreHeroCarousel } from "../../components/store/StoreHeroCarousel";
+import type { StoreProduct } from "../../types";
+import { Button, Input, Select, ProductCard, QuickViewModal, StoreHeroCarousel } from "../../components";
 import { STANDARD_PRODUCT_TAGS } from "../../constants";
 
 type SortOption = "featured" | "newest" | "price-asc" | "price-desc";

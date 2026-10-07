@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from 'axios';
-import toast from 'react-hot-toast';
-import { API_URL } from '../../constants';
-import { useBroadcastProducer } from '../../hooks/useBroadcastProducer';
-import { formatClock, calculateClockNow, type GraphicEvent } from '../../types/broadcast';
-import { Loader } from '../../components/ui/Loader';
-import { Button, Checkbox, Field, Input, Select } from '../../components/ui';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { API_URL } from "../../constants";
+import { useBroadcastProducer } from "../../hooks";
+import {
+  formatClock,
+  calculateClockNow,
+  type GraphicEvent,
+} from "../../types";
+import { Loader, Button, Checkbox, Field, Input, Select, DashboardPageHeader } from "../../components";
 import {
   PlayIcon,
   PauseIcon,
@@ -17,40 +19,40 @@ import {
   ClipboardDocumentIcon,
   ArrowTopRightOnSquareIcon,
   EyeSlashIcon,
-} from '@heroicons/react/24/outline';
+} from "@heroicons/react/24/outline";
 
 const CALL_BUTTONS = [
-  { label: 'Touchdown', call: 'TOUCHDOWN', red: true },
-  { label: 'First down', call: 'FIRST DOWN' },
-  { label: 'Second down', call: 'SECOND DOWN' },
-  { label: 'Third down', call: 'THIRD DOWN' },
-  { label: 'Fourth down', call: 'FOURTH DOWN' },
-  { label: '1st & Goal', call: '1ST & GOAL' },
-  { label: '2nd & Goal', call: '2ND & GOAL' },
-  { label: '3rd & Goal', call: '3RD & GOAL' },
-  { label: '4th & Goal', call: '4TH & GOAL' },
-  { label: '1 min warning', call: '1 MINUTE WARNING' },
-  { label: 'Safety', call: 'SAFETY' },
-  { label: 'Penalty', call: 'PENALTY' },
-  { label: 'Interception', call: 'INTERCEPTION' },
-  { label: 'Pick six', call: 'PICK SIX' },
-  { label: 'XP good', call: 'EXTRA POINT GOOD' },
-  { label: 'XP bad', call: 'EXTRA POINT NO GOOD' },
-  { label: 'Sack', call: 'SACK' },
-  { label: 'Bat down', call: 'BAT DOWN' },
-  { label: 'Flag pull', call: 'FLAG PULL' },
+  { label: "Touchdown", call: "TOUCHDOWN", red: true },
+  { label: "First down", call: "FIRST DOWN" },
+  { label: "Second down", call: "SECOND DOWN" },
+  { label: "Third down", call: "THIRD DOWN" },
+  { label: "Fourth down", call: "FOURTH DOWN" },
+  { label: "1st & Goal", call: "1ST & GOAL" },
+  { label: "2nd & Goal", call: "2ND & GOAL" },
+  { label: "3rd & Goal", call: "3RD & GOAL" },
+  { label: "4th & Goal", call: "4TH & GOAL" },
+  { label: "1 min warning", call: "1 MINUTE WARNING" },
+  { label: "Safety", call: "SAFETY" },
+  { label: "Penalty", call: "PENALTY" },
+  { label: "Interception", call: "INTERCEPTION" },
+  { label: "Pick six", call: "PICK SIX" },
+  { label: "XP good", call: "EXTRA POINT GOOD" },
+  { label: "XP bad", call: "EXTRA POINT NO GOOD" },
+  { label: "Sack", call: "SACK" },
+  { label: "Bat down", call: "BAT DOWN" },
+  { label: "Flag pull", call: "FLAG PULL" },
 ];
 
 const PENALTIES = [
-  'Offside',
-  'Illegal participation',
-  'Unnecessary roughness',
-  'Pass interference',
-  'Holding',
-  'Delay of game',
-  'Unsportsmanlike conduct',
-  'Illegal forward pass',
-  'Other penalty',
+  "Offside",
+  "Illegal participation",
+  "Unnecessary roughness",
+  "Pass interference",
+  "Holding",
+  "Delay of game",
+  "Unsportsmanlike conduct",
+  "Illegal forward pass",
+  "Other penalty",
 ];
 
 interface PlayLogItem {
@@ -71,7 +73,7 @@ interface PlayLogItem {
 
 export function AdminBroadcastStudio() {
   const { matchId } = useParams<{ matchId: string }>();
-  const id = matchId || '';
+  const id = matchId || "";
 
   const {
     state,
@@ -90,13 +92,16 @@ export function AdminBroadcastStudio() {
   // clockDraft holds what the producer is typing; null means show the live clock.
   const [clockDraft, setClockDraft] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [selectedPlayerId, setSelectedPlayerId] = useState('');
-  const [selectedTeam, setSelectedTeam] = useState('');
-  const [statInput, setStatInput] = useState('TOUCHDOWN RECEPTION');
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("");
+  const [statInput, setStatInput] = useState("TOUCHDOWN RECEPTION");
   const [selectedPenalty, setSelectedPenalty] = useState(PENALTIES[0]);
   const [recentPlays, setRecentPlays] = useState<PlayLogItem[]>([]);
   // Score after the latest scored play; null until a play carries a score.
-  const [pbpScore, setPbpScore] = useState<{ home: number; away: number } | null>(null);
+  const [pbpScore, setPbpScore] = useState<{
+    home: number;
+    away: number;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Tick the clock display while running
@@ -113,10 +118,20 @@ export function AdminBroadcastStudio() {
     async function loadPlays() {
       try {
         const res = await axios.get(`${API_URL}/matches/${id}/plays`);
-        const plays: PlayLogItem[] = Array.isArray(res.data?.data) ? res.data.data : [];
+        const plays: PlayLogItem[] = Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
         setRecentPlays(plays.slice(-5).reverse());
-        const scored = [...plays].reverse().find((p) => p.home_score_after != null && p.away_score_after != null);
-        setPbpScore(scored ? { home: scored.home_score_after!, away: scored.away_score_after! } : null);
+        const scored = [...plays]
+          .reverse()
+          .find(
+            (p) => p.home_score_after != null && p.away_score_after != null,
+          );
+        setPbpScore(
+          scored
+            ? { home: scored.home_score_after!, away: scored.away_score_after! }
+            : null,
+        );
       } catch {
         // Silently continue if no plays entered yet
       }
@@ -130,7 +145,9 @@ export function AdminBroadcastStudio() {
     return (
       <div className="py-24 flex flex-col items-center justify-center gap-4">
         <Loader />
-        <span className="text-sm font-bold text-gray-500">Loading broadcast studio for match...</span>
+        <span className="text-sm font-bold text-gray-500">
+          Loading broadcast studio for match...
+        </span>
         {error && <span className="text-xs text-red-500">{error}</span>}
       </div>
     );
@@ -138,7 +155,7 @@ export function AdminBroadcastStudio() {
 
   const overlayUrl = `${window.location.origin}/broadcast/${id}/overlay`;
   const clockInput = clockDraft ?? formatClock(calculateClockNow(state, now));
-  const team = selectedTeam || state.home || 'Home Team';
+  const team = selectedTeam || state.home || "Home Team";
 
   const handleToggleClock = () => {
     setClockDraft(null);
@@ -152,7 +169,7 @@ export function AdminBroadcastStudio() {
   };
 
   const handleSetClock = () => {
-    const parts = clockInput.trim().split(':');
+    const parts = clockInput.trim().split(":");
     if (parts.length === 2) {
       const mins = parseInt(parts[0], 10);
       const secs = parseInt(parts[1], 10);
@@ -162,30 +179,33 @@ export function AdminBroadcastStudio() {
         return;
       }
     }
-    toast.error('Please enter time as MM:SS (e.g. 12:00 or 06:25)');
+    toast.error("Please enter time as MM:SS (e.g. 12:00 or 06:25)");
   };
 
   const handleTriggerCall = (callType: string) => {
     const playerObj = players.find((p) => p.player_id === selectedPlayerId);
-    const noPlayer = /1 MINUTE WARNING|PENALTY|EXTRA POINT|SAFETY|GOAL|FIRST DOWN|SECOND DOWN|THIRD DOWN|FOURTH DOWN/.test(
-      callType
-    );
+    const noPlayer =
+      /1 MINUTE WARNING|PENALTY|EXTRA POINT|SAFETY|GOAL|FIRST DOWN|SECOND DOWN|THIRD DOWN|FOURTH DOWN/.test(
+        callType,
+      );
 
     let statText = statInput;
-    if (callType === 'PENALTY') {
+    if (callType === "PENALTY") {
       statText = selectedPenalty;
-    } else if (callType === '1 MINUTE WARNING') {
+    } else if (callType === "1 MINUTE WARNING") {
       statText = `${state.period} · ONE MINUTE REMAINING`;
     }
 
     const graphic: GraphicEvent = {
       type: callType,
-      number: noPlayer ? '' : playerObj ? String(playerObj.jersey_number) : '',
-      player: noPlayer ? '' : playerObj ? playerObj.name : '',
+      number: noPlayer ? "" : playerObj ? String(playerObj.jersey_number) : "",
+      player: noPlayer ? "" : playerObj ? playerObj.name : "",
       team,
       stat: statText,
-      photo: playerObj?.image || '',
-      compact: /DOWN|GOAL|EXTRA POINT|FLAG PULL|PENALTY|BAT DOWN/.test(callType),
+      photo: playerObj?.image || "",
+      compact: /DOWN|GOAL|EXTRA POINT|FLAG PULL|PENALTY|BAT DOWN/.test(
+        callType,
+      ),
       duration: 5500,
     };
 
@@ -194,9 +214,11 @@ export function AdminBroadcastStudio() {
 
   // Prepare a play from the queue into the form (manual workflow)
   const handlePreparePlay = (p: PlayLogItem) => {
-    const name = p.target?.name || p.off_qb?.name || p.defender?.name || '';
+    const name = p.target?.name || p.off_qb?.name || p.defender?.name || "";
     if (name) {
-      const matchPlayer = players.find((pl) => pl.name.toLowerCase() === name.toLowerCase());
+      const matchPlayer = players.find(
+        (pl) => pl.name.toLowerCase() === name.toLowerCase(),
+      );
       if (matchPlayer) {
         setSelectedPlayerId(matchPlayer.player_id);
       }
@@ -204,7 +226,8 @@ export function AdminBroadcastStudio() {
     if (p.offense_team?.name) {
       setSelectedTeam(p.offense_team.name);
     }
-    const playDesc = p.notes || `${p.play_type || 'PLAY'} ${p.result || ''}`.trim();
+    const playDesc =
+      p.notes || `${p.play_type || "PLAY"} ${p.result || ""}`.trim();
     if (playDesc) {
       setStatInput(playDesc);
     }
@@ -213,15 +236,18 @@ export function AdminBroadcastStudio() {
   // Live score from the play log; falls back to the snapshot taken when the studio state was created.
   const pbpHome = pbpScore?.home ?? state.pbp_home;
   const pbpAway = pbpScore?.away ?? state.pbp_away;
-  const isScoreAligned = state.manual_home === pbpHome && state.manual_away === pbpAway;
+  const isScoreAligned =
+    state.manual_home === pbpHome && state.manual_away === pbpAway;
 
   return (
     <div className="space-y-6">
       <DashboardPageHeader
-        back={{ to: '/admin/broadcast', label: 'Back to matches' }}
+        back={{ to: "/admin/broadcast", label: "Back to matches" }}
         title={
           <span className="flex items-center gap-2">
-            <span>{state.home} vs {state.away}</span>
+            <span>
+              {state.home} vs {state.away}
+            </span>
           </span>
         }
         subtitle="On-air graphics control for vMix."
@@ -229,11 +255,15 @@ export function AdminBroadcastStudio() {
           <>
             <span
               className={`px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5 ${
-                isConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                isConnected
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                  : "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-              {isConnected ? 'Live sync active' : 'Connecting...'}
+              <span
+                className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}
+              />
+              {isConnected ? "Live sync active" : "Connecting..."}
             </span>
             <Button
               variant="secondary"
@@ -241,7 +271,7 @@ export function AdminBroadcastStudio() {
               onClick={copyUrl}
               title="Copy public vMix transparent overlay URL"
             >
-              {copied ? 'Copied URL!' : 'vMix Overlay URL'}
+              {copied ? "Copied URL!" : "vMix Overlay URL"}
             </Button>
           </>
         }
@@ -260,7 +290,7 @@ export function AdminBroadcastStudio() {
               <Checkbox
                 label="Show scorebug on air"
                 checked={state.scorebug}
-                onChange={(e) => updateField('scorebug', e.target.checked)}
+                onChange={(e) => updateField("scorebug", e.target.checked)}
               />
             </div>
 
@@ -276,22 +306,32 @@ export function AdminBroadcastStudio() {
                   min="0"
                   aria-label={`${state.home} score`}
                   value={state.manual_home}
-                  onChange={(e) => updateScore(parseInt(e.target.value, 10) || 0, state.manual_away)}
+                  onChange={(e) =>
+                    updateScore(
+                      parseInt(e.target.value, 10) || 0,
+                      state.manual_away,
+                    )
+                  }
                   className="w-20 text-center text-4xl font-black bg-transparent text-gray-900 dark:text-white border-0 focus:ring-0"
                 />
                 {/* Home Timeouts */}
                 <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">TO:</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">
+                    TO:
+                  </span>
                   {[0, 1, 2].map((idx) => (
                     <button
                       key={idx}
                       onClick={() =>
-                        updateField('timeouts_home', state.timeouts_home > idx ? idx : idx + 1)
+                        updateField(
+                          "timeouts_home",
+                          state.timeouts_home > idx ? idx : idx + 1,
+                        )
                       }
                       className={`w-3.5 h-3.5 rounded-full border transition-colors cursor-pointer ${
                         idx < state.timeouts_home
-                          ? 'bg-sffl-red border-sffl-red'
-                          : 'bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500'
+                          ? "bg-sffl-red border-sffl-red"
+                          : "bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500"
                       }`}
                       title={`Toggle timeout ${idx + 1}`}
                       aria-label={`Toggle ${state.home} timeout ${idx + 1}`}
@@ -301,7 +341,9 @@ export function AdminBroadcastStudio() {
               </div>
 
               {/* VS Divider */}
-              <div className="col-span-1 text-center font-black text-gray-400 text-lg">VS</div>
+              <div className="col-span-1 text-center font-black text-gray-400 text-lg">
+                VS
+              </div>
 
               {/* Away Score */}
               <div className="col-span-2 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 flex flex-col items-center">
@@ -313,22 +355,32 @@ export function AdminBroadcastStudio() {
                   min="0"
                   aria-label={`${state.away} score`}
                   value={state.manual_away}
-                  onChange={(e) => updateScore(state.manual_home, parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) =>
+                    updateScore(
+                      state.manual_home,
+                      parseInt(e.target.value, 10) || 0,
+                    )
+                  }
                   className="w-20 text-center text-4xl font-black bg-transparent text-gray-900 dark:text-white border-0 focus:ring-0"
                 />
                 {/* Away Timeouts */}
                 <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">TO:</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">
+                    TO:
+                  </span>
                   {[0, 1, 2].map((idx) => (
                     <button
                       key={idx}
                       onClick={() =>
-                        updateField('timeouts_away', state.timeouts_away > idx ? idx : idx + 1)
+                        updateField(
+                          "timeouts_away",
+                          state.timeouts_away > idx ? idx : idx + 1,
+                        )
                       }
                       className={`w-3.5 h-3.5 rounded-full border transition-colors cursor-pointer ${
                         idx < state.timeouts_away
-                          ? 'bg-sffl-red border-sffl-red'
-                          : 'bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500'
+                          ? "bg-sffl-red border-sffl-red"
+                          : "bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500"
                       }`}
                       title={`Toggle timeout ${idx + 1}`}
                       aria-label={`Toggle ${state.away} timeout ${idx + 1}`}
@@ -342,22 +394,36 @@ export function AdminBroadcastStudio() {
             <div
               className={`p-3 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
                 isScoreAligned
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                  : "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800"
               }`}
             >
               <div className="flex items-center gap-2">
                 {isScoreAligned ? (
-                  <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <CheckCircleIcon
+                    className="w-4 h-4 text-emerald-600 dark:text-emerald-400"
+                    aria-hidden="true"
+                  />
                 ) : (
-                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                  <ExclamationTriangleIcon
+                    className="w-4 h-4 text-amber-600 dark:text-amber-400"
+                    aria-hidden="true"
+                  />
                 )}
                 <span>
-                  <b>{isScoreAligned ? 'Scores aligned' : 'Score discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({pbpHome}–{pbpAway})
+                  <b>
+                    {isScoreAligned ? "Scores aligned" : "Score discrepancy"}:
+                  </b>{" "}
+                  Manual ({state.manual_home}–{state.manual_away}) vs PBP (
+                  {pbpHome}–{pbpAway})
                 </span>
               </div>
               {!isScoreAligned && (
-                <Button variant="link" size="sm" onClick={() => updateScore(pbpHome, pbpAway)}>
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => updateScore(pbpHome, pbpAway)}
+                >
                   Sync to PBP
                 </Button>
               )}
@@ -370,7 +436,7 @@ export function AdminBroadcastStudio() {
                 <Select
                   id="broadcast-period"
                   value={state.period}
-                  onChange={(e) => updateField('period', e.target.value)}
+                  onChange={(e) => updateField("period", e.target.value)}
                 >
                   <option value="H1">1st Half (H1)</option>
                   <option value="HALF">Halftime (HALF)</option>
@@ -400,12 +466,12 @@ export function AdminBroadcastStudio() {
               {/* Clock Action Toggle */}
               <div className="flex flex-col justify-end">
                 <Button
-                  variant={state.clock_running ? 'warning' : 'success'}
+                  variant={state.clock_running ? "warning" : "success"}
                   icon={state.clock_running ? PauseIcon : PlayIcon}
                   onClick={handleToggleClock}
                   fullWidth
                 >
-                  {state.clock_running ? 'Pause clock' : 'Start clock'}
+                  {state.clock_running ? "Pause clock" : "Start clock"}
                 </Button>
               </div>
             </div>
@@ -416,7 +482,7 @@ export function AdminBroadcastStudio() {
                 <Select
                   id="broadcast-down"
                   value={state.down}
-                  onChange={(e) => updateField('down', e.target.value)}
+                  onChange={(e) => updateField("down", e.target.value)}
                 >
                   <option value="1">1st Down</option>
                   <option value="2">2nd Down</option>
@@ -433,7 +499,7 @@ export function AdminBroadcastStudio() {
                 <Select
                   id="broadcast-possession"
                   value={state.possession}
-                  onChange={(e) => updateField('possession', e.target.value)}
+                  onChange={(e) => updateField("possession", e.target.value)}
                 >
                   <option value={state.home}>{state.home} (Home)</option>
                   <option value={state.away}>{state.away} (Away)</option>
@@ -449,9 +515,15 @@ export function AdminBroadcastStudio() {
                 <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
                   Lower-third graphic
                 </h2>
-                <p className="text-xs text-gray-500">Configure player or event banner and fire on air</p>
+                <p className="text-xs text-gray-500">
+                  Configure player or event banner and fire on air
+                </p>
               </div>
-              <Button variant="secondary" icon={EyeSlashIcon} onClick={hideGraphic}>
+              <Button
+                variant="secondary"
+                icon={EyeSlashIcon}
+                onClick={hideGraphic}
+              >
                 Hide graphic now
               </Button>
             </div>
@@ -528,10 +600,10 @@ export function AdminBroadcastStudio() {
                 {CALL_BUTTONS.map((btn) => (
                   <Button
                     key={btn.call}
-                    variant={btn.red ? 'danger' : 'navy'}
+                    variant={btn.red ? "danger" : "navy"}
                     onClick={() => handleTriggerCall(btn.call)}
                     fullWidth
-                    className={`uppercase tracking-wider ${btn.red ? 'col-span-2 sm:col-span-3 md:col-span-4 py-3 text-sm' : ''}`}
+                    className={`uppercase tracking-wider ${btn.red ? "col-span-2 sm:col-span-3 md:col-span-4 py-3 text-sm" : ""}`}
                   >
                     {btn.label}
                   </Button>
@@ -547,7 +619,10 @@ export function AdminBroadcastStudio() {
                 <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
                   Play-by-play queue
                 </h2>
-                <p className="text-xs text-gray-500">Click PREPARE to review and manually trigger lower-third graphic</p>
+                <p className="text-xs text-gray-500">
+                  Click PREPARE to review and manually trigger lower-third
+                  graphic
+                </p>
               </div>
               <span className="text-[10px] font-black px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase">
                 Manual trigger mode
@@ -556,14 +631,20 @@ export function AdminBroadcastStudio() {
 
             {recentPlays.length === 0 ? (
               <p className="text-xs text-gray-400 py-4 text-center">
-                No recent plays logged yet. New plays will appear here automatically.
+                No recent plays logged yet. New plays will appear here
+                automatically.
               </p>
             ) : (
               <div className="space-y-2">
                 {recentPlays.map((p) => {
-                  const playerName = p.target?.name || p.off_qb?.name || p.defender?.name || 'Play Event';
-                  const teamName = p.offense_team?.name || 'Offense';
-                  const summary = p.notes || `${p.play_type || ''} ${p.result || ''}`.trim();
+                  const playerName =
+                    p.target?.name ||
+                    p.off_qb?.name ||
+                    p.defender?.name ||
+                    "Play Event";
+                  const teamName = p.offense_team?.name || "Offense";
+                  const summary =
+                    p.notes || `${p.play_type || ""} ${p.result || ""}`.trim();
 
                   return (
                     <div
@@ -578,7 +659,12 @@ export function AdminBroadcastStudio() {
                           {summary}
                         </span>
                       </div>
-                      <Button variant="navy" size="sm" onClick={() => handlePreparePlay(p)} className="shrink-0">
+                      <Button
+                        variant="navy"
+                        size="sm"
+                        onClick={() => handlePreparePlay(p)}
+                        className="shrink-0"
+                      >
                         Prepare
                       </Button>
                     </div>
@@ -603,7 +689,7 @@ export function AdminBroadcastStudio() {
             </div>
 
             {/* Simulated 16:9 monitor frame */}
-            <div className="aspect-video relative rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 shadow-inner flex items-center justify-center">
+            <div className="aspect-video relative rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 bg-linear-to-br from-emerald-950 via-slate-900 to-emerald-900 shadow-inner flex items-center justify-center">
               {/* Field Grid Backdrop */}
               <div className="absolute inset-0 opacity-20 pointer-events-none bg-[repeating-linear-gradient(90deg,transparent_0_15%,#fff_15%_16%)]" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-white/20 font-black tracking-widest text-xs">
@@ -626,7 +712,11 @@ export function AdminBroadcastStudio() {
                 rel="noopener noreferrer"
                 className="text-sffl-red hover:underline font-bold flex items-center gap-1"
               >
-                Open in new tab <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                Open in new tab{" "}
+                <ArrowTopRightOnSquareIcon
+                  className="w-3.5 h-3.5"
+                  aria-hidden="true"
+                />
               </a>
             </div>
           </div>
@@ -639,7 +729,8 @@ export function AdminBroadcastStudio() {
 
             <div className="space-y-2 text-gray-600 dark:text-gray-300">
               <p>
-                <b>1.</b> In vMix on your broadcast PC, click <b>Add Input</b> (bottom-left).
+                <b>1.</b> In vMix on your broadcast PC, click <b>Add Input</b>{" "}
+                (bottom-left).
               </p>
               <p>
                 <b>2.</b> Select <b>Web Browser</b> from the left list.
@@ -654,12 +745,18 @@ export function AdminBroadcastStudio() {
                 <b>4.</b> Set Resolution: <b>1920 × 1080</b>.
               </p>
               <p>
-                <b>5.</b> Assign this Web Browser input to <b>Overlay 1</b> in vMix.
+                <b>5.</b> Assign this Web Browser input to <b>Overlay 1</b> in
+                vMix.
               </p>
             </div>
 
-            <Button variant="primary" icon={copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon} onClick={copyUrl} fullWidth>
-              {copied ? 'Overlay URL copied!' : 'Copy overlay URL for vMix'}
+            <Button
+              variant="primary"
+              icon={copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon}
+              onClick={copyUrl}
+              fullWidth
+            >
+              {copied ? "Overlay URL copied!" : "Copy overlay URL for vMix"}
             </Button>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { contractsApi } from '../../services/api';
-import type { ContractData } from '../../types/contracts';
-import type { Player } from '../../types/players';
+import type { ContractData, Player } from '../../types';
 import toast from 'react-hot-toast';
 import {
     ArrowPathIcon,
@@ -13,15 +12,8 @@ import {
     UserMinusIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { Button, Field, Input, Tabs } from '../../components/ui';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Modal } from '../../components/ui/Modal';
-import { Spinner } from '../../components/ui/Spinner';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { DashboardPageHeader, Button, Field, Input, Tabs, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, Spinner } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 const PAGE_SIZE = 20;
 const FREE_AGENT_PAGE_SIZE = 24;

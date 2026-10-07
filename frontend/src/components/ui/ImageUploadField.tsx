@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { PhotoIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { useImageUpload } from '../../hooks/useImageUpload';
+import { useImageUpload } from '../../hooks';
 import toast from 'react-hot-toast';
 import { LightboxImage } from './LightboxImage';
 import { Button } from './Button';

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { playerPortalApi } from '../../services/api';
-import type { OfferResponse } from '../../types/contracts';
+import type { OfferResponse } from '../../types';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { apiError } from './apiError';

@@ -1,7 +1,6 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { useState, useEffect, useId, useRef, type ReactNode } from "react";
-import { useAuth } from "../../contexts/AuthContext";
-import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth, useTheme } from "../../contexts";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DashboardBottomNav } from "./DashboardBottomNav";
 import { DashboardBrand } from "./DashboardBrand";

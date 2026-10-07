@@ -9,11 +9,8 @@ import {
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
 } from "../../services/api";
-import type { Competition } from "../../types/matches";
-import { Button, Field, IconButton, Input, Select, Tabs } from "../../components/ui";
-import { Loader } from "../../components/ui/Loader";
-import { StatsTable } from "../../components/stats/StatsTable";
-import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
+import type { Competition } from "../../types";
+import { Button, Field, IconButton, Input, Select, Tabs, Loader, StatsTable, SeasonStageTabs, FootballIcon } from "../../components";
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronDownIcon,
@@ -24,7 +21,6 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { FootballIcon } from "../../components/icons/FootballIcon";
 
 export const Stats = () => {
   const [searchParams, setSearchParams] = useSearchParams();

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getPublicMatchStats } from "../../services/api";
-import type { Match, MatchTeamSheet, TeamSheetPlayer, PitchStarterNode } from "../../types/matches";
+import type { Match, MatchTeamSheet, TeamSheetPlayer, PitchStarterNode } from "../../types";
 import { isDeletedPlayer, DELETED_TITLE } from "../domain/DeletedPlayer";
 import {
   ArrowDownIcon,

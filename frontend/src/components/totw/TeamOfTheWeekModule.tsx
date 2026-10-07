@@ -6,14 +6,14 @@ import {
   getTOTWArchive,
   getTOTWById,
 } from "../../services/api";
-import type { TeamOfTheWeek, TOTWPlayer } from "../../types/totw";
+import type { TeamOfTheWeek, TOTWPlayer } from "../../types";
 import {
   ArrowPathIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-import { formatStatNumber } from "../../utils/formatters";
+import { formatStatNumber } from "../../utils";
 import { Button, ButtonLink, Select } from "../ui";
 
 const isPlayerOfTheWeek = (totw: TeamOfTheWeek, player: TOTWPlayer): boolean =>

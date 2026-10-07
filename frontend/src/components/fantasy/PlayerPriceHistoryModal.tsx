@@ -8,7 +8,7 @@ import {
     BoltIcon,
 } from '@heroicons/react/24/outline';
 import { fantasyApi, formatFantasyPrice } from '../../services/api';
-import { formatStatDecimal } from '../../utils/formatters';
+import { formatStatDecimal } from '../../utils';
 import { Button, Modal } from '../ui';
 import { DataTable, type Column } from '../ui/DataTable';
 

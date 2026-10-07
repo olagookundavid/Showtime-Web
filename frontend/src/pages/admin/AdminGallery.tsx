@@ -1,4 +1,4 @@
-import { Loader } from '../../components/ui/Loader';
+import { Loader, Button, Field, Input, Modal, Select, ConfirmDialog, ConfirmSummary, DashboardPageHeader } from '../../components';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -8,12 +8,7 @@ import {
 import {
     getGallery, createGallery, updateGallery, deleteGallery, getCompetitions,
 } from '../../services/api';
-import type { Gallery, CreateGalleryPayload } from '../../types/gallery';
-import type { Competition } from '../../types/matches';
-import { Button, Field, Input, Modal, Select } from '../../components/ui';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { Gallery, CreateGalleryPayload, Competition } from '../../types';
 
 interface FormData {
     competition_id: string;

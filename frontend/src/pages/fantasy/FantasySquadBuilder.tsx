@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { isDeletedPlayer } from "../../components/domain/DeletedPlayer";
+import { isDeletedPlayer, FemaleIcon, Button, Field, Input, Select, Modal, Spinner, Loader, PlayerAvatar, FantasyBackLink, FantasyPitch } from "../../components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
@@ -30,22 +30,16 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import type { ComponentType, SVGProps } from "react";
-import { FemaleIcon } from "../../components/icons/FemaleIcon";
-import { Button, Field, Input, Select } from "../../components/ui";
-import { Modal } from "../../components/ui/Modal";
-import { Spinner } from "../../components/ui/Spinner";
 import {
   fantasyApi,
   fantasySeasonApi,
   fantasySquadApi,
   formatFantasyPrice,
 } from "../../services/api";
-import type { FantasySlot, FantasyPlayerListItem, FantasySeason } from "../../types/fantasy/core";
-import type { Squad, SquadPlayer } from "../../types/fantasy/squad";
-import { formatStatNumber } from "../../utils/formatters";
-import { useAuth } from "../../contexts/AuthContext";
-import { Loader } from "../../components/ui/Loader";
-import { useReserveDrag } from "../../hooks/useReserveDrag";
+import type { FantasySlot, FantasyPlayerListItem, FantasySeason, Squad, SquadPlayer } from "../../types";
+import { formatStatNumber } from "../../utils";
+import { useAuth } from "../../contexts";
+import { useReserveDrag } from "../../hooks";
 
 const getDefaultTeamName = (userName?: string | null): string => {
   const clean = (userName || "").trim();
@@ -56,9 +50,6 @@ const getDraftKey = (seasonId?: string, gwId?: string, userId?: string) => {
   if (!seasonId || !gwId) return null;
   return `showtime_fantasy_draft_${seasonId}_${gwId}_${userId || "anon"}`;
 };
-import { PlayerAvatar } from "../../components/fantasy/PlayerAvatar";
-import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
-import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
 
 interface SlotDefinition {
   slot: FantasySlot;

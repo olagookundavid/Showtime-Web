@@ -7,9 +7,9 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { getMatches } from "../../services/api";
-import type { Match } from "../../types/matches";
+import type { Match } from "../../types";
 import { Loader } from "../ui/Loader";
-import { formatMatchTime } from "../../utils/dateUtils";
+import { formatMatchTime } from "../../utils";
 
 // Shared query — React Query dedupes by key so the carousel and info strip
 // don't double-fetch when both are on the page.

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { loginUser, registerUser, logoutUser, getUserProfile } from '../services/api';
-import type { AuthUser } from '../types/auth';
+import type { AuthUser } from '../types';
 
 export interface User {
     id: string;

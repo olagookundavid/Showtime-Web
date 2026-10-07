@@ -9,10 +9,8 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { getOrderByReference, verifyStorePayment } from "../../services/api";
-import { Loader } from "../../components/ui/Loader";
-import { Button, ButtonLink } from "../../components/ui";
-import { OrderLifecycleStepper } from "../../components/store/OrderLifecycleStepper";
-import { useCart } from "../../contexts/CartContext";
+import { Loader, Button, ButtonLink, OrderLifecycleStepper } from "../../components";
+import { useCart } from "../../contexts";
 
 export const OrderConfirmation = () => {
   const [searchParams] = useSearchParams();

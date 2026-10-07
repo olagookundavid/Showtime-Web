@@ -1,39 +1,129 @@
 import axios from 'axios';
 import { API_URL, COMMENTS_PAGE_SIZE } from '../constants';
-import type { AuthUser, ResetPasswordPayload } from '../types/auth';
-import type { PaginatedResponse, GenericApiResponse, Paged } from '../types/common';
-import type { News, CreateNewsPayload } from '../types/news';
-import type { RelivePlaylist } from '../types/relive';
-import type { LiveStatus, AdminLiveStatus } from '../types/livestream';
-import type { Gallery, CreateGalleryPayload } from '../types/gallery';
-import type { HeroSlide, CreateHeroSlidePayload, UpdateHeroSlidePayload } from '../types/heroSlides';
-import type { SeasonGraphic, SeasonMVP, UpsertSeasonGraphicPayload, CreateSeasonMVPPayload, UpdateSeasonMVPPayload } from '../types/teamOfSeason';
-import type { Player, RosterSummary, CreatePlayerPayload } from '../types/players';
-import type { Badge, PlayerBadgeAward, PlayerBadge, CreateBadgePayload, UpdateBadgePayload, AwardBadgePayload } from '../types/badges';
-import type { GamePlay, PlayPayload, SituationUpdate, BulkRecomputeResult } from '../types/playByPlay';
-import type { TicketTierResponse, EventDayResponse, TicketResponse, PurchaseTicketPayload, GiftTicketPayload, TeamTicketAllocation, CreateReferralPayload, ReferralResponse, ReferralStatsResponse } from '../types/tickets';
-import type { AdminAnalyticsResponse } from '../types/analytics';
-import type { PlayerStat, TeamStat, UpsertPlayerStatPayload, StatsCompare } from '../types/stats';
-import type { InventoryProduct, InventorySale, SalesReportResponse, PaymentMethod } from '../types/inventory';
-import type { ProductImage, ProductOption, StoreProduct, ProductReview, CreateProductReviewPayload, ReviewSort, CheckoutItemPayload, CheckoutPayload, CheckoutResponseData, Order, SavedAddress, AdminVariantPayload } from '../types/store';
-import type { DiscountCode, SaveDiscountCodePayload, DiscountTarget, DiscountPreview } from '../types/discounts';
-import type { ContractData, IssueContractPayload } from '../types/contracts';
-import type { TransferData, TransferBidData, TeamBudgetData, TransferWindowData } from '../types/transfers';
-import type { NotificationData } from '../types/notifications';
-import type { VerifyClaimCodeData, SubmitClaimPayload, SubmitClaimData, MyClaimStatusData, ClaimKind, PlayerClaimData, ClaimCodeData } from '../types/claims';
-import type { AppSettingsData } from '../types/settings';
-import type { CommentData, CommentPage } from '../types/comments';
-import type { TeamOfTheWeek, TOTWListItem, SaveTOTWPayload } from '../types/totw';
-import type { POTWPoll, POTWPollSummary, SavePOTWPollPayload } from '../types/potw';
-import type { TeamManager, ManagerCandidate } from '../types/adminTeams';
-import type { FantasySlot, FantasySeason, FantasyGameweek, FantasyPlayerListItem, MarketSort, FantasyLineupResponse, FantasyTeamLineupDetailResponse, ScheduledMatchDay } from '../types/fantasy/core';
-import type { GameweekReportResponse, PlayerGWBreakdownResponse, PlayerPriceHistoryResponse } from '../types/fantasy/reports';
-import type { FantasyWallet, PayoutStatus, PayoutRequest, LeagueFinance, MoneyOwed } from '../types/fantasy/wallet';
-import type { FantasyLeague, JoinLeagueResponse, Leaderboard, LeaderboardEntry, LeagueJoinPreview } from '../types/fantasy/leagues';
-import type { DashboardTeam, FantasyDashboard } from '../types/fantasy/dashboard';
-import type { Squad, SquadReadiness } from '../types/fantasy/squad';
-import type { AdminFantasyOverview, AdminManagerRow, AdminLeagueRow, AdminLeagueMemberRow, SettlementResult, AdminPlayerPriceRow } from '../types/fantasy/admin';
 import type {
+    AuthUser,
+    ResetPasswordPayload,
+    PaginatedResponse,
+    GenericApiResponse,
+    Paged,
+    News,
+    CreateNewsPayload,
+    RelivePlaylist,
+    LiveStatus,
+    AdminLiveStatus,
+    Gallery,
+    CreateGalleryPayload,
+    HeroSlide,
+    CreateHeroSlidePayload,
+    UpdateHeroSlidePayload,
+    SeasonGraphic,
+    SeasonMVP,
+    UpsertSeasonGraphicPayload,
+    CreateSeasonMVPPayload,
+    UpdateSeasonMVPPayload,
+    Player,
+    RosterSummary,
+    CreatePlayerPayload,
+    Badge,
+    PlayerBadgeAward,
+    PlayerBadge,
+    CreateBadgePayload,
+    UpdateBadgePayload,
+    AwardBadgePayload,
+    GamePlay,
+    PlayPayload,
+    SituationUpdate,
+    BulkRecomputeResult,
+    TicketTierResponse,
+    EventDayResponse,
+    TicketResponse,
+    PurchaseTicketPayload,
+    GiftTicketPayload,
+    TeamTicketAllocation,
+    CreateReferralPayload,
+    ReferralResponse,
+    ReferralStatsResponse,
+    AdminAnalyticsResponse,
+    PlayerStat,
+    TeamStat,
+    UpsertPlayerStatPayload,
+    StatsCompare,
+    InventoryProduct,
+    InventorySale,
+    SalesReportResponse,
+    PaymentMethod,
+    ProductImage,
+    ProductOption,
+    StoreProduct,
+    ProductReview,
+    CreateProductReviewPayload,
+    ReviewSort,
+    CheckoutItemPayload,
+    CheckoutPayload,
+    CheckoutResponseData,
+    Order,
+    SavedAddress,
+    AdminVariantPayload,
+    DiscountCode,
+    SaveDiscountCodePayload,
+    DiscountTarget,
+    DiscountPreview,
+    ContractData,
+    IssueContractPayload,
+    TransferData,
+    TransferBidData,
+    TeamBudgetData,
+    TransferWindowData,
+    NotificationData,
+    VerifyClaimCodeData,
+    SubmitClaimPayload,
+    SubmitClaimData,
+    MyClaimStatusData,
+    ClaimKind,
+    PlayerClaimData,
+    ClaimCodeData,
+    AppSettingsData,
+    CommentData,
+    CommentPage,
+    TeamOfTheWeek,
+    TOTWListItem,
+    SaveTOTWPayload,
+    POTWPoll,
+    POTWPollSummary,
+    SavePOTWPollPayload,
+    TeamManager,
+    ManagerCandidate,
+    FantasySlot,
+    FantasySeason,
+    FantasyGameweek,
+    FantasyPlayerListItem,
+    MarketSort,
+    FantasyLineupResponse,
+    FantasyTeamLineupDetailResponse,
+    ScheduledMatchDay,
+    GameweekReportResponse,
+    PlayerGWBreakdownResponse,
+    PlayerPriceHistoryResponse,
+    FantasyWallet,
+    PayoutStatus,
+    PayoutRequest,
+    LeagueFinance,
+    MoneyOwed,
+    FantasyLeague,
+    JoinLeagueResponse,
+    Leaderboard,
+    LeaderboardEntry,
+    LeagueJoinPreview,
+    DashboardTeam,
+    FantasyDashboard,
+    Squad,
+    SquadReadiness,
+    AdminFantasyOverview,
+    AdminManagerRow,
+    AdminLeagueRow,
+    AdminLeagueMemberRow,
+    SettlementResult,
+    AdminPlayerPriceRow,
     Competition,
     Team,
     Match,
@@ -48,7 +138,7 @@ import type {
     BracketEntryPayload,
     GameRules,
     GameRulesPayload,
-} from '../types/matches';
+} from '../types';
 
 const api = axios.create({
     baseURL: API_URL,

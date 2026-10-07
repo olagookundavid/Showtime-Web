@@ -1,9 +1,4 @@
-import { DashboardShell } from '../../components/dashboard/DashboardShell';
-import {
-    SELLER_BOTTOM_NAV,
-    SELLER_HOME,
-    SELLER_NAV_SECTIONS,
-} from '../../components/seller/sellerNav';
+import { DashboardShell, SELLER_BOTTOM_NAV, SELLER_HOME, SELLER_NAV_SECTIONS } from '../../components';
 
 export const SellerLayout = () => (
     <DashboardShell

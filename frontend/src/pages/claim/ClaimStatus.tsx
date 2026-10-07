@@ -2,12 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { claimApi } from '../../services/api';
-import type { MyClaimStatusData } from '../../types/claims';
-import { useAuth } from '../../contexts/AuthContext';
-import { useImageUpload } from '../../hooks/useImageUpload';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { Button } from '../../components/ui';
-import { Spinner } from '../../components/ui/Spinner';
+import type { MyClaimStatusData } from '../../types';
+import { useAuth } from '../../contexts';
+import { useImageUpload } from '../../hooks';
+import { ConfirmDialog, Button, Spinner } from '../../components';
 import {
     ArrowPathIcon,
     ArrowRightOnRectangleIcon,

@@ -11,8 +11,7 @@ import {
   ShoppingBagIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
-import { useAuth } from "../../contexts/AuthContext";
-import { useCart } from "../../contexts/CartContext";
+import { useAuth, useCart } from "../../contexts";
 import {
   newsletterEnabled,
   subscribeToNewsletter,
@@ -24,13 +23,9 @@ import {
   saveSavedAddress,
   initializeCheckout,
 } from "../../services/api";
-import type { StoreProduct, SavedAddress, CheckoutPayload } from "../../types/store";
-import type { DiscountPreview } from "../../types/discounts";
-import { LazyImage } from "../../components/ui/LazyImage";
-import { DiscountCodeInput } from "../../components/discounts/DiscountCodeInput";
-import { formatVariantLabel } from "../../utils/storeStock";
-import { Button, Checkbox, Field, Input, Textarea } from "../../components/ui";
-import { Spinner } from "../../components/ui/Spinner";
+import type { StoreProduct, SavedAddress, CheckoutPayload, DiscountPreview } from "../../types";
+import { LazyImage, DiscountCodeInput, Button, Checkbox, Field, Input, Textarea, Spinner } from "../../components";
+import { formatVariantLabel } from "../../utils";
 
 export const Checkout = () => {
   const [searchParams] = useSearchParams();

@@ -1,9 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { CalendarDaysIcon, TicketIcon } from "@heroicons/react/24/outline";
-import type { Match } from "../../types/matches";
-import { generateGoogleCalendarLink } from "../../utils/calendarUtils";
-import { formatMatchTime, formatMatchDate } from "../../utils/dateUtils";
+import type { Match } from "../../types";
+import { generateGoogleCalendarLink, formatMatchTime, formatMatchDate } from "../../utils";
 import { Button, ButtonLink, LightboxImage } from "../ui";
 
 interface MatchCardProps {

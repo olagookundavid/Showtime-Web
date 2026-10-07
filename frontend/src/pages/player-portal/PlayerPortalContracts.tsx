@@ -2,14 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { playerPortalApi } from '../../services/api';
-import type { ContractData } from '../../types/contracts';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
-import { OfferResponseDialog } from '../../components/player-portal/OfferResponseDialog';
-import type { OfferResponse } from '../../types/contracts';
-import { apiError } from '../../components/player-portal/apiError';
+import type { ContractData, OfferResponse } from '../../types';
+import { DashboardPageHeader, DataTable, type Column, RowActions, NotLinkedNotice, OfferResponseDialog, apiError } from '../../components';
 
 const NO_ROWS: ContractData[] = [];
 

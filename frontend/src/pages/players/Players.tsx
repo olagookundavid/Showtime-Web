@@ -1,21 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  isDeletedPlayer,
-  DELETED_TITLE,
-} from "../../components/domain/DeletedPlayer";
+import { isDeletedPlayer, DELETED_TITLE, Loader, Field, LightboxImage, Select, Spinner, FootballIcon, CrownIcon } from "../../components";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   getPlayers,
   getTeams,
 } from "../../services/api";
-import type { PaginatedResponse } from "../../types/common";
-import type { Player } from "../../types/players";
-import type { PublicTeam } from "../../types/matches";
-import { Loader } from "../../components/ui/Loader";
-import { Field, LightboxImage, Select, Spinner } from "../../components/ui";
-import { FootballIcon } from "../../components/icons/FootballIcon";
-import { CrownIcon } from "../../components/icons/CrownIcon";
+import type { PaginatedResponse, Player, PublicTeam } from "../../types";
 import {
   ArrowRightIcon,
   ShieldCheckIcon,

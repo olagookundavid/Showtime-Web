@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminListReferrals } from '../../services/api';
-import type { ReferralStatsResponse } from '../../types/tickets';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { ReferralStatsResponse } from '../../types';
+import { DataTable, type Column, DashboardPageHeader } from '../../components';
 
 const PAGE_SIZE = 10;
 const NO_ROWS: ReferralStatsResponse[] = [];

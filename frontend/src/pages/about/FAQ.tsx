@@ -4,9 +4,7 @@ import {
   RocketLaunchIcon,
   TicketIcon,
 } from "@heroicons/react/24/outline";
-import { CopyableEmail } from "../../components/ui/CopyableEmail";
-import { FootballIcon } from "../../components/icons/FootballIcon";
-import { PitchIcon } from "../../components/icons/PitchIcon";
+import { CopyableEmail, FootballIcon, PitchIcon } from "../../components";
 
 // Heroicons has no handshake, so the partnerships mark is drawn in their
 // outline style: two forearms meeting in a clasp.

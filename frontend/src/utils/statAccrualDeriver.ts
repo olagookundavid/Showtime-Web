@@ -1,4 +1,4 @@
-import type { GamePlay } from '../types/playByPlay';
+import type { GamePlay } from '../types';
 import { isReturnTD } from './playClassification';
 
 export interface StatAccrual {

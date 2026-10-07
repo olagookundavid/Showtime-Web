@@ -1,5 +1,5 @@
 import { useOutletContext } from "react-router-dom";
-import type { TeamHeadOutletContext } from "../../types/teamHead";
+import type { TeamHeadOutletContext } from "../../types";
 
 /** The manager's team, or null when none is assigned (or it is still loading). */
 export const useTeamHeadTeam = () =>

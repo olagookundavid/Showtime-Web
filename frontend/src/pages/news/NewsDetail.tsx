@@ -2,13 +2,8 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { getNewsBySlug, getNews } from '../../services/api';
-import { Loader } from '../../components/ui/Loader';
-import { LightboxImage } from '../../components/ui';
-import { NewsContent } from '../../components/news/NewsContent';
-import { YouTubeEmbed } from '../../components/news/YouTubeEmbed';
-import { parseYouTubeId } from '../../utils/newsContent';
-import { CommentSection } from '../../components/comments/CommentSection';
-import { BackButton } from '../../components/ui/BackButton';
+import { Loader, LightboxImage, NewsContent, YouTubeEmbed, CommentSection, BackButton } from '../../components';
+import { parseYouTubeId } from '../../utils';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();

@@ -6,14 +6,9 @@ import {
     getStandings, getCompetitions,
     deleteStanding,
 } from '../../services/api';
-import type { Standing, Competition } from '../../types/matches';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { LightboxImage, Select } from '../../components/ui';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { usePermissions } from '../../hooks/usePermissions';
+import type { Standing, Competition } from '../../types';
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, LightboxImage, Select, DashboardPageHeader } from '../../components';
+import { usePermissions } from '../../hooks';
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_STANDINGS: Standing[] = [];

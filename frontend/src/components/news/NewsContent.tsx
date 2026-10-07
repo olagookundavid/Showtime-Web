@@ -2,10 +2,7 @@ import { Link } from 'react-router-dom';
 import { LightboxImage } from '../ui';
 import { YouTubeEmbed } from './YouTubeEmbed';
 import { NewsReferenceCard } from './NewsReferenceCard';
-import {
-    parseNewsContent, parseInlineMentions,
-    type InlinePart,
-} from '../../utils/newsContent';
+import { parseNewsContent, parseInlineMentions, type InlinePart } from '../../utils';
 
 // Renders article body text authored with the news tag grammar (see
 // utils/newsContent.ts). Tags are parsed into React elements — no raw HTML is

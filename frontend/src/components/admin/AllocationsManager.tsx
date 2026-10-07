@@ -8,13 +8,13 @@ import {
     adminDeleteAllocation,
     getTeams,
 } from '../../services/api';
-import type { TeamTicketAllocation } from '../../types/tickets';
+import type { TeamTicketAllocation } from '../../types';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { Spinner } from '../ui/Spinner';
 import { Button, IconButton, Input, Select } from '../ui';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { usePermissions } from '../../hooks/usePermissions';
+import { getApiErrorMessage } from '../../utils';
+import { usePermissions } from '../../hooks';
 
 type PendingAction = { kind: 'save' } | { kind: 'delete'; allocation: TeamTicketAllocation };
 

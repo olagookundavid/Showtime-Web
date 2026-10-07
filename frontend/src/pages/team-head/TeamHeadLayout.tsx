@@ -1,13 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import api, { teamHeadClaimsApi } from '../../services/api';
-import { DashboardShell } from '../../components/dashboard/DashboardShell';
-import {
-    TEAM_HEAD_BOTTOM_NAV,
-    TEAM_HEAD_CLAIMS_PATH,
-    TEAM_HEAD_HOME,
-    TEAM_HEAD_NAV_SECTIONS,
-} from '../../components/team-head/teamHeadNav';
-import type { TeamHeadOutletContext, TeamHeadTeam } from '../../types/teamHead';
+import { DashboardShell, TEAM_HEAD_BOTTOM_NAV, TEAM_HEAD_CLAIMS_PATH, TEAM_HEAD_HOME, TEAM_HEAD_NAV_SECTIONS } from '../../components';
+import type { TeamHeadOutletContext, TeamHeadTeam } from '../../types';
 
 const TeamHeadLayout = () => {
     // Surfaces how many players are waiting on this manager to confirm who they are.

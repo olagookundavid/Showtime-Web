@@ -3,8 +3,7 @@ import {
   adminTransfersApi,
   contractsApi,
 } from "../../services/api";
-import type { TransferWindowData } from "../../types/transfers";
-import type { Player } from "../../types/players";
+import type { TransferWindowData, Player } from "../../types";
 import toast from "react-hot-toast";
 import {
   CheckCircleIcon,
@@ -13,14 +12,8 @@ import {
   PowerIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { Spinner } from "../../components/ui/Spinner";
-import { Button, Checkbox, Field, Input, Modal } from "../../components/ui";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { usePermissions } from "../../hooks/usePermissions";
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Spinner, Button, Checkbox, Field, Input, Modal, DashboardPageHeader } from "../../components";
+import { usePermissions } from "../../hooks";
 
 const FREE_AGENTS_PER_PAGE = 24;
 

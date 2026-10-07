@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { AdminPOTWPanel } from "../../components/potw/AdminPOTWPanel";
-import { potwPollQueryKey } from "../../components/potw/potwUtils";
+import { AdminPOTWPanel, potwPollQueryKey, Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, FemaleIcon, MaleIcon, ImageUploadField, Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea, NewsContentEditor, DashboardPageHeader } from "../../components";
 import {
   getAdminTOTWs,
   getAdminTOTWById,
@@ -16,22 +15,15 @@ import {
   getPlayers,
   getAdminPlayerDayStats,
 } from "../../services/api";
-import type { TOTWListItem, TOTWPlayerSlot } from "../../types/totw";
-import type { CreateNewsPayload } from "../../types/news";
-import type { Player } from "../../types/players";
-import type { EventDayResponse } from "../../types/tickets";
-import type { Competition } from "../../types/matches";
-import { Loader } from "../../components/ui/Loader";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { FemaleIcon } from "../../components/icons/FemaleIcon";
-import { MaleIcon } from "../../components/icons/MaleIcon";
-import { ImageUploadField } from "../../components/ui/ImageUploadField";
-import { Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea } from "../../components/ui";
-import { NewsContentEditor } from "../../components/admin/NewsContentEditor";
-import { getApiErrorMessage } from "../../utils/apiError";
+import type {
+  TOTWListItem,
+  TOTWPlayerSlot,
+  CreateNewsPayload,
+  Player,
+  EventDayResponse,
+  Competition,
+} from "../../types";
+import { getApiErrorMessage } from "../../utils";
 import {
   PlusIcon,
   TrashIcon,
@@ -55,8 +47,7 @@ import {
   PlayCircleIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { usePermissions } from "../../hooks/usePermissions";
+import { usePermissions } from "../../hooks";
 
 interface TOTWSlotDef {
   slot_code: string;

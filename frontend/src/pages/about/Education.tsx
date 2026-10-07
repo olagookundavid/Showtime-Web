@@ -1,5 +1,5 @@
 import { DocumentArrowDownIcon } from "@heroicons/react/24/outline";
-import { FootballIcon } from "../../components/icons/FootballIcon";
+import { FootballIcon } from "../../components";
 
 export const Education = () => {
     return (

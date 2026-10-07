@@ -21,15 +21,10 @@ import {
   fantasyLeagueApi,
   formatKobo,
 } from "../../services/api";
-import type { FantasyLeague } from "../../types/fantasy/leagues";
-import { useAuth } from "../../contexts/AuthContext";
-import { Loader } from "../../components/ui/Loader";
-import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
-import { Button, ButtonLink, Field, IconButton, Input } from "../../components/ui";
-import { Modal } from "../../components/ui/Modal";
-import { DataTable } from "../../components/ui/DataTable";
-import { Spinner } from "../../components/ui/Spinner";
-import { rankBadgeClass } from "../../hooks/useFantasyLeaderboard";
+import type { FantasyLeague } from "../../types";
+import { useAuth } from "../../contexts";
+import { Loader, FantasyBackLink, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner } from "../../components";
+import { rankBadgeClass } from "../../hooks";
 
 /** Nothing off the wire is trusted to be a finite number. */
 const num = (v: number | null | undefined): number =>

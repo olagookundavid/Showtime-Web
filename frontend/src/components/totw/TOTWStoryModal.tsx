@@ -6,14 +6,13 @@ import {
   PlayCircleIcon,
 } from '@heroicons/react/24/outline';
 import { saveTOTWArticle } from '../../services/api';
-import type { News, CreateNewsPayload } from '../../types/news';
-import type { TeamOfTheWeek } from '../../types/totw';
+import type { News, CreateNewsPayload, TeamOfTheWeek } from '../../types';
 import { NewsContentEditor } from '../admin/NewsContentEditor';
 import { Button, Field, Input, Modal, Textarea } from '../ui';
 import { ImageUploadField } from '../ui/ImageUploadField';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getApiErrorMessage } from '../../utils';
 
 interface TOTWStoryModalProps {
   isOpen: boolean;

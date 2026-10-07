@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { youTubeEmbedUrl } from '../../utils/newsContent';
+import { youTubeEmbedUrl } from '../../utils';
 
 // YouTube iframe with a visible loading state — the raw iframe paints as a
 // black box for a second or two on slow connections, which reads as broken.

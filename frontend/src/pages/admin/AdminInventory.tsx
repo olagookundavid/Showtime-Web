@@ -23,15 +23,9 @@ import {
     createAdminPaymentMethod,
     toggleAdminPaymentMethod,
 } from '../../services/api';
-import type { InventoryProduct, InventorySale, PaymentMethod } from '../../types/inventory';
-import { Loader } from '../../components/ui/Loader';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { RowActions } from '../../components/ui/RowActions';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, Checkbox, Field, Input, Modal, Select, Textarea } from '../../components/ui';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { InventoryProduct, InventorySale, PaymentMethod } from '../../types';
+import { Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, Input, Modal, Select, Textarea, DashboardPageHeader } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 type Tab = 'PRODUCTS' | 'SALES' | 'REPORTS' | 'SETTINGS';
 

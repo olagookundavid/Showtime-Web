@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../contexts/AuthContext';
-import { useReturnUrl, withReturnUrl } from '../../hooks/useReturnUrl';
-import { Button, Field, Input } from '../../components/ui';
+import { useAuth } from '../../contexts';
+import { useReturnUrl, withReturnUrl } from '../../hooks';
+import { Button, Field, Input } from '../../components';
 
 export const Login = () => {
     const [email, setEmail] = useState('');

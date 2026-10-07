@@ -21,16 +21,10 @@ import {
     getPOTWPolls,
     voteForPOTW,
 } from '../../services/api';
-import type { POTWNominee, POTWPoll, POTWPollSummary } from '../../types/potw';
-import { useAuth } from '../../contexts/AuthContext';
-import { withReturnUrl } from '../../hooks/useReturnUrl';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, ButtonLink } from '../../components/ui';
-import { POTWCountdown } from '../../components/potw/POTWCountdown';
-import { NomineeAvatar, POTWResults } from '../../components/potw/POTWResults';
-import { ShareVote } from '../../components/potw/ShareVote';
-import { VerifyEmailPrompt } from '../../components/auth/VerifyEmailPrompt';
+import type { POTWNominee, POTWPoll, POTWPollSummary } from '../../types';
+import { useAuth } from '../../contexts';
+import { withReturnUrl } from '../../hooks';
+import { ConfirmDialog, ConfirmSummary, Button, ButtonLink, POTWCountdown, NomineeAvatar, POTWResults, ShareVote, VerifyEmailPrompt } from '../../components';
 
 const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });

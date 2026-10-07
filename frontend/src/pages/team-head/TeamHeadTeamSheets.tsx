@@ -7,7 +7,7 @@ import {
   getTeamHeadTeamSheet,
   saveTeamHeadTeamSheet,
 } from "../../services/api";
-import type { Match, TeamSheetPlayer, SaveTeamSheetPayload } from "../../types/matches";
+import type { Match, TeamSheetPlayer, SaveTeamSheetPayload } from "../../types";
 import api from "../../services/api";
 import {
   MagnifyingGlassIcon,
@@ -25,20 +25,8 @@ import {
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { Button, Input, Select } from "../../components/ui";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { Modal } from "../../components/ui/Modal";
-import { Spinner } from "../../components/ui/Spinner";
-import { useTeamHeadTeam } from "../../components/team-head/useTeamHeadTeam";
-import { getApiErrorMessage } from "../../utils/apiError";
-import {
-  formatMatchDate,
-  formatMatchTime,
-  isMatchLocked,
-  getMatchLockCountdown,
-} from "../../utils/dateUtils";
+import { DashboardPageHeader, Button, Input, Select, ConfirmDialog, ConfirmSummary, Modal, Spinner, useTeamHeadTeam } from "../../components";
+import { getApiErrorMessage, formatMatchDate, formatMatchTime, isMatchLocked, getMatchLockCountdown } from "../../utils";
 
 interface ClubPlayer {
   id: string;

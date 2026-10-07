@@ -3,12 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { GiftIcon, ClipboardIcon, CheckIcon, CheckCircleIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { getAllEventDays, giftTicket } from '../../services/api';
-import type { EventDayResponse, TicketResponse } from '../../types/tickets';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button, Field, IconButton, Input, Select } from '../../components/ui';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { EventDayResponse, TicketResponse } from '../../types';
+import { ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Select, DashboardPageHeader } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 const MAX_QUANTITY = 10;
 

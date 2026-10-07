@@ -17,9 +17,8 @@ import {
   fantasyApi,
   formatFantasyPrice,
 } from "../../services/api";
-import type { PlayerPriceHistoryItem } from "../../types/fantasy/reports";
-import type { FantasyPlayerModalData } from "../../types/fantasy/core";
-import { formatStatDecimal, formatStatNumber } from "../../utils/formatters";
+import type { PlayerPriceHistoryItem, FantasyPlayerModalData } from "../../types";
+import { formatStatDecimal, formatStatNumber } from "../../utils";
 
 interface FantasyPlayerModalProps {
   isOpen: boolean;

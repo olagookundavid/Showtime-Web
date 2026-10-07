@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { playerPortalApi } from '../../services/api';
-import type { TransferData } from '../../types/transfers';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { DataTable, type Column } from '../../components/ui/DataTable';
-import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
-import { apiError } from '../../components/player-portal/apiError';
+import type { TransferData } from '../../types';
+import { DashboardPageHeader, DataTable, type Column, NotLinkedNotice, apiError } from '../../components';
 
 const PAGE_SIZE = 20;
 const NO_ROWS: TransferData[] = [];

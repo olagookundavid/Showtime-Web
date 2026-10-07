@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRightIcon, PlusIcon } from "@heroicons/react/24/outline";
-import type { StoreProduct } from "../../types/store";
-import { getAvailableStock } from "../../utils/storeStock";
+import type { StoreProduct } from "../../types";
+import { getAvailableStock } from "../../utils";
 import { Button } from "../ui";
 import { LazyImage } from "../ui/LazyImage";
 

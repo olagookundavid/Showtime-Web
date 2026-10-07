@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { transfersApi } from '../../services/api';
-import type { TeamBudgetData } from '../../types/transfers';
+import type { TeamBudgetData } from '../../types';
 import toast from 'react-hot-toast';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { Spinner } from '../../components/ui/Spinner';
+import { DashboardPageHeader, Spinner } from '../../components';
 
 export const TeamHeadBudget: React.FC = () => {
     const [budget, setBudget] = useState<TeamBudgetData | null>(null);

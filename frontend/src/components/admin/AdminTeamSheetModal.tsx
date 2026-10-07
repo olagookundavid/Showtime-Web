@@ -16,13 +16,12 @@ import {
   saveTeamSheet,
   createPlayer,
 } from "../../services/api";
-import type { Match, TeamSheetPlayer } from "../../types/matches";
-import type { Player } from "../../types/players";
+import type { Match, TeamSheetPlayer, Player } from "../../types";
 import { PLAYER_POSITIONS_WITH_UNASSIGNED } from "../../constants";
 import { Button, Checkbox, IconButton, Input, Modal, Select, Tabs } from "../ui";
 import { Spinner } from "../ui/Spinner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
-import { usePermissions } from "../../hooks/usePermissions";
+import { usePermissions } from "../../hooks";
 
 interface AdminTeamSheetModalProps {
   match: Match;

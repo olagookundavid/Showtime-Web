@@ -1,4 +1,4 @@
-import type { StoreProduct, ProductVariant } from '../types/store';
+import type { StoreProduct, ProductVariant } from '../types';
 
 // Total purchasable stock for a product. When variants exist the base
 // product.quantity is irrelevant — only the sum of variant stock matters.

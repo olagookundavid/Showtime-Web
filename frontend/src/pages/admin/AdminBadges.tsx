@@ -14,20 +14,16 @@ import {
   getAllEventDays,
   getPlayers,
 } from "../../services/api";
-import type { Competition } from "../../types/matches";
-import type { Player } from "../../types/players";
-import type { Badge, PlayerBadgeAward, CreateBadgePayload } from "../../types/badges";
-import type { EventDayResponse } from "../../types/tickets";
-import { Loader } from "../../components/ui/Loader";
-import { Spinner } from "../../components/ui/Spinner";
-import { ImageUploadField } from "../../components/ui/ImageUploadField";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { Button, Field, IconButton, Input, Modal, Select, Textarea } from "../../components/ui";
-import { BadgeImage } from "../../components/domain/BadgeImage";
-import { getApiErrorMessage } from "../../utils/apiError";
+import type {
+  Competition,
+  Player,
+  Badge,
+  PlayerBadgeAward,
+  CreateBadgePayload,
+  EventDayResponse,
+} from "../../types";
+import { Loader, Spinner, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Modal, Select, Textarea, BadgeImage, DashboardPageHeader } from "../../components";
+import { getApiErrorMessage } from "../../utils";
 import {
   CheckIcon,
   PlusIcon,
@@ -38,8 +34,7 @@ import {
   GiftIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { usePermissions } from "../../hooks/usePermissions";
+import { usePermissions } from "../../hooks";
 
 const COLOR_SCHEMES = [
   {
@@ -322,7 +317,9 @@ export const AdminBadges = () => {
     const action = pendingAction;
     if (!action) return;
     if (!canManage) {
-      toast.error("View-only access: your role can view Badges but not make changes.");
+      toast.error(
+        "View-only access: your role can view Badges but not make changes.",
+      );
       setPendingAction(null);
       return;
     }
@@ -655,10 +652,16 @@ export const AdminBadges = () => {
               icon={SparklesIcon}
               onClick={() => setPendingAction({ kind: "backfill" })}
               disabled={busy || !canManage}
-              title={canManage ? "Scan finished 2026 matches and award MVP badges to players" : "View-only access to Badges"}
+              title={
+                canManage
+                  ? "Scan finished 2026 matches and award MVP badges to players"
+                  : "View-only access to Badges"
+              }
               className="w-full sm:w-auto"
             >
-              {busy && pendingAction?.kind === "backfill" ? "Backfilling…" : "Backfill 2026 MVPs"}
+              {busy && pendingAction?.kind === "backfill"
+                ? "Backfilling…"
+                : "Backfill 2026 MVPs"}
             </Button>
             <Button
               variant="secondary"
@@ -783,7 +786,12 @@ export const AdminBadges = () => {
                       CODE: {b.code}
                     </span>
                     <div className="flex items-center gap-1">
-                      <Button variant="secondary" icon={GiftIcon} size="sm" onClick={() => openAwardModal(b.id)}>
+                      <Button
+                        variant="secondary"
+                        icon={GiftIcon}
+                        size="sm"
+                        onClick={() => openAwardModal(b.id)}
+                      >
                         Award
                       </Button>
                       <IconButton
@@ -797,8 +805,12 @@ export const AdminBadges = () => {
                           variant="danger"
                           label={`Delete ${b.name}`}
                           disabled={!canManage}
-                          title={canManage ? undefined : "View-only access to Badges"}
-                          onClick={() => setPendingAction({ kind: "deleteBadge", badge: b })}
+                          title={
+                            canManage ? undefined : "View-only access to Badges"
+                          }
+                          onClick={() =>
+                            setPendingAction({ kind: "deleteBadge", badge: b })
+                          }
                         />
                       )}
                     </div>
@@ -849,201 +861,199 @@ export const AdminBadges = () => {
             </>
           }
         >
-            <div className="space-y-5">
-              {/* ── Official Badge Presets Gallery ──────────────── */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                    Official Showtime Badges (Click to Select) *
-                  </span>
-                  <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                    10 official emblems
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 max-h-56 overflow-y-auto">
-                  {OFFICIAL_BADGE_PRESETS.map((preset) => {
-                    const isSelected =
-                      badgeForm.icon === preset.imageUrl ||
-                      badgeForm.icon === preset.localUrl ||
-                      badgeForm.icon?.endsWith(preset.filename);
-                    return (
-                      <button
-                        key={preset.code}
-                        type="button"
-                        onClick={() => {
-                          setBadgeForm((p) => ({
-                            ...p,
-                            icon: preset.imageUrl,
-                            name:
-                              !editingBadge || !p.name ? preset.name : p.name,
-                            code:
-                              !editingBadge && !p.code ? preset.code : p.code,
-                            category: preset.category,
-                            color_scheme: preset.color_scheme,
-                            description: !p.description
-                              ? preset.description
-                              : p.description,
-                          }));
-                        }}
-                        className={`group relative p-2.5 rounded-xl border flex flex-col items-center text-center transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-400/50 shadow-md"
-                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:scale-[1.02]"
-                        }`}
-                      >
-                        <div className="w-12 h-12 flex items-center justify-center p-1">
-                          <img
-                            src={preset.localUrl}
-                            alt={preset.name}
-                            className="w-full h-full object-contain drop-shadow-xs"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                preset.imageUrl;
-                            }}
-                          />
-                        </div>
-                        <span className="mt-1.5 text-[10px] font-black leading-tight text-gray-900 dark:text-gray-100 line-clamp-2">
-                          {preset.name}
-                        </span>
-                        {isSelected && (
-                          <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-sffl-navy flex items-center justify-center shadow-xs">
-                            <CheckIcon className="w-3 h-3 stroke-[3]" aria-hidden="true" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+          <div className="space-y-5">
+            {/* ── Official Badge Presets Gallery ──────────────── */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  Official Showtime Badges (Click to Select) *
+                </span>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                  10 official emblems
+                </span>
               </div>
-
-              {/* ── Active Emblem Preview & Custom Upload ───────── */}
-              <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                {badgeForm.icon ? (
-                  <div className="flex items-center gap-3 p-3 bg-amber-500/10 dark:bg-amber-500/5 rounded-xl border border-amber-400/40">
-                    <div className="w-14 h-14 p-1 rounded-xl bg-white dark:bg-gray-800 border border-amber-400/50 flex items-center justify-center shrink-0 shadow-sm">
-                      <BadgeImage
-                        icon={badgeForm.icon}
-                        name="Preview"
-                        className="w-full h-full text-2xl"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-gray-900 dark:text-white truncate">
-                          {badgeForm.name || "Selected Badge"}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-400/20 text-amber-700 dark:text-amber-300">
-                          Active Artwork
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate font-mono mt-0.5">
-                        {badgeForm.icon}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-center text-xs text-gray-500 dark:text-gray-400">
-                    No emblem selected. Click one of the official badges above
-                    or upload custom artwork below.
-                  </div>
-                )}
-
-                <ImageUploadField
-                  label="Or Upload Custom Badge Artwork to R2"
-                  value={badgeForm.icon || ""}
-                  onChange={(url) => setBadgeForm((p) => ({ ...p, icon: url }))}
-                  folder="badges"
-                  helperText="Upload a crisp square badge emblem (PNG, WebP, SVG with transparent background recommended)"
-                />
-              </div>
-
-              {/* ── Badge Metadata ─────────────────────────────── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                {!editingBadge && (
-                  <Field label="Badge Code (Unique ID) *" htmlFor="badge-code">
-                    <Input
-                      id="badge-code"
-                      type="text"
-                      placeholder="e.g. GAME_MVP"
-                      value={badgeForm.code}
-                      onChange={(e) =>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 max-h-56 overflow-y-auto">
+                {OFFICIAL_BADGE_PRESETS.map((preset) => {
+                  const isSelected =
+                    badgeForm.icon === preset.imageUrl ||
+                    badgeForm.icon === preset.localUrl ||
+                    badgeForm.icon?.endsWith(preset.filename);
+                  return (
+                    <button
+                      key={preset.code}
+                      type="button"
+                      onClick={() => {
                         setBadgeForm((p) => ({
                           ...p,
-                          code: e.target.value
-                            .toUpperCase()
-                            .replace(/\s+/g, "_"),
-                        }))
-                      }
-                      className="font-mono"
+                          icon: preset.imageUrl,
+                          name: !editingBadge || !p.name ? preset.name : p.name,
+                          code: !editingBadge && !p.code ? preset.code : p.code,
+                          category: preset.category,
+                          color_scheme: preset.color_scheme,
+                          description: !p.description
+                            ? preset.description
+                            : p.description,
+                        }));
+                      }}
+                      className={`group relative p-2.5 rounded-xl border flex flex-col items-center text-center transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-400/50 shadow-md"
+                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:scale-[1.02]"
+                      }`}
+                    >
+                      <div className="w-12 h-12 flex items-center justify-center p-1">
+                        <img
+                          src={preset.localUrl}
+                          alt={preset.name}
+                          className="w-full h-full object-contain drop-shadow-xs"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src =
+                              preset.imageUrl;
+                          }}
+                        />
+                      </div>
+                      <span className="mt-1.5 text-[10px] font-black leading-tight text-gray-900 dark:text-gray-100 line-clamp-2">
+                        {preset.name}
+                      </span>
+                      {isSelected && (
+                        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-sffl-navy flex items-center justify-center shadow-xs">
+                          <CheckIcon
+                            className="w-3 h-3 stroke-3"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Active Emblem Preview & Custom Upload ───────── */}
+            <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+              {badgeForm.icon ? (
+                <div className="flex items-center gap-3 p-3 bg-amber-500/10 dark:bg-amber-500/5 rounded-xl border border-amber-400/40">
+                  <div className="w-14 h-14 p-1 rounded-xl bg-white dark:bg-gray-800 border border-amber-400/50 flex items-center justify-center shrink-0 shadow-sm">
+                    <BadgeImage
+                      icon={badgeForm.icon}
+                      name="Preview"
+                      className="w-full h-full text-2xl"
                     />
-                  </Field>
-                )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-gray-900 dark:text-white truncate">
+                        {badgeForm.name || "Selected Badge"}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-400/20 text-amber-700 dark:text-amber-300">
+                        Active Artwork
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate font-mono mt-0.5">
+                      {badgeForm.icon}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-center text-xs text-gray-500 dark:text-gray-400">
+                  No emblem selected. Click one of the official badges above or
+                  upload custom artwork below.
+                </div>
+              )}
 
-                <Field label="Badge Name *" htmlFor="badge-name">
+              <ImageUploadField
+                label="Or Upload Custom Badge Artwork to R2"
+                value={badgeForm.icon || ""}
+                onChange={(url) => setBadgeForm((p) => ({ ...p, icon: url }))}
+                folder="badges"
+                helperText="Upload a crisp square badge emblem (PNG, WebP, SVG with transparent background recommended)"
+              />
+            </div>
+
+            {/* ── Badge Metadata ─────────────────────────────── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+              {!editingBadge && (
+                <Field label="Badge Code (Unique ID) *" htmlFor="badge-code">
                   <Input
-                    id="badge-name"
+                    id="badge-code"
                     type="text"
-                    placeholder="e.g. Game MVP"
-                    value={badgeForm.name}
-                    onChange={(e) =>
-                      setBadgeForm((p) => ({ ...p, name: e.target.value }))
-                    }
-                  />
-                </Field>
-
-                <Field label="Category" htmlFor="badge-category">
-                  <Select
-                    id="badge-category"
-                    value={badgeForm.category}
-                    onChange={(e) =>
-                      setBadgeForm((p) => ({ ...p, category: e.target.value }))
-                    }
-                  >
-                    <option value="Honors">Honors</option>
-                    <option value="Match Honor">Match Honor</option>
-                    <option value="Weekly Honor">Weekly Honor</option>
-                    <option value="Season Honor">Season Honor</option>
-                    <option value="Tournament Honor">Tournament Honor</option>
-                    <option value="Offence">Offence</option>
-                    <option value="Defence">Defence</option>
-                    <option value="Milestone">Milestone</option>
-                    <option value="Special">Special Award</option>
-                  </Select>
-                </Field>
-
-                <Field label="Color Theme" htmlFor="badge-color">
-                  <Select
-                    id="badge-color"
-                    value={badgeForm.color_scheme}
+                    placeholder="e.g. GAME_MVP"
+                    value={badgeForm.code}
                     onChange={(e) =>
                       setBadgeForm((p) => ({
                         ...p,
-                        color_scheme: e.target.value,
+                        code: e.target.value.toUpperCase().replace(/\s+/g, "_"),
                       }))
                     }
-                  >
-                    {COLOR_SCHEMES.map((cs) => (
-                      <option key={cs.value} value={cs.value}>
-                        {cs.label}
-                      </option>
-                    ))}
-                  </Select>
+                    className="font-mono"
+                  />
                 </Field>
-              </div>
+              )}
 
-              <Field label="Description" htmlFor="badge-description">
-                <Textarea
-                  id="badge-description"
-                  rows={2}
-                  placeholder="Describe the criteria or achievement required for this honor..."
-                  value={badgeForm.description}
+              <Field label="Badge Name *" htmlFor="badge-name">
+                <Input
+                  id="badge-name"
+                  type="text"
+                  placeholder="e.g. Game MVP"
+                  value={badgeForm.name}
                   onChange={(e) =>
-                    setBadgeForm((p) => ({ ...p, description: e.target.value }))
+                    setBadgeForm((p) => ({ ...p, name: e.target.value }))
                   }
                 />
               </Field>
+
+              <Field label="Category" htmlFor="badge-category">
+                <Select
+                  id="badge-category"
+                  value={badgeForm.category}
+                  onChange={(e) =>
+                    setBadgeForm((p) => ({ ...p, category: e.target.value }))
+                  }
+                >
+                  <option value="Honors">Honors</option>
+                  <option value="Match Honor">Match Honor</option>
+                  <option value="Weekly Honor">Weekly Honor</option>
+                  <option value="Season Honor">Season Honor</option>
+                  <option value="Tournament Honor">Tournament Honor</option>
+                  <option value="Offence">Offence</option>
+                  <option value="Defence">Defence</option>
+                  <option value="Milestone">Milestone</option>
+                  <option value="Special">Special Award</option>
+                </Select>
+              </Field>
+
+              <Field label="Color Theme" htmlFor="badge-color">
+                <Select
+                  id="badge-color"
+                  value={badgeForm.color_scheme}
+                  onChange={(e) =>
+                    setBadgeForm((p) => ({
+                      ...p,
+                      color_scheme: e.target.value,
+                    }))
+                  }
+                >
+                  {COLOR_SCHEMES.map((cs) => (
+                    <option key={cs.value} value={cs.value}>
+                      {cs.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
             </div>
 
+            <Field label="Description" htmlFor="badge-description">
+              <Textarea
+                id="badge-description"
+                rows={2}
+                placeholder="Describe the criteria or achievement required for this honor..."
+                value={badgeForm.description}
+                onChange={(e) =>
+                  setBadgeForm((p) => ({ ...p, description: e.target.value }))
+                }
+              />
+            </Field>
+          </div>
         </Modal>
       )}
 
@@ -1060,192 +1070,204 @@ export const AdminBadges = () => {
               <Button variant="ghost" onClick={() => setShowAwardModal(false)}>
                 Cancel
               </Button>
-              <Button onClick={requestAward} disabled={busy || !selectedPlayer || !awardBadgeId}>
+              <Button
+                onClick={requestAward}
+                disabled={busy || !selectedPlayer || !awardBadgeId}
+              >
                 Award Honor
               </Button>
             </>
           }
         >
-            <div className="space-y-4">
-              {/* Player Selector */}
-              <div>
-                <span className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">Target Player *</span>
-                {selectedPlayer ? (
-                  <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden shrink-0">
-                        {selectedPlayer.image ? (
-                          <img
-                            src={selectedPlayer.image}
-                            alt={selectedPlayer.name}
-                            className="w-full h-full object-cover object-top"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center font-black text-xs text-gray-400">
-                            #{selectedPlayer.jersey_number || "?"}
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-black text-sm text-sffl-navy dark:text-white truncate">
-                          {selectedPlayer.name}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {selectedPlayer.position} •{" "}
-                          {selectedPlayer.team?.name || "Free Agent"}
-                        </div>
-                      </div>
-                    </div>
-                    <Button variant="link" size="sm" onClick={() => setSelectedPlayer(null)} className="shrink-0">
-                      Change
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Input
-                      type="text"
-                      placeholder="Search player name"
-                      aria-label="Search player name"
-                      icon={MagnifyingGlassIcon}
-                      value={playerSearchQuery}
-                      onChange={(e) => setPlayerSearchQuery(e.target.value)}
-                    />
-                    <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      {loadingPlayers ? (
-                        <Spinner size="sm" className="py-4" />
-                      ) : availablePlayers.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-gray-400">
-                          No players found
-                        </div>
+          <div className="space-y-4">
+            {/* Player Selector */}
+            <div>
+              <span className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+                Target Player *
+              </span>
+              {selectedPlayer ? (
+                <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden shrink-0">
+                      {selectedPlayer.image ? (
+                        <img
+                          src={selectedPlayer.image}
+                          alt={selectedPlayer.name}
+                          className="w-full h-full object-cover object-top"
+                        />
                       ) : (
-                        availablePlayers.map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => setSelectedPlayer(p)}
-                            className="w-full min-h-11 flex items-center justify-between gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-left text-xs cursor-pointer"
-                          >
-                            <span className="min-w-0 truncate font-bold text-gray-900 dark:text-white">
-                              {p.name} ({p.position})
-                            </span>
-                            <span className="shrink-0 text-[11px] text-gray-400">
-                              {p.team?.short_name ||
-                                p.team?.name ||
-                                "Free Agent"}
-                            </span>
-                          </button>
-                        ))
+                        <div className="w-full h-full flex items-center justify-center font-black text-xs text-gray-400">
+                          #{selectedPlayer.jersey_number || "?"}
+                        </div>
                       )}
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Badge Selection */}
-              <Field label="Honor / Badge to Award *" htmlFor="award-badge">
-                <Select
-                  id="award-badge"
-                  value={awardBadgeId}
-                  onChange={(e) => setAwardBadgeId(e.target.value)}
-                >
-                  <option value="">Select Badge</option>
-                  {badges.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
-                    </option>
-                  ))}
-                </Select>
-                {selectedBadge && (
-                  <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 mt-2">
-                    <div className="w-10 h-10 p-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0 shadow-xs">
-                      <BadgeImage
-                        icon={selectedBadge.icon}
-                        name={selectedBadge.name}
-                        className="w-full h-full text-xl"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-black text-sffl-navy dark:text-white truncate">
-                        {selectedBadge.name}
+                    <div className="min-w-0">
+                      <div className="font-black text-sm text-sffl-navy dark:text-white truncate">
+                        {selectedPlayer.name}
                       </div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                        {selectedBadge.description || "No description"}
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {selectedPlayer.position} •{" "}
+                        {selectedPlayer.team?.name || "Free Agent"}
                       </div>
                     </div>
                   </div>
-                )}
-              </Field>
-
-              {/* Context: Competition & Season */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Competition" htmlFor="award-competition">
-                  <Select
-                    id="award-competition"
-                    value={awardCompId}
-                    onChange={(e) => setAwardCompId(e.target.value)}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => setSelectedPlayer(null)}
+                    className="shrink-0"
                   >
-                    <option value="">None / General</option>
-                    {competitions.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Season Year" htmlFor="award-season">
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
                   <Input
-                    id="award-season"
                     type="text"
-                    value={awardSeason}
-                    onChange={(e) => setAwardSeason(e.target.value)}
-                    placeholder="2026"
+                    placeholder="Search player name"
+                    aria-label="Search player name"
+                    icon={MagnifyingGlassIcon}
+                    value={playerSearchQuery}
+                    onChange={(e) => setPlayerSearchQuery(e.target.value)}
                   />
-                </Field>
-              </div>
-
-              {/* Optional Event Day */}
-              <Field label="Linked Event Day (Optional)" htmlFor="award-event-day">
-                <Select
-                  id="award-event-day"
-                  value={awardEventDayId}
-                  onChange={(e) => setAwardEventDayId(e.target.value)}
-                >
-                  <option value="">None</option>
-                  {eventDays.map((ed) => (
-                    <option key={ed.id} value={ed.id}>
-                      {ed.title || ed.date} (
-                      {new Date(ed.date).toLocaleDateString()})
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-
-              {/* Count & Reason */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Field label="Add Count" htmlFor="award-count">
-                  <Input
-                    id="award-count"
-                    type="number"
-                    min="1"
-                    value={awardCount}
-                    onChange={(e) =>
-                      setAwardCount(parseInt(e.target.value) || 1)
-                    }
-                    className="text-center"
-                  />
-                </Field>
-                <Field label="Award Reason / Citation" htmlFor="award-reason" className="sm:col-span-2">
-                  <Input
-                    id="award-reason"
-                    type="text"
-                    placeholder="e.g. 5 Touchdown performance"
-                    value={awardReason}
-                    onChange={(e) => setAwardReason(e.target.value)}
-                  />
-                </Field>
-              </div>
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    {loadingPlayers ? (
+                      <Spinner size="sm" className="py-4" />
+                    ) : availablePlayers.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-gray-400">
+                        No players found
+                      </div>
+                    ) : (
+                      availablePlayers.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setSelectedPlayer(p)}
+                          className="w-full min-h-11 flex items-center justify-between gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-left text-xs cursor-pointer"
+                        >
+                          <span className="min-w-0 truncate font-bold text-gray-900 dark:text-white">
+                            {p.name} ({p.position})
+                          </span>
+                          <span className="shrink-0 text-[11px] text-gray-400">
+                            {p.team?.short_name || p.team?.name || "Free Agent"}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Badge Selection */}
+            <Field label="Honor / Badge to Award *" htmlFor="award-badge">
+              <Select
+                id="award-badge"
+                value={awardBadgeId}
+                onChange={(e) => setAwardBadgeId(e.target.value)}
+              >
+                <option value="">Select Badge</option>
+                {badges.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code})
+                  </option>
+                ))}
+              </Select>
+              {selectedBadge && (
+                <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 mt-2">
+                  <div className="w-10 h-10 p-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0 shadow-xs">
+                    <BadgeImage
+                      icon={selectedBadge.icon}
+                      name={selectedBadge.name}
+                      className="w-full h-full text-xl"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-black text-sffl-navy dark:text-white truncate">
+                      {selectedBadge.name}
+                    </div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                      {selectedBadge.description || "No description"}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Field>
+
+            {/* Context: Competition & Season */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Competition" htmlFor="award-competition">
+                <Select
+                  id="award-competition"
+                  value={awardCompId}
+                  onChange={(e) => setAwardCompId(e.target.value)}
+                >
+                  <option value="">None / General</option>
+                  {competitions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Season Year" htmlFor="award-season">
+                <Input
+                  id="award-season"
+                  type="text"
+                  value={awardSeason}
+                  onChange={(e) => setAwardSeason(e.target.value)}
+                  placeholder="2026"
+                />
+              </Field>
+            </div>
+
+            {/* Optional Event Day */}
+            <Field
+              label="Linked Event Day (Optional)"
+              htmlFor="award-event-day"
+            >
+              <Select
+                id="award-event-day"
+                value={awardEventDayId}
+                onChange={(e) => setAwardEventDayId(e.target.value)}
+              >
+                <option value="">None</option>
+                {eventDays.map((ed) => (
+                  <option key={ed.id} value={ed.id}>
+                    {ed.title || ed.date} (
+                    {new Date(ed.date).toLocaleDateString()})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            {/* Count & Reason */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Add Count" htmlFor="award-count">
+                <Input
+                  id="award-count"
+                  type="number"
+                  min="1"
+                  value={awardCount}
+                  onChange={(e) => setAwardCount(parseInt(e.target.value) || 1)}
+                  className="text-center"
+                />
+              </Field>
+              <Field
+                label="Award Reason / Citation"
+                htmlFor="award-reason"
+                className="sm:col-span-2"
+              >
+                <Input
+                  id="award-reason"
+                  type="text"
+                  placeholder="e.g. 5 Touchdown performance"
+                  value={awardReason}
+                  onChange={(e) => setAwardReason(e.target.value)}
+                />
+              </Field>
+            </div>
+          </div>
         </Modal>
       )}
 

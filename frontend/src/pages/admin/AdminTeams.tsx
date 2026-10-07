@@ -16,18 +16,11 @@ import {
   getManagerCandidates,
   getPlayers,
 } from "../../services/api";
-import type { Team } from "../../types/matches";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { Button, LightboxImage } from "../../components/ui";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { useTeamActions } from "../../components/admin/useTeamActions";
+import type { Team } from "../../types";
+import { DataTable, type Column, RowActions, Button, LightboxImage, DashboardPageHeader, useTeamActions, TeamActionDialogs, TeamStatusBadge, isDeletedPlayer } from "../../components";
 import { MANAGER_CANDIDATES_KEY, MAX_MAIN_SQUAD } from "../../constants";
-import { TeamActionDialogs } from "../../components/admin/TeamActionDialogs";
-import { TeamStatusBadge } from "../../components/admin/TeamStatusBadge";
-import { getApiErrorMessage } from "../../utils/apiError";
-import { isDeletedPlayer } from "../../components/domain/DeletedPlayer";
-import { usePermissions } from "../../hooks/usePermissions";
+import { getApiErrorMessage } from "../../utils";
+import { usePermissions } from "../../hooks";
 
 const NO_TEAMS: Team[] = [];
 const PAGE_SIZE = 20;

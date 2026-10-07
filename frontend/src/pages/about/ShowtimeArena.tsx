@@ -3,7 +3,7 @@ import {
   PencilSquareIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/outline";
-import { PitchIcon } from "../../components/icons/PitchIcon";
+import { PitchIcon } from "../../components";
 
 // Heroicons has no drink or car, so these two are drawn in their outline style.
 const DrinkIcon = ({ className }: { className?: string }) => (

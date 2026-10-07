@@ -1,4 +1,4 @@
-import type { StatDefinition, NormalizedPosition } from '../types/stats';
+import type { StatDefinition, NormalizedPosition } from '../types';
 
 /**
  * Master catalog of all player & team statistics with metadata.

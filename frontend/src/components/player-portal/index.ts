@@ -1,6 +1,6 @@
 export { NotLinkedNotice } from './NotLinkedNotice';
 export { OfferResponseDialog } from './OfferResponseDialog';
-export type { OfferResponse } from '../../types/contracts';
+export type { OfferResponse } from '../../types';
 export { apiError } from './apiError';
 export {
   PLAYER_PORTAL_HOME,

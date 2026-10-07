@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { notificationsApi } from '../../services/api';
-import type { NotificationData } from '../../types/notifications';
+import type { NotificationData } from '../../types';
 import toast from 'react-hot-toast';
 import { Button } from '../ui';
 import { Spinner } from '../ui/Spinner';

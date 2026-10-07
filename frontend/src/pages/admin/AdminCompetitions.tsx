@@ -13,10 +13,7 @@ import {
   TrophyIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { Loader } from "../../components/ui/Loader";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { FootballIcon } from "../../components/icons/FootballIcon";
+import { Loader, ConfirmDialog, ConfirmSummary, FootballIcon, Button, ButtonLink, Checkbox, Field, IconButton, ImageUploadField, Input, LightboxImage, Modal, Select, DashboardPageHeader } from "../../components";
 import {
   getAdminCompetitions,
   createCompetition,
@@ -26,20 +23,7 @@ import {
   getTeams,
   getTeamsByCompetition,
 } from "../../services/api";
-import type { Team, CompetitionWithTeamIds as Competition } from "../../types/matches";
-import {
-  Button,
-  ButtonLink,
-  Checkbox,
-  Field,
-  IconButton,
-  ImageUploadField,
-  Input,
-  LightboxImage,
-  Modal,
-  Select,
-} from "../../components/ui";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import type { Team, CompetitionWithTeamIds as Competition } from "../../types";
 
 type ApiError = {
   response?: {

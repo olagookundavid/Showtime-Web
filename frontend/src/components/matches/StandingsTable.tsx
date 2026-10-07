@@ -1,9 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import type { Standing } from "../../types/matches";
+import type { Standing } from "../../types";
 import { LightboxImage } from "../ui";
 import { DataTable, type Column } from "../ui/DataTable";
-import { formatStatNumber } from "../../utils/formatters";
+import { formatStatNumber } from "../../utils";
 
 interface StandingsTableProps {
   standings: Standing[];

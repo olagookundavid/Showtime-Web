@@ -16,13 +16,9 @@ import {
 import {
     getAdminHeroSlides, createHeroSlide, updateHeroSlide, deleteHeroSlide,
 } from '../../services/api';
-import type { HeroSlide } from '../../types/heroSlides';
-import { Loader } from '../../components/ui/Loader';
-import { Button, Field, ImageUploadField, Input, Modal } from '../../components/ui';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import type { HeroSlide } from '../../types';
+import { Loader, Button, Field, ImageUploadField, Input, Modal, ConfirmDialog, ConfirmSummary, DashboardPageHeader } from '../../components';
+import { getApiErrorMessage } from '../../utils';
 
 // Mirrors the backend's MaxHeroSlides constant. Keep these in sync — the
 // server is the source of truth (it returns a 400 if exceeded), but matching

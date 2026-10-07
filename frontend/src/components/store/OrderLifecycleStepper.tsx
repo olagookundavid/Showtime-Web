@@ -1,5 +1,5 @@
 import { NoSymbolIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import type { Order } from '../../types/store';
+import type { Order } from '../../types';
 
 type StepState = 'done' | 'current' | 'upcoming';
 

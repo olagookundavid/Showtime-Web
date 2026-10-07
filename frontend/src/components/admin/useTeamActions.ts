@@ -8,11 +8,10 @@ import {
   removeTeamManager,
   updateTeam,
 } from "../../services/api";
-import type { Team } from "../../types/matches";
-import type { TeamManager } from "../../types/adminTeams";
+import type { Team, TeamManager } from "../../types";
 import { MANAGER_CANDIDATES_KEY } from "../../constants";
-import { getApiErrorMessage } from "../../utils/apiError";
-import { usePermissions } from "../../hooks/usePermissions";
+import { getApiErrorMessage } from "../../utils";
+import { usePermissions } from "../../hooks";
 
 export const teamManagersKey = (teamId: string) =>
   ["adminTeamManagers", teamId] as const;

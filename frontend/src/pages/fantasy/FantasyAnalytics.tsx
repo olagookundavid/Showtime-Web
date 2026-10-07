@@ -12,10 +12,8 @@ import {
   FireIcon,
 } from "@heroicons/react/24/outline";
 import { fantasyApi } from "../../services/api";
-import type { FantasyLineupPick } from "../../types/fantasy/core";
-import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
-import { Button, Select } from "../../components/ui";
-import { DataTable } from "../../components/ui/DataTable";
+import type { FantasyLineupPick } from "../../types";
+import { FantasyBackLink, Button, Select, DataTable } from "../../components";
 
 type AnalyticsTab =
   | "ownership"

@@ -3,16 +3,8 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, ChevronRightIcon, EnvelopeIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { playerPortalApi } from '../../services/api';
-import type { ContractData } from '../../types/contracts';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
-import { RunnerIcon } from '../../components/icons/RunnerIcon';
-import { Button } from '../../components/ui';
-import { Spinner } from '../../components/ui/Spinner';
-import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
-import { OfferResponseDialog } from '../../components/player-portal/OfferResponseDialog';
-import type { OfferResponse } from '../../types/contracts';
-import { PLAYER_PORTAL_CONTRACTS_PATH } from '../../components/player-portal/playerPortalNav';
-import { apiError } from '../../components/player-portal/apiError';
+import type { ContractData, OfferResponse } from '../../types';
+import { DashboardPageHeader, RunnerIcon, Button, Spinner, NotLinkedNotice, OfferResponseDialog, PLAYER_PORTAL_CONTRACTS_PATH, apiError } from '../../components';
 
 const statLabelClass = 'text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase';
 const statValueClass = 'text-lg sm:text-xl font-black text-gray-900 dark:text-white';

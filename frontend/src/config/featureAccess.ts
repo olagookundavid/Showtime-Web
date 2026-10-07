@@ -1,4 +1,4 @@
-import type { User } from "../contexts/AuthContext";
+import { type User } from "../contexts";
 
 export type Role = User["role"];
 export type AccessLevel = "full" | "view" | "none";

@@ -11,14 +11,8 @@ import {
   getStoreProducts,
   getProductReviews,
 } from "../../services/api";
-import type { StoreProduct } from "../../types/store";
-import { ProductCard } from "../../components/store/ProductCard";
-import { ProductOverview } from "../../components/store/ProductOverview";
-import { QuickViewModal } from "../../components/store/QuickViewModal";
-import { StarRating } from "../../components/store/StarRating";
-import { ButtonLink } from "../../components/ui";
-import { BackButton } from "../../components/ui/BackButton";
-import { Spinner } from "../../components/ui/Spinner";
+import type { StoreProduct } from "../../types";
+import { ProductCard, ProductOverview, QuickViewModal, StarRating, ButtonLink, BackButton, Spinner } from "../../components";
 
 const ROW_SIZE = 4;
 

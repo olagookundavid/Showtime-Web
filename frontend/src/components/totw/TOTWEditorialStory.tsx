@@ -7,11 +7,11 @@ import {
   ClockIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
-import type { TeamOfTheWeek } from "../../types/totw";
+import type { TeamOfTheWeek } from "../../types";
 import { NewsContent } from "../news/NewsContent";
 import { YouTubeEmbed } from "../news/YouTubeEmbed";
 import { Button, LightboxImage } from "../ui";
-import { parseYouTubeId } from "../../utils/newsContent";
+import { parseYouTubeId } from "../../utils";
 
 interface TOTWEditorialStoryProps {
   totw: TeamOfTheWeek;

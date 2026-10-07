@@ -9,9 +9,8 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
-import { useCart } from "../../contexts/CartContext";
-import { Button, IconButton } from "../../components/ui";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { useCart } from "../../contexts";
+import { Button, IconButton, ConfirmDialog } from "../../components";
 
 export const Cart = () => {
   const { items, subtotal, updateQuantity, removeItem, clear } = useCart();

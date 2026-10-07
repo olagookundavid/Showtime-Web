@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { useFont } from '../../contexts/FontContext';
+import { useFont } from '../../contexts';
 import { CheckCircleIcon, ArrowPathIcon, SparklesIcon, SwatchIcon } from '@heroicons/react/24/outline';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { Button } from '../../components/ui';
-import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { ConfirmDialog, ConfirmSummary, Button, DashboardPageHeader } from '../../components';
 
 type PendingAction = { kind: 'set'; fontId: string; fontName: string; category: string } | { kind: 'reset' };
 

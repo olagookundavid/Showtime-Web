@@ -1,14 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
-import { FontProvider } from "./contexts/FontContext";
-import { CartProvider } from "./contexts/CartContext";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import { FeatureGuard } from "./components/admin/FeatureGuard";
-import { Layout } from "./components/layout/Layout";
-import { StoreLayout } from "./components/store/StoreLayout";
-import { ScrollToTop } from "./components/layout/ScrollToTop";
+import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
+import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -39,7 +32,6 @@ import {
   Teams,
   TeamDetail,
 } from "./pages";
-import { Loader } from "./components/ui/Loader";
 
 // Lazy load Store Pages
 const Store = lazy(() =>
@@ -327,10 +319,7 @@ const SellerSales = lazy(() =>
   })),
 );
 
-import { ErrorBoundary } from "./components/layout/ErrorBoundary";
 import { Toaster } from "react-hot-toast";
-import { AdSenseScript } from "./components/monetization";
-import { BrevoTracker } from "./components/analytics";
 import { Analytics } from "@vercel/analytics/react";
 import "./index.css";
 

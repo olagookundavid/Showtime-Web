@@ -1,10 +1,4 @@
-import { NotificationBell } from '../../components/layout/NotificationBell';
-import { DashboardShell } from '../../components/dashboard/DashboardShell';
-import {
-    PLAYER_PORTAL_BOTTOM_NAV,
-    PLAYER_PORTAL_HOME,
-    PLAYER_PORTAL_NAV_SECTIONS,
-} from '../../components/player-portal/playerPortalNav';
+import { NotificationBell, DashboardShell, PLAYER_PORTAL_BOTTOM_NAV, PLAYER_PORTAL_HOME, PLAYER_PORTAL_NAV_SECTIONS } from '../../components';
 
 export const PlayerPortalLayout = () => (
     <DashboardShell

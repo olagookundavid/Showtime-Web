@@ -6,10 +6,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import {
-  isDeletedPlayer,
-  DELETED_TITLE,
-} from "../../components/domain/DeletedPlayer";
+import { isDeletedPlayer, DELETED_TITLE, StatsTable, ConfirmDialog, ConfirmSummary, DataTable, type Column, Spinner, FootballIcon, RunnerIcon, DashboardPageHeader, Button, Field, IconButton, Input, Select } from "../../components";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -50,23 +47,20 @@ import {
   rederiveSituations,
   overrideMatchMVP,
 } from "../../services/api";
-import type { Match, Competition, TeamSheetPlayer, MatchTeamSheet, GameRulesPayload } from "../../types/matches";
-import type { SituationUpdate, GamePlay, PlayPayload } from "../../types/playByPlay";
-import type { TeamStat } from "../../types/stats";
-import { isReturnTD } from "../../utils/playClassification";
-import { StatsTable } from "../../components/stats/StatsTable";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { Spinner } from "../../components/ui/Spinner";
-import { FootballIcon } from "../../components/icons/FootballIcon";
-import { RunnerIcon } from "../../components/icons/RunnerIcon";
-import { useAuth } from "../../contexts/AuthContext";
-import { usePermissions } from "../../hooks/usePermissions";
-import { getPlayStatAccruals } from "../../utils/statAccrualDeriver";
-import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
-import { Button, Field, IconButton, Input, Select } from "../../components/ui";
+import type {
+  Match,
+  Competition,
+  TeamSheetPlayer,
+  MatchTeamSheet,
+  GameRulesPayload,
+  SituationUpdate,
+  GamePlay,
+  PlayPayload,
+  TeamStat,
+} from "../../types";
+import { isReturnTD, getPlayStatAccruals, formatMatchDate, formatMatchTime } from "../../utils";
+import { useAuth } from "../../contexts";
+import { usePermissions } from "../../hooks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

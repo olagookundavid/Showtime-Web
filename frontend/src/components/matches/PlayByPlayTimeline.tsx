@@ -2,11 +2,11 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMatchPlays } from '../../services/api';
 import { API_URL } from '../../constants';
-import type { GamePlay } from '../../types/playByPlay';
+import type { GamePlay } from '../../types';
 import { Spinner } from '../ui';
 import { ClockIcon, FlagIcon } from '@heroicons/react/24/outline';
 import { FootballIcon } from '../icons/FootballIcon';
-import { isScore, isPickSix, isReturnTD, isTurnover, isOneMinWarning, isInjury } from '../../utils/playClassification';
+import { isScore, isPickSix, isReturnTD, isTurnover, isOneMinWarning, isInjury } from '../../utils';
 
 const who = (p?: { name: string; jersey_number: number }) => (p ? (p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name) : '');
 

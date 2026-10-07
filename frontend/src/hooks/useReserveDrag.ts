@@ -4,7 +4,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import type { FantasySlot } from "../types/fantasy/core";
+import type { FantasySlot } from "../types";
 
 const DRAG_THRESHOLD_PX = 6; // mouse: movement before a press becomes a drag
 const TOUCH_HOLD_MS = 220; // touch: press-and-hold before a drag starts

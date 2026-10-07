@@ -4,7 +4,7 @@ import {
   adminTransfersApi,
   contractsApi,
 } from "../../services/api";
-import type { ContractData } from "../../types/contracts";
+import type { ContractData } from "../../types";
 import toast from "react-hot-toast";
 import {
   CheckBadgeIcon,
@@ -12,12 +12,7 @@ import {
   ClockIcon,
   NoSymbolIcon,
 } from "@heroicons/react/24/outline";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
-import { DataTable, type Column } from "../../components/ui/DataTable";
-import { RowActions } from "../../components/ui/RowActions";
-import { Field, Input, Select } from "../../components/ui";
-import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Field, Input, Select, DashboardPageHeader } from "../../components";
 
 // Status options for the admin override actions
 const OVERRIDE_STATUSES = [

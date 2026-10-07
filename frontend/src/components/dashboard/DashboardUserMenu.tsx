@@ -5,7 +5,7 @@ import {
   ArrowUturnLeftIcon,
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts";
 import { ROLE_LABELS } from "./dashboardNav";
 
 // Same item styling as RowActions' menu.
