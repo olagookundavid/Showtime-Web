@@ -4,7 +4,14 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_URL } from '../../services/api';
 import { useBroadcastProducer } from '../../hooks/useBroadcastProducer';
-import { formatClock, calculateClockNow, type GraphicEvent } from '../../types/broadcast';
+import {
+  formatClock,
+  calculateClockNow,
+  overlayUrl,
+  OVERLAY_LAYERS,
+  type GraphicEvent,
+  type OverlayLayer,
+} from '../../types/broadcast';
 import { Loader } from '../../components/ui/Loader';
 import { Button, Checkbox, Field, Input, Select } from '../../components/ui';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
@@ -53,6 +60,27 @@ const PENALTIES = [
   'Other penalty',
 ];
 
+// Manual only hides the play-by-play helpers (score check, play queue) so the
+// operator works purely from what's on screen. A per-operator preference, so it
+// lives in this browser; on unless they've turned it off.
+const MANUAL_ONLY_KEY = 'broadcast.manualOnly';
+
+function readManualOnly(): boolean {
+  try {
+    return localStorage.getItem(MANUAL_ONLY_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function saveManualOnly(value: boolean) {
+  try {
+    localStorage.setItem(MANUAL_ONLY_KEY, String(value));
+  } catch {
+    // Storage blocked (private window): the setting just won't persist.
+  }
+}
+
 interface PlayLogItem {
   id: string;
   seq: number;
@@ -97,7 +125,13 @@ export function AdminBroadcastStudio() {
   const [recentPlays, setRecentPlays] = useState<PlayLogItem[]>([]);
   // Score after the latest scored play; null until a play carries a score.
   const [pbpScore, setPbpScore] = useState<{ home: number; away: number } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedLayer, setCopiedLayer] = useState<OverlayLayer | null>(null);
+  const [manualOnly, setManualOnly] = useState(readManualOnly);
+
+  const handleManualOnlyChange = (value: boolean) => {
+    setManualOnly(value);
+    saveManualOnly(value);
+  };
 
   // Tick the clock display while running
   const clockRunning = state?.clock_running ?? false;
@@ -107,9 +141,9 @@ export function AdminBroadcastStudio() {
     return () => clearInterval(interval);
   }, [clockRunning]);
 
-  // Fetch recent play-by-play events
+  // Fetch recent play-by-play events (not needed in manual-only mode)
   useEffect(() => {
-    if (!id) return;
+    if (!id || manualOnly) return;
     async function loadPlays() {
       try {
         const res = await axios.get(`${API_URL}/matches/${id}/plays`);
@@ -124,7 +158,7 @@ export function AdminBroadcastStudio() {
     loadPlays();
     const timer = setInterval(loadPlays, 5000);
     return () => clearInterval(timer);
-  }, [id]);
+  }, [id, manualOnly]);
 
   if (!state) {
     return (
@@ -136,7 +170,7 @@ export function AdminBroadcastStudio() {
     );
   }
 
-  const overlayUrl = `${window.location.origin}/broadcast/${id}/overlay`;
+  const fullOverlayUrl = overlayUrl(id);
   const clockInput = clockDraft ?? formatClock(calculateClockNow(state, now));
   const team = selectedTeam || state.home || 'Home Team';
 
@@ -145,10 +179,10 @@ export function AdminBroadcastStudio() {
     toggleClock();
   };
 
-  const copyUrl = () => {
-    navigator.clipboard.writeText(overlayUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const copyUrl = (layer: OverlayLayer) => {
+    navigator.clipboard.writeText(overlayUrl(id, layer));
+    setCopiedLayer(layer);
+    setTimeout(() => setCopiedLayer((current) => (current === layer ? null : current)), 2500);
   };
 
   const handleSetClock = () => {
@@ -237,15 +271,24 @@ export function AdminBroadcastStudio() {
             </span>
             <Button
               variant="secondary"
-              icon={copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon}
-              onClick={copyUrl}
-              title="Copy public vMix transparent overlay URL"
+              icon={copiedLayer === 'all' ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon}
+              onClick={() => copyUrl('all')}
+              title="Copy the full vMix overlay URL (scorebug and lower-thirds)"
             >
-              {copied ? 'Copied URL!' : 'vMix Overlay URL'}
+              {copiedLayer === 'all' ? 'Copied URL!' : 'vMix Overlay URL'}
             </Button>
           </>
         }
       />
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-1">
+        <Checkbox
+          label="Manual only"
+          hint="Run everything from what's on screen. Turn off to see the play-by-play score check and play queue."
+          checked={manualOnly}
+          onChange={(e) => handleManualOnlyChange(e.target.checked)}
+        />
+      </div>
 
       {/* Main Grid: Control Station on Left, Preview and Status on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -339,29 +382,31 @@ export function AdminBroadcastStudio() {
             </div>
 
             {/* Score Alignment Notice (Staff Only) */}
-            <div
-              className={`p-3 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
-                isScoreAligned
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {isScoreAligned ? (
-                  <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                ) : (
-                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            {!manualOnly && (
+              <div
+                className={`p-3 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
+                  isScoreAligned
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {isScoreAligned ? (
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  ) : (
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                  )}
+                  <span>
+                    <b>{isScoreAligned ? 'Scores aligned' : 'Score discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({pbpHome}–{pbpAway})
+                  </span>
+                </div>
+                {!isScoreAligned && (
+                  <Button variant="link" size="sm" onClick={() => updateScore(pbpHome, pbpAway)}>
+                    Sync to PBP
+                  </Button>
                 )}
-                <span>
-                  <b>{isScoreAligned ? 'Scores aligned' : 'Score discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({pbpHome}–{pbpAway})
-                </span>
               </div>
-              {!isScoreAligned && (
-                <Button variant="link" size="sm" onClick={() => updateScore(pbpHome, pbpAway)}>
-                  Sync to PBP
-                </Button>
-              )}
-            </div>
+            )}
 
             {/* Clock, Period, Down & Possession Rows */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -540,53 +585,54 @@ export function AdminBroadcastStudio() {
             </div>
           </div>
 
-          {/* Section 3: Recent Play-by-Play Event Queue (Manual Mode) */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
-              <div>
-                <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
-                  Play-by-play queue
-                </h2>
-                <p className="text-xs text-gray-500">Click PREPARE to review and manually trigger lower-third graphic</p>
+          {/* Section 3: Recent play-by-play queue (hidden in manual-only mode) */}
+          {!manualOnly && (
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+                <div>
+                  <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
+                    Play-by-play queue
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Prepare fills the graphic form from a logged play. Nothing goes on air until you fire it.
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase">
-                Manual trigger mode
-              </span>
-            </div>
-
-            {recentPlays.length === 0 ? (
-              <p className="text-xs text-gray-400 py-4 text-center">
-                No recent plays logged yet. New plays will appear here automatically.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {recentPlays.map((p) => {
-                  const playerName = p.target?.name || p.off_qb?.name || p.defender?.name || 'Play Event';
-                  const teamName = p.offense_team?.name || 'Offense';
-                  const summary = p.notes || `${p.play_type || ''} ${p.result || ''}`.trim();
-
-                  return (
-                    <div
-                      key={p.id}
-                      className="p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="min-w-0">
-                        <span className="font-black text-gray-900 dark:text-white truncate block">
-                          Q{p.quarter} · {playerName} ({teamName})
-                        </span>
-                        <span className="text-gray-500 dark:text-gray-400 block truncate">
-                          {summary}
-                        </span>
+  
+              {recentPlays.length === 0 ? (
+                <p className="text-xs text-gray-400 py-4 text-center">
+                  No recent plays logged yet. New plays will appear here automatically.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {recentPlays.map((p) => {
+                    const playerName = p.target?.name || p.off_qb?.name || p.defender?.name || 'Play Event';
+                    const teamName = p.offense_team?.name || 'Offense';
+                    const summary = p.notes || `${p.play_type || ''} ${p.result || ''}`.trim();
+  
+                    return (
+                      <div
+                        key={p.id}
+                        className="p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-black text-gray-900 dark:text-white truncate block">
+                            Q{p.quarter} · {playerName} ({teamName})
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400 block truncate">
+                            {summary}
+                          </span>
+                        </div>
+                        <Button variant="navy" size="sm" onClick={() => handlePreparePlay(p)} className="shrink-0">
+                          Prepare
+                        </Button>
                       </div>
-                      <Button variant="navy" size="sm" onClick={() => handlePreparePlay(p)} className="shrink-0">
-                        Prepare
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column: 5 Cols (Preview Monitor & vMix Info) */}
@@ -621,7 +667,7 @@ export function AdminBroadcastStudio() {
             <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
               <span>Transparent overlay floats above camera feed</span>
               <a
-                href={overlayUrl}
+                href={fullOverlayUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sffl-red hover:underline font-bold flex items-center gap-1"
@@ -639,28 +685,45 @@ export function AdminBroadcastStudio() {
 
             <div className="space-y-2 text-gray-600 dark:text-gray-300">
               <p>
-                <b>1.</b> In vMix on your broadcast PC, click <b>Add Input</b> (bottom-left).
+                <b>1.</b> In vMix on your broadcast PC, click <b>Add Input</b> (bottom-left), then <b>Web Browser</b>.
               </p>
               <p>
-                <b>2.</b> Select <b>Web Browser</b> from the left list.
+                <b>2.</b> Paste one of the links below and set the size to <b>1920 × 1080</b>.
               </p>
               <p>
-                <b>3.</b> Paste this overlay URL:
-              </p>
-              <div className="flex items-center gap-1.5 p-2 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 font-mono text-[11px] select-all break-all">
-                <span>{overlayUrl}</span>
-              </div>
-              <p>
-                <b>4.</b> Set Resolution: <b>1920 × 1080</b>.
-              </p>
-              <p>
-                <b>5.</b> Assign this Web Browser input to <b>Overlay 1</b> in vMix.
+                <b>3.</b> For separate layers, add the scorebug and lower-thirds as two inputs, e.g. scorebug on{' '}
+                <b>Overlay 1</b> and lower-thirds on <b>Overlay 2</b>, so each can go on and off air by itself. For a
+                single input, use <b>Everything</b>.
               </p>
             </div>
 
-            <Button variant="primary" icon={copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon} onClick={copyUrl} fullWidth>
-              {copied ? 'Overlay URL copied!' : 'Copy overlay URL for vMix'}
-            </Button>
+            <ul className="space-y-3">
+              {OVERLAY_LAYERS.map((layer) => {
+                const url = overlayUrl(id, layer.value);
+                const isCopied = copiedLayer === layer.value;
+                return (
+                  <li
+                    key={layer.value}
+                    className="p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 space-y-2"
+                  >
+                    <div>
+                      <p className="font-bold text-sm text-gray-900 dark:text-white">{layer.label}</p>
+                      <p className="text-gray-500 dark:text-gray-400">{layer.hint}</p>
+                    </div>
+                    <p className="font-mono text-[11px] text-gray-600 dark:text-gray-300 select-all break-all">{url}</p>
+                    <Button
+                      variant={layer.value === 'all' ? 'secondary' : 'primary'}
+                      size="sm"
+                      icon={isCopied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon}
+                      onClick={() => copyUrl(layer.value)}
+                      fullWidth
+                    >
+                      {isCopied ? 'Copied!' : 'Copy link'}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       </div>
