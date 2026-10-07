@@ -34,6 +34,18 @@ const (
 	TieBreakerRuleH2H_PCT_PD_PF_PA_NAME = "H2H_PCT_PD_PF_PA_NAME" // Rule 2: Head-to-Head -> Win % -> Point Diff -> Points For -> Points Against -> Name
 )
 
+const (
+	CupRound1     = "ROUND_1"
+	CupRound2     = "ROUND_2"
+	CupRound3     = "ROUND_3"
+	CupRoundQF    = "QUARTERFINAL"
+	CupRoundSF    = "SEMIFINAL"
+	CupRoundFinal = "FINAL"
+	// CupRoundCompleted is stored once the Final is signed off; the
+	// competition is marked completed at the same time.
+	CupRoundCompleted = "COMPLETED"
+)
+
 type Competition struct {
 	ID                   string    `json:"id"`
 	Name                 string    `json:"name"`
@@ -41,6 +53,7 @@ type Competition struct {
 	Status               string    `json:"status"`
 	Format               string    `json:"format"` // PRESEASON | SEASON | PLAYOFFS | CUP
 	SeasonID             *string   `json:"season_id,omitempty"`
+	CupRound             *string   `json:"cup_round,omitempty"`
 	TieBreakerRule       string    `json:"tie_breaker_rule"`
 	TeamIDs              []string  `json:"team_ids,omitempty"`
 	CreatedAt            time.Time `json:"created_at"`

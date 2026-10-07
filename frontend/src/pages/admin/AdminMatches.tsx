@@ -34,6 +34,7 @@ import { RowActions } from "../../components/ui/RowActions";
 import { Button, Field, Input, Modal, Select } from "../../components/ui";
 import { AdminTeamSheetModal } from "../../components/admin/AdminTeamSheetModal";
 import { AdminKnockoutBracket } from "../../components/admin/AdminKnockoutBracket";
+import { AdminCupManager } from "../../components/admin/AdminCupManager";
 import { KNOCKOUT_STAGES } from "../../components/matches/BracketView";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
@@ -226,20 +227,20 @@ export const AdminMatches = () => {
 
   // Knockout comps swap the date-grouped table for the bracket builder,
   // which needs the whole bracket at once (no pagination).
-  const isKnockout =
-    (compsData?.data || []).find((c) => c.id === filterComp)?.format ===
-    "PLAYOFFS";
+  const selectedComp = (compsData?.data || []).find((c) => c.id === filterComp);
+  const isKnockout = selectedComp?.format === "PLAYOFFS";
+  const isCup = selectedComp?.format === "CUP";
 
   const { data: matchesData, isLoading: loadingMatches } = useQuery({
     queryKey: [
       "adminMatches",
-      { comp: filterComp, page, search: searchTerm, knockout: isKnockout },
+      { comp: filterComp, page, search: searchTerm, knockout: isKnockout, cup: isCup },
     ],
     queryFn: async () => {
       const data = await getMatches(
         filterComp || undefined,
-        isKnockout ? 1 : page,
-        isKnockout ? 100 : PAGE_SIZE,
+        isKnockout || isCup ? 1 : page,
+        isKnockout || isCup ? 100 : PAGE_SIZE,
         undefined,
         isKnockout ? undefined : searchTerm,
       );
@@ -777,6 +778,13 @@ export const AdminMatches = () => {
             Season Completed. Matches are locked and cannot be modified.
           </span>
         </div>
+      )}
+
+      {isCup && filterComp && (
+        <AdminCupManager
+          competitionId={filterComp}
+          isCompleted={isCompleted}
+        />
       )}
 
       {loading ? (

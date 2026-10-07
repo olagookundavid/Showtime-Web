@@ -5,12 +5,14 @@ import type { Standing } from "../../services/api";
 import { formatStatNumber } from "../../utils/formatters";
 import { ButtonLink } from "../ui";
 import { DataTable, type Column } from "../ui/DataTable";
+import { CUP_ELIMINATED_ROW, CUP_ZONE_BAR, cupZoneOf } from "./cupZones";
 
 interface MatchStandingsTableProps {
   standings: Standing[];
   isCompleted?: boolean;
   viewAllLink?: string;
   isPlayoffs?: boolean;
+  isCup?: boolean;
 }
 
 export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
@@ -18,6 +20,7 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
   isCompleted,
   viewAllLink,
   isPlayoffs,
+  isCup,
 }) => {
   const championIcon = isPlayoffs
     ? "/images/branding/showtime-bowl-trophy.png"
@@ -31,11 +34,13 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
   }
 
   const indexOf = new Map(standings.map((s, i) => [s.id, i]));
-  const isGold = (s: Standing) => !!isCompleted && indexOf.get(s.id) === 0;
+  const isGold = (s: Standing) => !isCup && !!isCompleted && indexOf.get(s.id) === 0;
   const isWildcard = (s: Standing) => {
+    if (isCup) return false;
     const index = indexOf.get(s.id) ?? -1;
     return index >= 1 && index < 7;
   };
+  const cupZone = (s: Standing) => (isCup ? cupZoneOf(indexOf.get(s.id) ?? 0) : undefined);
 
   const columns: Column<Standing>[] = [
     {
@@ -64,6 +69,9 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
           <div className="relative flex items-center gap-2 min-w-0">
             {isWildcard(s) && (
               <span aria-hidden="true" className="absolute -left-2 inset-y-0 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+            )}
+            {cupZone(s) && (
+              <span aria-hidden="true" className={`absolute -left-2 inset-y-0 w-1 rounded-full ${CUP_ZONE_BAR[cupZone(s)!]}`} />
             )}
             {isGold(s) && <span aria-hidden="true" className="absolute -left-2 inset-y-0 w-1 bg-amber-500" />}
             <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500 dark:text-gray-400">
@@ -120,13 +128,30 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-t-lg md:rounded-t-xl bg-sffl-navy px-3 py-2 md:px-6 md:py-3 text-white font-bold text-sm md:text-lg">
         <div className="flex items-center gap-2">
           <TrophyIcon className="w-5 h-5 text-yellow-500" aria-hidden="true" />
-          <span>Team Standings</span>
+          <span>{isCup ? "Cup Standings" : "Team Standings"}</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-white/90">
-            <div className="w-1.5 h-3.5 bg-emerald-400 rounded-full shadow-sm" />
-            <span className="text-[11px] font-bold">Wildcard spot</span>
-          </div>
+          {isCup ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/90">
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-3 bg-emerald-400 rounded-full" />
+                <span className="text-[10px] md:text-[11px] font-bold">QF (1–4)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-3 bg-blue-400 rounded-full" />
+                <span className="text-[10px] md:text-[11px] font-bold">QF (5–8)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-3 bg-red-400 rounded-full" />
+                <span className="text-[10px] md:text-[11px] font-bold">Eliminated</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-white/90">
+              <div className="w-1.5 h-3.5 bg-emerald-400 rounded-full shadow-sm" />
+              <span className="text-[11px] font-bold">Wildcard spot</span>
+            </div>
+          )}
           {viewAllLink && (
             <ButtonLink
               to={viewAllLink}
@@ -151,7 +176,9 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
         rowClassName={(s) =>
           isGold(s)
             ? "bg-amber-100 dark:bg-amber-950 font-bold text-amber-950 dark:text-amber-100"
-            : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+            : cupZone(s) === "out"
+            ? CUP_ELIMINATED_ROW
+            :"bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
         }
       />
     </div>

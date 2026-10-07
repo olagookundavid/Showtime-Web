@@ -24,6 +24,7 @@ import {
 } from "../../components/domain/seasonStages";
 import { Spinner } from "../../components/ui/Spinner";
 import { FootballIcon } from "../../components/icons/FootballIcon";
+import { cupStageOf } from "../../utils/cupStage";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -164,11 +165,13 @@ export const StandingsPage = () => {
     (c) => c.id === activeCompetitionId,
   );
   const compFormat = selectedCompetition?.format;
-  // Knockout competitions (playoffs + bowl) have a bracket instead of standings.
-  const isKnockout = compFormat === "PLAYOFFS";
+  const cupStage = cupStageOf(selectedCompetition);
+  const isCup = cupStage !== "none";
+  // Knockout competitions (playoffs + bowl, or a cup from its quarterfinals)
+  // have a bracket instead of standings.
+  const isKnockout = compFormat === "PLAYOFFS" || cupStage === "knockout";
   const isPreseason = compFormat === "PRESEASON";
-  const isCup = compFormat === "CUP";
-  const isMatchesOnly = isPreseason || isCup;
+  const isMatchesOnly = isPreseason || cupStage === "matches";
 
   const { data: standingsData, isLoading: dataLoading } = useQuery({
     queryKey: ["publicStandings", activeCompetitionId],
@@ -177,7 +180,7 @@ export const StandingsPage = () => {
   });
   const standings = standingsData || [];
 
-  // Preseason and Cup have no standings table; query their matches ordered latest match first
+  // Preseason and unstarted/older Cups have no standings table; query their matches ordered latest match first
   const { data: compMatchesData, isLoading: matchesLoading } = useQuery({
     queryKey: ["standingsCompMatches", activeCompetitionId],
     queryFn: () => getMatches(activeCompetitionId, 1, 100),
@@ -202,22 +205,26 @@ export const StandingsPage = () => {
       <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
         <div className="min-w-0">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
-            {isKnockout
-              ? "PLAYOFFS"
-              : isPreseason
-                ? "PRESEASON"
-                : isCup
-                  ? "CUP"
+            {isCup
+              ? "CUP"
+              : isKnockout
+                ? "PLAYOFFS"
+                : isPreseason
+                  ? "PRESEASON"
                   : "STANDINGS"}
           </h1>
           <p className="text-gray-300 mt-0.5 text-xs md:text-lg">
-            {isKnockout
-              ? "Bracket & Road to the Bowl"
-              : isPreseason
-                ? "Preseason Matches & Results"
+            {cupStage === "knockout"
+              ? "Bracket & Road to the Final"
+              : cupStage === "swiss"
+                ? "Swiss Table & the Race for the Quarterfinals"
                 : isCup
                   ? "Cup Matches & Results"
-                  : "Rankings & Tables"}
+                  : isKnockout
+                    ? "Bracket & Road to the Bowl"
+                    : isPreseason
+                      ? "Preseason Matches & Results"
+                      : "Rankings & Tables"}
           </p>
         </div>
 
@@ -279,7 +286,7 @@ export const StandingsPage = () => {
               {selectedCompetition?.name}
             </h2>
           </div>
-          <BracketView competitionId={activeCompetitionId} />
+          <BracketView competitionId={activeCompetitionId} cup={isCup} />
         </div>
       )}
 
@@ -481,6 +488,7 @@ export const StandingsPage = () => {
             isCompleted={selectedCompetition?.status === "completed"}
             highlightTeamId={teamParam || undefined}
             isPlayoffs={isKnockout}
+            isCup={isCup}
           />
         </div>
       ) : !isKnockout && !isMatchesOnly && !dataLoading ? (

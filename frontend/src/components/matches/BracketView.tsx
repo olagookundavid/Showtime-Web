@@ -27,6 +27,11 @@ interface BracketViewProps {
   /** Compact mode: vertical round-by-round list (used in the MatchHub sidebar). */
   compact?: boolean;
   viewAllLink?: string;
+  /**
+   * Cup competition: show only its knockout tree (the matches with a
+   * bracket_pos, not the Swiss rounds) under cup stage names.
+   */
+  cup?: boolean;
 }
 
 export interface BracketColumn {
@@ -45,6 +50,8 @@ export const KNOCKOUT_STAGES = [
 
 // Friendly column titles per stage rank.
 const STAGE_TITLES = ["Wildcards", "Playoffs 1", "Playoffs 2", "Bowl"];
+// The Cup's QUARTERFINAL / SEMIFINAL / FINAL rank 0 / 2 / 3; it has no rank 1.
+const CUP_STAGE_TITLES = ["Quarterfinals", "Playoffs 1", "Semifinals", "Final"];
 const UNKNOWN_RANK = 99;
 
 // Rank a round/stage label robustly — recognises the manual stage values, the
@@ -79,7 +86,11 @@ export const winnerSide = (m: Match): "HOME" | "AWAY" | null => {
   return null;
 };
 
-export const buildBracketColumns = (matches: Match[]): BracketColumn[] => {
+export const buildBracketColumns = (
+  matches: Match[],
+  { cup = false }: { cup?: boolean } = {},
+): BracketColumn[] => {
+  const stageTitles = cup ? CUP_STAGE_TITLES : STAGE_TITLES;
   if (matches.length === 0) return [];
 
   const sortCol = (col: Match[]) =>
@@ -101,7 +112,7 @@ export const buildBracketColumns = (matches: Match[]): BracketColumn[] => {
     return [...groups.keys()]
       .sort((a, b) => a - b)
       .map((rank) => ({
-        title: rank === UNKNOWN_RANK ? "Other" : STAGE_TITLES[rank],
+        title: rank === UNKNOWN_RANK ? "Other" : stageTitles[rank],
         matches: sortCol(groups.get(rank)!),
       }));
   }
@@ -317,20 +328,25 @@ export const championOf = (
   return side === "HOME" ? final.home_team : final.away_team;
 };
 
-/** Gold champion card shown to the right of the Bowl once it has been won. */
+/** Gold champion card shown to the right of the Bowl (or Cup Final) once it has been won. */
 export const ChampionCard = ({
   team,
   compact = false,
+  cup = false,
 }: {
   team: NonNullable<Match["home_team"]>;
   compact?: boolean;
+  cup?: boolean;
 }) => {
+  const trophy = cup
+    ? { src: "/images/branding/showtime-community-cup-shield.png", alt: "Showtime Cup shield" }
+    : { src: "/images/branding/showtime-bowl-trophy.png", alt: "Showtime Bowl trophy" };
   if (compact) {
     return (
       <div className="flex items-center gap-3 px-4 py-3 bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950">
         <img
-          src="/images/branding/showtime-bowl-trophy.png"
-          alt="Showtime Bowl trophy"
+          src={trophy.src}
+          alt={trophy.alt}
           className="h-7 w-auto object-contain drop-shadow"
         />
         {team.logo ? (
@@ -362,8 +378,8 @@ export const ChampionCard = ({
       </div>
       <div className="flex flex-col justify-center items-center flex-1 gap-3 rounded-xl border-2 border-amber-400/70 bg-linear-to-b from-amber-50 via-yellow-50 to-amber-100 dark:from-amber-900/30 dark:via-yellow-900/20 dark:to-amber-900/10 shadow-lg p-6 text-center">
         <img
-          src="/images/branding/showtime-bowl-trophy.png"
-          alt="Showtime Bowl trophy"
+          src={trophy.src}
+          alt={trophy.alt}
           className="h-20 md:h-24 w-auto object-contain drop-shadow-md animate-bounce"
         />
         {team.logo ? (
@@ -437,6 +453,7 @@ export const BracketView = ({
   competitionId,
   compact = false,
   viewAllLink,
+  cup = false,
 }: BracketViewProps) => {
   const { data, isLoading } = useQuery({
     queryKey: ["bracketMatches", competitionId],
@@ -444,7 +461,11 @@ export const BracketView = ({
     enabled: !!competitionId,
   });
 
-  const allMatches = useMemo(() => data?.data || [], [data]);
+  const allMatches = useMemo(() => {
+    const list = data?.data || [];
+    return cup ? list.filter((m) => m.bracket_pos != null) : list;
+  }, [data, cup]);
+  const finalTitle = cup ? "Final" : "Bowl";
 
   // Build a lookup: leg1.id -> leg2 match object
   const secondLegMap = useMemo(() => {
@@ -474,8 +495,8 @@ export const BracketView = ({
   }, [allMatches, secondLegIds]);
 
   const columns = useMemo(
-    () => buildBracketColumns(filteredMatches),
-    [filteredMatches],
+    () => buildBracketColumns(filteredMatches, { cup }),
+    [filteredMatches, cup],
   );
   const champion = useMemo(
     () => championOf(filteredMatches),
@@ -537,7 +558,7 @@ export const BracketView = ({
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 bg-sffl-navy text-white">
           <h3 className="text-sm font-black uppercase tracking-wider">
-            Playoff Bracket
+            {cup ? "Cup Bracket" : "Playoff Bracket"}
           </h3>
           {viewAllLink && (
             <Link
@@ -549,12 +570,12 @@ export const BracketView = ({
             </Link>
           )}
         </div>
-        {champion && <ChampionCard team={champion} compact />}
+        {champion && <ChampionCard team={champion} compact cup={cup} />}
         <div className="p-3 space-y-4">
           {compactColumns.map((col) => (
             <div key={col.title}>
               <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">
-                {col.title === "Bowl" && (
+                {col.title === finalTitle && (
                   <TrophyIcon className="w-3.5 h-3.5" aria-hidden="true" />
                 )}
                 {col.title === "Bowl"
@@ -569,7 +590,7 @@ export const BracketView = ({
                     key={m.id}
                     m={m}
                     secondLeg={secondLegMap.get(m.id)}
-                    isFinal={isBowlStage(m.round) || col.title === "Bowl"}
+                    isFinal={isBowlStage(m.round) || col.title === finalTitle}
                   />
                 ))}
               </div>
@@ -583,7 +604,7 @@ export const BracketView = ({
   return (
     <div>
       <div className="md:hidden flex items-center gap-1 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">
-        Swipe to follow the road to the Bowl
+        Swipe to follow the road to the {finalTitle}
         <ArrowRightIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
       </div>
       <div ref={scrollContainerRef} className="overflow-x-auto pb-4 -mx-2 px-2">
@@ -623,7 +644,7 @@ export const BracketView = ({
               </div>
             );
           })}
-          {champion && <ChampionCard team={champion} />}
+          {champion && <ChampionCard team={champion} cup={cup} />}
         </div>
       </div>
     </div>

@@ -200,6 +200,9 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		compGroup.DELETE("/:id/teams/:teamId", app.Handlers.MatchHandler.RemoveTeamFromCompetition)
 		compGroup.POST("/:id/bracket", app.Handlers.MatchHandler.GenerateBracket)
 		compGroup.DELETE("/:id/bracket", app.Handlers.MatchHandler.ResetBracket)
+		compGroup.POST("/:id/cup/initialize", app.Handlers.MatchHandler.InitializeCup)
+		compGroup.POST("/:id/cup/advance", app.Handlers.MatchHandler.AdvanceCupRound)
+		compGroup.GET("/:id/cup/state", app.Handlers.MatchHandler.GetCupState)
 		// Step 3: per-competition play-by-play scoring rules.
 		compGroup.GET("/:id/game-rules", app.Handlers.PlayHandler.GetRules)
 		compGroup.PUT("/:id/game-rules", app.Handlers.PlayHandler.UpsertRules)
@@ -659,6 +662,7 @@ func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
 	matchRoutes := r.Group("/matches")
 	{
 		matchRoutes.GET("/competitions", app.Handlers.MatchHandler.GetCompetitions)
+		matchRoutes.GET("/competitions/:id/cup/state", app.Handlers.MatchHandler.GetCupState)
 		matchRoutes.GET("", app.Handlers.MatchHandler.GetMatches)
 		matchRoutes.GET("/:id", app.Handlers.MatchHandler.GetMatchDetail)
 		matchRoutes.GET("/:id/plays", app.Handlers.PlayHandler.ListPlays)
