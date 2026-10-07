@@ -9,8 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { fantasyApi, formatFantasyPrice } from '../../services/api';
 import { formatStatDecimal } from '../../utils';
-import { Button, Modal } from '../ui';
-import { DataTable, type Column } from '../ui/DataTable';
+import { Button, Modal, DataTable, type Column } from '../ui';
 
 interface PlayerPriceHistoryModalProps {
     isOpen: boolean;

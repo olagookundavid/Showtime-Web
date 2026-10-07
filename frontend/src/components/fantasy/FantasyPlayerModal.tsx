@@ -11,8 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { FemaleIcon } from "../icons/FemaleIcon";
 import { MaleIcon } from "../icons/MaleIcon";
-import { Button, Modal } from "../ui";
-import { DataTable, type Column } from "../ui/DataTable";
+import { Button, Modal, DataTable, type Column } from "../ui";
 import {
   fantasyApi,
   formatFantasyPrice,

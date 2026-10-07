@@ -13,8 +13,7 @@ import type {
   GamePlay,
   PlayerStat,
 } from "../../types";
-import { Button, LightboxImage } from "../ui";
-import { DataTable } from "../ui/DataTable";
+import { Button, LightboxImage, DataTable } from "../ui";
 import {
   BoltIcon,
   ChartBarIcon,

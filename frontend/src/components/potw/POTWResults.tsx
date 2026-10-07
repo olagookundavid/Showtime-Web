@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { TrophyIcon, UserCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { DataTable, type Column } from '../ui/DataTable';
+import { DataTable, type Column } from '../ui';
 import type { POTWNominee, POTWPoll } from '../../types';
 
 // Single-series charts: one navy hue on light surfaces, a lighter blue step on

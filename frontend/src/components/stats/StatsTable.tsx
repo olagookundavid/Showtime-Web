@@ -6,8 +6,7 @@ import {
 } from "../domain/DeletedPlayer";
 import type { PlayerStat, TeamStat } from "../../types";
 import { Link } from "react-router-dom";
-import { LightboxImage, Spinner } from "../ui";
-import { DataTable, type Column } from "../ui/DataTable";
+import { LightboxImage, Spinner, DataTable, type Column } from "../ui";
 import { normalizePosition, formatStatNumber } from "../../utils";
 import { ALL_STAT_DEFINITIONS, POSITION_STAT_KEYS } from "../../constants";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
