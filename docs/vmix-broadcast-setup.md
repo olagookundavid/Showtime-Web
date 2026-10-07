@@ -47,6 +47,23 @@ Follow these steps on the Windows machine running vMix:
 
 ---
 
+## 2b. Streaming a Whole Match Day (recommended)
+
+A live stream usually covers every match on a day. Instead of re-pointing vMix for each game, use the **day** links, which always show whichever match is on air:
+
+1. In the studio, open **Broadcast Studio → Match days** and click **Open day studio** for the day.
+2. Copy the links from the **vMix Operator Setup** card on that page. They look like:
+   - Everything: `https://www.showtimeflag.football/broadcast/day/<YYYY-MM-DD>/overlay`
+   - Scorebug only: `…/broadcast/day/<YYYY-MM-DD>/overlay?layer=scorebug`
+   - Lower-thirds only: `…/broadcast/day/<YYYY-MM-DD>/overlay?layer=graphics`
+3. Add them to vMix once, as in section 2. They stay the same all day.
+4. When a match kicks off, click **Put on air** on it. The day overlay switches to that match immediately, and any lower-third on screen is cleared. Until a match is on air, the day overlay is blank.
+5. Use **Control** to choose which match the controls below drive. You can set up the next match (teams, 0–0, clock 12:00) while the current one is still on air, then put it on air at kick-off. Each match keeps its own score and clock.
+
+The per-match links in section 2 still work, for one-off streams of a single match.
+
+---
+
 ## 3. Producer Studio Operation
 
 The broadcast operator/producer controls what appears on air:
