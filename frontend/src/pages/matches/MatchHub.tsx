@@ -10,8 +10,21 @@ import {
   dropdownCompetitionsFor,
 } from "../../services/api";
 import type { PaginatedResponse, Match, Competition } from "../../types";
-import { Loader, Button, ButtonLink, Field, Select, Spinner, MatchCard, MatchStandingsTable, BracketView, CompactMatchesWidget, SeasonStageTabs, FootballIcon } from "../../components";
-import { lagosToday } from "../../utils";
+import {
+  Loader,
+  Button,
+  ButtonLink,
+  Field,
+  Select,
+  Spinner,
+  MatchCard,
+  MatchStandingsTable,
+  BracketView,
+  CompactMatchesWidget,
+  SeasonStageTabs,
+  FootballIcon,
+} from "../../components";
+import { lagosToday, cupStageOf } from "../../utils";
 import {
   ChevronDownIcon,
   TrophyIcon,
@@ -153,11 +166,13 @@ export const MatchHub = () => {
   );
   const isCompleted = selectedCompetition?.status === "completed";
   const compFormat = (selectedCompetition?.format || "SEASON").toUpperCase();
-  // Playoffs competitions show the bracket instead of standings.
-  const isKnockout = compFormat === "PLAYOFFS";
+  const cupStage = cupStageOf(selectedCompetition);
+  const isCup = cupStage !== "none";
+  const isCupKnockout = cupStage === "knockout";
+  // Playoffs competitions or Cup in knockout stage show the bracket.
+  const isKnockout = compFormat === "PLAYOFFS" || isCupKnockout;
   const isPreseason = compFormat === "PRESEASON";
-  const isCup = compFormat === "CUP";
-  const isMatchesOnly = isPreseason || isCup;
+  const isMatchesOnly = isPreseason || cupStage === "matches";
 
   const { data: standingsData, isLoading: standingsLoading } = useQuery({
     queryKey: ["publicStandings", selectedCompetitionId],
@@ -294,13 +309,17 @@ export const MatchHub = () => {
               size="sm"
               icon={isKnockout || isMatchesOnly ? FootballIcon : TrophyIcon}
             >
-              {isKnockout
-                ? "View Playoff Bracket"
-                : isPreseason
-                  ? "View Preseason Games"
-                  : isCup
-                    ? "View Cup Matches"
-                    : "View Full Standings"}
+              {isCupKnockout
+                ? "View Cup Bracket"
+                : isKnockout
+                  ? "View Playoff Bracket"
+                  : isPreseason
+                    ? "View Preseason Games"
+                    : cupStage === "swiss"
+                      ? "View Cup Standings"
+                      : isCup
+                        ? "View Cup Matches"
+                        : "View Full Standings"}
             </ButtonLink>
           </div>
         </div>
@@ -339,7 +358,13 @@ export const MatchHub = () => {
             <span>Filtering matches for</span>
             <span className="font-black">{filterTeam.name}</span>
           </div>
-          <Button variant="primary" size="sm" icon={XMarkIcon} iconPosition="right" onClick={clearTeamFilter}>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={XMarkIcon}
+            iconPosition="right"
+            onClick={clearTeamFilter}
+          >
             Clear
           </Button>
         </div>
@@ -493,15 +518,21 @@ export const MatchHub = () => {
               <BracketView
                 competitionId={selectedCompetitionId}
                 compact
+                cup={isCup}
                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
               />
 
-              <div className="bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
+              <div className="bg-sffl-navy rounded-xl p-6 text-white shadow-lg border border-gray-700/50">
                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
-                <p className="text-sm text-purple-100 mb-4">
+                <p className="text-sm text-gray-300 mb-4">
                   Don't miss a single moment of the SFFL season.
                 </p>
-                <ButtonLink to="/tickets" variant="navy" tone="dark" fullWidth>
+                <ButtonLink
+                  to="/tickets"
+                  variant="primary"
+                  tone="dark"
+                  fullWidth
+                >
                   Get Tickets
                 </ButtonLink>
               </div>
@@ -520,12 +551,17 @@ export const MatchHub = () => {
                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
               />
 
-              <div className="bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
+              <div className="bg-sffl-navy rounded-xl p-6 text-white shadow-lg border border-gray-700/50">
                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
-                <p className="text-sm text-purple-100 mb-4">
+                <p className="text-sm text-gray-300 mb-4">
                   Don't miss a single moment of the SFFL season.
                 </p>
-                <ButtonLink to="/tickets" variant="navy" tone="dark" fullWidth>
+                <ButtonLink
+                  to="/tickets"
+                  variant="primary"
+                  tone="dark"
+                  fullWidth
+                >
                   Get Tickets
                 </ButtonLink>
               </div>
@@ -540,15 +576,21 @@ export const MatchHub = () => {
                 standings={standings}
                 isCompleted={isCompleted}
                 isPlayoffs={selectedComp?.format === "PLAYOFFS"}
+                isCup={isCup}
                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
               />
 
-              <div className="bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
+              <div className="bg-sffl-navy rounded-xl p-6 text-white shadow-lg border border-gray-700/50">
                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
-                <p className="text-sm text-purple-100 mb-4">
+                <p className="text-sm text-gray-300 mb-4">
                   Don't miss a single moment of the SFFL season.
                 </p>
-                <ButtonLink to="/tickets" variant="navy" tone="dark" fullWidth>
+                <ButtonLink
+                  to="/tickets"
+                  variant="primary"
+                  tone="dark"
+                  fullWidth
+                >
                   Get Tickets
                 </ButtonLink>
               </div>

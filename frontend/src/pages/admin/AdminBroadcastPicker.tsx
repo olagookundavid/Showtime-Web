@@ -1,36 +1,106 @@
-import { useState, useEffect } from 'react';
-import { getMatches } from '../../services/api';
-import type { Match } from '../../types';
-import { Loader, Button, ButtonLink, DashboardPageHeader } from '../../components';
-import { VideoCameraIcon, ArrowTopRightOnSquareIcon, ClipboardDocumentCheckIcon, ClipboardDocumentIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { useState } from "react";
+import type { Competition, Match } from "../../types";
+import {
+  Loader,
+  Button,
+  ButtonLink,
+  DashboardPageHeader,
+  Field,
+  Pagination,
+  Select,
+  Tabs,
+  buttonClass,
+} from "../../components";
+import { useQuery } from "@tanstack/react-query";
+import {
+  getCompetitions,
+  getMatches,
+  sortCompetitionsBySeason,
+} from "../../services/api";
+import { usePermissions } from "../../hooks";
+import {
+  VideoCameraIcon,
+  ArrowTopRightOnSquareIcon,
+  ClipboardDocumentCheckIcon,
+  ClipboardDocumentIcon,
+  MapPinIcon,
+} from "@heroicons/react/24/outline";
 
-const FILTERS = ['ALL', 'LIVE', 'SCHEDULED', 'FINISHED'] as const;
+type StatusFilter = "ALL" | "LIVE" | "SCHEDULED" | "FINISHED" | "POSTPONED";
+
+const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "LIVE", label: "Live" },
+  { value: "SCHEDULED", label: "Scheduled" },
+  { value: "FINISHED", label: "Finished" },
+  { value: "POSTPONED", label: "Postponed" },
+];
+
+const PAGE_SIZE = 10;
+const NO_COMPETITIONS: Competition[] = [];
+const NO_MATCHES: Match[] = [];
 
 export function AdminBroadcastPicker() {
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<typeof FILTERS[number]>('ALL');
+  // '' until the producer picks one; the page then shows the default competition.
+  const [pickedCompId, setPickedCompId] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [page, setPage] = useState(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { canEdit } = usePermissions();
 
-  useEffect(() => {
-    async function loadMatches() {
-      setLoading(true);
-      try {
-        const res = await getMatches(undefined, 1, 50);
-        setMatches(res.data || []);
-      } catch (err) {
-        console.error('Error loading matches for broadcast:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadMatches();
-  }, []);
-
-  const filteredMatches = matches.filter((m) => {
-    if (filter === 'ALL') return true;
-    return m.status?.toUpperCase() === filter;
+  const { data: compsData, isLoading: loadingComps } = useQuery({
+    queryKey: ["adminCompetitions"],
+    queryFn: () => getCompetitions(1, 100),
   });
+  const competitions = compsData?.data
+    ? sortCompetitionsBySeason(compsData.data)
+    : NO_COMPETITIONS;
+
+  // A match on air right now decides the default competition, so a producer
+  // arriving mid-game lands on it without picking anything.
+  const { data: liveData, isLoading: loadingLive } = useQuery({
+    queryKey: ["broadcastLiveMatch"],
+    queryFn: () => getMatches(undefined, 1, 1, "LIVE"),
+  });
+  const liveCompId = liveData?.data?.[0]?.competition?.id;
+  const defaultCompId =
+    liveCompId ||
+    competitions.find((c) => c.status !== "inactive")?.id ||
+    competitions[0]?.id ||
+    "";
+  const compId = pickedCompId || defaultCompId;
+  const selectedComp = competitions.find((c) => c.id === compId);
+
+  const { data: matchesData, isLoading: loadingMatches } = useQuery({
+    queryKey: ["broadcastMatches", { compId, status, page }],
+    queryFn: () =>
+      getMatches(
+        compId,
+        page,
+        PAGE_SIZE,
+        status === "ALL" ? undefined : status,
+      ),
+    enabled: !!compId,
+  });
+  const matches = matchesData?.data ?? NO_MATCHES;
+  const totalPages = matchesData?.total_pages ?? 0;
+  const total = matchesData?.total ?? 0;
+
+  const loading = loadingComps || loadingLive || (!!compId && loadingMatches);
+
+  const handleCompChange = (id: string) => {
+    setPickedCompId(id);
+    setPage(1);
+  };
+
+  const handleStatusChange = (value: StatusFilter) => {
+    setStatus(value);
+    setPage(1);
+  };
+
+  const statusLabel = STATUS_TABS.find(
+    (t) => t.value === status,
+  )?.label.toLowerCase();
 
   const copyOverlayUrl = (matchId: string) => {
     const url = `${window.location.origin}/broadcast/${matchId}/overlay`;
@@ -43,21 +113,38 @@ export function AdminBroadcastPicker() {
     <div className="space-y-6">
       <DashboardPageHeader
         title="Broadcast Studio"
-        subtitle="Select a live or scheduled match to launch on-air graphics control for vMix."
+        subtitle="Pick a competition, then a match, to launch on-air graphics control for vMix."
       />
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
-        {FILTERS.map((tab) => (
-          <Button
-            key={tab}
-            variant={filter === tab ? 'primary' : 'secondary'}
-            onClick={() => setFilter(tab)}
-            aria-pressed={filter === tab}
+      {/* Filters: competition first, then status within it */}
+      <div className="space-y-3">
+        <Field
+          label="Competition"
+          htmlFor="broadcast-competition"
+          className="w-full sm:w-80"
+        >
+          <Select
+            id="broadcast-competition"
+            value={compId}
+            onChange={(e) => handleCompChange(e.target.value)}
+            disabled={competitions.length === 0}
           >
-            {tab}
-          </Button>
-        ))}
+            {competitions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.status === "inactive" ? " (inactive)" : ""}
+                {c.id === liveCompId ? " (live now)" : ""}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Tabs
+          items={STATUS_TABS}
+          value={status}
+          onChange={handleStatusChange}
+          aria-label="Match status"
+        />
       </div>
 
       {/* Match List */}
@@ -65,118 +152,195 @@ export function AdminBroadcastPicker() {
         <div className="py-16 flex justify-center">
           <Loader />
         </div>
-      ) : filteredMatches.length === 0 ? (
-        <div className="p-12 text-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-500">
-          No matches found for the selected filter.
+      ) : !compId ? (
+        <div className="p-8 sm:p-12 text-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
+          <p className="font-semibold text-gray-700 dark:text-gray-200">
+            No competitions yet.
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Matches belong to a competition, so one has to exist before you can
+            broadcast.
+            {!canEdit("competitions") && " Ask an admin to create it."}
+          </p>
+          {canEdit("competitions") && (
+            <ButtonLink to="/admin/competitions" variant="outline">
+              Go to Competitions
+            </ButtonLink>
+          )}
+        </div>
+      ) : matches.length === 0 ? (
+        <div className="p-8 sm:p-12 text-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
+          <p className="font-semibold text-gray-700 dark:text-gray-200">
+            No {status === "ALL" ? "" : `${statusLabel} `}matches in{" "}
+            {selectedComp?.name || "this competition"}.
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {status === "ALL"
+              ? canEdit("matches")
+                ? "Schedule matches for this competition, or pick another one above."
+                : "Pick another competition above, or ask an admin to schedule matches for this one."
+              : "Try another status, or show every match in this competition."}
+          </p>
+          {status === "ALL" ? (
+            canEdit("matches") && (
+              <ButtonLink to="/admin/matches" variant="outline">
+                Go to Matches
+              </ButtonLink>
+            )
+          ) : (
+            <Button variant="outline" onClick={() => handleStatusChange("ALL")}>
+              Show all matches
+            </Button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredMatches.map((m) => {
-            const isLive = m.status?.toUpperCase() === 'LIVE';
-            const isFinished = m.status?.toUpperCase() === 'FINISHED';
-            const homeName = m.home_team?.name || 'Home Team';
-            const awayName = m.away_team?.name || 'Away Team';
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {total} {status === "ALL" ? "" : `${statusLabel} `}
+            {total === 1 ? "match" : "matches"} in {selectedComp?.name}
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {matches.map((m) => {
+              const isLive = m.status?.toUpperCase() === "LIVE";
+              const isFinished = m.status?.toUpperCase() === "FINISHED";
+              const homeName = m.home_team?.name || "Home Team";
+              const awayName = m.away_team?.name || "Away Team";
 
-            return (
-              <div
-                key={m.id}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-4"
-              >
-                <div>
-                  {/* Status & Competition Header */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                      {m.competition?.name || 'Showtime League'} · {new Date(m.date).toLocaleDateString()}
-                    </span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-wider uppercase ${
-                        isLive
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
-                          : isFinished
-                          ? 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300'
-                      }`}
-                    >
-                      {m.status}
-                    </span>
-                  </div>
-
-                  {/* Teams & Scores */}
-                  <div className="flex items-center justify-between gap-4 my-2">
-                    {/* Home Team */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {m.home_team?.logo ? (
-                        <img src={m.home_team.logo} alt="" className="w-10 h-10 object-contain rounded" />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center font-bold text-gray-400">
-                          H
-                        </div>
-                      )}
-                      <span className="font-black text-gray-900 dark:text-white truncate text-base md:text-lg">
-                        {homeName}
+              return (
+                <div
+                  key={m.id}
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-4"
+                >
+                  <div>
+                    {/* Status & Competition Header */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        {m.competition?.name || "Showtime League"} ·{" "}
+                        {new Date(m.date).toLocaleDateString()}
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-wider uppercase ${
+                          isLive
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : isFinished
+                              ? "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300"
+                              : "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300"
+                        }`}
+                      >
+                        {m.status}
                       </span>
                     </div>
 
-                    {/* Score */}
-                    <div className="text-center px-3 py-1 bg-gray-50 dark:bg-gray-700/60 rounded-lg border border-gray-200 dark:border-gray-600 font-black text-lg md:text-xl text-gray-900 dark:text-white">
-                      {m.home_score ?? 0} – {m.away_score ?? 0}
+                    {/* Teams & Scores */}
+                    <div className="flex items-center justify-between gap-4 my-2">
+                      {/* Home Team */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {m.home_team?.logo ? (
+                          <img
+                            src={m.home_team.logo}
+                            alt=""
+                            className="w-10 h-10 object-contain rounded"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center font-bold text-gray-400">
+                            H
+                          </div>
+                        )}
+                        <span className="font-black text-gray-900 dark:text-white truncate text-base md:text-lg">
+                          {homeName}
+                        </span>
+                      </div>
+
+                      {/* Score */}
+                      <div className="text-center px-3 py-1 bg-gray-50 dark:bg-gray-700/60 rounded-lg border border-gray-200 dark:border-gray-600 font-black text-lg md:text-xl text-gray-900 dark:text-white">
+                        {m.home_score ?? 0} – {m.away_score ?? 0}
+                      </div>
+
+                      {/* Away Team */}
+                      <div className="flex items-center justify-end gap-3 flex-1 min-w-0 text-right">
+                        <span className="font-black text-gray-900 dark:text-white truncate text-base md:text-lg">
+                          {awayName}
+                        </span>
+                        {m.away_team?.logo ? (
+                          <img
+                            src={m.away_team.logo}
+                            alt=""
+                            className="w-10 h-10 object-contain rounded"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center font-bold text-gray-400">
+                            A
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Away Team */}
-                    <div className="flex items-center justify-end gap-3 flex-1 min-w-0 text-right">
-                      <span className="font-black text-gray-900 dark:text-white truncate text-base md:text-lg">
-                        {awayName}
-                      </span>
-                      {m.away_team?.logo ? (
-                        <img src={m.away_team.logo} alt="" className="w-10 h-10 object-contain rounded" />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center font-bold text-gray-400">
-                          A
-                        </div>
-                      )}
-                    </div>
+                    {m.venue && (
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        <MapPinIcon
+                          className="w-4 h-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        {m.venue}
+                      </div>
+                    )}
                   </div>
 
-                  {m.venue && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      <MapPinIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                      {m.venue}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-700/60">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={copiedId === m.id ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon}
-                    onClick={() => copyOverlayUrl(m.id)}
-                    title="Copy transparent vMix overlay browser URL"
-                  >
-                    {copiedId === m.id ? 'Copied vMix URL!' : 'Copy vMix URL'}
-                  </Button>
-
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={`/broadcast/${m.id}/overlay`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center min-h-11 min-w-11 p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                      title="Open transparent overlay in new tab"
-                      aria-label="Open transparent overlay in new tab"
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={
+                        copiedId === m.id
+                          ? ClipboardDocumentCheckIcon
+                          : ClipboardDocumentIcon
+                      }
+                      onClick={() => copyOverlayUrl(m.id)}
+                      title="Copy transparent vMix overlay browser URL"
                     >
-                      <ArrowTopRightOnSquareIcon className="w-4 h-4" aria-hidden="true" />
-                    </a>
+                      {copiedId === m.id ? "Copied vMix URL!" : "Copy vMix URL"}
+                    </Button>
 
-                    <ButtonLink to={`/admin/broadcast/${m.id}`} icon={VideoCameraIcon}>
-                      Launch Studio
-                    </ButtonLink>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/broadcast/${m.id}/overlay`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={buttonClass(
+                          "ghost",
+                          "md",
+                          false,
+                          "min-h-11 min-w-11 px-0",
+                        )}
+                        title="Open transparent overlay in new tab"
+                        aria-label="Open transparent overlay in new tab"
+                      >
+                        <ArrowTopRightOnSquareIcon
+                          className="w-4 h-4"
+                          aria-hidden="true"
+                        />
+                      </a>
+
+                      <ButtonLink
+                        to={`/admin/broadcast/${m.id}`}
+                        icon={VideoCameraIcon}
+                      >
+                        Launch Studio
+                      </ButtonLink>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          )}
         </div>
       )}
     </div>

@@ -46,6 +46,9 @@ type IMatchHandler interface {
 	SaveTeamHeadTeamSheet(c *gin.Context)
 	GetAdminTeamSheet(c *gin.Context)
 	OverrideMatchMVP(c *gin.Context)
+	InitializeCup(c *gin.Context)
+	AdvanceCupRound(c *gin.Context)
+	GetCupState(c *gin.Context)
 }
 
 type MatchHandler struct {
@@ -824,6 +827,63 @@ func (h *MatchHandler) ResetBracket(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Bracket reset"})
+}
+
+// InitializeCup godoc
+// @Summary      Initialize Cup tournament with Round 1 fixtures
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Competition ID"
+// @Param        request body dto.InitializeCupRequest false "Initialize cup parameters"
+// @Success      201 {object} map[string]string
+// @Router       /api/v1/admin/competitions/{id}/cup/initialize [post]
+func (h *MatchHandler) InitializeCup(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.InitializeCupRequest
+	_ = c.ShouldBindJSON(&req)
+	if err := h.service.InitializeCup(c.Request.Context(), id, req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "Cup tournament initialized with Round 1"})
+}
+
+// AdvanceCupRound godoc
+// @Summary      Advance Cup tournament to the next stage
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Competition ID"
+// @Param        request body dto.AdvanceCupRequest false "Advance cup parameters"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/competitions/{id}/cup/advance [post]
+func (h *MatchHandler) AdvanceCupRound(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.AdvanceCupRequest
+	_ = c.ShouldBindJSON(&req)
+	if err := h.service.AdvanceCupRound(c.Request.Context(), id, req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Cup round advanced successfully"})
+}
+
+// GetCupState godoc
+// @Summary      Get current Cup tournament progress and status
+// @Tags         admin
+// @Produce      json
+// @Param        id path string true "Competition ID"
+// @Success      200 {object} dto.CupStateResponse
+// @Router       /api/v1/admin/competitions/{id}/cup/state [get]
+func (h *MatchHandler) GetCupState(c *gin.Context) {
+	id := c.Param("id")
+	state, err := h.service.GetCupState(c.Request.Context(), id)
+	if err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, state)
 }
 
 // DeleteCompetition godoc

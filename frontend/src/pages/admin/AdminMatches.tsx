@@ -23,8 +23,29 @@ import {
   deleteMatch,
   getAdminTeamSheet,
 } from "../../services/api";
-import type { Match, Competition, Team, CreateMatchPayload, MatchWithTeamIds } from "../../types";
-import { Loader, ConfirmDialog, DataTable, type Column, RowActions, Button, Field, Input, Modal, Select, AdminTeamSheetModal, AdminKnockoutBracket, DashboardPageHeader } from "../../components";
+import type {
+  Match,
+  Competition,
+  Team,
+  CreateMatchPayload,
+  MatchWithTeamIds,
+} from "../../types";
+import {
+  Loader,
+  ConfirmDialog,
+  DataTable,
+  type Column,
+  RowActions,
+  Button,
+  Field,
+  Input,
+  Modal,
+  Select,
+  AdminTeamSheetModal,
+  AdminKnockoutBracket,
+  AdminCupManager,
+  DashboardPageHeader,
+} from "../../components";
 import { KNOCKOUT_STAGES } from "../../constants";
 import { formatMatchDate, formatMatchTime } from "../../utils";
 import { usePermissions } from "../../hooks";
@@ -210,20 +231,26 @@ export const AdminMatches = () => {
 
   // Knockout comps swap the date-grouped table for the bracket builder,
   // which needs the whole bracket at once (no pagination).
-  const isKnockout =
-    (compsData?.data || []).find((c) => c.id === filterComp)?.format ===
-    "PLAYOFFS";
+  const selectedComp = (compsData?.data || []).find((c) => c.id === filterComp);
+  const isKnockout = selectedComp?.format === "PLAYOFFS";
+  const isCup = selectedComp?.format === "CUP";
 
   const { data: matchesData, isLoading: loadingMatches } = useQuery({
     queryKey: [
       "adminMatches",
-      { comp: filterComp, page, search: searchTerm, knockout: isKnockout },
+      {
+        comp: filterComp,
+        page,
+        search: searchTerm,
+        knockout: isKnockout,
+        cup: isCup,
+      },
     ],
     queryFn: async () => {
       const data = await getMatches(
         filterComp || undefined,
-        isKnockout ? 1 : page,
-        isKnockout ? 100 : PAGE_SIZE,
+        isKnockout || isCup ? 1 : page,
+        isKnockout || isCup ? 100 : PAGE_SIZE,
         undefined,
         isKnockout ? undefined : searchTerm,
       );
@@ -525,9 +552,7 @@ export const AdminMatches = () => {
             ).response?.data
           : undefined;
       toast.error(
-        errorData?.message ||
-          errorData?.error ||
-          "Failed to delete match",
+        errorData?.message || errorData?.error || "Failed to delete match",
       );
     } finally {
       setDeleting(false);
@@ -539,7 +564,9 @@ export const AdminMatches = () => {
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
     if (!canManage) {
-      toast.error("View-only access: your role can view Matches but not make changes.");
+      toast.error(
+        "View-only access: your role can view Matches but not make changes.",
+      );
       setPendingAction(null);
       return;
     }
@@ -656,7 +683,8 @@ export const AdminMatches = () => {
                   danger: true,
                   disabled: isCompleted || !canManage,
                   hint: locked,
-                  onSelect: () => setPendingAction({ kind: "delete", match: m }),
+                  onSelect: () =>
+                    setPendingAction({ kind: "delete", match: m }),
                 },
               ]}
             />
@@ -761,6 +789,10 @@ export const AdminMatches = () => {
             Season Completed. Matches are locked and cannot be modified.
           </span>
         </div>
+      )}
+
+      {isCup && filterComp && (
+        <AdminCupManager competitionId={filterComp} isCompleted={isCompleted} />
       )}
 
       {loading ? (
@@ -875,349 +907,363 @@ export const AdminMatches = () => {
             </>
           }
         >
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Competition *" htmlFor="match-competition">
-                  <Select
-                    id="match-competition"
-                    value={form.competition_id}
-                    onChange={(e) => set("competition_id", e.target.value)}
-                  >
-                    <option value="">Select...</option>
-                    {(compsData?.data || [])
-                      .filter(
-                        (c) =>
-                          c.status !== "inactive" ||
-                          c.id === form.competition_id,
-                      )
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                  </Select>
-                </Field>
-                <Field label="Status" htmlFor="match-status">
-                  <Select
-                    id="match-status"
-                    value={form.status}
-                    onChange={(e) => set("status", e.target.value)}
-                  >
-                    {["SCHEDULED", "LIVE", "FINISHED", "POSTPONED"].map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Competition *" htmlFor="match-competition">
+                <Select
+                  id="match-competition"
+                  value={form.competition_id}
+                  onChange={(e) => set("competition_id", e.target.value)}
+                >
+                  <option value="">Select...</option>
+                  {(compsData?.data || [])
+                    .filter(
+                      (c) =>
+                        c.status !== "inactive" || c.id === form.competition_id,
+                    )
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
                       </option>
                     ))}
-                  </Select>
-                </Field>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label={formIsKnockout ? "Home Team" : "Home Team *"} htmlFor="match-home-team">
-                  <Select
-                    id="match-home-team"
-                    value={form.home_team_id}
-                    onChange={(e) => set("home_team_id", e.target.value)}
-                  >
-                    <option value="">
-                      {formIsKnockout ? "TBD — filled by bracket" : "Select..."}
+                </Select>
+              </Field>
+              <Field label="Status" htmlFor="match-status">
+                <Select
+                  id="match-status"
+                  value={form.status}
+                  onChange={(e) => set("status", e.target.value)}
+                >
+                  {["SCHEDULED", "LIVE", "FINISHED", "POSTPONED"].map((s) => (
+                    <option key={s} value={s}>
+                      {s}
                     </option>
-                    {selectableTeams().map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name.toUpperCase()}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label={formIsKnockout ? "Away Team" : "Away Team *"} htmlFor="match-away-team">
-                  <Select
-                    id="match-away-team"
-                    value={form.away_team_id}
-                    onChange={(e) => set("away_team_id", e.target.value)}
-                  >
-                    <option value="">
-                      {formIsKnockout ? "TBD — filled by bracket" : "Select..."}
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field
+                label={formIsKnockout ? "Home Team" : "Home Team *"}
+                htmlFor="match-home-team"
+              >
+                <Select
+                  id="match-home-team"
+                  value={form.home_team_id}
+                  onChange={(e) => set("home_team_id", e.target.value)}
+                >
+                  <option value="">
+                    {formIsKnockout ? "TBD — filled by bracket" : "Select..."}
+                  </option>
+                  {selectableTeams().map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name.toUpperCase()}
                     </option>
-                    {formIsKnockout && (
-                      <option value="BYE">BYE (PLAYOFF BYE)</option>
-                    )}
-                    {selectableTeams().map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name.toUpperCase()}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
+                  ))}
+                </Select>
+              </Field>
+              <Field
+                label={formIsKnockout ? "Away Team" : "Away Team *"}
+                htmlFor="match-away-team"
+              >
+                <Select
+                  id="match-away-team"
+                  value={form.away_team_id}
+                  onChange={(e) => set("away_team_id", e.target.value)}
+                >
+                  <option value="">
+                    {formIsKnockout ? "TBD — filled by bracket" : "Select..."}
+                  </option>
+                  {formIsKnockout && (
+                    <option value="BYE">BYE (PLAYOFF BYE)</option>
+                  )}
+                  {selectableTeams().map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name.toUpperCase()}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
 
-              {formIsKnockout && (
-                <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-4 space-y-4">
-                  <div className="text-xs font-black text-sffl-navy dark:text-gray-200 uppercase tracking-widest">
-                    Bracket Setup
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Stage *" htmlFor="match-stage">
-                      <Select
-                        id="match-stage"
-                        value={form.round}
-                        onChange={(e) => set("round", e.target.value)}
-                      >
-                        <option value="">Select stage…</option>
-                        {KNOCKOUT_STAGES.map((s) => (
-                          <option key={s.value} value={s.value}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <Field label="Order in stage" htmlFor="match-bracket-pos">
-                      <Input
-                        id="match-bracket-pos"
-                        type="number"
-                        min="1"
-                        value={form.bracket_pos}
-                        onChange={(e) => set("bracket_pos", e.target.value)}
-                        placeholder="1 = top of the column"
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Second leg match (optional)" htmlFor="match-second-leg">
+            {formIsKnockout && (
+              <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-4 space-y-4">
+                <div className="text-xs font-black text-sffl-navy dark:text-gray-200 uppercase tracking-widest">
+                  Bracket Setup
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Stage *" htmlFor="match-stage">
                     <Select
-                      id="match-second-leg"
-                      value={form.second_leg_match_id}
-                      onChange={(e) => set("second_leg_match_id", e.target.value)}
+                      id="match-stage"
+                      value={form.round}
+                      onChange={(e) => set("round", e.target.value)}
                     >
-                      <option value="">None</option>
-                      {bracketTargets.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {(m.round ? `${m.round}: ` : "") +
-                            (m.home_team?.short_name || "TBD") +
-                            " vs " +
-                            (m.away_team?.short_name || "TBD") +
-                            ` (${m.date.substring(0, 10)})`}
+                      <option value="">Select stage…</option>
+                      {KNOCKOUT_STAGES.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
                         </option>
                       ))}
                     </Select>
                   </Field>
-                  <details className="text-sm">
-                    <summary className="cursor-pointer py-3.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Auto-advance (optional — for live brackets)
-                    </summary>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                      <Field label="Winner advances to" htmlFor="match-feeds-match">
-                        <Select
-                          id="match-feeds-match"
-                          value={form.feeds_match_id}
-                          onChange={(e) => set("feeds_match_id", e.target.value)}
-                        >
-                          <option value="">None</option>
-                          {bracketTargets.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {(m.round ? `${m.round}: ` : "") +
-                                (m.home_team?.short_name || "TBD") +
-                                " vs " +
-                                (m.away_team?.short_name || "TBD") +
-                                ` (${m.date.substring(0, 10)})`}
-                            </option>
-                          ))}
-                        </Select>
-                      </Field>
-                      <Field
-                        label="As"
-                        htmlFor="match-feeds-slot"
-                        className={form.feeds_match_id ? "" : "opacity-40 pointer-events-none"}
-                      >
-                        <Select
-                          id="match-feeds-slot"
-                          value={form.feeds_slot}
-                          onChange={(e) => set("feeds_slot", e.target.value)}
-                        >
-                          <option value="HOME">Home team</option>
-                          <option value="AWAY">Away team</option>
-                        </Select>
-                      </Field>
-                    </div>
-                  </details>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Pick the stage and set Home/Away yourself. The bracket
-                    arranges matches by stage — a two-legged tie is just two
-                    matches tagged the same stage. Auto-advance is only needed
-                    for live single-leg brackets.
-                  </p>
+                  <Field label="Order in stage" htmlFor="match-bracket-pos">
+                    <Input
+                      id="match-bracket-pos"
+                      type="number"
+                      min="1"
+                      value={form.bracket_pos}
+                      onChange={(e) => set("bracket_pos", e.target.value)}
+                      placeholder="1 = top of the column"
+                    />
+                  </Field>
                 </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Field label="Date *" htmlFor="match-date">
-                  <Input
-                    id="match-date"
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => set("date", e.target.value)}
-                  />
-                </Field>
-                <Field label="Kick-off time" htmlFor="match-time">
-                  <Input
-                    id="match-time"
-                    type="time"
-                    value={form.start_time}
-                    onChange={(e) => set("start_time", e.target.value)}
-                  />
-                </Field>
-                <Field label="Venue" htmlFor="match-venue">
-                  <Input
-                    id="match-venue"
-                    type="text"
-                    value={form.venue}
-                    onChange={(e) => set("venue", e.target.value)}
-                    placeholder="e.g. SFFL Arena"
-                  />
-                </Field>
-              </div>
-
-              {/* The routine edit. Moving a kickoff is safe but it
-                                does move the fantasy deadline, and moving a date
-                                moves the whole gameweek — worth saying before
-                                the save, not after. */}
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
-                <p className="font-black uppercase tracking-wider mb-1">
-                  Fantasy follows this
-                </p>
-                <p>
-                  Changing the <strong>kick-off</strong> moves this match day's
-                  fantasy lock time if it is the earliest game of the day.
-                  Changing the <strong>date</strong> moves the fantasy gameweek
-                  to the new day and renumbers the rest. Gameweeks already
-                  played keep their number and are never moved.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Home score" htmlFor="match-home-score">
-                  <Input
-                    id="match-home-score"
-                    type="number"
-                    value={form.home_score}
-                    onChange={(e) => set("home_score", e.target.value)}
-                    min="0"
-                  />
-                </Field>
-                <Field label="Away score" htmlFor="match-away-score">
-                  <Input
-                    id="match-away-score"
-                    type="number"
-                    value={form.away_score}
-                    onChange={(e) => set("away_score", e.target.value)}
-                    min="0"
-                  />
-                </Field>
-              </div>
-
-              {/* Match MVP Selection / Override */}
-              {editingId && (
-                <div className="p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200">
-                      <TrophyIcon
-                        className="w-4 h-4 shrink-0 text-amber-500"
-                        aria-hidden="true"
-                      />
-                      <span>Official Match MVP</span>
-                      {form.mvp_overridden ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                          <StarIcon className="w-3 h-3" aria-hidden="true" />
-                          Admin Override Active
-                        </span>
-                      ) : form.mvp_player_id ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-                          <BoltIcon className="w-3 h-3" aria-hidden="true" />
-                          Auto-Calculated
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
-                          Not Assigned
-                        </span>
-                      )}
-                    </div>
-                    {(form.mvp_overridden || form.mvp_player_id) && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            mvp_player_id: "",
-                            mvp_overridden: false,
-                          }))
-                        }
-                      >
-                        Reset to Auto-Calculated
-                      </Button>
-                    )}
-                  </div>
+                <Field
+                  label="Second leg match (optional)"
+                  htmlFor="match-second-leg"
+                >
                   <Select
-                    aria-label="Official match MVP"
-                    value={form.mvp_player_id}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setForm((prev) => ({
-                        ...prev,
-                        mvp_player_id: val,
-                        mvp_overridden: val !== "",
-                      }));
-                    }}
+                    id="match-second-leg"
+                    value={form.second_leg_match_id}
+                    onChange={(e) => set("second_leg_match_id", e.target.value)}
                   >
-                    <option value="">
-                      Auto-Calculated by Platform (Default)
-                    </option>
-                    {editTeamSheet?.home_team &&
-                      editTeamSheet.home_team.length > 0 && (
-                        <optgroup label="Home Team Roster">
-                          {editTeamSheet.home_team.map((p) => (
-                            <option key={p.player_id} value={p.player_id}>
-                              #{p.jersey_number} {p.name} ({p.position}){" "}
-                              {p.rating
-                                ? `· Rating ${p.rating.toFixed(1)}`
-                                : ""}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    {editTeamSheet?.away_team &&
-                      editTeamSheet.away_team.length > 0 && (
-                        <optgroup label="Away Team Roster">
-                          {editTeamSheet.away_team.map((p) => (
-                            <option key={p.player_id} value={p.player_id}>
-                              #{p.jersey_number} {p.name} ({p.position}){" "}
-                              {p.rating
-                                ? `· Rating ${p.rating.toFixed(1)}`
-                                : ""}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
+                    <option value="">None</option>
+                    {bracketTargets.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {(m.round ? `${m.round}: ` : "") +
+                          (m.home_team?.short_name || "TBD") +
+                          " vs " +
+                          (m.away_team?.short_name || "TBD") +
+                          ` (${m.date.substring(0, 10)})`}
+                      </option>
+                    ))}
                   </Select>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
-                    Leave as "Auto-Calculated" for the system to award MVP dynamically based on player stats and ratings, or select a player to enforce an official override that persists across play recalculations.
-                  </p>
-                </div>
-              )}
-              <Field label="Highlights URL" htmlFor="match-highlights">
+                </Field>
+                <details className="text-sm">
+                  <summary className="cursor-pointer py-3.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Auto-advance (optional — for live brackets)
+                  </summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                    <Field
+                      label="Winner advances to"
+                      htmlFor="match-feeds-match"
+                    >
+                      <Select
+                        id="match-feeds-match"
+                        value={form.feeds_match_id}
+                        onChange={(e) => set("feeds_match_id", e.target.value)}
+                      >
+                        <option value="">None</option>
+                        {bracketTargets.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {(m.round ? `${m.round}: ` : "") +
+                              (m.home_team?.short_name || "TBD") +
+                              " vs " +
+                              (m.away_team?.short_name || "TBD") +
+                              ` (${m.date.substring(0, 10)})`}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field
+                      label="As"
+                      htmlFor="match-feeds-slot"
+                      className={
+                        form.feeds_match_id
+                          ? ""
+                          : "opacity-40 pointer-events-none"
+                      }
+                    >
+                      <Select
+                        id="match-feeds-slot"
+                        value={form.feeds_slot}
+                        onChange={(e) => set("feeds_slot", e.target.value)}
+                      >
+                        <option value="HOME">Home team</option>
+                        <option value="AWAY">Away team</option>
+                      </Select>
+                    </Field>
+                  </div>
+                </details>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Pick the stage and set Home/Away yourself. The bracket
+                  arranges matches by stage — a two-legged tie is just two
+                  matches tagged the same stage. Auto-advance is only needed for
+                  live single-leg brackets.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Field label="Date *" htmlFor="match-date">
                 <Input
-                  id="match-highlights"
-                  type="url"
-                  value={form.highlights_url}
-                  onChange={(e) => set("highlights_url", e.target.value)}
-                  placeholder="https://..."
+                  id="match-date"
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => set("date", e.target.value)}
                 />
               </Field>
-              <Field label="Ticket URL" htmlFor="match-ticket">
+              <Field label="Kick-off time" htmlFor="match-time">
                 <Input
-                  id="match-ticket"
-                  type="url"
-                  value={form.ticket_url}
-                  onChange={(e) => set("ticket_url", e.target.value)}
-                  placeholder="https://..."
+                  id="match-time"
+                  type="time"
+                  value={form.start_time}
+                  onChange={(e) => set("start_time", e.target.value)}
+                />
+              </Field>
+              <Field label="Venue" htmlFor="match-venue">
+                <Input
+                  id="match-venue"
+                  type="text"
+                  value={form.venue}
+                  onChange={(e) => set("venue", e.target.value)}
+                  placeholder="e.g. SFFL Arena"
                 />
               </Field>
             </div>
+
+            {/* The routine edit. Moving a kickoff is safe but it
+                                does move the fantasy deadline, and moving a date
+                                moves the whole gameweek — worth saying before
+                                the save, not after. */}
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+              <p className="font-black uppercase tracking-wider mb-1">
+                Fantasy follows this
+              </p>
+              <p>
+                Changing the <strong>kick-off</strong> moves this match day's
+                fantasy lock time if it is the earliest game of the day.
+                Changing the <strong>date</strong> moves the fantasy gameweek to
+                the new day and renumbers the rest. Gameweeks already played
+                keep their number and are never moved.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Home score" htmlFor="match-home-score">
+                <Input
+                  id="match-home-score"
+                  type="number"
+                  value={form.home_score}
+                  onChange={(e) => set("home_score", e.target.value)}
+                  min="0"
+                />
+              </Field>
+              <Field label="Away score" htmlFor="match-away-score">
+                <Input
+                  id="match-away-score"
+                  type="number"
+                  value={form.away_score}
+                  onChange={(e) => set("away_score", e.target.value)}
+                  min="0"
+                />
+              </Field>
+            </div>
+
+            {/* Match MVP Selection / Override */}
+            {editingId && (
+              <div className="p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200">
+                    <TrophyIcon
+                      className="w-4 h-4 shrink-0 text-amber-500"
+                      aria-hidden="true"
+                    />
+                    <span>Official Match MVP</span>
+                    {form.mvp_overridden ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                        <StarIcon className="w-3 h-3" aria-hidden="true" />
+                        Admin Override Active
+                      </span>
+                    ) : form.mvp_player_id ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                        <BoltIcon className="w-3 h-3" aria-hidden="true" />
+                        Auto-Calculated
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+                        Not Assigned
+                      </span>
+                    )}
+                  </div>
+                  {(form.mvp_overridden || form.mvp_player_id) && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          mvp_player_id: "",
+                          mvp_overridden: false,
+                        }))
+                      }
+                    >
+                      Reset to Auto-Calculated
+                    </Button>
+                  )}
+                </div>
+                <Select
+                  aria-label="Official match MVP"
+                  value={form.mvp_player_id}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      mvp_player_id: val,
+                      mvp_overridden: val !== "",
+                    }));
+                  }}
+                >
+                  <option value="">
+                    Auto-Calculated by Platform (Default)
+                  </option>
+                  {editTeamSheet?.home_team &&
+                    editTeamSheet.home_team.length > 0 && (
+                      <optgroup label="Home Team Roster">
+                        {editTeamSheet.home_team.map((p) => (
+                          <option key={p.player_id} value={p.player_id}>
+                            #{p.jersey_number} {p.name} ({p.position}){" "}
+                            {p.rating ? `· Rating ${p.rating.toFixed(1)}` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  {editTeamSheet?.away_team &&
+                    editTeamSheet.away_team.length > 0 && (
+                      <optgroup label="Away Team Roster">
+                        {editTeamSheet.away_team.map((p) => (
+                          <option key={p.player_id} value={p.player_id}>
+                            #{p.jersey_number} {p.name} ({p.position}){" "}
+                            {p.rating ? `· Rating ${p.rating.toFixed(1)}` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                </Select>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
+                  Leave as "Auto-Calculated" for the system to award MVP
+                  dynamically based on player stats and ratings, or select a
+                  player to enforce an official override that persists across
+                  play recalculations.
+                </p>
+              </div>
+            )}
+            <Field label="Highlights URL" htmlFor="match-highlights">
+              <Input
+                id="match-highlights"
+                type="url"
+                value={form.highlights_url}
+                onChange={(e) => set("highlights_url", e.target.value)}
+                placeholder="https://..."
+              />
+            </Field>
+            <Field label="Ticket URL" htmlFor="match-ticket">
+              <Input
+                id="match-ticket"
+                type="url"
+                value={form.ticket_url}
+                onChange={(e) => set("ticket_url", e.target.value)}
+                placeholder="https://..."
+              />
+            </Field>
+          </div>
         </Modal>
       )}
 

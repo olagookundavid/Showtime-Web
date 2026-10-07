@@ -28,6 +28,7 @@ type CompetitionResponse struct {
 	Status         string   `json:"status"`
 	Format         string   `json:"format"`
 	SeasonID       *string  `json:"season_id"`
+	CupRound       *string  `json:"cup_round,omitempty"`
 	TieBreakerRule string   `json:"tie_breaker_rule"`
 	TeamIDs        []string `json:"team_ids,omitempty"`
 }
@@ -142,6 +143,29 @@ type GenerateBracketRequest struct {
 	Date    string                `json:"date" binding:"required"` // first-round date, YYYY-MM-DD
 	Time    string                `json:"time"`                    // HH:MM, optional
 	Venue   string                `json:"venue"`
+}
+
+// --- Cup Tournament System ---
+type InitializeCupRequest struct {
+	Date  string `json:"date"`  // first-round date, YYYY-MM-DD
+	Time  string `json:"time"`  // HH:MM, optional
+	Venue string `json:"venue"`
+}
+
+type AdvanceCupRequest struct {
+	Date  string `json:"date"`  // next-round date, YYYY-MM-DD
+	Time  string `json:"time"`  // HH:MM, optional
+	Venue string `json:"venue"`
+}
+
+type CupStateResponse struct {
+	CompetitionID   string `json:"competition_id"`
+	CurrentRound    string `json:"current_round"` // UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3 | QUARTERFINAL | SEMIFINAL | FINAL | COMPLETED
+	MatchesTotal    int    `json:"matches_total"`
+	MatchesFinished int    `json:"matches_finished"`
+	CanAdvance      bool   `json:"can_advance"`
+	NextRound       string `json:"next_round"`
+	StatusMessage   string `json:"status_message"`
 }
 
 // --- Team Sheets ---

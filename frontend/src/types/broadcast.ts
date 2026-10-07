@@ -57,3 +57,25 @@ export function formatClock(seconds: number): string {
   const s = seconds % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
+
+/**
+ * Which part of the overlay a vMix input shows. Separate scorebug and
+ * lower-third inputs let the crew put them on different overlay channels and
+ * take one off air (e.g. the scorebug during replays) without the other.
+ */
+export type OverlayLayer = 'all' | 'scorebug' | 'graphics';
+
+export const OVERLAY_LAYERS: { value: OverlayLayer; label: string; hint: string }[] = [
+  { value: 'scorebug', label: 'Scorebug only', hint: 'Score, clock, down and possession' },
+  { value: 'graphics', label: 'Lower-thirds only', hint: 'Touchdowns, penalties and other callouts' },
+  { value: 'all', label: 'Everything', hint: 'Scorebug and lower-thirds in one input' },
+];
+
+export function parseOverlayLayer(value: string | null): OverlayLayer {
+  return value === 'scorebug' || value === 'graphics' ? value : 'all';
+}
+
+export function overlayUrl(matchId: string, layer: OverlayLayer = 'all'): string {
+  const base = `${window.location.origin}/broadcast/${matchId}/overlay`;
+  return layer === 'all' ? base : `${base}?layer=${layer}`;
+}

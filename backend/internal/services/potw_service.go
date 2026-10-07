@@ -99,6 +99,11 @@ func (s *POTWService) ListPublicPolls(ctx context.Context) ([]dto.POTWPollSummar
 	now := s.now()
 	out := make([]dto.POTWPollSummary, len(polls))
 	for i, p := range polls {
+		// Vote totals stay hidden while voting runs (no bandwagon effect).
+		total := 0
+		if p.Status(now) == domain.POTWPollClosed {
+			total = p.TotalVotes
+		}
 		out[i] = dto.POTWPollSummary{
 			ID:              p.ID,
 			TOTWID:          p.TOTWID,
@@ -107,7 +112,7 @@ func (s *POTWService) ListPublicPolls(ctx context.Context) ([]dto.POTWPollSummar
 			Status:          p.Status(now),
 			OpensAt:         p.OpensAt,
 			ClosesAt:        p.ClosesAt,
-			TotalVotes:      p.TotalVotes,
+			TotalVotes:      total,
 			WinnerPlayerID:  p.WinnerPlayerID,
 			WinnerSource:    p.WinnerSource,
 		}
@@ -454,6 +459,12 @@ func (s *POTWService) syncBadges(ctx context.Context, totwID string) {
 // ── Mapping & helpers ───────────────────────────────────────────────────────
 
 func (s *POTWService) mapPoll(p *domain.POTWPoll, showResults bool) *dto.POTWPollResponse {
+	// While voting runs the public sees no counts at all — not even the total —
+	// so early numbers can't sway later voters. Admins (showResults) see them live.
+	totalVotes := 0
+	if showResults {
+		totalVotes = p.TotalVotes
+	}
 	resp := &dto.POTWPollResponse{
 		ID:              p.ID,
 		TOTWID:          p.TOTWID,
@@ -467,7 +478,7 @@ func (s *POTWService) mapPoll(p *domain.POTWPoll, showResults bool) *dto.POTWPol
 		ClosesAt:        p.ClosesAt,
 		ServerTime:      s.now(),
 		FinalizedAt:     p.FinalizedAt,
-		TotalVotes:      p.TotalVotes,
+		TotalVotes:      totalVotes,
 		ResultsVisible:  showResults,
 		Nominees:        make([]dto.POTWNomineeResponse, len(p.Nominees)),
 	}

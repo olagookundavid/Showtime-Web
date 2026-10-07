@@ -1,12 +1,22 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { useBroadcastViewer } from '../hooks';
-import { calculateClockNow, formatClock, type GraphicEvent } from '../types';
-import './BroadcastOverlay.css';
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
+import { useBroadcastViewer } from "../hooks";
+import {
+  calculateClockNow,
+  formatClock,
+  type GraphicEvent,
+  parseOverlayLayer,
+} from "../types";
+import "./BroadcastOverlay.css";
 
 export function BroadcastOverlay() {
   const { matchId } = useParams<{ matchId: string }>();
-  const id = matchId || '';
+  const id = matchId || "";
+  // ?layer=scorebug or ?layer=graphics gives vMix one part per input; no param shows both.
+  const [searchParams] = useSearchParams();
+  const layer = parseOverlayLayer(searchParams.get("layer"));
+  const showScorebug = layer !== "graphics";
+  const showGraphics = layer !== "scorebug";
 
   const { state } = useBroadcastViewer(id);
   const [scale, setScale] = useState({ k: 1, x: 0, y: 0 });
@@ -15,14 +25,17 @@ export function BroadcastOverlay() {
   const [now, setNow] = useState(() => Date.now());
 
   // Exit phase of the current graphic. A graphic whose id isn't recorded here is entering.
-  const [graphicExit, setGraphicExit] = useState<{ id: number; stage: 'out' | 'hidden' } | null>(null);
+  const [graphicExit, setGraphicExit] = useState<{
+    id: number;
+    stage: "out" | "hidden";
+  } | null>(null);
 
   // Set body to transparent overlay mode
   useEffect(() => {
     const origBg = document.body.style.backgroundColor;
     const origOverflow = document.body.style.overflow;
-    document.body.style.backgroundColor = 'transparent';
-    document.body.style.overflow = 'hidden';
+    document.body.style.backgroundColor = "transparent";
+    document.body.style.overflow = "hidden";
 
     return () => {
       document.body.style.backgroundColor = origBg;
@@ -40,8 +53,8 @@ export function BroadcastOverlay() {
     }
 
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Tick the running clock
@@ -59,8 +72,11 @@ export function BroadcastOverlay() {
     if (!graphicId) return;
     let hideTimer: ReturnType<typeof setTimeout> | undefined;
     const outTimer = setTimeout(() => {
-      setGraphicExit({ id: graphicId, stage: 'out' });
-      hideTimer = setTimeout(() => setGraphicExit({ id: graphicId, stage: 'hidden' }), 350);
+      setGraphicExit({ id: graphicId, stage: "out" });
+      hideTimer = setTimeout(
+        () => setGraphicExit({ id: graphicId, stage: "hidden" }),
+        350,
+      );
     }, graphicDuration);
     return () => {
       clearTimeout(outTimer);
@@ -69,97 +85,108 @@ export function BroadcastOverlay() {
   }, [graphicId, graphicDuration]);
 
   if (!state) {
-    return <div className="broadcast-canvas" style={{ background: 'transparent' }} />;
+    return (
+      <div className="broadcast-canvas" style={{ background: "transparent" }} />
+    );
   }
 
   const clockDisplay = formatClock(calculateClockNow(state, now));
 
   const exitStage = graphicExit?.id === graphicId ? graphicExit.stage : null;
-  const activeGraphic: GraphicEvent | null = state.graphic && exitStage !== 'hidden' ? state.graphic : null;
-  const animClass = exitStage ?? 'enter';
+  const activeGraphic: GraphicEvent | null =
+    state.graphic && exitStage !== "hidden" ? state.graphic : null;
+  const animClass = exitStage ?? "enter";
 
-  const downText = state.down?.endsWith('G')
-    ? `${['1ST', '2ND', '3RD', '4TH'][parseInt(state.down[0], 10) - 1] || '—'} & GOAL`
-    : `${['1ST', '2ND', '3RD', '4TH'][parseInt(state.down, 10) - 1] || '—'} DOWN`;
+  const downText = state.down?.endsWith("G")
+    ? `${["1ST", "2ND", "3RD", "4TH"][parseInt(state.down[0], 10) - 1] || "—"} & GOAL`
+    : `${["1ST", "2ND", "3RD", "4TH"][parseInt(state.down, 10) - 1] || "—"} DOWN`;
 
   const initials = activeGraphic?.player
     ? activeGraphic.player
-        .split(' ')
+        .split(" ")
         .map((x) => x[0])
         .slice(0, 2)
-        .join('')
+        .join("")
     : activeGraphic?.team
-    ? activeGraphic.team.slice(0, 2).toUpperCase()
-    : 'S';
+      ? activeGraphic.team.slice(0, 2).toUpperCase()
+      : "S";
 
   return (
     <div
       className="broadcast-canvas"
       style={{
         transform: `translate(${scale.x}px, ${scale.y}px) scale(${scale.k})`,
-        transformOrigin: 'top left',
+        transformOrigin: "top left",
       }}
     >
-      {/* 1. Scorebug (Persistent top-left on-air display) */}
-      <div className={`scorebug-container ${!state.scorebug ? 'off' : ''}`}>
-        <div className="scorebug-main">
-          {/* Showtime Badge Logo */}
-          <div className="bug-logo">
-            <img src="/showtime-broadcast-logo.png" alt="Showtime" />
-          </div>
+      {/* 1. Scorebug (Persistent top-left on-air display); left out of a lower-thirds-only input */}
+      {showScorebug && (
+        <div className={`scorebug-container ${!state.scorebug ? "off" : ""}`}>
+          <div className="scorebug-main">
+            {/* Showtime Badge Logo */}
+            <div className="bug-logo">
+              <img src="/showtime-broadcast-logo.png" alt="Showtime" />
+            </div>
 
-          {/* Home Team */}
-          <div className="bug-team home">
-            <small>HOME</small>
-            <strong title={state.home}>{state.home}</strong>
-          </div>
+            {/* Home Team */}
+            <div className="bug-team home">
+              <small>HOME</small>
+              <strong title={state.home}>{state.home}</strong>
+            </div>
 
-          {/* Home Score */}
-          <div className="bug-score">
-            <span>{state.manual_home}</span>
-            <div className="timeout-dots">
-              {[0, 1, 2].map((idx) => (
-                <i key={idx} className={idx < state.timeouts_home ? 'live' : ''} />
-              ))}
+            {/* Home Score */}
+            <div className="bug-score">
+              <span>{state.manual_home}</span>
+              <div className="timeout-dots">
+                {[0, 1, 2].map((idx) => (
+                  <i
+                    key={idx}
+                    className={idx < state.timeouts_home ? "live" : ""}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Center: Period & Countdown Clock */}
+            <div className="bug-middle">
+              <b>{state.period}</b>
+              <small>{clockDisplay}</small>
+            </div>
+
+            {/* Away Score */}
+            <div className="bug-score">
+              <span>{state.manual_away}</span>
+              <div className="timeout-dots">
+                {[0, 1, 2].map((idx) => (
+                  <i
+                    key={idx}
+                    className={idx < state.timeouts_away ? "live" : ""}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Away Team */}
+            <div className="bug-team away">
+              <small>AWAY</small>
+              <strong title={state.away}>{state.away}</strong>
             </div>
           </div>
 
-          {/* Center: Period & Countdown Clock */}
-          <div className="bug-middle">
-            <b>{state.period}</b>
-            <small>{clockDisplay}</small>
-          </div>
-
-          {/* Away Score */}
-          <div className="bug-score">
-            <span>{state.manual_away}</span>
-            <div className="timeout-dots">
-              {[0, 1, 2].map((idx) => (
-                <i key={idx} className={idx < state.timeouts_away ? 'live' : ''} />
-              ))}
-            </div>
-          </div>
-
-          {/* Away Team */}
-          <div className="bug-team away">
-            <small>AWAY</small>
-            <strong title={state.away}>{state.away}</strong>
+          {/* Down & Ball Possession Pill */}
+          <div className="bug-detail-pill">
+            <span>{downText}</span>
+            <span>BALL: {state.possession}</span>
           </div>
         </div>
+      )}
 
-        {/* Down & Ball Possession Pill */}
-        <div className="bug-detail-pill">
-          <span>{downText}</span>
-          <span>BALL: {state.possession}</span>
-        </div>
-      </div>
-
-      {/* 2. Lower-Third Graphic Banner */}
-      {activeGraphic && (
+      {/* 2. Lower-Third Graphic Banner; left out of a scorebug-only input */}
+      {showGraphics && activeGraphic && (
         <div
           key={graphicId}
-          className={`graphic-banner ${animClass} ${activeGraphic.compact ? 'compact-mode' : ''} ${
-            !activeGraphic.player ? 'no-avatar' : ''
+          className={`graphic-banner ${animClass} ${activeGraphic.compact ? "compact-mode" : ""} ${
+            !activeGraphic.player ? "no-avatar" : ""
           }`}
         >
           {/* Avatar / Photo Circle */}
@@ -180,17 +207,25 @@ export function BroadcastOverlay() {
 
           {/* Content Column */}
           <div className="graphic-content">
-            <div className={`graphic-call ${activeGraphic.type.length > 12 ? 'long' : ''}`}>
+            <div
+              className={`graphic-call ${activeGraphic.type.length > 12 ? "long" : ""}`}
+            >
               {activeGraphic.type}
             </div>
             {activeGraphic.player && (
               <div className="graphic-player-name">{activeGraphic.player}</div>
             )}
-            {activeGraphic.stat && <div className="graphic-stat-line">{activeGraphic.stat}</div>}
+            {activeGraphic.stat && (
+              <div className="graphic-stat-line">{activeGraphic.stat}</div>
+            )}
           </div>
 
           <div className="graphic-tag">SHOWTIME FLAG</div>
-          <img src="/showtime-broadcast-logo.png" alt="Showtime" className="graphic-corner-logo" />
+          <img
+            src="/showtime-broadcast-logo.png"
+            alt="Showtime"
+            className="graphic-corner-logo"
+          />
         </div>
       )}
     </div>

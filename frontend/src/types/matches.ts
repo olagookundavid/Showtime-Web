@@ -6,6 +6,18 @@ export interface Competition {
     format?: string; // PRESEASON | SEASON | PLAYOFFS | CUP
     season_id?: string | null;
     tie_breaker_rule?: string;
+    cup_round?: string; // UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3 | QUARTERFINAL | SEMIFINAL | FINAL | COMPLETED
+}
+
+// Progress/status of a CUP competition's Swiss-then-knockout tournament.
+export interface CupState {
+    competition_id: string;
+    current_round: string; // UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3 | QUARTERFINAL | SEMIFINAL | FINAL | COMPLETED
+    matches_total: number;
+    matches_finished: number;
+    can_advance: boolean;
+    next_round: string;
+    status_message: string;
 }
 
 export interface Team {

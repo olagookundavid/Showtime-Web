@@ -38,6 +38,13 @@ Follow these steps on the Windows machine running vMix:
    - On the newly added Web Browser input in vMix, click the **"1"** button (or **"2"**) on the input tile to assign it to **Overlay 1**.
    - The Showtime scorebug will now appear in the top-left corner over your program video feed.
 
+4. **Optional: scorebug and lower-thirds as separate layers:**
+   - Add the overlay twice, as two Web Browser inputs (both 1920×1080):
+     - Scorebug only: `https://www.showtimeflag.football/broadcast/<MATCH_ID>/overlay?layer=scorebug`
+     - Lower-thirds only: `https://www.showtimeflag.football/broadcast/<MATCH_ID>/overlay?layer=graphics`
+   - Put them on different overlay channels, e.g. scorebug on **Overlay 1** and lower-thirds on **Overlay 2**. Each can then be taken on or off air, transitioned or positioned on its own (e.g. drop the scorebug for a replay while lower-thirds keep firing).
+   - The studio's **vMix Operator Setup** card lists all three links with copy buttons.
+
 ---
 
 ## 3. Producer Studio Operation

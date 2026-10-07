@@ -38,3 +38,12 @@ export {
   parseInlineMentions,
 } from './newsContent';
 export type { NewsSegment, InlinePart, NewsRefData } from './newsContent';
+export { cupStageOf } from './cupStage';
+export {
+  isStaleBuildError,
+  recordRefreshAttempt,
+  clearRefreshAttempt,
+  didRecentRefresh,
+  isReloadPending,
+  reloadForNewBuild,
+} from './staleBuild';

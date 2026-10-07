@@ -88,6 +88,14 @@ func (s *HeroSlideService) Create(ctx context.Context, req dto.CreateHeroSlideRe
 	displayOrder := count // default: append to the end
 	if req.DisplayOrder != nil {
 		displayOrder = *req.DisplayOrder
+	} else {
+		// count under-shoots once any slide has ever been deleted, colliding
+		// with an existing display_order and silently breaking later moves.
+		next, err := s.repo.NextDisplayOrder(ctx)
+		if err != nil {
+			return nil, err
+		}
+		displayOrder = next
 	}
 	isActive := true
 	if req.IsActive != nil {

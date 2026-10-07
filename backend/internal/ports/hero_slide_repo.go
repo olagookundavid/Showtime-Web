@@ -16,6 +16,12 @@ type HeroSlideRepository interface {
 	FindAll(ctx context.Context, activeOnly bool) ([]*domain.HeroSlide, error)
 	FindByID(ctx context.Context, id string) (*domain.HeroSlide, error)
 	Count(ctx context.Context) (int, error)
+	// NextDisplayOrder returns one past the highest display_order currently in
+	// use. Create must not use Count for this: once a slide has been deleted,
+	// the row count under-shoots the highest order in use and the new slide
+	// collides with an existing one, leaving two slides on the same order —
+	// which makes a later "move up/down" between them a no-op swap.
+	NextDisplayOrder(ctx context.Context) (int, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -187,6 +193,18 @@ func (r *HeroSlidePGRepository) Count(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("failed to count hero slides: %w", err)
 	}
 	return n, nil
+}
+
+func (r *HeroSlidePGRepository) NextDisplayOrder(ctx context.Context) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var max int
+	err := r.db.QueryRow(ctx, `SELECT COALESCE(MAX(display_order), -1) FROM hero_slides`).Scan(&max)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get next hero slide display order: %w", err)
+	}
+	return max + 1, nil
 }
 
 func (r *HeroSlidePGRepository) Delete(ctx context.Context, id string) error {

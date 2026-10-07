@@ -19,3 +19,5 @@ export { MatchTeamSheetTab } from './MatchTeamSheetTab';
 export { PlayByPlayTimeline } from './PlayByPlayTimeline';
 export { PublicMatchStats } from './PublicMatchStats';
 export { StandingsTable } from './StandingsTable';
+export { CUP_ZONE_BAR, CUP_ZONE_LEGEND, CUP_ELIMINATED_ROW, cupZoneOf } from './cupZones';
+export type { CupZone } from './cupZones';

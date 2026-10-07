@@ -344,7 +344,9 @@ func (r *PostgresTOTWRepository) GetLatestPublishedTOTW(ctx context.Context, com
 		SELECT totw.id
 		FROM team_of_the_week totw
 		%s
-		ORDER BY totw.published_at DESC NULLS LAST, totw.created_at DESC
+		-- Newest edition first, by when it was created: publish dates jump around
+		-- (an older week published late), which scrambled the week order.
+		ORDER BY totw.created_at DESC, totw.id DESC
 		LIMIT 1
 	`, where)
 
@@ -383,7 +385,9 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 		FROM team_of_the_week totw
 		JOIN competitions c ON totw.competition_id = c.id
 		%s
-		ORDER BY totw.published_at DESC NULLS LAST, totw.created_at DESC
+		-- Newest edition first, by when it was created: publish dates jump around
+		-- (an older week published late), which scrambled the week order.
+		ORDER BY totw.created_at DESC, totw.id DESC
 	`, where)
 
 	rows, err := r.db.Query(ctx, query, args...)

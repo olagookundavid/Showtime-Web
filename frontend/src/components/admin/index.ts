@@ -1,3 +1,4 @@
+export { AdminCupManager } from './AdminCupManager';
 export { AdminKnockoutBracket } from './AdminKnockoutBracket';
 export { AdminTeamSheetModal } from './AdminTeamSheetModal';
 export { AllocationsManager } from './AllocationsManager';
