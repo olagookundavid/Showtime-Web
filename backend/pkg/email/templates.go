@@ -55,7 +55,7 @@ func brandHeader() string {
 <img src="` + logoURL + `" alt="SFFL Logo" width="40" height="40" style="display: block; border-radius: 50%%; background: #ffffff; padding: 3px;" />
 </td>
 <td style="vertical-align: middle; padding-left: 12px;">
-<span style="font-size: 18px; font-weight: 900; font-style: italic; color: #ffffff; letter-spacing: 0.5px;">SHOWTIME <span style="color: ` + sfflRed + `;">FLAG FOOTBALL</span></span>
+<span style="font-size: 18px; font-weight: 900; font-style: italic; color: #ffffff; letter-spacing: 0.5px;">SHOWTIME <span style="color: ` + sfflRed + `;">FLAG FOOTBALL</span> LEAGUE</span>
 </td>
 </tr>
 </table>
@@ -105,7 +105,7 @@ func brandFooter() string {
 <tr>
 <td style="text-align: center; padding-bottom: 20px;">
 <img src="%s" alt="SFFL Logo" width="48" height="48" style="display: inline-block; border-radius: 50%%%%; background: #ffffff; padding: 4px; margin-bottom: 8px;" />
-<p style="color: #ffffff; font-size: 15px; font-weight: 800; font-style: italic; letter-spacing: 0.5px; margin: 8px 0 4px;">SHOWTIME <span style="color: %s;">FLAG FOOTBALL</span></p>
+<p style="color: #ffffff; font-size: 15px; font-weight: 800; font-style: italic; letter-spacing: 0.5px; margin: 8px 0 4px;">SHOWTIME <span style="color: %s;">FLAG FOOTBALL</span> LEAGUE</p>
 <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0; max-width: 320px; display: inline-block;">%s</p>
 </td>
 </tr>

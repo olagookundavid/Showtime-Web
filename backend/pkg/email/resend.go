@@ -31,7 +31,7 @@ func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 
 	fromEmail := os.Getenv("RESEND_FROM_EMAIL")
 	if fromEmail == "" {
-		fromEmail = "Showtime <showtime@showtimeflag.football>"
+		fromEmail = "Showtime Flag Football League <showtime@showtimeflag.football>"
 	}
 
 	client := resend.NewClient(apiKey)
