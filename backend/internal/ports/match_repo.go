@@ -23,6 +23,7 @@ type MatchRepository interface {
 	CreateCompetition(ctx context.Context, comp *domain.Competition) error
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
 	DeleteCompetition(ctx context.Context, id string) error
+	AdvanceCupStage(ctx context.Context, competitionID string, from *string, to string, matches []*domain.Match) error
 
 	// Teams
 	GetTeams(ctx context.Context, page, limit int, search string, status string) ([]domain.Team, int64, error)
@@ -100,7 +101,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 		return nil, 0, err
 	}
 
-	query := `SELECT id, name, COALESCE(logo, ''), status, format, season_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at ` + baseQuery +
+	query := `SELECT id, name, COALESCE(logo, ''), status, format, season_id, cup_round, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
 	args = append(args, limit, offset)
 
@@ -113,7 +114,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 	var competitions []domain.Competition
 	for rows.Next() {
 		var c domain.Competition
-		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.SeasonID, &c.TieBreakerRule, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.SeasonID, &c.CupRound, &c.TieBreakerRule, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		competitions = append(competitions, c)
@@ -122,9 +123,9 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 }
 
 func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error) {
-	query := `SELECT id, name, COALESCE(logo, ''), status, format, season_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at FROM competitions WHERE id = $1`
+	query := `SELECT id, name, COALESCE(logo, ''), status, format, season_id, cup_round, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at FROM competitions WHERE id = $1`
 	var c domain.Competition
-	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.SeasonID, &c.TieBreakerRule, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.SeasonID, &c.CupRound, &c.TieBreakerRule, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +157,7 @@ func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *d
 			if _, err := tx.Exec(ctx, `INSERT INTO competition_teams (competition_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, comp.ID, teamID); err != nil {
 				return err
 			}
-			if comp.Format == string(domain.CompetitionFormatSeason) {
+			if comp.Format == string(domain.CompetitionFormatSeason) || comp.Format == string(domain.CompetitionFormatCup) {
 				if _, err := tx.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, comp.ID, teamID); err != nil {
 					return err
 				}
@@ -182,6 +183,8 @@ func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *d
 	}
 	defer tx.Rollback(ctx)
 
+	// cup_round is left alone: only AdvanceCupStage moves a cup between stages,
+	// so editing the competition's details can't reset its progress.
 	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, season_id=$5, tie_breaker_rule=$6, updated_at=NOW() WHERE id=$7`
 	if _, err := tx.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, seasonID, comp.TieBreakerRule, comp.ID); err != nil {
 		return err
@@ -196,7 +199,7 @@ func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *d
 				if _, err := tx.Exec(ctx, `INSERT INTO competition_teams (competition_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, comp.ID, teamID); err != nil {
 					return err
 				}
-				if comp.Format == string(domain.CompetitionFormatSeason) {
+				if comp.Format == string(domain.CompetitionFormatSeason) || comp.Format == string(domain.CompetitionFormatCup) {
 					if _, err := tx.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, comp.ID, teamID); err != nil {
 						return err
 					}
@@ -212,6 +215,51 @@ func (r *PostgresMatchRepository) DeleteCompetition(ctx context.Context, id stri
 	query := `DELETE FROM competitions WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
+}
+
+// AdvanceCupStage moves a cup competition from stage `from` (nil: not started)
+// to stage `to` in one transaction: it locks the competition row, checks the
+// cup is still at `from`, inserts the new stage's matches and records `to`.
+// A second request for the same step finds the stage already moved and fails,
+// so a stage is never generated twice or left half-created.
+//
+// Matches are inserted in slice order and get their IDs filled in, so a
+// match's FeedsMatchID may point at the ID field of a match earlier in the
+// slice. Moving to CupRoundCompleted also marks the competition completed.
+func (r *PostgresMatchRepository) AdvanceCupStage(ctx context.Context, competitionID string, from *string, to string, matches []*domain.Match) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var current *string
+	if err := tx.QueryRow(ctx, `SELECT cup_round FROM competitions WHERE id = $1 FOR UPDATE`, competitionID).Scan(&current); err != nil {
+		return err
+	}
+	stage := func(s *string) string {
+		if s == nil || *s == "" {
+			return "not started"
+		}
+		return *s
+	}
+	if stage(current) != stage(from) {
+		return fmt.Errorf("the cup has moved on from %s (now %s); reload and try again", stage(from), stage(current))
+	}
+
+	for _, m := range matches {
+		if err := tx.QueryRow(ctx, insertMatchQuery, matchInsertArgs(m)...).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE competitions SET cup_round = $1, status = CASE WHEN $2 THEN 'completed' ELSE status END, updated_at = NOW() WHERE id = $3`,
+		to, to == domain.CupRoundCompleted, competitionID,
+	); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // --- Teams ---
@@ -377,7 +425,7 @@ func (r *PostgresMatchRepository) AddTeamToCompetition(ctx context.Context, comp
 	}
 	var format string
 	_ = r.db.QueryRow(ctx, `SELECT COALESCE(format, 'SEASON') FROM competitions WHERE id = $1`, competitionID).Scan(&format)
-	if format == string(domain.CompetitionFormatSeason) {
+	if format == string(domain.CompetitionFormatSeason) || format == string(domain.CompetitionFormatCup) {
 		_, _ = r.db.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, competitionID, teamID)
 	}
 	return nil
@@ -578,21 +626,26 @@ func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (
 	return &m, nil
 }
 
-func (r *PostgresMatchRepository) CreateMatch(ctx context.Context, match *domain.Match) error {
-	// NULLIF: empty team IDs are stored as NULL (TBD bracket slots).
-	query := `
+// NULLIF: empty team IDs are stored as NULL (TBD bracket slots).
+const insertMatchQuery = `
 		INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time, venue, status, home_score, away_score, highlights_url, ticket_url, round, bracket_pos, feeds_match_id, feeds_slot, second_leg_match_id, mvp_player_id, mvp_overridden)
 		VALUES ($1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), $13, $14, NULLIF($15, ''), NULLIF($16, '')::uuid, NULLIF($17, '')::uuid, $18)
 		RETURNING id, created_at, updated_at
 	`
+
+func matchInsertArgs(match *domain.Match) []any {
 	var mvpID any = nil
 	if match.MVPPlayerID != nil && *match.MVPPlayerID != "" {
 		mvpID = *match.MVPPlayerID
 	}
-	return r.db.QueryRow(ctx, query,
+	return []any{
 		match.CompetitionID, match.HomeTeamID, match.AwayTeamID, match.Date, match.StartTime, match.Venue, match.Status, match.HomeScore, match.AwayScore, match.HighlightsURL, match.TicketURL,
 		match.Round, match.BracketPos, match.FeedsMatchID, match.FeedsSlot, match.SecondLegMatchID, mvpID, match.MVPOverridden,
-	).Scan(&match.ID, &match.CreatedAt, &match.UpdatedAt)
+	}
+}
+
+func (r *PostgresMatchRepository) CreateMatch(ctx context.Context, match *domain.Match) error {
+	return r.db.QueryRow(ctx, insertMatchQuery, matchInsertArgs(match)...).Scan(&match.ID, &match.CreatedAt, &match.UpdatedAt)
 }
 
 func (r *PostgresMatchRepository) UpdateMatch(ctx context.Context, match *domain.Match) error {
@@ -1014,6 +1067,7 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 		  FROM matches
 		  WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE')
 			AND home_score IS NOT NULL AND away_score IS NOT NULL
+			AND bracket_pos IS NULL
 
 		  UNION ALL
 
@@ -1028,6 +1082,7 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 		  FROM matches
 		  WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE')
 			AND home_score IS NOT NULL AND away_score IS NOT NULL
+			AND bracket_pos IS NULL
 		),
 		aggregated AS (
 		  SELECT
@@ -1098,10 +1153,12 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 			SELECT DISTINCT home_team_id FROM matches 
 			WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE') 
 			  AND home_score IS NOT NULL AND away_score IS NOT NULL
+			  AND bracket_pos IS NULL
 			UNION
 			SELECT DISTINCT away_team_id FROM matches 
 			WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE') 
 			  AND home_score IS NOT NULL AND away_score IS NOT NULL
+			  AND bracket_pos IS NULL
 		  )
 	`
 	if _, err := tx.Exec(ctx, zeroOutQuery, competitionID); err != nil {

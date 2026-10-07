@@ -418,6 +418,7 @@ export interface Competition {
     status: string;
     format?: string; // PRESEASON | SEASON | PLAYOFFS | CUP
     season_id?: string | null;
+    cup_round?: string | null;
     tie_breaker_rule?: string;
 }
 
@@ -1295,6 +1296,44 @@ export const generateBracket = async (
 
 export const resetBracket = async (competitionId: string) => {
     const response = await api.delete(`/admin/competitions/${competitionId}/bracket`);
+    return response.data;
+};
+
+// ─── Cup Tournament System ───────────────────────────────────────────────────
+export interface CupState {
+    competition_id: string;
+    current_round: string; // UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3 | QUARTERFINAL | SEMIFINAL | FINAL | COMPLETED
+    matches_total: number;
+    matches_finished: number;
+    can_advance: boolean;
+    next_round: string;
+    status_message: string;
+}
+
+export const getCupState = async (competitionId: string): Promise<CupState> => {
+    const response = await api.get<CupState>(`/matches/competitions/${competitionId}/cup/state`);
+    return response.data;
+};
+
+export const initializeCup = async (
+    competitionId: string,
+    payload?: { date?: string; time?: string; venue?: string }
+): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(
+        `/admin/competitions/${competitionId}/cup/initialize`,
+        payload || {}
+    );
+    return response.data;
+};
+
+export const advanceCupRound = async (
+    competitionId: string,
+    payload?: { date?: string; time?: string; venue?: string }
+): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(
+        `/admin/competitions/${competitionId}/cup/advance`,
+        payload || {}
+    );
     return response.data;
 };
 

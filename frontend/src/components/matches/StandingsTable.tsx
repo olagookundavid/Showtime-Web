@@ -4,12 +4,15 @@ import type { Standing } from "../../services/api";
 import { LightboxImage } from "../ui";
 import { DataTable, type Column } from "../ui/DataTable";
 import { formatStatNumber } from "../../utils/formatters";
+import { CUP_ELIMINATED_ROW, CUP_ZONE_BAR, CUP_ZONE_LEGEND, cupZoneOf } from "./cupZones";
 
 interface StandingsTableProps {
   standings: Standing[];
   isCompleted?: boolean;
   highlightTeamId?: string;
   isPlayoffs?: boolean;
+  /** Cup Swiss table: colour each row by where it sends the team (cupZones.ts). */
+  isCup?: boolean;
 }
 
 const L5Badge: React.FC<{ result: string }> = ({ result }) => {
@@ -32,6 +35,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
   isCompleted,
   highlightTeamId,
   isPlayoffs,
+  isCup,
 }) => {
   const championIcon = isPlayoffs
     ? "/images/branding/showtime-bowl-trophy.png"
@@ -46,12 +50,15 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
   }
 
   const indexOf = new Map(standings.map((s, i) => [s.id, i]));
-  const isGold = (s: Standing) => !!isCompleted && indexOf.get(s.id) === 0;
+  // A cup's champion is decided by its bracket, not this table.
+  const isGold = (s: Standing) => !isCup && !!isCompleted && indexOf.get(s.id) === 0;
   const isHighlighted = (s: Standing) => !!highlightTeamId && s.team?.id === highlightTeamId;
   const isWildcard = (s: Standing) => {
+    if (isCup) return false;
     const index = indexOf.get(s.id) ?? -1;
     return index >= 1 && index < 7;
   };
+  const cupZone = (s: Standing) => (isCup ? cupZoneOf(indexOf.get(s.id) ?? 0) : undefined);
 
   const numberColumn = (header: string, value: (s: Standing) => React.ReactNode, className = ""): Column<Standing> => ({
     header,
@@ -85,6 +92,9 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           <div className="relative flex items-center gap-1.5 md:gap-3 min-w-0">
             {isWildcard(s) && (
               <span aria-hidden="true" className="absolute -left-2.5 inset-y-0 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+            )}
+            {cupZone(s) && (
+              <span aria-hidden="true" className={`absolute -left-2.5 inset-y-0 w-1 rounded-full ${CUP_ZONE_BAR[cupZone(s)!]}`} />
             )}
             {isGold(s) && <span aria-hidden="true" className="absolute -left-2.5 inset-y-0 w-1 bg-amber-500" />}
             <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500 dark:text-gray-300">
@@ -147,19 +157,30 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
 
   return (
     <>
-      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-2 px-1 font-semibold">
-        <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-3.5 bg-emerald-500 dark:bg-emerald-400 rounded-full shadow-sm" />
-          <span className="text-gray-700 dark:text-gray-300 font-bold">Wildcard spot</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <img src={championIcon} alt="Champion" className="w-4 h-4 object-contain" />
-          <span className="text-gray-700 dark:text-gray-300 font-bold">Champion</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400 mb-2 px-1 font-semibold">
+        {isCup ? (
+          CUP_ZONE_LEGEND.map(({ zone, label }) => (
+            <div key={zone} className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-3.5 rounded-full shadow-sm ${CUP_ZONE_BAR[zone]}`} />
+              <span className="text-gray-700 dark:text-gray-300 font-bold">{label}</span>
+            </div>
+          ))
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-3.5 bg-emerald-500 dark:bg-emerald-400 rounded-full shadow-sm" />
+              <span className="text-gray-700 dark:text-gray-300 font-bold">Wildcard spot</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <img src={championIcon} alt="Champion" className="w-4 h-4 object-contain" />
+              <span className="text-gray-700 dark:text-gray-300 font-bold">Champion</span>
+            </div>
+          </>
+        )}
       </div>
       <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg">
         <div className="flex items-center justify-between px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg">
-          <span>Team Standings</span>
+          <span>{isCup ? "Cup Standings" : "Team Standings"}</span>
           {isCompleted && (
             <span className="text-xs bg-amber-500 text-sffl-navy px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
               Season Completed
@@ -177,7 +198,9 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
               ? "bg-amber-100 dark:bg-amber-950 font-bold text-amber-950 dark:text-amber-100"
               : isHighlighted(s)
                 ? "bg-sffl-red/15 dark:bg-sffl-red/30"
-                : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+                : cupZone(s) === "out"
+                  ? CUP_ELIMINATED_ROW
+                  : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
           }
         />
       </div>
