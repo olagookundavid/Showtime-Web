@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useBroadcastViewer } from "../hooks";
 import {
@@ -7,7 +7,23 @@ import {
   type GraphicEvent,
   parseOverlayLayer,
 } from "../types";
+import { fitTeamName } from "../utils";
 import "./BroadcastOverlay.css";
+
+// Inner width of a scorebug team box: 204px less 15px padding each side.
+const TEAM_NAME_WIDTH = 174;
+
+/** A club name sized (and if needed split over two lines) to show in full. */
+function TeamName({ name }: { name: string }) {
+  const fitted = useMemo(() => fitTeamName(name, TEAM_NAME_WIDTH), [name]);
+  return (
+    <strong title={name} className={fitted.lines.length > 1 ? 'two-line' : ''} style={{ fontSize: fitted.fontSize }}>
+      {fitted.lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </strong>
+  );
+}
 
 export function BroadcastOverlay() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -131,7 +147,7 @@ export function BroadcastOverlay() {
             {/* Home Team */}
             <div className="bug-team home">
               <small>HOME</small>
-              <strong title={state.home}>{state.home}</strong>
+              <TeamName name={state.home} />
             </div>
 
             {/* Home Score */}
@@ -169,7 +185,7 @@ export function BroadcastOverlay() {
             {/* Away Team */}
             <div className="bug-team away">
               <small>AWAY</small>
-              <strong title={state.away}>{state.away}</strong>
+              <TeamName name={state.away} />
             </div>
           </div>
 

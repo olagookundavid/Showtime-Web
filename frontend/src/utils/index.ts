@@ -47,3 +47,5 @@ export {
   isReloadPending,
   reloadForNewBuild,
 } from './staleBuild';
+export { fitTeamName } from './fitTeamName';
+export type { FittedName } from './fitTeamName';

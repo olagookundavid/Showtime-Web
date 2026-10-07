@@ -66,14 +66,25 @@
   color: #b6c7dc;
 }
 
+/* font-size is set inline by fitTeamName so the full club name fits. */
 .bug-team strong {
   display: block;
   margin-top: 5px;
   font: 900 24px Arial, sans-serif;
+  line-height: 1.15;
+  color: #ffffff;
+}
+
+.bug-team strong span {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  color: #ffffff;
+  text-overflow: ellipsis; /* last resort for a name too long even at the smallest size */
+}
+
+.bug-team strong.two-line {
+  margin-top: 3px;
+  line-height: 1.05;
 }
 
 .bug-score {
