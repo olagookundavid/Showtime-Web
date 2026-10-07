@@ -1,8 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useBroadcastViewer } from '../hooks/useBroadcastViewer';
 import { calculateClockNow, formatClock, parseOverlayLayer, type GraphicEvent } from '../types/broadcast';
+import { fitTeamName } from '../utils/fitTeamName';
 import './BroadcastOverlay.css';
+
+// Inner width of a scorebug team box: 204px less 15px padding each side.
+const TEAM_NAME_WIDTH = 174;
+
+/** A club name sized (and if needed split over two lines) to show in full. */
+function TeamName({ name }: { name: string }) {
+  const fitted = useMemo(() => fitTeamName(name, TEAM_NAME_WIDTH), [name]);
+  return (
+    <strong title={name} className={fitted.lines.length > 1 ? 'two-line' : ''} style={{ fontSize: fitted.fontSize }}>
+      {fitted.lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </strong>
+  );
+}
 
 export function BroadcastOverlay() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -113,13 +129,13 @@ export function BroadcastOverlay() {
             <div className="bug-logo">
               <img src="/showtime-broadcast-logo.png" alt="Showtime" />
             </div>
-  
+
             {/* Home Team */}
             <div className="bug-team home">
               <small>HOME</small>
-              <strong title={state.home}>{state.home}</strong>
+              <TeamName name={state.home} />
             </div>
-  
+
             {/* Home Score */}
             <div className="bug-score">
               <span>{state.manual_home}</span>
@@ -129,13 +145,13 @@ export function BroadcastOverlay() {
                 ))}
               </div>
             </div>
-  
+
             {/* Center: Period & Countdown Clock */}
             <div className="bug-middle">
               <b>{state.period}</b>
               <small>{clockDisplay}</small>
             </div>
-  
+
             {/* Away Score */}
             <div className="bug-score">
               <span>{state.manual_away}</span>
@@ -145,14 +161,14 @@ export function BroadcastOverlay() {
                 ))}
               </div>
             </div>
-  
+
             {/* Away Team */}
             <div className="bug-team away">
               <small>AWAY</small>
-              <strong title={state.away}>{state.away}</strong>
+              <TeamName name={state.away} />
             </div>
           </div>
-  
+
           {/* Down & Ball Possession Pill */}
           <div className="bug-detail-pill">
             <span>{downText}</span>
