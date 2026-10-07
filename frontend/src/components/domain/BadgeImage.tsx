@@ -51,6 +51,7 @@ export const BadgeImage: React.FC<BadgeImageProps> = ({
                     alt={name}
                     className="w-full h-full object-contain drop-shadow-xs select-none"
                     loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                         const target = e.currentTarget as HTMLImageElement;
                         // If remote CDN fails (e.g. offline/network issue), try local /badges/ mirror

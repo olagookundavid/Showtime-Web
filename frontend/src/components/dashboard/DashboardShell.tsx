@@ -148,7 +148,7 @@ export const DashboardShell = ({
       {/* Global Background - Atmospheric version */}
       <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
         <div
-          className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700"
+          className="absolute inset-0 bg-[url('/images/branding/home-bg.webp')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700"
           style={{ backgroundAttachment: "fixed" }}
         />
 

@@ -26,7 +26,7 @@ export const HeroCarousel = () => {
       ctaText: "Buy Tickets",
       ctaLink: "/tickets",
       bgColor: "from-sffl-red to-[#8B1C1C]",
-      image: "/images/branding/hero-1.jpeg",
+      image: "/images/branding/hero-1.webp",
     },
     {
       id: 2,
@@ -35,7 +35,7 @@ export const HeroCarousel = () => {
       ctaText: "Sign Up Free",
       ctaLink: isAuthenticated ? "/tickets" : "/signup",
       bgColor: "from-sffl-navy to-blue-900",
-      image: "/images/branding/hero-2.jpeg",
+      image: "/images/branding/hero-2.webp",
     },
     {
       id: 3,
@@ -44,7 +44,7 @@ export const HeroCarousel = () => {
       ctaText: "See Matches",
       ctaLink: "/matches",
       bgColor: "from-purple-600 to-purple-900",
-      image: "/images/branding/hero-3.jpeg",
+      image: "/images/branding/hero-3.webp",
     },
   ];
 
@@ -83,10 +83,18 @@ export const HeroCarousel = () => {
         >
           <Link to={slide.ctaLink} className="block w-full h-full">
             {/* Background Image */}
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${slide.image})` }}
-            >
+            <div className="absolute inset-0">
+              <img
+                src={slide.image}
+                alt=""
+                aria-hidden="true"
+                width={1600}
+                height={450}
+                loading={index === 0 ? "eager" : "lazy"}
+                decoding="async"
+                fetchPriority={index === 0 ? "high" : "auto"}
+                className="w-full h-full object-cover"
+              />
               <div
                 className={`absolute inset-0 bg-linear-to-r ${slide.bgColor} opacity-90`}
               />

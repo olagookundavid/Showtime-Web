@@ -326,20 +326,23 @@ export const ChampionCard = ({
   cup?: boolean;
 }) => {
   const trophy = cup
-    ? { src: "/images/branding/showtime-community-cup-shield.png", alt: "Showtime Cup shield" }
-    : { src: "/images/branding/showtime-bowl-trophy.png", alt: "Showtime Bowl trophy" };
+    ? { src: "/images/branding/showtime-community-cup-shield.webp", alt: "Showtime Cup shield" }
+    : { src: "/images/branding/showtime-bowl-trophy.webp", alt: "Showtime Bowl trophy" };
   if (compact) {
     return (
       <div className="flex items-center gap-3 px-4 py-3 bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950">
         <img
           src={trophy.src}
           alt={trophy.alt}
+          decoding="async"
           className="h-7 w-auto object-contain drop-shadow"
         />
         {team.logo ? (
           <img
             src={team.logo}
             alt={team.name}
+            loading="lazy"
+            decoding="async"
             className="w-9 h-9 object-contain drop-shadow"
           />
         ) : (

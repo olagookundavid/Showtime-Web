@@ -61,7 +61,7 @@ export const NewsDetail = () => {
                             </div>
                         );
                     }
-                    const heroImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.jpg' : null);
+                    const heroImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.webp' : null);
                     return (
                         <div className="h-56 sm:h-72 md:h-96 overflow-hidden relative">
                             {heroImg ? (

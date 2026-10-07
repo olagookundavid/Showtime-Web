@@ -106,7 +106,7 @@ export const Layout = () => {
       {/* Global Background - High-contrast atmospheric version */}
       <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
         <div
-          className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700"
+          className="absolute inset-0 bg-[url('/images/branding/home-bg.webp')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700"
           style={{ backgroundAttachment: "fixed" }}
         />
 
@@ -460,6 +460,44 @@ export const Layout = () => {
                       </p>
                     </div>
                   </Link>
+
+                  {/* Team of the Week */}
+                  <Link
+                    to="/totw"
+                    onClick={() => setIsMoreMenuOpen(false)}
+                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
+                      <StarIcon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
+                        Team of the Week
+                      </span>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                        Best Performers
+                      </p>
+                    </div>
+                  </Link>
+
+                  {/* Player of the Week */}
+                  <Link
+                    to="/potw"
+                    onClick={() => setIsMoreMenuOpen(false)}
+                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
+                      <TrophyIcon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
+                        Player of the Week
+                      </span>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                        Fan Vote
+                      </p>
+                    </div>
+                  </Link>
                 </div>
               </div>
 
@@ -639,42 +677,6 @@ export const Layout = () => {
                       </span>
                       <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
                         Articles & Bulletins
-                      </p>
-                    </div>
-                  </Link>
-
-                  <Link
-                    to="/totw"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
-                      <StarIcon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
-                        Team of the Week
-                      </span>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                        Best Performers
-                      </p>
-                    </div>
-                  </Link>
-
-                  <Link
-                    to="/potw"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
-                      <TrophyIcon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
-                        Player of the Week
-                      </span>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                        Fan Vote
                       </p>
                     </div>
                   </Link>

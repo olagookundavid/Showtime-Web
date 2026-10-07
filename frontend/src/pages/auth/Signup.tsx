@@ -55,7 +55,7 @@ export const Signup = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <img
-            src="/images/branding/showtime-logo.png"
+            src="/images/branding/showtime-logo.webp"
             alt="SFFL Logo"
             className="w-20 h-20 mx-auto mb-4 bg-white rounded-full p-2"
           />

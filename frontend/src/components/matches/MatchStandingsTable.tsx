@@ -22,8 +22,8 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
   isCup,
 }) => {
   const championIcon = isPlayoffs
-    ? "/images/branding/showtime-bowl-trophy.png"
-    : "/images/branding/showtime-community-cup-shield.png";
+    ? "/images/branding/showtime-bowl-trophy.webp"
+    : "/images/branding/showtime-community-cup-shield.webp";
   if (standings.length === 0) {
     return (
       <div className="text-center p-8 text-gray-500 dark:text-gray-400">
@@ -50,8 +50,10 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
         const name = s.team?.short_name || s.team?.name || "Unknown";
         const logo = (
           <img
-            src={s.team?.logo || "/images/default_football.png"}
+            src={s.team?.logo || "/images/default_football.webp"}
             alt={s.team?.name || "Team"}
+            loading="lazy"
+            decoding="async"
             className="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md shrink-0"
             title={s.team?.name || "Team"}
           />

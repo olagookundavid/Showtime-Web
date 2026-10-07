@@ -36,11 +36,11 @@ const SLIDES: Slide[] = [
     ctaLabel: "Shop team jerseys",
     images: [
       {
-        src: "/images/store/raptors-jersey-1.png",
+        src: "/images/store/raptors-jersey-1.webp",
         alt: "Showtime Raptors jersey, front and back",
       },
       {
-        src: "/images/store/greenbacks-jersey.png",
+        src: "/images/store/greenbacks-jersey.webp",
         alt: "Showtime Greenbacks jersey, front and back",
       },
     ],
@@ -55,11 +55,11 @@ const SLIDES: Slide[] = [
     ctaLabel: "Shop the essentials",
     images: [
       {
-        src: "/images/store/showtime-snapback-with-crest-black.png",
+        src: "/images/store/showtime-snapback-with-crest-black.webp",
         alt: "Showtime snapback cap with crest logo",
       },
       {
-        src: "/images/store/showtime-snapback-with-red-stripes-blue.png",
+        src: "/images/store/showtime-snapback-with-red-stripes-blue.webp",
         alt: "Showtime snapback cap with red stripes",
       },
     ],
@@ -74,11 +74,11 @@ const SLIDES: Slide[] = [
     ctaLabel: "Shop accessories",
     images: [
       {
-        src: "/images/store/showtime-keychain.png",
+        src: "/images/store/showtime-keychain.webp",
         alt: "Showtime keychain",
       },
       {
-        src: "/images/store/showtime-snapback-black.png",
+        src: "/images/store/showtime-snapback-black.webp",
         alt: "Showtime snapback cap",
       },
     ],
@@ -114,7 +114,7 @@ export const StoreHeroCarousel = ({ onShopClick }: StoreHeroCarouselProps) => {
     <section className="relative overflow-hidden bg-sffl-navy text-white">
       <div
         className="absolute inset-0 bg-cover bg-center opacity-20"
-        style={{ backgroundImage: "url(/images/branding/store-hero.jpg)" }}
+        style={{ backgroundImage: "url(/images/branding/store-hero.webp)" }}
         aria-hidden="true"
       />
       <div

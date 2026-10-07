@@ -49,7 +49,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         className="relative max-w-full max-h-full flex items-center justify-center animate-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        {src.includes("default_football.png") ? (
+        {src.includes("default_football.webp") ? (
           <div className="flex flex-col items-center justify-center p-12 bg-gray-900/80 rounded-4xl border border-white/10 backdrop-blur-xl max-w-sm text-center shadow-2xl">
             <img
               src={src}

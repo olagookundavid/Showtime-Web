@@ -46,7 +46,7 @@ export const ShowtimeArena = () => {
     <div className="space-y-4 md:space-y-8">
       <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl relative overflow-hidden h-75 md:h-112.5 flex flex-col justify-end">
         <img
-          src="/images/branding/showtime-arena-main.jpg"
+          src="/images/branding/showtime-arena-main.webp"
           alt="Showtime Arena"
           className="absolute inset-0 w-full h-full object-cover opacity-60 z-0"
         />

@@ -153,7 +153,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {rankBadge(row)}
             <LightboxImage
-              src={row.team_logo || "/images/default_football.png"}
+              src={row.team_logo || "/images/default_football.webp"}
               alt={row.team_name}
               thumbnailClassName="w-6 h-6 md:w-8 md:h-8 object-contain rounded-md shadow-sm shrink-0"
             />
@@ -231,7 +231,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({
     cell: (row) => (
       <div className="flex items-center gap-2 min-w-0">
         <LightboxImage
-          src={row.team_logo || "/images/default_football.png"}
+          src={row.team_logo || "/images/default_football.webp"}
           alt=""
           thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70 shrink-0"
         />

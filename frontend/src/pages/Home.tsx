@@ -333,7 +333,7 @@ export default function Home() {
                 const imageSrc =
                   article.featured_image ||
                   (article.category === "Commissioner's Note"
-                    ? "/images/leadership/adebare_adejumo.jpg"
+                    ? "/images/leadership/adebare_adejumo.webp"
                     : null);
                 return (
                   <Link

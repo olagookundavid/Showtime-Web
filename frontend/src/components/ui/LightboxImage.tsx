@@ -82,6 +82,8 @@ export const LightboxImage: React.FC<LightboxImageProps> = ({
           <img
             src={src}
             alt={alt}
+            loading="lazy"
+            decoding="async"
             onError={() => setErrorState({ src, hasError: true })}
             className={imgClassName}
           />

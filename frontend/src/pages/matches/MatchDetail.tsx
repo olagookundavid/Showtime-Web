@@ -180,9 +180,10 @@ export const MatchDetail = () => {
                         <div className="flex flex-col items-center gap-3 flex-1 min-w-0">
                             <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 shrink-0 flex items-center justify-center">
                                 {isBye ? (
-                                    <img 
-                                        src="/images/default_football.png" 
-                                        alt="BYE" 
+                                    <img
+                                        src="/images/default_football.webp"
+                                        alt="BYE"
+                                        decoding="async"
                                         className="w-full h-full object-cover"
                                     />
                                 ) : awayTeam?.logo ? (

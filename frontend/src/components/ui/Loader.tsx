@@ -9,7 +9,7 @@ export const Loader = () => {
 
                     {/* Logo — centered inside the ring */}
                     <img
-                        src="/images/branding/showtime-logo.png"
+                        src="/images/branding/showtime-logo.webp"
                         alt="Loading..."
                         className="w-20 h-20 object-contain animate-pulse"
                     />

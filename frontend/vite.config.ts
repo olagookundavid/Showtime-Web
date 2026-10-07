@@ -1,10 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // Regression guard: compresses anything copied from public/ or imported
+    // from src/ at build time, so a future unoptimized image doesn't quietly
+    // ship at full size again.
+    ViteImageOptimizer({
+      png: { quality: 85 },
+      jpeg: { quality: 80 },
+      jpg: { quality: 80 },
+      webp: { quality: 85 },
+    }),
+  ],
   base: '/', // Ensures the app handles routing from the root
   server: {
     proxy: {

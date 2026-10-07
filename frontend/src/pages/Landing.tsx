@@ -130,8 +130,10 @@ export const Landing = () => {
             {/* Commissioner background image */}
             <div className="absolute inset-0 z-0 overflow-hidden">
               <img
-                src="/images/leadership/adebare_adejumo.jpg"
+                src="/images/leadership/adebare_adejumo.webp"
                 alt="Adebare Adejumo - League Commissioner"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover object-top filter brightness-90 group-hover:scale-105 transition-transform duration-700 opacity-40 dark:opacity-30"
               />
               <div className="absolute inset-0 bg-linear-to-t from-sffl-navy via-sffl-navy/85 to-sffl-navy/70 dark:from-gray-900 dark:via-gray-900/90 dark:to-gray-900/75"></div>

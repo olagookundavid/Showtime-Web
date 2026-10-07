@@ -144,7 +144,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
             aria-label="Showtime Home"
           >
             <img
-              src="/images/branding/showtime-logo.png"
+              src="/images/branding/showtime-logo.webp"
               alt="Showtime Flag Football"
               className="w-12 h-12 sm:w-14 sm:h-14 object-contain transition-all duration-300 hover:scale-110"
             />

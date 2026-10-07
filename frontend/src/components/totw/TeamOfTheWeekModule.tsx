@@ -126,7 +126,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
         <header className="flex flex-wrap items-center justify-between gap-4 px-4 py-3.5 md:px-6 md:py-4 bg-linear-to-r from-[#102A4E] to-[#07162B] border-b border-white/10">
           <div className="flex items-center gap-3 md:gap-4 min-w-0">
             <img
-              src="/images/branding/showtime-logo.png"
+              src="/images/branding/showtime-logo.webp"
               alt="Showtime Flag Football"
               className="w-10 h-10 md:w-12 md:h-12 object-contain shrink-0"
             />

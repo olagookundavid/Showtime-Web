@@ -28,7 +28,7 @@ export const AboutShowtimeFlag = () => {
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-10" />
 
         <img
-          src="/images/branding/showtime-logo.png"
+          src="/images/branding/showtime-logo.webp"
           alt="SFFL Logo"
           className="w-28 h-28 sm:w-40 sm:h-40 object-contain bg-white rounded-full p-3 sm:p-4 shadow-xl z-10"
         />

@@ -93,7 +93,7 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({
           <LightboxImage
             src={
               isBye
-                ? "/images/default_football.png"
+                ? "/images/default_football.webp"
                 : match.away_team?.logo || ""
             }
             alt={isBye ? "BYE" : match.away_team?.name || "BYE"}

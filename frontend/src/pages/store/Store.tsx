@@ -247,11 +247,11 @@ export const Store = () => {
         <div className="grid grid-cols-2 gap-3">
           {[
             {
-              src: "/images/store/showtime-snapback-with-crest-white.png",
+              src: "/images/store/showtime-snapback-with-crest-white.webp",
               alt: "Showtime snapback cap with crest logo, white",
             },
             {
-              src: "/images/store/showtime-snapback-unite-compete-thrive-blue.png",
+              src: "/images/store/showtime-snapback-unite-compete-thrive-blue.webp",
               alt: "Showtime snapback cap, Unite. Compete. Thrive.",
             },
           ].map((image) => (

@@ -141,7 +141,7 @@ export function BroadcastOverlay() {
           <div className="scorebug-main">
             {/* Showtime Badge Logo */}
             <div className="bug-logo">
-              <img src="/showtime-broadcast-logo.png" alt="Showtime" />
+              <img src="/showtime-broadcast-logo.webp" alt="Showtime" />
             </div>
 
             {/* Home Team */}
@@ -238,7 +238,7 @@ export function BroadcastOverlay() {
 
           <div className="graphic-tag">SHOWTIME FLAG</div>
           <img
-            src="/showtime-broadcast-logo.png"
+            src="/showtime-broadcast-logo.webp"
             alt="Showtime"
             className="graphic-corner-logo"
           />

@@ -27,7 +27,7 @@ export const DashboardBrand = ({
     } ${collapsed ? "justify-center" : ""}`}
   >
     <img
-      src="/images/branding/showtime-logo.png"
+      src="/images/branding/showtime-logo.webp"
       alt=""
       className={`shrink-0 object-contain ${compact ? "w-9 h-9" : "w-10 h-10"}`}
     />

@@ -63,7 +63,7 @@ export const NewsList = () => {
                                         </Link>
                                     );
                                 }
-                                const featuredImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.jpg' : null);
+                                const featuredImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.webp' : null);
                                 if (featuredImg) {
                                     return (
                                         <LightboxImage

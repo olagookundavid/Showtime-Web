@@ -10,7 +10,7 @@ interface TeamMember {
 const PRESIDENT: TeamMember = {
   name: "Azeez Amida",
   role: "Founder & President",
-  image: "/images/leadership/azeez_amida.jpg",
+  image: "/images/leadership/azeez_amida.webp",
   badge: "Executive Leadership",
   bio: [
     "Azeez Amida is the Founder and President of Showtime Flag Football League and one of the leading figures behind the growth and professionalisation of flag football in Nigeria.",
@@ -25,7 +25,7 @@ const PRESIDENT: TeamMember = {
 const COMMISSIONER: TeamMember = {
   name: "Adebare Adejumo",
   role: "League Commissioner",
-  image: "/images/leadership/adebare_adejumo.jpg",
+  image: "/images/leadership/adebare_adejumo.webp",
   badge: "League Administration",
   bio: [
     "Adebare Adejumo serves as the League Commissioner of Showtime Flag, where he oversees the governance, competitive integrity, and overall sporting operations of the league.",
@@ -38,7 +38,7 @@ const LEADERS: TeamMember[] = [
   {
     name: "Kalu Esther",
     role: "VP, Operations",
-    image: "/images/leadership/kalu_esther.jpg",
+    image: "/images/leadership/kalu_esther.webp",
     badge: "Vice President",
     bio: [
       "Esther Kalu serves as the Vice President of Operations at Showtime Flag, overseeing the administrative and operational systems that support the league's day-to-day activities.",
@@ -69,6 +69,8 @@ const TeamMemberCard = ({ member }: { member: TeamMember }) => (
           <img
             src={member.image}
             alt={member.name}
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
             onError={(e) => {
               e.currentTarget.style.display = "none";
