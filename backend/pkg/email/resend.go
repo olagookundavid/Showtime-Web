@@ -3,6 +3,7 @@ package email
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/resend/resend-go/v3"
 )
@@ -29,9 +30,11 @@ func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 		return nil
 	}
 
-	fromEmail := os.Getenv("RESEND_FROM_EMAIL")
+	fromEmail := strings.TrimSpace(os.Getenv("RESEND_FROM_EMAIL"))
 	if fromEmail == "" {
-		fromEmail = "Showtime Flag Football League <showtime@showtimeflag.football>"
+		fromEmail = "Showtime Flag Football <showtime@showtimeflag.football>"
+	} else if !strings.Contains(fromEmail, "<") {
+		fromEmail = fmt.Sprintf("Showtime Flag Football <%s>", fromEmail)
 	}
 
 	client := resend.NewClient(apiKey)
