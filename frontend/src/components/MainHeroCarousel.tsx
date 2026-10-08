@@ -46,7 +46,7 @@ export const MainHeroCarousel = () => {
 
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 20_000);
+    }, 60_000);
 
     return () => clearInterval(timer);
   }, [hasMultipleSlides, slides.length]);
@@ -81,13 +81,7 @@ export const MainHeroCarousel = () => {
           );
         }
         return /^https?:\/\//i.test(slide.destination) ? (
-          <a
-            key={slide.id}
-            href={slide.destination}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={className}
-          >
+          <a key={slide.id} href={slide.destination} className={className}>
             {backgrounds}
           </a>
         ) : (
