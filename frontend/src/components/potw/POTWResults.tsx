@@ -26,11 +26,17 @@ export const NomineeAvatar = ({ nominee, size = 'md' }: { nominee: POTWNominee; 
     );
 };
 
-/** Vote share per nominee as horizontal bars, most votes first. */
-const VoteShareBars = ({ nominees }: { nominees: POTWNominee[] }) => {
+/**
+ * Vote share per nominee as horizontal bars, biggest share first. `showCounts`
+ * (admins) adds the raw vote numbers to the tooltip; fans see percentages only.
+ */
+const VoteShareBars = ({ nominees, showCounts }: { nominees: POTWNominee[]; showCounts: boolean }) => {
     const [active, setActive] = useState<string | null>(null);
     const rows = useMemo(
-        () => [...nominees].sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0) || a.display_order - b.display_order),
+        () =>
+            [...nominees].sort(
+                (a, b) => (b.percent ?? 0) - (a.percent ?? 0) || (b.votes ?? 0) - (a.votes ?? 0) || a.display_order - b.display_order,
+            ),
         [nominees],
     );
 
@@ -47,7 +53,7 @@ const VoteShareBars = ({ nominees }: { nominees: POTWNominee[] }) => {
                         onMouseLeave={() => setActive(null)}
                         onFocus={() => setActive(n.player_id)}
                         onBlur={() => setActive(null)}
-                        aria-label={`${n.name}: ${votesLabel(n.votes ?? 0)}, ${pct}%${n.is_winner ? ', winner' : ''}`}
+                        aria-label={`${n.name}: ${showCounts ? `${votesLabel(n.votes ?? 0)}, ` : ''}${pct}%${n.is_winner ? ', winner' : ''}`}
                         className="relative rounded-lg p-1 -m-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red"
                     >
                         <div className="flex items-center gap-2 mb-1.5 min-w-0">
@@ -72,7 +78,7 @@ const VoteShareBars = ({ nominees }: { nominees: POTWNominee[] }) => {
                                 role="tooltip"
                                 className="absolute right-0 -top-9 z-10 whitespace-nowrap rounded-lg bg-gray-900 dark:bg-gray-100 px-2.5 py-1.5 text-xs font-bold text-white dark:text-gray-900 shadow-lg"
                             >
-                                {n.name} · {votesLabel(n.votes ?? 0)} · {pct}%
+                                {n.name} · {showCounts ? `${votesLabel(n.votes ?? 0)} · ` : ''}{pct}%
                             </div>
                         )}
                     </li>
@@ -131,13 +137,23 @@ const VotesByDayColumns = ({ days }: { days: { day: string; votes: number }[] })
 
 const NO_ROWS: POTWNominee[] = [];
 
-/**
- * The full breakdown once voting has closed (or for admins at any time): total
- * votes, the winner, vote share per nominee, votes per day and a results table.
- */
-export const POTWResults = ({ poll, title = 'Results breakdown' }: { poll: POTWPoll; title?: string }) => {
+interface POTWResultsProps {
+    poll: POTWPoll;
+    title?: string;
+    /**
+     * Admins: the full breakdown — total votes, winner, vote counts, votes per
+     * day and a results table. Fans (the default) see only each nominee's
+     * percentage share; the API sends them no counts at all.
+     */
+    detailed?: boolean;
+}
+
+/** The result of a Player of the Week vote. */
+export const POTWResults = ({ poll, title = 'Share of the vote', detailed = false }: POTWResultsProps) => {
     const winner = poll.nominees.find((n) => n.is_winner);
     const decidedByAdmin = poll.winner_source === 'ADMIN';
+    // Fans get percentages but no totals, so "any votes?" reads off the shares.
+    const hasVotes = poll.total_votes > 0 || poll.nominees.some((n) => (n.percent ?? 0) > 0);
 
     const columns = useMemo<Column<POTWNominee>[]>(
         () => [
@@ -169,6 +185,27 @@ export const POTWResults = ({ poll, title = 'Results breakdown' }: { poll: POTWP
         () => (poll.nominees.length ? [...poll.nominees].sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0)) : NO_ROWS),
         [poll.nominees],
     );
+
+    if (!detailed) {
+        return (
+            <section
+                className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5"
+                aria-labelledby={`potw-results-${poll.id}`}
+            >
+                <h2 id={`potw-results-${poll.id}`} className="text-lg sm:text-xl font-black text-sffl-navy dark:text-white">
+                    {title}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Percentage of all votes each nominee received</p>
+                {hasVotes ? (
+                    <VoteShareBars nominees={poll.nominees} showCounts={false} />
+                ) : (
+                    <p className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                        No votes were cast in this poll.
+                    </p>
+                )}
+            </section>
+        );
+    }
 
     return (
         <section className="space-y-6" aria-labelledby={`potw-results-${poll.id}`}>
@@ -207,7 +244,7 @@ export const POTWResults = ({ poll, title = 'Results breakdown' }: { poll: POTWP
                 </div>
             </div>
 
-            {poll.total_votes === 0 ? (
+            {!hasVotes ? (
                 <p className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                     No votes were cast in this poll.
                 </p>
@@ -216,7 +253,7 @@ export const POTWResults = ({ poll, title = 'Results breakdown' }: { poll: POTWP
                     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
                         <h3 className="text-sm font-black text-gray-900 dark:text-white">Share of the vote</h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Percentage of all votes each nominee received</p>
-                        <VoteShareBars nominees={poll.nominees} />
+                        <VoteShareBars nominees={poll.nominees} showCounts />
                     </div>
                     {poll.votes_by_day && poll.votes_by_day.length > 0 && (
                         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">

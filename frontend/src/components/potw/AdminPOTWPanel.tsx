@@ -519,7 +519,7 @@ export const AdminPOTWPanel = ({ totwId, canManage }: AdminPOTWPanelProps) => {
                                     Only admins see these counts until voting closes.
                                 </p>
                             )}
-                            <POTWResults poll={poll} title={poll.status === 'closed' ? 'Results' : 'Live results'} />
+                            <POTWResults poll={poll} detailed title={poll.status === 'closed' ? 'Results' : 'Live results'} />
                         </div>
                     )}
                 </>

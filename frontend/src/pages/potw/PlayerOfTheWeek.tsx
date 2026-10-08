@@ -304,7 +304,7 @@ export const PlayerOfTheWeek = () => {
                                     <p className="text-sm text-gray-600 dark:text-gray-300">
                                         {poll.winner_source === 'ADMIN'
                                             ? 'Named by the league office.'
-                                            : `Chosen by fans with ${winner.percent ?? 0}% of ${poll.total_votes.toLocaleString()} votes.`}{' '}
+                                            : `Chosen by fans with ${winner.percent ?? 0}% of the vote.`}{' '}
                                         Voting closed {formatDateTime(poll.closes_at)}.
                                     </p>
                                 </div>
@@ -322,7 +322,7 @@ export const PlayerOfTheWeek = () => {
                                 <div>
                                     <h2 className="text-lg font-black text-gray-900 dark:text-white">Voting has closed</h2>
                                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                                        {poll.total_votes === 0
+                                        {!poll.nominees.some((n) => (n.percent ?? 0) > 0)
                                             ? 'No votes were cast, so the league office will name the Player of the Week.'
                                             : 'The result is being confirmed. Check back shortly.'}
                                     </p>
@@ -389,7 +389,7 @@ export const PlayerOfTheWeek = () => {
                                     <p className="mt-auto pt-3 text-xs text-gray-500 dark:text-gray-400">
                                         {p.status === 'open'
                                             ? `Voting closes ${formatDate(p.closes_at)}`
-                                            : `${p.total_votes.toLocaleString()} votes · closed ${formatDate(p.closes_at)}`}
+                                            : `Closed ${formatDate(p.closes_at)}`}
                                     </p>
                                 </Link>
                             </li>

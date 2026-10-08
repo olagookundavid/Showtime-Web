@@ -327,8 +327,7 @@ export const TeamOfTheWeek: React.FC = () => {
             />
             <span className="min-w-0">
               Fans voted {potwFanWinner.name} Player of the Week with{" "}
-              {potwFanWinner.percent ?? 0}% of{" "}
-              {potwForThisEdition.total_votes.toLocaleString()} votes.
+              {potwFanWinner.percent ?? 0}% of the vote.
             </span>
             <span className="inline-flex items-center gap-1 text-sffl-red font-bold">
               See the full results
