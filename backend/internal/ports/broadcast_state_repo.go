@@ -21,7 +21,8 @@ type IBroadcastStateRepository interface {
 	LoadDayOnAir(ctx context.Context, date string) (string, error)
 	// SaveDayOnAir sets the day's on-air match; "" takes the day off air.
 	SaveDayOnAir(ctx context.Context, date, matchID string) error
-	// ListMatchDays returns days that have matches, newest first.
+	// ListMatchDays returns today and upcoming days that have matches, soonest
+	// first. Past days are left out.
 	ListMatchDays(ctx context.Context, page, limit int) ([]BroadcastMatchDay, int, error)
 	// GetMatchDay returns one day's summary (zero matches if none are scheduled).
 	GetMatchDay(ctx context.Context, date string) (BroadcastMatchDay, error)
@@ -137,12 +138,17 @@ func scanMatchDay(row pgx.Row) (BroadcastMatchDay, error) {
 }
 
 func (r *PostgresBroadcastStateRepository) ListMatchDays(ctx context.Context, page, limit int) ([]BroadcastMatchDay, int, error) {
+	// A producer only streams what's coming, so past days are left out and the
+	// next match day comes first. Match days are dated in Lagos time, so
+	// "today" is taken there, not in the database's zone.
+	const upcoming = ` WHERE m.date >= (NOW() AT TIME ZONE 'Africa/Lagos')::date`
+
 	var total int
-	if err := r.db.QueryRow(ctx, `SELECT COUNT(DISTINCT date)::int FROM matches`).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(DISTINCT m.date)::int FROM matches m`+upcoming).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	query := matchDaySelect + ` GROUP BY m.date ORDER BY m.date DESC LIMIT $1 OFFSET $2`
+	query := matchDaySelect + upcoming + ` GROUP BY m.date ORDER BY m.date ASC LIMIT $1 OFFSET $2`
 	rows, err := r.db.Query(ctx, query, limit, (page-1)*limit)
 	if err != nil {
 		return nil, 0, err

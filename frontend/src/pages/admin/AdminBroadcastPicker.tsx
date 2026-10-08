@@ -356,7 +356,7 @@ const VIEW_TABS: { value: PickerView; label: string }[] = [
   { value: 'matches', label: 'Single match' },
 ];
 
-/** Event-day view: every date with matches, newest first. */
+/** Event-day view: today and upcoming match days, the next one first. */
 function DayPicker() {
   const [page, setPage] = useState(1);
   const today = lagosToday();
@@ -379,19 +379,24 @@ function DayPicker() {
   if (days.length === 0) {
     return (
       <div className="p-8 sm:p-12 text-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
-        <p className="font-semibold text-gray-700 dark:text-gray-200">No match days yet.</p>
+        <p className="font-semibold text-gray-700 dark:text-gray-200">No upcoming match days.</p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          A day appears here as soon as a match is scheduled on it.
+          A day appears here as soon as a match is scheduled for today or later.
         </p>
       </div>
     );
   }
+
+  // Days come back soonest first and never in the past. Flag the first one
+  // when it isn't today, so the producer sees what's next.
+  const nextDate = days.at(0)?.date;
 
   return (
     <div className="space-y-4">
       <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {days.map((d) => {
           const isToday = d.date === today;
+          const isNext = page === 1 && d.date === nextDate && !isToday;
           const dateLabel = formatMatchDate(d.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
           return (
             <li
@@ -405,6 +410,9 @@ function DayPicker() {
                 </span>
                 {isToday && (
                   <span className="px-2 py-0.5 rounded-full bg-sffl-navy text-white font-bold">Today</span>
+                )}
+                {isNext && (
+                  <span className="px-2 py-0.5 rounded-full bg-sffl-navy text-white font-bold">Next</span>
                 )}
                 {d.live_match_count > 0 && (
                   <span className="px-2 py-0.5 rounded-full border font-bold bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
