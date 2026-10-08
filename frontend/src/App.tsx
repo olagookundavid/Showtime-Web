@@ -197,6 +197,16 @@ const AdminEventDays = lazy(() =>
     default: m.AdminEventDays,
   })),
 );
+const AdminSeasonTierRates = lazy(() =>
+  import("./pages/admin/AdminSeasonTierRates").then((m) => ({
+    default: m.AdminSeasonTierRates,
+  })),
+);
+const AdminGamePassDiscounts = lazy(() =>
+  import("./pages/admin/AdminGamePassDiscounts").then((m) => ({
+    default: m.AdminGamePassDiscounts,
+  })),
+);
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminTeams = lazy(() => import("./pages/admin/AdminTeams"));
 const AdminTeamDetail = lazy(() =>
@@ -724,6 +734,22 @@ function App() {
                         element={
                           <FeatureGuard feature="event_days">
                             <AdminEventDays />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="season-admission-tiers"
+                        element={
+                          <FeatureGuard feature="season_admission_tiers">
+                            <AdminSeasonTierRates />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="game-pass/discount-bands"
+                        element={
+                          <FeatureGuard feature="game_pass_discounts">
+                            <AdminGamePassDiscounts />
                           </FeatureGuard>
                         }
                       />

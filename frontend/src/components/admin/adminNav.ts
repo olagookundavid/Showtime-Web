@@ -27,6 +27,8 @@ import {
   Cog6ToothIcon,
   GiftIcon,
   VideoCameraIcon,
+  CurrencyDollarIcon,
+  ReceiptPercentIcon,
 } from "@heroicons/react/24/outline";
 import {
   Squares2X2Icon as SquaresSolid,
@@ -118,6 +120,16 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     links: [
       { name: "Tickets", path: "/admin/tickets", icon: TicketIcon },
       { name: "Event Days", path: "/admin/event-days", icon: CalendarDaysIcon },
+      {
+        name: "Season Tier Rates",
+        path: "/admin/season-admission-tiers",
+        icon: CurrencyDollarIcon,
+      },
+      {
+        name: "Game Pass Discounts",
+        path: "/admin/game-pass/discount-bands",
+        icon: ReceiptPercentIcon,
+      },
       { name: "Referrals", path: "/admin/referrals", icon: UserPlusIcon },
     ],
   },
@@ -172,6 +184,8 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   "Transfer Windows": "transfer_windows",
   Tickets: "tickets",
   "Event Days": "event_days",
+  "Season Tier Rates": "season_admission_tiers",
+  "Game Pass Discounts": "game_pass_discounts",
   Referrals: "referrals",
   "Online Store": "store",
   Inventory: "inventory",

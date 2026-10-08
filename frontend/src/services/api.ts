@@ -139,6 +139,12 @@ import type {
   BracketEntryPayload,
   GameRules,
   GameRulesPayload,
+  SeasonAdmissionTierResponse,
+  CreateSeasonAdmissionTierPayload,
+  UpdateSeasonAdmissionTierPayload,
+  GamePassDiscountBandResponse,
+  CreateGamePassDiscountBandPayload,
+  UpdateGamePassDiscountBandPayload,
 } from "../types";
 
 const api = axios.create({
@@ -1005,6 +1011,78 @@ export const deleteTicketTier = async (eventDayId: string, tierId: string) => {
   const response = await api.delete(
     `/admin/event-days/${eventDayId}/tiers/${tierId}`,
   );
+  return response.data;
+};
+
+// -------- ADMIN SEASON ADMISSION TIERS API -------- //
+export const listSeasonAdmissionTiers = async (): Promise<
+  SeasonAdmissionTierResponse[]
+> => {
+  const response = await api.get<{ data: SeasonAdmissionTierResponse[] }>(
+    "/admin/season-admission-tiers",
+  );
+  return response.data.data || [];
+};
+
+export const createSeasonAdmissionTier = async (
+  payload: CreateSeasonAdmissionTierPayload,
+): Promise<SeasonAdmissionTierResponse> => {
+  const response = await api.post<SeasonAdmissionTierResponse>(
+    "/admin/season-admission-tiers",
+    payload,
+  );
+  return response.data;
+};
+
+export const updateSeasonAdmissionTier = async (
+  id: string,
+  payload: UpdateSeasonAdmissionTierPayload,
+): Promise<SeasonAdmissionTierResponse> => {
+  const response = await api.put<SeasonAdmissionTierResponse>(
+    `/admin/season-admission-tiers/${id}`,
+    payload,
+  );
+  return response.data;
+};
+
+export const deleteSeasonAdmissionTier = async (id: string) => {
+  const response = await api.delete(`/admin/season-admission-tiers/${id}`);
+  return response.data;
+};
+
+// -------- ADMIN GAME PASS DISCOUNT BANDS API -------- //
+export const listGamePassDiscountBands = async (): Promise<
+  GamePassDiscountBandResponse[]
+> => {
+  const response = await api.get<{ data: GamePassDiscountBandResponse[] }>(
+    "/admin/game-pass/discount-bands",
+  );
+  return response.data.data || [];
+};
+
+export const createGamePassDiscountBand = async (
+  payload: CreateGamePassDiscountBandPayload,
+): Promise<GamePassDiscountBandResponse> => {
+  const response = await api.post<GamePassDiscountBandResponse>(
+    "/admin/game-pass/discount-bands",
+    payload,
+  );
+  return response.data;
+};
+
+export const updateGamePassDiscountBand = async (
+  id: string,
+  payload: UpdateGamePassDiscountBandPayload,
+): Promise<GamePassDiscountBandResponse> => {
+  const response = await api.put<GamePassDiscountBandResponse>(
+    `/admin/game-pass/discount-bands/${id}`,
+    payload,
+  );
+  return response.data;
+};
+
+export const deleteGamePassDiscountBand = async (id: string) => {
+  const response = await api.delete(`/admin/game-pass/discount-bands/${id}`);
   return response.data;
 };
 
