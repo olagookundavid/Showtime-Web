@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, GamedayStoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -63,6 +63,9 @@ const ProductReviews = lazy(() =>
 );
 const Cart = lazy(() =>
   import("./pages/store/Cart").then((m) => ({ default: m.Cart })),
+);
+const GamePass = lazy(() =>
+  import("./pages/tickets/GamePass").then((m) => ({ default: m.GamePass })),
 );
 
 // Lazy load Fantasy Pages
@@ -407,7 +410,10 @@ function App() {
 
                       {/* Store */}
                       <Route element={<StoreLayout />}>
-                        <Route path="/tickets" element={<Tickets />} />
+                        <Route element={<GamedayStoreLayout />}>
+                          <Route path="/tickets" element={<Tickets />} />
+                          <Route path="/tickets/game-pass" element={<GamePass />} />
+                        </Route>
                         <Route path="/store" element={<Store />} />
                         <Route
                           path="/store/products/:id"

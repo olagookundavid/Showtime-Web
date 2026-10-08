@@ -6,6 +6,7 @@ export * from './dashboard';
 export * from './discounts';
 export * from './domain';
 export * from './fantasy';
+export * from './gameday-store';
 export * from './icons';
 export * from './layout';
 export * from './matches';

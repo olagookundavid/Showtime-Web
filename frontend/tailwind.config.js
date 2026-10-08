@@ -10,6 +10,7 @@ export default {
             colors: {
                 'sffl-navy': '#001f3f',
                 'sffl-red': '#C62828',
+                'sffl-gold': '#CFAC70',
                 red: {
                     50: '#FFEBEE',
                     100: '#FFCDD2',

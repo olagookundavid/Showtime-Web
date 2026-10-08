@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useOutletContext } from "react-router-dom";
 import {
   getEventDays,
   getEventDayByDate,
@@ -14,14 +14,28 @@ import type {
   PurchaseTicketPayload,
   DiscountPreview,
 } from "../../types";
-import { DiscountCodeInput, Button, ButtonLink, Checkbox, Field, IconButton, Input, Modal, ConfirmDialog, ConfirmSummary, Spinner, FootballIcon } from "../../components";
 import {
-  CalendarDaysIcon,
-  CheckIcon,
-  ChevronDownIcon,
+  DiscountCodeInput,
+  Button,
+  ButtonLink,
+  Checkbox,
+  Field,
+  IconButton,
+  Input,
+  Modal,
+  ConfirmDialog,
+  ConfirmSummary,
+  Spinner,
+  FootballIcon,
+  AdmissionTierPicker,
+  GamedayPickerGrid,
+  OrderSummarySidebar,
+  StepSectionHeader,
+  type GamedayStoreContext,
+} from "../../components";
+import {
   CreditCardIcon,
   LockClosedIcon,
-  MapPinIcon,
   MinusIcon,
   PlusIcon,
   SparklesIcon,
@@ -33,35 +47,13 @@ import {
   toFirstName,
 } from "../../services/newsletter";
 
-import { formatMatchTime } from "../../utils";
-
-// Answers only describe what the purchase flow does today.
-const FAQS = [
-  {
-    q: "How do I get my ticket?",
-    a: "Your ticket is emailed to the address you enter at checkout. Free tickets are sent straight away.",
-  },
-  {
-    q: "How do I pay?",
-    a: "Paid tickets are paid securely through Paystack. You will be taken to Paystack to complete payment.",
-  },
-  {
-    q: "Can I buy more than one ticket?",
-    a: "Yes. Choose up to 10 tickets in a single purchase.",
-  },
-  {
-    q: "What are the access and referral codes for?",
-    a: "An access code, entered at the top of the page, shows tickets that are not listed by default. A referral code is optional and credits the person who referred you.",
-  },
-];
+import { getRepresentativeTierRates, getGamedaySelectionStatus } from "../../utils";
 
 export const Tickets = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const dateParam = searchParams.get("date");
-
-  const [accessCode, setAccessCode] = useState("");
-  const [appliedCode, setAppliedCode] = useState<string | undefined>(undefined);
+  const { appliedCode } = useOutletContext<GamedayStoreContext>();
 
   const { data: specificDay, isError: specificDayError } = useQuery({
     queryKey: ["publicEventDay", dateParam, appliedCode],
@@ -106,11 +98,42 @@ export const Tickets = () => {
   // A purchase creates a ticket order, so it waits for an explicit confirm.
   const [confirmPurchase, setConfirmPurchase] = useState(false);
 
-  const eventDays =
-    specificDay && !specificDayError ? [specificDay] : allDaysData || [];
+  // Builder selection: tier first, then one gameday that actually offers it.
+  const [selectedTierName, setSelectedTierName] = useState<string | null>(null);
+  const [selectedGamedayId, setSelectedGamedayId] = useState<string | null>(null);
+  const [builderQuantity, setBuilderQuantity] = useState(1);
+
+  const eventDays = useMemo(
+    () => (specificDay && !specificDayError ? [specificDay] : allDaysData || []),
+    [specificDay, specificDayError, allDaysData],
+  );
   const loading =
     (!!dateParam && specificDay === undefined && !specificDayError) ||
     (fetchAllDays && loadingAll);
+
+  const representativeRates = useMemo(
+    () => getRepresentativeTierRates(eventDays),
+    [eventDays],
+  );
+  const selectedRate =
+    representativeRates.find((r) => r.name === selectedTierName) ?? null;
+
+  const handleSelectTier = (tierName: string) => {
+    setSelectedTierName(tierName);
+    // A different tier can be offered on different gamedays, so the pick resets.
+    setSelectedGamedayId(null);
+  };
+
+  const builderEventDay = selectedGamedayId
+    ? (eventDays.find((d) => d.id === selectedGamedayId) ?? null)
+    : null;
+  const resolvedTier =
+    builderEventDay && selectedRate
+      ? getGamedaySelectionStatus(builderEventDay, selectedRate.name, selectedRate.rate)
+          .tier
+      : null;
+  const resolvedTierSoldOut =
+    !!resolvedTier && resolvedTier.capacity > 0 && resolvedTier.available <= 0;
 
   useEffect(() => {
     if (specificDay && !specificDayError) {
@@ -228,10 +251,11 @@ export const Tickets = () => {
   const openPurchaseModal = (
     eventDay: EventDayResponse,
     tier: TicketTierResponse,
+    initialQuantity = 1,
   ) => {
     setSelectedEventDay(eventDay);
     setSelectedTier(tier);
-    setQuantity(1);
+    setQuantity(initialQuantity);
     setError("");
     // Fresh purchase, fresh consent — never carry a previous tick over.
     setJoinNewsletter(false);
@@ -254,52 +278,6 @@ export const Tickets = () => {
 
   return (
     <div className="space-y-8 md:space-y-12">
-      {/* Hero: the headline, plus the access-code box that unlocks hidden tiers. */}
-      <section className="bg-sffl-navy text-white">
-        <div className="flex flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:py-16">
-          <div className="min-w-0 space-y-5">
-            <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
-              <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
-              Gameday tickets
-            </p>
-            <h1 className="text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl">
-              Don&apos;t just watch.
-              <span className="block text-sffl-red">Be there.</span>
-            </h1>
-            <p className="max-w-md text-sm text-white/85 sm:text-base">
-              Pick your gameday, choose your tier and get your ticket by email.
-            </p>
-          </div>
-
-          <div className="w-full bg-white/10 p-4 lg:w-80">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-200">
-              Access code?
-            </p>
-            <div className="flex gap-2">
-              <Input
-                tone="dark"
-                shape="square"
-                type="text"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                placeholder="CODE"
-                aria-label="Access code"
-                className="min-w-0 flex-1"
-              />
-              <Button
-                tone="dark"
-                variant="secondary"
-                shape="square"
-                className="shrink-0"
-                onClick={() => setAppliedCode(accessCode.trim())}
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {fellBackFromMissingDate && (
         <div className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
           <strong className="font-bold">No event found for {dateParam}.</strong>{" "}
@@ -354,217 +332,100 @@ export const Tickets = () => {
           </ButtonLink>
         </div>
       ) : (
-        <div className="space-y-10">
-          {eventDays.map((eventDay) => {
-            const tiers = eventDay.tiers ?? [];
-            // The most expensive tier gets the navy card, as the reference's
-            // VVIP card does. Only meaningful when there is more than one tier.
-            const topPrice =
-              tiers.length > 1 ? Math.max(...tiers.map((t) => t.price)) : null;
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
+            <div className="space-y-4">
+              <StepSectionHeader step={1} title="Choose your admission tier" />
+              <AdmissionTierPicker
+                rates={representativeRates}
+                selectedTierName={selectedTierName}
+                onSelect={handleSelectTier}
+              />
+            </div>
 
-            return (
-              <section
-                key={eventDay.id}
-                className="border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
-              >
-                {/* Event day header */}
-                <header className="bg-sffl-navy p-4 text-white sm:p-6">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-black uppercase tracking-tight wrap-break-word md:text-2xl">
-                        {eventDay.title}
-                      </h2>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-300 md:text-sm">
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarDaysIcon
-                            className="h-4 w-4 shrink-0"
-                            aria-hidden="true"
-                          />
-                          {new Date(
-                            eventDay.date + "T00:00:00",
-                          ).toLocaleDateString("en-US", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </span>
-                        {eventDay.venue && (
-                          <span className="inline-flex min-w-0 items-center gap-1">
-                            <MapPinIcon
-                              className="h-4 w-4 shrink-0"
-                              aria-hidden="true"
-                            />
-                            {eventDay.venue}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {eventDay.matches && eventDay.matches.length > 0 && (
-                      <div className="hidden bg-white/10 px-3 py-1 text-center md:block">
-                        <div className="text-xl font-black">
-                          {eventDay.matches.length}
-                        </div>
-                        <div className="text-[10px] uppercase tracking-wider text-gray-300">
-                          Matches
-                        </div>
-                      </div>
-                    )}
+            {selectedRate && (
+              <div className="space-y-4">
+                <StepSectionHeader step={2} title="Choose one gameday" />
+                <GamedayPickerGrid
+                  eventDays={eventDays}
+                  tierName={selectedRate.name}
+                  representativeRate={selectedRate.rate}
+                  mode="single"
+                  selectedIds={selectedGamedayId ? [selectedGamedayId] : []}
+                  onToggle={(id) =>
+                    setSelectedGamedayId((prev) => (prev === id ? null : id))
+                  }
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  One ticket covers the selected gameday.
+                </p>
+
+                <Field label="Number of tickets">
+                  <div className="flex items-center gap-4">
+                    <IconButton
+                      variant="secondary"
+                      shape="square"
+                      icon={MinusIcon}
+                      label="Decrease number of tickets"
+                      onClick={() =>
+                        setBuilderQuantity((q) => Math.max(1, q - 1))
+                      }
+                    />
+                    <span
+                      className="w-12 text-center text-xl font-bold dark:text-white"
+                      aria-live="polite"
+                    >
+                      {builderQuantity}
+                    </span>
+                    <IconButton
+                      variant="secondary"
+                      shape="square"
+                      icon={PlusIcon}
+                      label="Increase number of tickets"
+                      onClick={() =>
+                        setBuilderQuantity((q) => Math.min(10, q + 1))
+                      }
+                    />
                   </div>
+                </Field>
+              </div>
+            )}
+          </div>
 
-                  {/* Matches on this day */}
-                  {eventDay.matches && eventDay.matches.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {eventDay.matches.map((m) => (
-                        <span
-                          key={m.id}
-                          className="max-w-full bg-white/10 px-3 py-1 text-xs font-semibold wrap-break-word"
-                        >
-                          {m.home_team} vs {m.away_team} •{" "}
-                          {formatMatchTime(m.start_time)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </header>
-
-                {/* Tier cards */}
-                <div className="p-4 sm:p-6">
-                  <h3 className="mb-4 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                    Choose your ticket
-                  </h3>
-                  {tiers.length === 0 ? (
-                    <div className="py-8 text-center text-gray-500">
-                      <p className="text-lg font-medium">Tickets coming soon!</p>
-                      <p className="mt-1 text-sm">
-                        Check back later for pricing.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {tiers.map((tier) => {
-                        const isSoldOut =
-                          tier.capacity > 0 && tier.available <= 0;
-                        const isTop = topPrice !== null && tier.price === topPrice;
-                        // One line per perk. Blank lines are dropped.
-                        const perks =
-                          tier.description
-                            ?.split("\n")
-                            .map((line) => line.trim())
-                            .filter(Boolean) ?? [];
-
-                        return (
-                          <article
-                            key={tier.id}
-                            className={`flex flex-col border ${
-                              isTop
-                                ? "border-sffl-navy bg-sffl-navy text-white"
-                                : "border-gray-200 bg-white text-sffl-navy dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                            } ${isSoldOut ? "opacity-60" : ""}`}
-                          >
-                            <div className="flex flex-1 flex-col gap-4 p-5 sm:p-6">
-                              <p
-                                className={`text-[11px] font-black uppercase tracking-[0.2em] ${
-                                  isTop ? "text-amber-300" : "text-sffl-red"
-                                }`}
-                              >
-                                {tier.name}
-                              </p>
-                              <p className="text-3xl font-black leading-none sm:text-4xl">
-                                ₦{tier.price.toLocaleString()}
-                              </p>
-
-                              {perks.length > 0 && (
-                                <ul className="space-y-2">
-                                  {perks.map((perk) => (
-                                    <li
-                                      key={perk}
-                                      className={`flex items-start gap-2 text-sm ${
-                                        isTop
-                                          ? "text-white/85"
-                                          : "text-gray-600 dark:text-gray-300"
-                                      }`}
-                                    >
-                                      <CheckIcon
-                                        className={`mt-0.5 h-4 w-4 shrink-0 ${
-                                          isTop ? "text-amber-300" : "text-sffl-red"
-                                        }`}
-                                        aria-hidden="true"
-                                      />
-                                      <span className="min-w-0 wrap-break-word">
-                                        {perk}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-
-                              {tier.capacity > 0 && (
-                                <p
-                                  className={`mt-auto text-xs font-bold ${
-                                    isSoldOut
-                                      ? "text-red-500"
-                                      : isTop
-                                        ? "text-white/70"
-                                        : "text-gray-500 dark:text-gray-400"
-                                  }`}
-                                >
-                                  {isSoldOut
-                                    ? "SOLD OUT"
-                                    : `${tier.available} of ${tier.capacity} remaining`}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="p-5 pt-0 sm:p-6 sm:pt-0">
-                              <Button
-                                fullWidth
-                                shape="square"
-                                variant={isTop ? "primary" : "navy"}
-                                disabled={isSoldOut}
-                                onClick={() => openPurchaseModal(eventDay, tier)}
-                              >
-                                {isSoldOut ? "Sold out" : "Buy now"}
-                              </Button>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </section>
-            );
-          })}
+          <OrderSummarySidebar
+            title="Your tickets"
+            rows={[
+              {
+                label: "Gameday",
+                value: builderEventDay ? builderEventDay.title : "Not selected",
+              },
+              {
+                label: "Tier",
+                value: selectedRate ? selectedRate.name : "Not selected",
+              },
+              { label: "Tickets", value: String(builderQuantity) },
+              {
+                label: "Per ticket",
+                value: selectedRate
+                  ? `₦${selectedRate.rate.toLocaleString()}`
+                  : "—",
+              },
+            ]}
+            total={selectedRate ? selectedRate.rate * builderQuantity : 0}
+            ctaLabel={resolvedTierSoldOut ? "Sold out" : "Review tickets"}
+            ctaDisabled={!resolvedTier || resolvedTierSoldOut}
+            onCtaClick={() => {
+              if (builderEventDay && resolvedTier) {
+                openPurchaseModal(builderEventDay, resolvedTier, builderQuantity);
+              }
+            }}
+            smallPrint={[
+              "Admission to the selected tier for this gameday.",
+              "Illustrative pricing. Any applicable fees or taxes must be disclosed before payment.",
+            ]}
+          />
         </div>
       )}
-
-      {/* Before the whistle: answers to the questions buyers ask most. */}
-      <section className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:gap-12">
-        <div className="space-y-2">
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-sffl-red">
-            Good to know
-          </p>
-          <h2 className="text-2xl font-black tracking-tight text-sffl-navy sm:text-3xl dark:text-white">
-            Before the whistle.
-          </h2>
-        </div>
-        <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
-          {FAQS.map((item) => (
-            <details key={item.q} className="group">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-bold text-sffl-navy [&::-webkit-details-marker]:hidden dark:text-white">
-                {item.q}
-                <ChevronDownIcon
-                  className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
-                  aria-hidden="true"
-                />
-              </summary>
-              <p className="pb-4 text-sm text-gray-600 dark:text-gray-300">
-                {item.a}
-              </p>
-            </details>
-          ))}
-        </div>
-      </section>
 
       {/* Purchase Modal */}
       {selectedTier && selectedEventDay && (
