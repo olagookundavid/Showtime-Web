@@ -104,6 +104,46 @@ func TestValidateDiscountBand(t *testing.T) {
 	}
 }
 
+func TestPriceGamePass(t *testing.T) {
+	cases := []struct {
+		name                                 string
+		rate, gamedays, holders              int
+		wantStd, wantPct, wantOff, wantTotal int
+	}{
+		{"one gameday, no band", 2000, 1, 1, 2000, 0, 0, 2000},
+		{"2 gamedays, 5%", 2000, 2, 1, 4000, 5, 200, 3800},
+		{"3 gamedays x2 holders, 5%", 2000, 3, 2, 12000, 5, 600, 11400},
+		{"4 gamedays, 10%", 2000, 4, 1, 8000, 10, 800, 7200},
+		{"6 gamedays, 15%", 2000, 6, 1, 12000, 15, 1800, 10200},
+		{"20 gamedays, open band", 2000, 20, 1, 40000, 15, 6000, 34000},
+		// 1,010 x 2 = 2,020; 5% = 101.0 exactly.
+		{"exact", 1010, 2, 1, 2020, 5, 101, 1919},
+		// 1,005 x 2 = 2,010; 5% = 100.5 -> 101 (half up, like Math.round).
+		{"half rounds up", 1005, 2, 1, 2010, 5, 101, 1909},
+		// 1,001 x 2 = 2,002; 5% = 100.1 -> 100.
+		{"below half rounds down", 1001, 2, 1, 2002, 5, 100, 1902},
+		{"free tier", 0, 4, 3, 0, 10, 0, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := PriceGamePass(tc.rate, tc.gamedays, tc.holders, seededBands())
+			if p.StandardTotal != tc.wantStd || p.DiscountPercent != tc.wantPct || p.DiscountAmount != tc.wantOff || p.Total != tc.wantTotal {
+				t.Fatalf("got std=%d pct=%d off=%d total=%d, want std=%d pct=%d off=%d total=%d",
+					p.StandardTotal, p.DiscountPercent, p.DiscountAmount, p.Total,
+					tc.wantStd, tc.wantPct, tc.wantOff, tc.wantTotal)
+			}
+		})
+	}
+}
+
+func TestPriceGamePassIgnoresInactiveBands(t *testing.T) {
+	bands := seededBands()
+	bands[1].IsActive = false // 4–5 off
+	if p := PriceGamePass(2000, 4, 1, bands); p.DiscountPercent != 0 {
+		t.Fatalf("expected no discount from an inactive band, got %d%%", p.DiscountPercent)
+	}
+}
+
 func TestValidateDiscountBandIgnoresInactiveOthers(t *testing.T) {
 	others := seededBands()
 	others[0].IsActive = false // 2–3 deactivated

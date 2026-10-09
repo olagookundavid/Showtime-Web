@@ -299,3 +299,178 @@ func isBandConstraintViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && (pgErr.Code == "23P01" || pgErr.Code == "23514")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Game Pass Leads
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type GamePassLeadRepository interface {
+	Create(ctx context.Context, l *domain.GamePassLead) error
+	// List filters by exact status and case-insensitive email substring (either
+	// may be empty), newest first.
+	List(ctx context.Context, status, email string, page, limit int) ([]domain.GamePassLead, int, error)
+	GetByID(ctx context.Context, id string) (*domain.GamePassLead, error)
+	UpdateStatus(ctx context.Context, id string, status domain.GamePassLeadStatus) error
+}
+
+type PostgresGamePassLeadRepository struct {
+	db *pgxpool.Pool
+}
+
+func NewGamePassLeadRepository(db *pgxpool.Pool) GamePassLeadRepository {
+	return &PostgresGamePassLeadRepository{db: db}
+}
+
+// gameday_ids is read and written as text[] so pgx handles plain Go strings.
+const leadColumns = `id, name, email, phone, tier_name, gameday_ids::text[], holders,
+	standard_total, discount_percent, discount_amount, total, status, created_at, updated_at`
+
+func scanLead(row pgx.Row) (*domain.GamePassLead, error) {
+	var l domain.GamePassLead
+	err := row.Scan(&l.ID, &l.Name, &l.Email, &l.Phone, &l.TierName, &l.GamedayIDs, &l.Price.Holders,
+		&l.Price.StandardTotal, &l.Price.DiscountPercent, &l.Price.DiscountAmount, &l.Price.Total,
+		&l.Status, &l.CreatedAt, &l.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	l.Price.Gamedays = len(l.GamedayIDs)
+	return &l, nil
+}
+
+func (r *PostgresGamePassLeadRepository) Create(ctx context.Context, l *domain.GamePassLead) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if l.Status == "" {
+		l.Status = domain.GamePassLeadNew
+	}
+	err := r.db.QueryRow(ctx, `
+		INSERT INTO game_pass_leads (name, email, phone, tier_name, gameday_ids, holders,
+			standard_total, discount_percent, discount_amount, total, status)
+		VALUES ($1, $2, $3, $4, $5::text[]::uuid[], $6, $7, $8, $9, $10, $11)
+		RETURNING id, created_at, updated_at`,
+		l.Name, l.Email, l.Phone, l.TierName, l.GamedayIDs, l.Price.Holders,
+		l.Price.StandardTotal, l.Price.DiscountPercent, l.Price.DiscountAmount, l.Price.Total, l.Status,
+	).Scan(&l.ID, &l.CreatedAt, &l.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to create game pass lead: %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresGamePassLeadRepository) List(ctx context.Context, status, email string, page, limit int) ([]domain.GamePassLead, int, error) {
+	page, limit, offset := paging(page, limit, 50)
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	where := ` WHERE ($1 = '' OR status = $1) AND ($2 = '' OR LOWER(email) LIKE '%' || LOWER($2) || '%')`
+
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM game_pass_leads`+where, status, email).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count game pass leads: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx,
+		`SELECT `+leadColumns+` FROM game_pass_leads`+where+` ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
+		status, email, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list game pass leads: %w", err)
+	}
+	defer rows.Close()
+
+	leads := []domain.GamePassLead{}
+	for rows.Next() {
+		l, err := scanLead(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		leads = append(leads, *l)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	if err := r.attachGamedays(ctx, leads); err != nil {
+		return nil, 0, err
+	}
+	return leads, total, nil
+}
+
+func (r *PostgresGamePassLeadRepository) GetByID(ctx context.Context, id string) (*domain.GamePassLead, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	l, err := scanLead(r.db.QueryRow(ctx, `SELECT `+leadColumns+` FROM game_pass_leads WHERE id = $1`, id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, appErrors.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get game pass lead: %w", err)
+	}
+	leads := []domain.GamePassLead{*l}
+	if err := r.attachGamedays(ctx, leads); err != nil {
+		return nil, err
+	}
+	return &leads[0], nil
+}
+
+func (r *PostgresGamePassLeadRepository) UpdateStatus(ctx context.Context, id string, status domain.GamePassLeadStatus) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tag, err := r.db.Exec(ctx, `UPDATE game_pass_leads SET status = $1, updated_at = NOW() WHERE id = $2`, status, id)
+	if err != nil {
+		return fmt.Errorf("failed to update game pass lead: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return appErrors.ErrNotFound
+	}
+	return nil
+}
+
+// attachGamedays loads the event days behind every lead's gameday_ids in one
+// query. A gameday deleted since the lead was taken is simply left out.
+func (r *PostgresGamePassLeadRepository) attachGamedays(ctx context.Context, leads []domain.GamePassLead) error {
+	seen := map[string]bool{}
+	ids := []string{}
+	for _, l := range leads {
+		for _, id := range l.GamedayIDs {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	rows, err := r.db.Query(ctx,
+		`SELECT id::text, title, date FROM event_days WHERE id = ANY($1::text[]::uuid[])`, ids)
+	if err != nil {
+		return fmt.Errorf("failed to load lead gamedays: %w", err)
+	}
+	defer rows.Close()
+
+	days := map[string]domain.EventDay{}
+	for rows.Next() {
+		var ed domain.EventDay
+		if err := rows.Scan(&ed.ID, &ed.Title, &ed.Date); err != nil {
+			return err
+		}
+		days[ed.ID] = ed
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for i := range leads {
+		for _, id := range leads[i].GamedayIDs {
+			if ed, ok := days[id]; ok {
+				leads[i].Gamedays = append(leads[i].Gamedays, ed)
+			}
+		}
+	}
+	return nil
+}

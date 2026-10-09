@@ -2,12 +2,16 @@ package services
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"time"
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/ports"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // IGamePassService owns the Game Pass bundle product: the season admission
@@ -26,15 +30,27 @@ type IGamePassService interface {
 	UpdateDiscountBand(ctx context.Context, id string, req dto.UpdateGamePassDiscountBandRequest) (*dto.GamePassDiscountBandResponse, error)
 	SetDiscountBandStatus(ctx context.Context, id string, isActive bool) (*dto.GamePassDiscountBandResponse, error)
 	DeleteDiscountBand(ctx context.Context, id string) error
+
+	// Leads
+	CreateLead(ctx context.Context, req dto.CreateGamePassLeadRequest) (*dto.GamePassLeadResponse, error)
+	ListLeads(ctx context.Context, status, email string, page, limit int) ([]dto.GamePassLeadResponse, int, error)
+	UpdateLeadStatus(ctx context.Context, id string, status string) (*dto.GamePassLeadResponse, error)
 }
 
 type GamePassService struct {
 	seasonTierRepo ports.SeasonAdmissionTierRepository
 	bandRepo       ports.GamePassDiscountBandRepository
+	leadRepo       ports.GamePassLeadRepository
+	eventDayRepo   ports.EventDayRepository
 }
 
-func NewGamePassService(seasonTierRepo ports.SeasonAdmissionTierRepository, bandRepo ports.GamePassDiscountBandRepository) IGamePassService {
-	return &GamePassService{seasonTierRepo: seasonTierRepo, bandRepo: bandRepo}
+func NewGamePassService(
+	seasonTierRepo ports.SeasonAdmissionTierRepository,
+	bandRepo ports.GamePassDiscountBandRepository,
+	leadRepo ports.GamePassLeadRepository,
+	eventDayRepo ports.EventDayRepository,
+) IGamePassService {
+	return &GamePassService{seasonTierRepo: seasonTierRepo, bandRepo: bandRepo, leadRepo: leadRepo, eventDayRepo: eventDayRepo}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -236,4 +252,175 @@ func discountBandToResponse(b *domain.GamePassDiscountBand) dto.GamePassDiscount
 		CreatedAt:       b.CreatedAt,
 		UpdatedAt:       b.UpdatedAt,
 	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Quote
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GamePassQuote is a bundle priced server side from the stored season rate and
+// active bands. Anything the buyer saw before this is only a preview.
+type GamePassQuote struct {
+	Tier     domain.SeasonAdmissionTier
+	Gamedays []domain.EventDay
+	Price    domain.GamePassPrice
+}
+
+// quote validates a bundle selection and prices it. The caller sends only the
+// tier, gamedays and holders; every figure comes from the database. Repeated
+// gameday IDs are counted once.
+func (s *GamePassService) quote(ctx context.Context, tierID string, gamedayIDs []string, holders int) (*GamePassQuote, error) {
+	if holders < 1 || holders > domain.MaxGamePassHolders {
+		return nil, appErrors.InvalidGamePassConfig("a Game Pass covers 1 to %d pass holders", domain.MaxGamePassHolders)
+	}
+
+	ids := make([]string, 0, len(gamedayIDs))
+	seen := map[string]bool{}
+	for _, id := range gamedayIDs {
+		id = strings.ToLower(strings.TrimSpace(id))
+		if id != "" && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) < domain.MinGamePassGamedays {
+		return nil, appErrors.InvalidGamePassConfig("pick at least %d gamedays for a Game Pass", domain.MinGamePassGamedays)
+	}
+
+	tier, err := s.seasonTierRepo.GetByID(ctx, tierID)
+	if err != nil {
+		if errors.Is(err, appErrors.ErrNotFound) {
+			return nil, appErrors.InvalidGamePassConfig("that admission tier isn't available")
+		}
+		return nil, err
+	}
+	if !tier.IsActive {
+		return nil, appErrors.InvalidGamePassConfig("the %s tier isn't available for Game Pass", tier.Name)
+	}
+
+	// Same "not in the past" rule single ticket purchases use.
+	today := time.Now().Truncate(24 * time.Hour)
+	gamedays := make([]domain.EventDay, 0, len(ids))
+	for _, id := range ids {
+		ed, err := s.eventDayRepo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, appErrors.InvalidGamePassConfig("one of the selected gamedays no longer exists")
+			}
+			return nil, err
+		}
+		if !ed.IsActive {
+			return nil, appErrors.InvalidGamePassConfig("%s isn't on sale", ed.Title)
+		}
+		if ed.Date.Truncate(24 * time.Hour).Before(today) {
+			return nil, appErrors.InvalidGamePassConfig("%s has already taken place", ed.Title)
+		}
+		gamedays = append(gamedays, *ed)
+	}
+
+	bands, err := s.bandRepo.List(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GamePassQuote{
+		Tier:     *tier,
+		Gamedays: gamedays,
+		Price:    domain.PriceGamePass(tier.Price, len(gamedays), holders, bands),
+	}, nil
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Leads
+// ═══════════════════════════════════════════════════════════════════════════════
+
+func (s *GamePassService) CreateLead(ctx context.Context, req dto.CreateGamePassLeadRequest) (*dto.GamePassLeadResponse, error) {
+	name := strings.TrimSpace(req.Name)
+	phone := strings.TrimSpace(req.Phone)
+	if name == "" || phone == "" {
+		return nil, appErrors.InvalidGamePassConfig("name and phone are required")
+	}
+
+	q, err := s.quote(ctx, req.TierID, req.GamedayIDs, req.Holders)
+	if err != nil {
+		return nil, err
+	}
+
+	lead := &domain.GamePassLead{
+		Name:     name,
+		Email:    strings.TrimSpace(req.Email),
+		Phone:    phone,
+		TierName: q.Tier.Name,
+		Price:    q.Price,
+		Status:   domain.GamePassLeadNew,
+		Gamedays: q.Gamedays,
+	}
+	for _, ed := range q.Gamedays {
+		lead.GamedayIDs = append(lead.GamedayIDs, ed.ID)
+	}
+
+	if err := s.leadRepo.Create(ctx, lead); err != nil {
+		return nil, err
+	}
+	res := leadToResponse(lead)
+	return &res, nil
+}
+
+func (s *GamePassService) ListLeads(ctx context.Context, status, email string, page, limit int) ([]dto.GamePassLeadResponse, int, error) {
+	if status != "" && !domain.GamePassLeadStatus(status).Valid() {
+		return nil, 0, appErrors.InvalidGamePassConfig("unknown lead status %q", status)
+	}
+	leads, total, err := s.leadRepo.List(ctx, status, strings.TrimSpace(email), page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	res := make([]dto.GamePassLeadResponse, 0, len(leads))
+	for i := range leads {
+		res = append(res, leadToResponse(&leads[i]))
+	}
+	return res, total, nil
+}
+
+func (s *GamePassService) UpdateLeadStatus(ctx context.Context, id string, status string) (*dto.GamePassLeadResponse, error) {
+	st := domain.GamePassLeadStatus(status)
+	if !st.Valid() {
+		return nil, appErrors.InvalidGamePassConfig("unknown lead status %q", status)
+	}
+	if err := s.leadRepo.UpdateStatus(ctx, id, st); err != nil {
+		return nil, err
+	}
+	lead, err := s.leadRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	res := leadToResponse(lead)
+	return &res, nil
+}
+
+func leadToResponse(l *domain.GamePassLead) dto.GamePassLeadResponse {
+	res := dto.GamePassLeadResponse{
+		ID:              l.ID,
+		Name:            l.Name,
+		Email:           l.Email,
+		Phone:           l.Phone,
+		TierName:        l.TierName,
+		GamedayIDs:      l.GamedayIDs,
+		Gamedays:        make([]dto.GamePassLeadGameday, 0, len(l.Gamedays)),
+		Holders:         l.Price.Holders,
+		StandardTotal:   l.Price.StandardTotal,
+		DiscountPercent: l.Price.DiscountPercent,
+		DiscountAmount:  l.Price.DiscountAmount,
+		Total:           l.Price.Total,
+		Status:          string(l.Status),
+		CreatedAt:       l.CreatedAt,
+		UpdatedAt:       l.UpdatedAt,
+	}
+	for _, ed := range l.Gamedays {
+		res.Gamedays = append(res.Gamedays, dto.GamePassLeadGameday{
+			ID:    ed.ID,
+			Title: ed.Title,
+			Date:  ed.Date.Format("2006-01-02"),
+		})
+	}
+	return res
 }

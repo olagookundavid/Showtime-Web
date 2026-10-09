@@ -27,6 +27,11 @@ type IGamePassHandler interface {
 	UpdateDiscountBand(c *gin.Context)
 	SetDiscountBandStatus(c *gin.Context)
 	DeleteDiscountBand(c *gin.Context)
+
+	// Leads
+	CreateLead(c *gin.Context)
+	ListLeads(c *gin.Context)
+	UpdateLead(c *gin.Context)
 }
 
 type GamePassHandler struct {
@@ -190,4 +195,47 @@ func (h *GamePassHandler) DeleteDiscountBand(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Discount band deleted"})
+}
+
+// ─── Leads ────────────────────────────────────────────────────────────────────
+
+// CreateLead stores a buyer's "notify me" interest. The response carries the
+// server's quote, which is what the lead was recorded at.
+func (h *GamePassHandler) CreateLead(c *gin.Context) {
+	var req dto.CreateGamePassLeadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	lead, err := h.service.CreateLead(c.Request.Context(), req)
+	if err != nil {
+		gamePassError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": lead})
+}
+
+func (h *GamePassHandler) ListLeads(c *gin.Context) {
+	page, limit := pageParams(c, 50)
+	leads, total, err := h.service.ListLeads(c.Request.Context(), c.Query("status"), c.Query("email"), page, limit)
+	if err != nil {
+		gamePassError(c, err)
+		return
+	}
+	pagedJSON(c, leads, total, page, limit)
+}
+
+// UpdateLead changes a lead's status only.
+func (h *GamePassHandler) UpdateLead(c *gin.Context) {
+	var req dto.UpdateGamePassLeadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	lead, err := h.service.UpdateLeadStatus(c.Request.Context(), c.Param("id"), req.Status)
+	if err != nil {
+		gamePassError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": lead})
 }

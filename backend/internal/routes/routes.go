@@ -885,6 +885,20 @@ func SetupGamePassRoutes(r *gin.RouterGroup, app *api.Application) {
 	r.GET("/season-admission-tiers", app.Handlers.GamePassHandler.ListActiveSeasonTiers)
 	r.GET("/game-pass/discount-bands", app.Handlers.GamePassHandler.ListActiveDiscountBands)
 
+	// Public "notify me" submission, held to the same limiter as ticket purchase.
+	r.POST("/game-pass/leads", commonAuth.RateLimit(commonAuth.RateLimitStruct{
+		LimiterEnabled: true,
+		Rps:            5,
+		Burst:          10,
+	}), app.Handlers.GamePassHandler.CreateLead)
+
+	adminLeads := r.Group("/admin/game-pass/leads")
+	adminLeads.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
+	{
+		adminLeads.GET("", app.Handlers.GamePassHandler.ListLeads)
+		adminLeads.PATCH("/:id", app.Handlers.GamePassHandler.UpdateLead)
+	}
+
 	adminSeasonTiers := r.Group("/admin/season-admission-tiers")
 	adminSeasonTiers.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "season_admission_tiers"))
 	{

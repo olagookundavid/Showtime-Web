@@ -92,3 +92,44 @@ type GamePassDiscountBandResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
+
+// ─── Game Pass leads ──────────────────────────────────────────────────────────
+
+// CreateGamePassLeadRequest is a buyer's "notify me" submission. It carries
+// only what was chosen; the price is quoted server side, never taken from here.
+type CreateGamePassLeadRequest struct {
+	Name       string   `json:"name" binding:"required,max=200"`
+	Email      string   `json:"email" binding:"required,email,max=255"`
+	Phone      string   `json:"phone" binding:"required,max=40"`
+	TierID     string   `json:"tier_id" binding:"required,uuid"`
+	GamedayIDs []string `json:"gameday_ids" binding:"required,min=1,max=50,dive,uuid"`
+	Holders    int      `json:"holders" binding:"required,min=1"`
+}
+
+type UpdateGamePassLeadRequest struct {
+	Status string `json:"status" binding:"required,oneof=new contacted converted dismissed"`
+}
+
+type GamePassLeadGameday struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Date  string `json:"date"`
+}
+
+type GamePassLeadResponse struct {
+	ID              string                `json:"id"`
+	Name            string                `json:"name"`
+	Email           string                `json:"email"`
+	Phone           string                `json:"phone"`
+	TierName        string                `json:"tier_name"`
+	GamedayIDs      []string              `json:"gameday_ids"`
+	Gamedays        []GamePassLeadGameday `json:"gamedays"`
+	Holders         int                   `json:"holders"`
+	StandardTotal   int                   `json:"standard_total"`
+	DiscountPercent int                   `json:"discount_percent"`
+	DiscountAmount  int                   `json:"discount_amount"`
+	Total           int                   `json:"total"`
+	Status          string                `json:"status"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
+}

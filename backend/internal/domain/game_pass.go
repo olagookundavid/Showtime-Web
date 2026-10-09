@@ -40,6 +40,78 @@ type GamePassDiscountBand struct {
 // gameday is a single ticket.
 const MinGamePassGamedays = 2
 
+// MaxGamePassHolders caps the pass holders on one Game Pass.
+const MaxGamePassHolders = 10
+
+// ─── Pricing ──────────────────────────────────────────────────────────────────
+
+// GamePassPrice is a priced bundle. Every figure is whole naira.
+type GamePassPrice struct {
+	UnitPrice       int `json:"unit_price"` // season rate per gameday per holder
+	Gamedays        int `json:"gamedays"`
+	Holders         int `json:"holders"`
+	StandardTotal   int `json:"standard_total"`
+	DiscountPercent int `json:"discount_percent"`
+	DiscountAmount  int `json:"discount_amount"`
+	Total           int `json:"total"`
+}
+
+// PriceGamePass prices a bundle from the season rate and the active bands:
+// rate × gamedays × holders, less the covering band's percentage rounded to the
+// nearest naira (half up, matching the buyer page's Math.round preview). No
+// covering band means no discount. Inactive bands are ignored.
+func PriceGamePass(unitPrice, gamedays, holders int, bands []GamePassDiscountBand) GamePassPrice {
+	p := GamePassPrice{UnitPrice: unitPrice, Gamedays: gamedays, Holders: holders}
+	p.StandardTotal = unitPrice * gamedays * holders
+	for _, b := range bands {
+		if b.IsActive && b.Covers(gamedays) {
+			p.DiscountPercent = b.DiscountPercent
+			break
+		}
+	}
+	p.DiscountAmount = (p.StandardTotal*p.DiscountPercent + 50) / 100
+	p.Total = p.StandardTotal - p.DiscountAmount
+	return p
+}
+
+// ─── Game Pass Lead ───────────────────────────────────────────────────────────
+
+type GamePassLeadStatus string
+
+const (
+	GamePassLeadNew       GamePassLeadStatus = "new"
+	GamePassLeadContacted GamePassLeadStatus = "contacted"
+	GamePassLeadConverted GamePassLeadStatus = "converted"
+	GamePassLeadDismissed GamePassLeadStatus = "dismissed"
+)
+
+func (s GamePassLeadStatus) Valid() bool {
+	switch s {
+	case GamePassLeadNew, GamePassLeadContacted, GamePassLeadConverted, GamePassLeadDismissed:
+		return true
+	}
+	return false
+}
+
+// GamePassLead is a buyer's interest in a bundle before purchases exist. The
+// pricing fields are the server's quote at submission time.
+type GamePassLead struct {
+	ID         string             `json:"id"`
+	Name       string             `json:"name"`
+	Email      string             `json:"email"`
+	Phone      string             `json:"phone"`
+	TierName   string             `json:"tier_name"`
+	GamedayIDs []string           `json:"gameday_ids"`
+	Price      GamePassPrice      `json:"price"`
+	Status     GamePassLeadStatus `json:"status"`
+	CreatedAt  time.Time          `json:"created_at"`
+	UpdatedAt  time.Time          `json:"updated_at"`
+
+	// Gamedays is read-side only: the event days behind GamedayIDs that still
+	// exist, so the admin list can show dates instead of IDs.
+	Gamedays []EventDay `json:"gamedays,omitempty"`
+}
+
 // Covers reports whether a bundle of n gamedays falls in this band.
 func (b GamePassDiscountBand) Covers(n int) bool {
 	return n >= b.MinGamedays && (b.MaxGamedays == nil || n <= *b.MaxGamedays)
