@@ -897,6 +897,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/season", app.Handlers.FantasyHandler.GetActiveSeason)
 		fantasyRoutes.GET("/season/:id/gameweeks", app.Handlers.FantasyHandler.GetGameweeks)
 		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
+		fantasyRoutes.GET("/season/:id/market/filters", app.Handlers.FantasyHandler.ListMarketFilters)
 		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
 		fantasyRoutes.GET("/players/:id/price-history", app.Handlers.FantasyHandler.GetPlayerPriceHistory)
 		fantasyRoutes.GET("/leagues/public", app.Handlers.FantasyLeagueHandler.ListPublicLeagues)

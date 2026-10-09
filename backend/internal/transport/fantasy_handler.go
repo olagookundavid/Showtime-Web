@@ -18,6 +18,7 @@ type IFantasyHandler interface {
 	GetActiveSeason(c *gin.Context)
 	GetGameweeks(c *gin.Context)
 	ListPlayerMarket(c *gin.Context)
+	ListMarketFilters(c *gin.Context)
 	GetPlayerBreakdown(c *gin.Context)
 	GetPlayerPriceHistory(c *gin.Context)
 	EnterSeason(c *gin.Context)
@@ -72,6 +73,15 @@ func (h *FantasyHandler) GetGameweeks(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": list})
+}
+
+func (h *FantasyHandler) ListMarketFilters(c *gin.Context) {
+	resp, err := h.service.ListMarketFilters(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": resp})
 }
 
 func (h *FantasyHandler) ListPlayerMarket(c *gin.Context) {

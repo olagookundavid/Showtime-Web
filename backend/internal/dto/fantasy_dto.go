@@ -392,3 +392,17 @@ type PlayerPriceHistoryResponse struct {
 	History       []PlayerPriceHistoryItem `json:"history"`
 }
 
+
+// MarketFilterTeam is a club that has at least one player on the market.
+type MarketFilterTeam struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ShortName string `json:"short_name"`
+	Logo      string `json:"logo"`
+}
+
+// MarketFiltersResponse lists the club and position chips the market offers.
+type MarketFiltersResponse struct {
+	Teams     []MarketFilterTeam `json:"teams"`
+	Positions []string           `json:"positions"`
+}

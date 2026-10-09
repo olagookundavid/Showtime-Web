@@ -24,6 +24,9 @@ export interface SquadPlayer {
     player_status?: string;
     /** On their club's reserve list: can sit on the bench, cannot start. */
     is_reserve?: boolean;
+    /** Season-wide ownership, same figures as the market. */
+    owned_by?: number;
+    selected_by_pct?: number;
     sell_price: number;
     /** Always true — the squad carries no restrictions. */
     can_sell: boolean;
