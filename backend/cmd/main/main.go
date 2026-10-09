@@ -129,6 +129,8 @@ func main() {
 
 	expvarSetup()
 
+	services.BackfillNewsRichText(ctx, pool, log)
+
 	tokenMaker, err := token.NewPasetoMaker(cfg.Token.TokenKey)
 	if err != nil {
 		log.Fatal(fmt.Errorf("cannot create token maker: %w", err).Error(), nil)

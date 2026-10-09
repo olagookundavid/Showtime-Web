@@ -14,6 +14,7 @@ export * from './news';
 export * from './newsletter';
 export * from './player-portal';
 export * from './potw';
+export * from './richtext';
 export * from './seller';
 export * from './stats';
 export * from './store';

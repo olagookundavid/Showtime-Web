@@ -51,8 +51,11 @@ func NewImageGCService(pool *pgxpool.Pool, storage ports.StorageService, log *lo
 // they could be deleted. When you add a new image/photo/logo column, add it here.
 var referencedImageQueries = []string{
 	`SELECT featured_image FROM news WHERE featured_image IS NOT NULL AND featured_image <> ''`,
-	// Inline body images embedded via [image:URL] / [image:URL|caption] tags in
-	// article content — without this they'd look orphaned and get swept.
+	// Inline body images in article content — without these they'd look
+	// orphaned and get swept. The rich-text format embeds <img src="URL">; the
+	// legacy [image:URL|caption] tag stays covered for any body not yet converted.
+	// Attribute values are HTML-escaped, so a URL with "&" appears as "&amp;".
+	`SELECT replace(m[1], '&amp;', '&') FROM news, regexp_matches(content, '<img[^>]+src="([^"]+)"', 'g') AS m`,
 	`SELECT m[1] FROM news, regexp_matches(content, '\[image:([^|\]]+)', 'g') AS m`,
 	`SELECT players_photo_url FROM gallery WHERE players_photo_url IS NOT NULL AND players_photo_url <> ''`,
 	`SELECT fans_photo_url FROM gallery WHERE fans_photo_url IS NOT NULL AND fans_photo_url <> ''`,

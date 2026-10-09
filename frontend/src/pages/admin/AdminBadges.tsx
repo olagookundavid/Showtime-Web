@@ -22,8 +22,8 @@ import type {
   CreateBadgePayload,
   EventDayResponse,
 } from "../../types";
-import { Loader, Spinner, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Modal, Select, Textarea, BadgeImage, DashboardPageHeader } from "../../components";
-import { getApiErrorMessage } from "../../utils";
+import { Loader, Spinner, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Modal, Select, RichTextEditor, BadgeImage, DashboardPageHeader } from "../../components";
+import { getApiErrorMessage, htmlToPlainText } from "../../utils";
 import {
   CheckIcon,
   PlusIcon,
@@ -777,7 +777,7 @@ export const AdminBadges = () => {
                     </div>
 
                     <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-3 mb-4">
-                      {b.description || "No description provided."}
+                      {htmlToPlainText(b.description) || "No description provided."}
                     </p>
                   </div>
 
@@ -1043,13 +1043,13 @@ export const AdminBadges = () => {
             </div>
 
             <Field label="Description" htmlFor="badge-description">
-              <Textarea
+              <RichTextEditor
                 id="badge-description"
-                rows={2}
-                placeholder="Describe the criteria or achievement required for this honor..."
-                value={badgeForm.description}
-                onChange={(e) =>
-                  setBadgeForm((p) => ({ ...p, description: e.target.value }))
+                variant="basic"
+                placeholder="Describe the criteria or achievement required for this honour."
+                value={badgeForm.description ?? ""}
+                onChange={(html) =>
+                  setBadgeForm((p) => ({ ...p, description: html }))
                 }
               />
             </Field>
@@ -1187,7 +1187,7 @@ export const AdminBadges = () => {
                       {selectedBadge.name}
                     </div>
                     <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                      {selectedBadge.description || "No description"}
+                      {htmlToPlainText(selectedBadge.description) || "No description"}
                     </div>
                   </div>
                 </div>

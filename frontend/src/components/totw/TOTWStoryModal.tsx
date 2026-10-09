@@ -7,12 +7,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { saveTOTWArticle } from '../../services/api';
 import type { News, CreateNewsPayload, TeamOfTheWeek } from '../../types';
-import { NewsContentEditor } from '../admin/NewsContentEditor';
 import { Button, Field, Input, Modal, Textarea } from '../ui';
+import { RichTextEditor } from '../richtext';
 import { ImageUploadField } from '../ui/ImageUploadField';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
-import { getApiErrorMessage } from '../../utils';
+import { getApiErrorMessage, isRichTextEmpty } from '../../utils';
 
 interface TOTWStoryModalProps {
   isOpen: boolean;
@@ -71,7 +71,7 @@ export const TOTWStoryModal: React.FC<TOTWStoryModalProps> = ({
       toast.error('Article title is required');
       return;
     }
-    if (!content.trim()) {
+    if (isRichTextEmpty(content)) {
       toast.error('Article story content is required');
       return;
     }
@@ -211,22 +211,9 @@ export const TOTWStoryModal: React.FC<TOTWStoryModalProps> = ({
             )}
           </div>
 
-          {/* Story Body via NewsContentEditor */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                Editorial Story Body <span className="text-sffl-red">*</span>
-              </label>
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                Supports player mentions (@player), team mentions (@team), images & video tags
-              </span>
-            </div>
-            <NewsContentEditor
-              value={content}
-              onChange={setContent}
-              rows={12}
-            />
-          </div>
+          <Field label={<>Editorial Story Body <span className="text-sffl-red">*</span></>} htmlFor="totw-story-body">
+            <RichTextEditor id="totw-story-body" value={content} onChange={setContent} />
+          </Field>
         </form>
       </Modal>
 

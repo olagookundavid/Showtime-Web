@@ -15,9 +15,9 @@ import {
 } from "@heroicons/react/24/outline";
 import type { ProductVariant, StoreProduct } from "../../types";
 import { useCart } from "../../contexts";
-import { findVariantByValues, getVariantPrice } from "../../utils";
+import { findVariantByValues, getVariantPrice, htmlToPlainText } from "../../utils";
 import { Button, IconButton, Modal } from "../ui";
-import { ProductDescription } from "./ProductDescription";
+import { RichContent } from "../richtext";
 import { ProductGallery } from "./ProductGallery";
 import { StarRating } from "./StarRating";
 import {
@@ -251,7 +251,7 @@ export const ProductOverview = ({ product, showHeading = true }: Props) => {
   };
 
   const category = product.tags?.[0] || "Store";
-  const description = product.description?.trim() ?? "";
+  const description = htmlToPlainText(product.description);
   // Long descriptions collapse on phones behind a "Read more" toggle.
   const descriptionIsLong = description.length > 160;
   const returnPolicy = () => setOpenPolicy("return");
@@ -319,10 +319,7 @@ export const ProductOverview = ({ product, showHeading = true }: Props) => {
                     : undefined
                 }
               >
-                <ProductDescription
-                  text={product.description}
-                  className="text-sm text-gray-600 dark:text-gray-300"
-                />
+                <RichContent html={product.description} variant="basic" />
               </div>
               {descriptionIsLong && (
                 <button

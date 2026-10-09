@@ -46,6 +46,11 @@ export default defineConfig({
             if (id.includes('recharts') || id.includes('d3')) {
               return 'vendor-charts';
             }
+            // The rich-text editor engine, loaded only when an admin opens an
+            // editor (RichTextEditor lazy-loads it), never on public pages.
+            if (/[\\/](@tiptap|prosemirror-[^\\/]+|@floating-ui|orderedmap|rope-sequence|w3c-keyname|linkifyjs)[\\/]/.test(id)) {
+              return 'vendor-editor';
+            }
             return 'vendor';
           }
         }

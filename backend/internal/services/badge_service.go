@@ -7,6 +7,7 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+	"showtime-backend/internal/richtext"
 	"strings"
 )
 
@@ -85,7 +86,7 @@ func (s *BadgeService) CreateBadge(ctx context.Context, req dto.CreateBadgeReque
 	badge := &domain.Badge{
 		Code:        code,
 		Name:        strings.TrimSpace(req.Name),
-		Description: req.Description,
+		Description: richtext.SanitizeBasic(req.Description),
 		Icon:        req.Icon,
 		Category:    req.Category,
 		ColorScheme: req.ColorScheme,
@@ -127,7 +128,7 @@ func (s *BadgeService) UpdateBadge(ctx context.Context, id string, req dto.Updat
 	}
 
 	badge.Name = strings.TrimSpace(req.Name)
-	badge.Description = req.Description
+	badge.Description = richtext.SanitizeBasic(req.Description)
 	if req.Icon != "" {
 		badge.Icon = req.Icon
 	}

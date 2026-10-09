@@ -1,5 +1,6 @@
 import { MainHeroCarousel, LiveHero, ReliveCarousel, HeroCarousel, TeamOfTheWeekModule, Loader, LightboxImage } from "../components";
 import { useLiveStream } from "../hooks";
+import { htmlToPlainText } from "../utils";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getNews } from "../services/api";
@@ -85,7 +86,7 @@ export const Landing = () => {
                     {item.title}
                   </h3>
                   <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-3 mb-4 flex-1 leading-relaxed">
-                    {item.excerpt || item.content.substring(0, 120) + "..."}
+                    {item.excerpt || htmlToPlainText(item.content).substring(0, 120) + "…"}
                   </p>
                   <div className="flex flex-wrap justify-between items-center gap-2 mt-auto pt-4 border-t border-gray-50 dark:border-gray-700/30">
                     <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -161,7 +162,7 @@ export const Landing = () => {
               <div className="relative z-10 flex flex-col h-full">
                 <p className="text-gray-200 dark:text-gray-200 mb-8 italic flex-1 relative z-10 leading-relaxed text-sm md:text-base before:content-['\201C'] before:absolute before:-top-6 before:-left-4 before:text-7xl before:text-sffl-red/30 before:-z-10 after:content-['\201D'] after:relative after:-bottom-4 after:text-5xl after:text-sffl-red/30 after:leading-none">
                   {latestNote.excerpt ||
-                    latestNote.content.substring(0, 200) + "..."}
+                    htmlToPlainText(latestNote.content).substring(0, 200) + "…"}
                 </p>
                 <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/10">
                   <Link

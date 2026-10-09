@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isDeletedPlayer, DELETED_TITLE, Loader, Field, LightboxImage, Select, Spinner, FootballIcon, CrownIcon } from "../../components";
+import { htmlToPlainText } from "../../utils";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -282,7 +283,7 @@ export const Players = () => {
 
                     {player.bio && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 italic">
-                        "{player.bio}"
+                        "{htmlToPlainText(player.bio)}"
                       </p>
                     )}
                   </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { isDeletedPlayer, deletedRowClass, DeletedPlayerName, Button, Field, Input, LightboxImage, ImageUploadField, Select, Textarea, PlayerPriceHistoryModal, DashboardPageHeader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, useTeamHeadTeam } from '../../components';
+import { isDeletedPlayer, deletedRowClass, DeletedPlayerName, Button, Field, Input, LightboxImage, ImageUploadField, Select, RichTextEditor, PlayerPriceHistoryModal, DashboardPageHeader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, useTeamHeadTeam } from '../../components';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api, { moveToReserve, graduatePlayer, getTeamRosterSummary } from '../../services/api';
@@ -614,7 +614,7 @@ const TeamHeadPlayers = () => {
                         isCommitted={busy}
                     />
                     <Field label="Bio" htmlFor="player-bio">
-                        <Textarea id="player-bio" value={form.bio} onChange={e => setField('bio', e.target.value)} rows={3} placeholder="A short bio" />
+                        <RichTextEditor id="player-bio" variant="basic" value={form.bio} onChange={html => setField('bio', html)} placeholder="A short bio: playing style, career highlights, fun facts." />
                     </Field>
                 </div>
             </Modal>

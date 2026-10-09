@@ -7,6 +7,7 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+	"showtime-backend/internal/richtext"
 	"time"
 
 	"github.com/google/uuid"
@@ -55,7 +56,7 @@ func (s *InventoryService) CreateProduct(ctx context.Context, req dto.CreateProd
 	p := domain.Product{
 		Name:        req.Name,
 		SKU:         fmt.Sprintf("sffl-%s", uuid.New().String()[:8]),
-		Description: req.Description,
+		Description: richtext.SanitizeBasic(req.Description),
 		Price:       req.Price,
 		Quantity:    req.Quantity,
 		Threshold:   req.Threshold,
@@ -79,7 +80,7 @@ func (s *InventoryService) UpdateProduct(ctx context.Context, id string, req dto
 		existing.Name = *req.Name
 	}
 	if req.Description != nil {
-		existing.Description = *req.Description
+		existing.Description = richtext.SanitizeBasic(*req.Description)
 	}
 	if req.Price != nil {
 		existing.Price = *req.Price

@@ -12,7 +12,7 @@ import {
 } from "../../services/api";
 import type { Team } from "../../types";
 import { Loader, Button, Field, Select, BackButton, Spinner, FootballIcon } from "../../components";
-import { formatStatNumber } from "../../utils";
+import { formatStatNumber, htmlToPlainText } from "../../utils";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -405,7 +405,7 @@ export const TeamDetail = () => {
 
                           {player.bio && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 italic">
-                              "{player.bio}"
+                              "{htmlToPlainText(player.bio)}"
                             </p>
                           )}
                         </div>
@@ -513,7 +513,7 @@ export const TeamDetail = () => {
 
                           {player.bio && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 italic">
-                              "{player.bio}"
+                              "{htmlToPlainText(player.bio)}"
                             </p>
                           )}
                         </div>

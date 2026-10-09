@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { getNewsBySlug, getNews } from '../../services/api';
-import { Loader, LightboxImage, NewsContent, YouTubeEmbed, CommentSection, BackButton } from '../../components';
+import { Loader, LightboxImage, RichContent, YouTubeEmbed, CommentSection, BackButton } from '../../components';
 import { parseYouTubeId } from '../../utils';
 
 export const NewsDetail = () => {
@@ -98,9 +98,7 @@ export const NewsDetail = () => {
                     </div>
 
                     {/* Article Body */}
-                    <div className="prose sm:prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-4 wrap-break-word">
-                        <NewsContent content={article.content} />
-                    </div>
+                    <RichContent html={article.content} />
 
                     {/* Comments & Discussions */}
                     <CommentSection entityType="news" entityId={article.id} commentsEnabled={article.comments_enabled} />
