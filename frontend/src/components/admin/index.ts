@@ -4,7 +4,6 @@ export { AdminTeamSheetModal } from './AdminTeamSheetModal';
 export { AllocationsManager } from './AllocationsManager';
 export { DiscountCodesPanel } from './DiscountCodesPanel';
 export { FeatureGuard } from './FeatureGuard';
-export { NewsContentEditor } from './NewsContentEditor';
 export { TeamActionDialogs } from './TeamActionDialogs';
 export { TeamStatusBadge } from './TeamStatusBadge';
 export {

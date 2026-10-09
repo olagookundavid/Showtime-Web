@@ -8,6 +8,7 @@ import (
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
+	"showtime-backend/internal/richtext"
 	"strconv"
 	"strings"
 
@@ -157,7 +158,7 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 		SecondaryPosition: req.SecondaryPosition,
 		Gender:            strings.ToUpper(strings.TrimSpace(req.Gender)),
 		TeamID:            req.TeamID,
-		Bio:               req.Bio,
+		Bio:               richtext.SanitizeBasic(req.Bio),
 		Image:             req.Image,
 		Email:             req.Email,
 	}
@@ -257,7 +258,7 @@ func (h *PlayerHandler) UpdatePlayer(c *gin.Context) {
 		SecondaryPosition: req.SecondaryPosition,
 		Gender:            strings.ToUpper(strings.TrimSpace(req.Gender)),
 		TeamID:            req.TeamID,
-		Bio:               req.Bio,
+		Bio:               richtext.SanitizeBasic(req.Bio),
 		Image:             req.Image,
 		Email:             req.Email,
 	}

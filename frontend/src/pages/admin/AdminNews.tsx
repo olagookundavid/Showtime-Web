@@ -15,8 +15,8 @@ import {
     getNews, createNews, updateNews, deleteNews,
 } from '../../services/api';
 import type { News, CreateNewsPayload } from '../../types';
-import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, NewsContentEditor, DashboardPageHeader } from '../../components';
-import { parseYouTubeId, youTubeThumbnailUrl, getApiErrorMessage } from '../../utils';
+import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, RichTextEditor, DashboardPageHeader } from '../../components';
+import { parseYouTubeId, youTubeThumbnailUrl, getApiErrorMessage, isRichTextEmpty } from '../../utils';
 
 interface ArticleForm {
     title: string; excerpt: string; content: string;
@@ -81,6 +81,10 @@ export const AdminNews = () => {
     const requestSave = () => {
         if (!form.title.trim()) {
             toast.error('Please enter a title.');
+            return;
+        }
+        if (isRichTextEmpty(form.content)) {
+            toast.error('Please write the article content.');
             return;
         }
         if (form.featured_media_type === 'youtube' && !parseYouTubeId(form.featured_youtube_url)) {
@@ -275,7 +279,7 @@ export const AdminNews = () => {
                                 <Textarea id="news-excerpt" value={form.excerpt} onChange={e => set('excerpt', e.target.value)} rows={2} placeholder="Short summary" />
                             </Field>
                             <Field label="Content *" htmlFor="news-content">
-                                <NewsContentEditor value={form.content} onChange={v => set('content', v)} />
+                                <RichTextEditor id="news-content" value={form.content} onChange={v => set('content', v)} />
                             </Field>
                             <label className="flex items-center justify-between gap-4 p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 cursor-pointer">
                                 <span className="min-w-0">
