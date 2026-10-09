@@ -474,3 +474,363 @@ func (r *PostgresGamePassLeadRepository) attachGamedays(ctx context.Context, lea
 	}
 	return nil
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Game Pass Orders
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ErrTicketCodeTaken means a generated ticket code collided with an existing
+// one. Nothing was written; the caller retries with fresh codes.
+var ErrTicketCodeTaken = errors.New("ticket code already taken")
+
+type GamePassOrderRepository interface {
+	// Create reserves capacity and writes the order, its gamedays and one
+	// PENDING ticket per holder per gameday in one transaction. codes holds a
+	// ticket code per ticket, gameday by gameday in line order.
+	Create(ctx context.Context, o *domain.GamePassOrder, lines []domain.GamePassOrderLine, codes []string) error
+	SetAccessCode(ctx context.Context, id, accessCode string) error
+	GetByID(ctx context.Context, id string) (*domain.GamePassOrder, error)
+	GetByReference(ctx context.Context, reference string) (*domain.GamePassOrder, error)
+	List(ctx context.Context, status, email string, page, limit int) ([]domain.GamePassOrder, int, error)
+	// MarkPaid moves the order and its tickets to paid and counts the seats
+	// sold. It reports false when the order was already paid, so a repeated
+	// webhook changes nothing.
+	MarkPaid(ctx context.Context, id string) (bool, error)
+	// MarkFailed fails a still-pending order and its pending tickets.
+	MarkFailed(ctx context.Context, id string) error
+}
+
+type PostgresGamePassOrderRepository struct {
+	db *pgxpool.Pool
+}
+
+func NewGamePassOrderRepository(db *pgxpool.Pool) GamePassOrderRepository {
+	return &PostgresGamePassOrderRepository{db: db}
+}
+
+const orderColumns = `id, name, email, phone, user_id::text, season_tier_id::text, tier_name,
+	unit_price, gameday_count, holders, standard_total, discount_percent, discount_amount, total,
+	payment_status, paystack_reference, paystack_access_code, paid_at, created_at, updated_at`
+
+func scanOrder(row pgx.Row) (*domain.GamePassOrder, error) {
+	var o domain.GamePassOrder
+	err := row.Scan(&o.ID, &o.Name, &o.Email, &o.Phone, &o.UserID, &o.SeasonTierID, &o.TierName,
+		&o.Price.UnitPrice, &o.Price.Gamedays, &o.Price.Holders, &o.Price.StandardTotal,
+		&o.Price.DiscountPercent, &o.Price.DiscountAmount, &o.Price.Total,
+		&o.PaymentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.PaidAt, &o.CreatedAt, &o.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+func (r *PostgresGamePassOrderRepository) Create(ctx context.Context, o *domain.GamePassOrder, lines []domain.GamePassOrderLine, codes []string) error {
+	holders := o.Price.Holders
+	if len(codes) != len(lines)*holders {
+		return fmt.Errorf("expected %d ticket codes, got %d", len(lines)*holders, len(codes))
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock every tier in the bundle, in ID order so two overlapping checkouts
+	// can't deadlock. Single ticket purchases lock the same rows, so the two
+	// flows serialize on the last seats.
+	tierIDs := make([]string, 0, len(lines))
+	for _, l := range lines {
+		tierIDs = append(tierIDs, l.TicketTierID)
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT tt.id::text, tt.capacity, tt.name, COALESCE(ed.title, '')
+		FROM ticket_tiers tt LEFT JOIN event_days ed ON ed.id = tt.event_day_id
+		WHERE tt.id = ANY($1::text[]::uuid[])
+		ORDER BY tt.id
+		FOR UPDATE OF tt`, tierIDs)
+	if err != nil {
+		return fmt.Errorf("failed to lock tiers: %w", err)
+	}
+	type tierInfo struct {
+		capacity       int
+		name, dayTitle string
+	}
+	tiers := map[string]tierInfo{}
+	for rows.Next() {
+		var id string
+		var t tierInfo
+		if err := rows.Scan(&id, &t.capacity, &t.name, &t.dayTitle); err != nil {
+			rows.Close()
+			return err
+		}
+		tiers[id] = t
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	// Same rule as a single purchase: paid and used seats, plus pending ones
+	// still inside the reservation window, count against capacity.
+	for _, id := range tierIDs {
+		t, ok := tiers[id]
+		if !ok {
+			return appErrors.InvalidGamePassConfig("a ticket tier in this Game Pass no longer exists")
+		}
+		if t.capacity == 0 {
+			continue
+		}
+		var reserved int
+		if err := tx.QueryRow(ctx,
+			`SELECT COALESCE(SUM(quantity), 0) FROM tickets
+			 WHERE tier_id = $1
+			   AND (status IN ('PAID', 'USED')
+			        OR (status = 'PENDING' AND created_at > NOW() - INTERVAL '`+pendingReservationTTL+`'))`,
+			id,
+		).Scan(&reserved); err != nil {
+			return err
+		}
+		if reserved+holders > t.capacity {
+			left := t.capacity - reserved
+			if left < 0 {
+				left = 0
+			}
+			return appErrors.InvalidGamePassConfig("%s has only %d %s place(s) left", t.dayTitle, left, t.name)
+		}
+	}
+
+	err = tx.QueryRow(ctx, `
+		INSERT INTO game_pass_orders (name, email, phone, user_id, season_tier_id, tier_name,
+			unit_price, gameday_count, holders, standard_total, discount_percent, discount_amount, total,
+			payment_status, paystack_reference)
+		VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		RETURNING id, created_at, updated_at`,
+		o.Name, o.Email, o.Phone, o.UserID, o.SeasonTierID, o.TierName,
+		o.Price.UnitPrice, o.Price.Gamedays, o.Price.Holders, o.Price.StandardTotal,
+		o.Price.DiscountPercent, o.Price.DiscountAmount, o.Price.Total,
+		domain.GamePassOrderPending, o.PaystackReference,
+	).Scan(&o.ID, &o.CreatedAt, &o.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to create game pass order: %w", err)
+	}
+	o.PaymentStatus = domain.GamePassOrderPending
+
+	shares := domain.SplitGamePassTotal(o.Price.Total, len(codes))
+	k := 0
+	for _, l := range lines {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO game_pass_order_gamedays (order_id, event_day_id) VALUES ($1, $2)`,
+			o.ID, l.EventDayID); err != nil {
+			return fmt.Errorf("failed to link gameday: %w", err)
+		}
+		for h := 0; h < holders; h++ {
+			_, err := tx.Exec(ctx, `
+				INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price,
+					total_amount, status, ticket_code, game_pass_order_id,
+					event_title, event_date, event_venue, tier_name)
+				VALUES ($1, $2, $3, $4, $5, $6::uuid, 1, $7, $8, 'PENDING', $9, $10,
+					COALESCE((SELECT title FROM event_days WHERE id = $1), ''),
+					(SELECT date FROM event_days WHERE id = $1),
+					COALESCE((SELECT venue FROM event_days WHERE id = $1), ''),
+					COALESCE((SELECT name FROM ticket_tiers WHERE id = $2), ''))`,
+				l.EventDayID, l.TicketTierID, o.Email, o.Phone, o.Name, o.UserID,
+				o.Price.UnitPrice, shares[k], codes[k], o.ID)
+			if err != nil {
+				if isUniqueViolation(err) {
+					return ErrTicketCodeTaken
+				}
+				return fmt.Errorf("failed to issue game pass ticket: %w", err)
+			}
+			k++
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *PostgresGamePassOrderRepository) SetAccessCode(ctx context.Context, id, accessCode string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err := r.db.Exec(ctx, `UPDATE game_pass_orders SET paystack_access_code = $1, updated_at = NOW() WHERE id = $2`, accessCode, id)
+	return err
+}
+
+func (r *PostgresGamePassOrderRepository) GetByID(ctx context.Context, id string) (*domain.GamePassOrder, error) {
+	return r.getOne(ctx, "id = $1", id)
+}
+
+func (r *PostgresGamePassOrderRepository) GetByReference(ctx context.Context, reference string) (*domain.GamePassOrder, error) {
+	return r.getOne(ctx, "paystack_reference = $1", reference)
+}
+
+// getOne loads an order with its gamedays and tickets.
+func (r *PostgresGamePassOrderRepository) getOne(ctx context.Context, where string, arg string) (*domain.GamePassOrder, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	o, err := scanOrder(r.db.QueryRow(ctx, `SELECT `+orderColumns+` FROM game_pass_orders WHERE `+where, arg))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, appErrors.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get game pass order: %w", err)
+	}
+
+	dayRows, err := r.db.Query(ctx, `
+		SELECT ed.id::text, ed.title, ed.date, ed.venue, ed.is_active
+		FROM game_pass_order_gamedays g JOIN event_days ed ON ed.id = g.event_day_id
+		WHERE g.order_id = $1
+		ORDER BY ed.date`, o.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load order gamedays: %w", err)
+	}
+	for dayRows.Next() {
+		var ed domain.EventDay
+		if err := dayRows.Scan(&ed.ID, &ed.Title, &ed.Date, &ed.Venue, &ed.IsActive); err != nil {
+			dayRows.Close()
+			return nil, err
+		}
+		o.Gamedays = append(o.Gamedays, ed)
+	}
+	dayRows.Close()
+	if err := dayRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Snapshot columns, so a ticket still reads right if its gameday or tier
+	// has since been deleted.
+	ticketRows, err := r.db.Query(ctx, `
+		SELECT id::text, COALESCE(event_day_id::text, ''), COALESCE(tier_id::text, ''), email,
+			quantity, unit_price, total_amount, status, ticket_code, checked_in_at, checked_in_by,
+			event_title, event_date, event_venue, tier_name, created_at, updated_at
+		FROM tickets
+		WHERE game_pass_order_id = $1
+		ORDER BY event_date NULLS LAST, ticket_code`, o.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load order tickets: %w", err)
+	}
+	defer ticketRows.Close()
+	for ticketRows.Next() {
+		var t domain.Ticket
+		var title, venue, tierName string
+		var date *time.Time
+		if err := ticketRows.Scan(&t.ID, &t.EventDayID, &t.TierID, &t.Email,
+			&t.Quantity, &t.UnitPrice, &t.TotalAmount, &t.Status, &t.TicketCode, &t.CheckedInAt, &t.CheckedInBy,
+			&title, &date, &venue, &tierName, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, err
+		}
+		t.EventDay = &domain.EventDay{ID: t.EventDayID, Title: title, Venue: venue}
+		if date != nil {
+			t.EventDay.Date = *date
+		}
+		t.Tier = &domain.TicketTier{ID: t.TierID, Name: tierName}
+		o.Tickets = append(o.Tickets, t)
+	}
+	return o, ticketRows.Err()
+}
+
+func (r *PostgresGamePassOrderRepository) List(ctx context.Context, status, email string, page, limit int) ([]domain.GamePassOrder, int, error) {
+	page, limit, offset := paging(page, limit, 50)
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	where := ` WHERE ($1 = '' OR payment_status = $1) AND ($2 = '' OR LOWER(email) LIKE '%' || LOWER($2) || '%')`
+
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM game_pass_orders`+where, status, email).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count game pass orders: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx,
+		`SELECT `+orderColumns+` FROM game_pass_orders`+where+` ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
+		status, email, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list game pass orders: %w", err)
+	}
+	defer rows.Close()
+
+	orders := []domain.GamePassOrder{}
+	for rows.Next() {
+		o, err := scanOrder(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		orders = append(orders, *o)
+	}
+	return orders, total, rows.Err()
+}
+
+func (r *PostgresGamePassOrderRepository) MarkPaid(ctx context.Context, id string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+
+	// The status guard is the idempotency key: of two webhooks racing on the
+	// same order, only one sees a row come back. A failed order can still turn
+	// paid — Paystack's later charge.success outranks an early failed verify.
+	tag, err := tx.Exec(ctx, `
+		UPDATE game_pass_orders SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
+		WHERE id = $1 AND payment_status <> 'paid'`, id)
+	if err != nil {
+		return false, fmt.Errorf("failed to mark game pass order paid: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+
+	// Pay the tickets, then add exactly those to their tiers' sold counts,
+	// capacity guarded the same way a single purchase is.
+	if _, err := tx.Exec(ctx, `
+		WITH paid AS (
+			UPDATE tickets SET status = 'PAID', updated_at = NOW()
+			WHERE game_pass_order_id = $1 AND status IN ('PENDING', 'FAILED')
+			RETURNING tier_id
+		)
+		UPDATE ticket_tiers t SET sold_count = t.sold_count + c.n, updated_at = NOW()
+		FROM (SELECT tier_id, COUNT(*)::int AS n FROM paid WHERE tier_id IS NOT NULL GROUP BY tier_id) c
+		WHERE t.id = c.tier_id AND (t.capacity = 0 OR t.sold_count + c.n <= t.capacity)`, id); err != nil {
+		return false, fmt.Errorf("failed to issue game pass tickets: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (r *PostgresGamePassOrderRepository) MarkFailed(ctx context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE game_pass_orders SET payment_status = 'failed', updated_at = NOW()
+		WHERE id = $1 AND payment_status = 'pending'`, id)
+	if err != nil {
+		return fmt.Errorf("failed to mark game pass order failed: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE tickets SET status = 'FAILED', updated_at = NOW()
+		WHERE game_pass_order_id = $1 AND status = 'PENDING'`, id); err != nil {
+		return fmt.Errorf("failed to fail game pass tickets: %w", err)
+	}
+	return tx.Commit(ctx)
+}

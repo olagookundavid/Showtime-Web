@@ -170,3 +170,65 @@ func ValidateDiscountBand(b GamePassDiscountBand, others []GamePassDiscountBand)
 	}
 	return nil
 }
+
+// ─── Game Pass Order ──────────────────────────────────────────────────────────
+
+type GamePassOrderStatus string
+
+const (
+	GamePassOrderPending GamePassOrderStatus = "pending"
+	GamePassOrderPaid    GamePassOrderStatus = "paid"
+	GamePassOrderFailed  GamePassOrderStatus = "failed"
+)
+
+// GamePassReferencePrefix marks a Paystack reference as a Game Pass order, so
+// the one webhook Paystack calls can hand it to the right service.
+const GamePassReferencePrefix = "SFFL-GP-"
+
+// GamePassOrder is a bundle purchase. Price is the snapshot taken at checkout.
+type GamePassOrder struct {
+	ID                 string              `json:"id"`
+	Name               string              `json:"name"`
+	Email              string              `json:"email"`
+	Phone              string              `json:"phone"`
+	UserID             *string             `json:"user_id,omitempty"`
+	SeasonTierID       *string             `json:"season_tier_id,omitempty"`
+	TierName           string              `json:"tier_name"`
+	Price              GamePassPrice       `json:"price"`
+	PaymentStatus      GamePassOrderStatus `json:"payment_status"`
+	PaystackReference  *string             `json:"paystack_reference,omitempty"`
+	PaystackAccessCode *string             `json:"-"`
+	PaidAt             *time.Time          `json:"paid_at,omitempty"`
+	CreatedAt          time.Time           `json:"created_at"`
+	UpdatedAt          time.Time           `json:"updated_at"`
+
+	// Relations, loaded for detail views.
+	Gamedays []EventDay `json:"gamedays,omitempty"`
+	Tickets  []Ticket   `json:"tickets,omitempty"`
+}
+
+// GamePassOrderLine is one gameday in a bundle and the ticket tier on that
+// gameday the order's tickets are issued against (for capacity and check-in).
+type GamePassOrderLine struct {
+	EventDayID   string
+	TicketTierID string
+}
+
+// SplitGamePassTotal spreads an order total across its n tickets so the
+// tickets' total_amount sums to exactly the order total — revenue reports sum
+// tickets, and must neither double count nor lose the bundle. The remainder
+// naira go one each to the first tickets.
+func SplitGamePassTotal(total, n int) []int {
+	if n <= 0 {
+		return nil
+	}
+	shares := make([]int, n)
+	base, rem := total/n, total%n
+	for i := range shares {
+		shares[i] = base
+		if i < rem {
+			shares[i]++
+		}
+	}
+	return shares
+}

@@ -892,6 +892,26 @@ func SetupGamePassRoutes(r *gin.RouterGroup, app *api.Application) {
 		Burst:          10,
 	}), app.Handlers.GamePassHandler.CreateLead)
 
+	// Purchase. Optional auth links a signed-in buyer's order to their account;
+	// guests can still buy. Same limiter as ticket purchase.
+	r.POST("/game-pass/checkout", commonAuth.RateLimit(commonAuth.RateLimitStruct{
+		LimiterEnabled: true,
+		Rps:            5,
+		Burst:          10,
+	}), commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.GamePassHandler.Checkout)
+	// Paystack calls /tickets/webhook (the dashboard URL), which routes Game
+	// Pass references here too; this route is for if the dashboard ever moves.
+	r.POST("/game-pass/webhook", app.Handlers.GamePassHandler.Webhook)
+	r.POST("/game-pass/verify/:reference", app.Handlers.GamePassHandler.VerifyPayment)
+	r.GET("/game-pass/orders/by-ref/:reference", app.Handlers.GamePassHandler.GetOrderByReference)
+
+	adminOrders := r.Group("/admin/game-pass/orders")
+	adminOrders.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
+	{
+		adminOrders.GET("", app.Handlers.GamePassHandler.ListOrders)
+		adminOrders.GET("/:id", app.Handlers.GamePassHandler.GetOrder)
+	}
+
 	adminLeads := r.Group("/admin/game-pass/leads")
 	adminLeads.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
 	{

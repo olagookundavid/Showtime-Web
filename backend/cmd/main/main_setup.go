@@ -437,6 +437,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	seasonTierRepo := ports.NewSeasonAdmissionTierRepository(pool)
 	discountBandRepo := ports.NewGamePassDiscountBandRepository(pool)
 	gamePassLeadRepo := ports.NewGamePassLeadRepository(pool)
+	gamePassOrderRepo := ports.NewGamePassOrderRepository(pool)
 
 	// Fantasy Repositories
 	fantasyRepo := ports.NewFantasyRepository(pool)
@@ -525,7 +526,11 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	claimHandler := transport.NewClaimHandler(claimService)
 	commentHandler := transport.NewCommentHandler(commentService, authRepo)
 	discountHandler := transport.NewDiscountHandler(discountService, storeService, tierRepo)
-	gamePassHandler := transport.NewGamePassHandler(services.NewGamePassService(seasonTierRepo, discountBandRepo, gamePassLeadRepo, eventDayRepo))
+	gamePassService := services.NewGamePassService(seasonTierRepo, discountBandRepo, gamePassLeadRepo, eventDayRepo, tierRepo, gamePassOrderRepo, paystackClient, emailService)
+	gamePassHandler := transport.NewGamePassHandler(gamePassService, paystackClient)
+	if th, ok := ticketHandler.(*transport.TicketHandler); ok {
+		th.WithGamePass(gamePassService)
+	}
 
 	reliveService := services.NewReliveService()
 	reliveHandler := transport.NewReliveHandler(reliveService)

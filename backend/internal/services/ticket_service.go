@@ -631,10 +631,16 @@ func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketReques
 // transaction could fulfill a ticket. Returns nil only when the payment is
 // genuinely valid for this ticket.
 func verifyTicketPayment(verifyResp *PaystackVerifyResponse, ticket *domain.Ticket) error {
+	return verifyPaystackAmount(verifyResp, ticket.TotalAmount)
+}
+
+// verifyPaystackAmount checks a Paystack verification against the naira total
+// the server expects. Shared by single tickets and Game Pass orders.
+func verifyPaystackAmount(verifyResp *PaystackVerifyResponse, expectedNaira int) error {
 	if verifyResp == nil || verifyResp.Data.Status != "success" {
 		return fmt.Errorf("payment not successful")
 	}
-	expectedKobo := ticket.TotalAmount * 100
+	expectedKobo := expectedNaira * 100
 	if verifyResp.Data.Amount < expectedKobo {
 		return fmt.Errorf("payment amount mismatch: charged %d kobo, expected %d kobo", verifyResp.Data.Amount, expectedKobo)
 	}

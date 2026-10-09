@@ -152,3 +152,29 @@ func TestValidateDiscountBandIgnoresInactiveOthers(t *testing.T) {
 		t.Fatalf("expected an inactive band not to block, got %v", err)
 	}
 }
+
+func TestSplitGamePassTotal(t *testing.T) {
+	cases := []struct {
+		total, n int
+		want     []int
+	}{
+		{7600, 4, []int{1900, 1900, 1900, 1900}},
+		{10, 3, []int{4, 3, 3}},
+		{11, 3, []int{4, 4, 3}},
+		{0, 2, []int{0, 0}},
+	}
+	for _, tc := range cases {
+		got := SplitGamePassTotal(tc.total, tc.n)
+		sum := 0
+		for i, v := range got {
+			sum += v
+			if v != tc.want[i] {
+				t.Errorf("SplitGamePassTotal(%d, %d) = %v, want %v", tc.total, tc.n, got, tc.want)
+				break
+			}
+		}
+		if sum != tc.total {
+			t.Errorf("SplitGamePassTotal(%d, %d) sums to %d", tc.total, tc.n, sum)
+		}
+	}
+}
