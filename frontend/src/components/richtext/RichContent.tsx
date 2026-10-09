@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import parse, { domToReact, Element, Text, type DOMNode, type HTMLReactParserOptions } from 'html-react-parser';
@@ -119,6 +119,25 @@ const options: HTMLReactParserOptions = {
             );
         }
 
+        // Author-picked colours: keep them, but let CSS lift dark ones in dark
+        // mode and pick black/white text over a highlight (see index.css).
+        if (name === 'span' || name === 'mark') {
+            const style = attribs.style ?? '';
+            const color = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i)?.[1]?.trim();
+            const background = (attribs['data-color'] || style.match(/background-color\s*:\s*([^;]+)/i)?.[1] || '').trim();
+            if (color || background) {
+                const css: Record<string, string> = {};
+                if (color) css['--rc'] = color;
+                if (background) { css.backgroundColor = background; css['--hl'] = background; }
+                const Tag = name;
+                return (
+                    <Tag className={`${color ? 'rc-color' : ''} ${background ? 'rc-hl' : ''}`.trim()} style={css as CSSProperties}>
+                        {domToReact(children, options)}
+                    </Tag>
+                );
+            }
+        }
+
         if (name === 'table') {
             // Wide tables scroll sideways inside the article instead of
             // pushing the page wider than the phone.
@@ -159,5 +178,5 @@ export const RichContent = ({ html, variant = 'article', className = '' }: RichC
     }, [html]);
 
     if (!rendered) return null;
-    return <div className={`${VARIANT_STYLES[variant]} ${className}`}>{rendered}</div>;
+    return <div className={`rich-content ${VARIANT_STYLES[variant]} ${className}`}>{rendered}</div>;
 };

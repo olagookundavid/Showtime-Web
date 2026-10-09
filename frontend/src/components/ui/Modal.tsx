@@ -13,7 +13,8 @@ type Props = {
   children: React.ReactNode;
   /** Action buttons pinned below the body. Put Cancel first and the primary action last. */
   footer?: React.ReactNode;
-  maxWidth?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
+  /** `full` fills almost the whole screen, for working surfaces like the rich-text editor. */
+  maxWidth?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
   /** `square` for sharp corners (store pages). */
   shape?: Shape;
 };
@@ -25,6 +26,7 @@ const widthClass: Record<NonNullable<Props["maxWidth"]>, string> = {
   "2xl": "max-w-2xl",
   "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",
+  full: "max-w-[96rem]",
 };
 
 // Open modals, oldest first. Escape closes only the newest, so a dialog opened
@@ -81,7 +83,7 @@ export const Modal = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white dark:bg-gray-800 ${shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
+        className={`bg-white dark:bg-gray-800 ${shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl ${maxWidth === "full" ? "h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)]" : "max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh]"} flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
       >
         {(title || subtitle || onClose) && (
           <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">

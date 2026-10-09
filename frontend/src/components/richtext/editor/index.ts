@@ -10,3 +10,5 @@ export type { SlashAction } from './suggestionExtensions';
 export { SuggestionList } from './SuggestionList';
 export type { MenuItem, SuggestionListHandle, SuggestionListProps } from './SuggestionList';
 export { suggestionMenu } from './suggestionMenu';
+export { ColorContrast } from './colorContrast';
+export { stripForeignColors } from './pasteCleanup';

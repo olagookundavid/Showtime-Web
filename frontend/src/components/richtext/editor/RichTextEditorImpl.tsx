@@ -12,6 +12,8 @@ import Superscript from '@tiptap/extension-superscript';
 import { TableKit } from '@tiptap/extension-table';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import {
+    ArrowsPointingInIcon,
+    ArrowsPointingOutIcon,
     BoldIcon,
     ItalicIcon,
     LinkIcon,
@@ -27,7 +29,7 @@ import {
     H2Icon,
     H3Icon,
 } from '@heroicons/react/24/outline';
-import { IconButton } from '../../ui';
+import { Button, IconButton, Modal } from '../../ui';
 import { QuoteIcon, TextColorIcon } from '../../icons';
 import { useImageUpload } from '../../../hooks';
 import { toEditorHtml } from '../../../utils';
@@ -35,6 +37,8 @@ import type { RichTextEditorProps } from '../RichTextEditor';
 import { FigureImage, NewsRefBlock, YouTubeBlock } from './embedNodes';
 import { EntityMention, SlashCommands, type SlashAction } from './suggestionExtensions';
 import { EditorToolbar } from './EditorToolbar';
+import { ColorContrast } from './colorContrast';
+import { stripForeignColors } from './pasteCleanup';
 import { ColorPanel, LinkPanel, NewsPanel, YouTubePanel, type Panel } from './EditorPanels';
 
 // The rich-text editor (TipTap). Loaded on demand by RichTextEditor so public
@@ -51,6 +55,7 @@ const buildExtensions = (isArticle: boolean, placeholder: string, getSlashAction
         Highlight.configure({ multicolor: true }),
         Placeholder.configure({ placeholder }),
         CharacterCount,
+        ColorContrast,
     ];
     if (!isArticle) {
         return [
@@ -96,6 +101,8 @@ export default function RichTextEditorImpl({
 }: RichTextEditorProps) {
     const isArticle = variant === 'article';
     const [panel, setPanel] = useState<Panel | null>(null);
+    // Full-screen mode moves the same editor into a large dialog.
+    const [expanded, setExpanded] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { uploadImage, isUploading, progress } = useImageUpload();
     // The last HTML this editor reported, so a parent re-render with that same
@@ -146,8 +153,9 @@ export default function RichTextEditorImpl({
                 'aria-label': ariaLabel ?? (isArticle ? 'Article body' : 'Text'),
                 'aria-multiline': 'true',
                 role: 'textbox',
-                class: `rich-editor prose prose-gray dark:prose-invert max-w-none wrap-break-word px-4 py-3 focus:outline-none ${isArticle ? 'min-h-72 sm:prose-lg' : 'min-h-28 prose-sm sm:prose-base prose-p:my-2'}`,
+                class: `rich-editor prose prose-gray dark:prose-invert max-w-none wrap-break-word px-4 py-3 focus:outline-none ${isArticle ? 'sm:prose-lg' : 'prose-sm sm:prose-base prose-p:my-2'}`,
             },
+            transformPastedHTML: stripForeignColors,
             handlePaste: (_view, event) => {
                 const files = Array.from(event.clipboardData?.files ?? []).filter(isImageFile);
                 if (!isArticle || !files.length) return false;
@@ -195,50 +203,88 @@ export default function RichTextEditorImpl({
         if (files.length) await insertImageFiles(files);
     };
 
+    // Back at the cursor after the editor moves between the form and the dialog.
+    useEffect(() => {
+        if (!editor) return;
+        const frame = requestAnimationFrame(() => editor.commands.focus());
+        return () => cancelAnimationFrame(frame);
+    }, [editor, expanded]);
+
     if (!editor) return null;
+
+    const surface = (isExpanded: boolean) => (
+        <div
+            className={`rounded-xl border bg-white dark:bg-gray-800 transition-colors focus-within:ring-2 focus-within:ring-sffl-red focus-within:border-transparent ${invalid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} ${
+                isExpanded
+                    ? '[&_.ProseMirror]:min-h-[60dvh] [&_.ProseMirror]:max-w-4xl [&_.ProseMirror]:mx-auto [&_.ProseMirror]:py-6'
+                    : isArticle ? '[&_.ProseMirror]:min-h-72' : '[&_.ProseMirror]:min-h-28'
+            }`}
+        >
+            <EditorToolbar
+                editor={editor}
+                isArticle={isArticle}
+                panel={panel}
+                togglePanel={togglePanel}
+                onPickImage={() => { closePanel(); fileInputRef.current?.click(); }}
+                uploadLabel={isUploading ? `Uploading ${progress}%` : null}
+                expanded={isExpanded}
+                onToggleExpand={() => setExpanded(!isExpanded)}
+            />
+
+            {panel === 'link' && <LinkPanel editor={editor} onClose={closePanel} />}
+            {(panel === 'color' || panel === 'highlight') && <ColorPanel key={panel} editor={editor} onClose={closePanel} mode={panel} />}
+            {panel === 'youtube' && <YouTubePanel editor={editor} onClose={closePanel} />}
+            {panel === 'news' && <NewsPanel editor={editor} onClose={closePanel} />}
+            {isUploading && (
+                <p className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600" role="status">
+                    Uploading image… {progress}%
+                </p>
+            )}
+
+            <BubbleMenu
+                editor={editor}
+                options={{ placement: 'top' }}
+                shouldShow={({ editor: e, state }) =>
+                    e.isEditable && !state.selection.empty && !e.isActive('figureImage') && !e.isActive('youtubeBlock') && !e.isActive('newsRefBlock')}
+                className="flex items-center gap-0.5 p-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl"
+            >
+                <IconButton icon={BoldIcon} label="Bold" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} />
+                <IconButton icon={ItalicIcon} label="Italic" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} />
+                <IconButton icon={UnderlineIcon} label="Underline" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} />
+                <IconButton icon={StrikethroughIcon} label="Strikethrough" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} />
+                <IconButton icon={TextColorIcon} label="Text colour" onMouseDown={e => e.preventDefault()} onClick={() => setPanel('color')} />
+                <IconButton icon={LinkIcon} label="Link" onMouseDown={e => e.preventDefault()} onClick={() => setPanel('link')} />
+            </BubbleMenu>
+
+            <EditorContent editor={editor} />
+        </div>
+    );
 
     return (
         <div className="space-y-1.5">
-            <div
-                className={`rounded-xl border bg-white dark:bg-gray-800 transition-colors focus-within:ring-2 focus-within:ring-sffl-red focus-within:border-transparent ${invalid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+            <input type="file" ref={fileInputRef} onChange={pickImage} accept="image/*,.heic,.heif" multiple className="hidden" />
+
+            {expanded ? (
+                <div className="rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 p-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">This text is open in full screen.</p>
+                    <Button variant="secondary" size="sm" icon={ArrowsPointingInIcon} onClick={() => setExpanded(false)}>
+                        Back to form
+                    </Button>
+                </div>
+            ) : (
+                surface(false)
+            )}
+
+            <Modal
+                open={expanded}
+                onClose={() => setExpanded(false)}
+                title={isArticle ? 'Article editor' : 'Text editor'}
+                subtitle="Full screen"
+                maxWidth="full"
+                footer={<Button onClick={() => setExpanded(false)}>Done</Button>}
             >
-                <input type="file" ref={fileInputRef} onChange={pickImage} accept="image/*,.heic,.heif" multiple className="hidden" />
-                <EditorToolbar
-                    editor={editor}
-                    isArticle={isArticle}
-                    panel={panel}
-                    togglePanel={togglePanel}
-                    onPickImage={() => { closePanel(); fileInputRef.current?.click(); }}
-                    uploadLabel={isUploading ? `Uploading ${progress}%` : null}
-                />
-
-                {panel === 'link' && <LinkPanel editor={editor} onClose={closePanel} />}
-                {(panel === 'color' || panel === 'highlight') && <ColorPanel key={panel} editor={editor} onClose={closePanel} mode={panel} />}
-                {panel === 'youtube' && <YouTubePanel editor={editor} onClose={closePanel} />}
-                {panel === 'news' && <NewsPanel editor={editor} onClose={closePanel} />}
-                {isUploading && (
-                    <p className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600" role="status">
-                        Uploading image… {progress}%
-                    </p>
-                )}
-
-                <BubbleMenu
-                    editor={editor}
-                    options={{ placement: 'top' }}
-                    shouldShow={({ editor: e, state }) =>
-                        e.isEditable && !state.selection.empty && !e.isActive('figureImage') && !e.isActive('youtubeBlock') && !e.isActive('newsRefBlock')}
-                    className="flex items-center gap-0.5 p-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl"
-                >
-                    <IconButton icon={BoldIcon} label="Bold" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} />
-                    <IconButton icon={ItalicIcon} label="Italic" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} />
-                    <IconButton icon={UnderlineIcon} label="Underline" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} />
-                    <IconButton icon={StrikethroughIcon} label="Strikethrough" onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} />
-                    <IconButton icon={TextColorIcon} label="Text colour" onMouseDown={e => e.preventDefault()} onClick={() => setPanel('color')} />
-                    <IconButton icon={LinkIcon} label="Link" onMouseDown={e => e.preventDefault()} onClick={() => setPanel('link')} />
-                </BubbleMenu>
-
-                <EditorContent editor={editor} />
-            </div>
+                {surface(true)}
+            </Modal>
 
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                 <span>
@@ -246,9 +292,16 @@ export default function RichTextEditorImpl({
                         ? 'Type / to insert anything, @ to tag a team or player. Paste or drop photos straight in.'
                         : 'Select text to format it. Ctrl+B bold, Ctrl+I italic.'}
                 </span>
-                <span>
-                    {counts.words} {counts.words === 1 ? 'word' : 'words'}
-                    {isArticle ? ` · ${Math.max(1, Math.ceil(counts.words / 200))} min read` : ` · ${counts.characters} characters`}
+                <span className="inline-flex items-center gap-3">
+                    <span>
+                        {counts.words} {counts.words === 1 ? 'word' : 'words'}
+                        {isArticle ? ` · ${Math.max(1, Math.ceil(counts.words / 200))} min read` : ` · ${counts.characters} characters`}
+                    </span>
+                    {!expanded && (
+                        <Button variant="secondary" size="sm" icon={ArrowsPointingOutIcon} onClick={() => setExpanded(true)}>
+                            Full screen
+                        </Button>
+                    )}
                 </span>
             </div>
         </div>

@@ -309,3 +309,22 @@ html.dark {
 .rich-editor .tableWrapper {
   overflow-x: auto;
 }
+
+/* Author-picked text colours stay readable in both themes. Each coloured run
+ * carries its colour in --rc (text) or --hl (highlight); the editor adds them
+ * with decorations (colorContrast.ts) and RichContent adds them when rendering.
+ * Dark mode lifts a too-dark text colour to at least 74% lightness, keeping its
+ * hue. Highlighted text is black or white, whichever contrasts with the
+ * highlight, in either theme. A browser without relative colours ignores both
+ * rules and shows the colour as picked. */
+.rich-content .rc-color {
+  color: var(--rc);
+}
+.dark .rich-editor .rc-color,
+.dark .rich-content .rc-color {
+  color: oklch(from var(--rc) max(l, 0.74) c h);
+}
+.rich-editor .rc-hl,
+.rich-content .rc-hl {
+  color: oklch(from var(--hl) calc((l - 0.6) * -1000) 0 0);
+}
