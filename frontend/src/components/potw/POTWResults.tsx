@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { TrophyIcon, UserCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { DataTable, type Column } from '../ui';
 import type { POTWNominee, POTWPoll } from '../../types';
+import { formatShare } from './potwUtils';
 
 // Single-series charts: one navy hue on light surfaces, a lighter blue step on
 // dark ones (both validated >= 3:1 against their surface). The unfilled track is
@@ -44,6 +45,7 @@ const VoteShareBars = ({ nominees, showCounts }: { nominees: POTWNominee[]; show
         <ul className="space-y-3">
             {rows.map((n) => {
                 const pct = n.percent ?? 0;
+                const share = formatShare(pct);
                 const isActive = active === n.player_id;
                 return (
                     <li
@@ -53,7 +55,7 @@ const VoteShareBars = ({ nominees, showCounts }: { nominees: POTWNominee[]; show
                         onMouseLeave={() => setActive(null)}
                         onFocus={() => setActive(n.player_id)}
                         onBlur={() => setActive(null)}
-                        aria-label={`${n.name}: ${showCounts ? `${votesLabel(n.votes ?? 0)}, ` : ''}${pct}%${n.is_winner ? ', winner' : ''}`}
+                        aria-label={`${n.name}: ${showCounts ? `${votesLabel(n.votes ?? 0)}, ` : ''}${share}%${n.is_winner ? ', winner' : ''}`}
                         className="relative rounded-lg p-1 -m-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red"
                     >
                         <div className="flex items-center gap-2 mb-1.5 min-w-0">
@@ -65,7 +67,7 @@ const VoteShareBars = ({ nominees, showCounts }: { nominees: POTWNominee[]; show
                                     Winner
                                 </span>
                             )}
-                            <span className="ml-auto shrink-0 text-sm font-black text-gray-900 dark:text-white">{pct}%</span>
+                            <span className="ml-auto shrink-0 text-sm font-black text-gray-900 dark:text-white">{share}%</span>
                         </div>
                         <div className={`h-3 w-full rounded-full ${BAR_TRACK}`} aria-hidden="true">
                             <div
@@ -78,7 +80,7 @@ const VoteShareBars = ({ nominees, showCounts }: { nominees: POTWNominee[]; show
                                 role="tooltip"
                                 className="absolute right-0 -top-9 z-10 whitespace-nowrap rounded-lg bg-gray-900 dark:bg-gray-100 px-2.5 py-1.5 text-xs font-bold text-white dark:text-gray-900 shadow-lg"
                             >
-                                {n.name} · {showCounts ? `${votesLabel(n.votes ?? 0)} · ` : ''}{pct}%
+                                {n.name} · {showCounts ? `${votesLabel(n.votes ?? 0)} · ` : ''}{share}%
                             </div>
                         )}
                     </li>
@@ -175,7 +177,7 @@ export const POTWResults = ({ poll, title = 'Share of the vote', detailed = fals
                 ),
             },
             { header: 'Votes', accessor: 'votes', sortable: true, align: 'right', sortValue: (n) => n.votes ?? 0, cell: (n) => (n.votes ?? 0).toLocaleString() },
-            { header: 'Share', accessor: 'percent', sortable: true, align: 'right', sortValue: (n) => n.percent ?? 0, cell: (n) => `${n.percent ?? 0}%` },
+            { header: 'Share', accessor: 'percent', sortable: true, align: 'right', sortValue: (n) => n.percent ?? 0, cell: (n) => `${formatShare(n.percent)}%` },
             { header: 'TOTW rating', accessor: 'rating', sortable: true, align: 'right', cell: (n) => (n.rating ? n.rating.toFixed(1) : '—') },
         ],
         [],
@@ -223,7 +225,7 @@ export const POTWResults = ({ poll, title = 'Share of the vote', detailed = fals
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Player of the Week</p>
                     <p className="mt-1 text-lg font-black text-gray-900 dark:text-white truncate">{winner?.name || 'Not decided'}</p>
                     {winner?.percent !== undefined && !decidedByAdmin && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{winner.percent}% of the vote</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatShare(winner.percent)}% of the vote</p>
                     )}
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">

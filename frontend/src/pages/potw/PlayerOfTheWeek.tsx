@@ -23,7 +23,7 @@ import {
 import type { POTWNominee, POTWPoll, POTWPollSummary } from '../../types';
 import { useAuth } from '../../contexts';
 import { withReturnUrl } from '../../hooks';
-import { ConfirmDialog, ConfirmSummary, Button, ButtonLink, POTWCountdown, NomineeAvatar, POTWResults, ShareVote, VerifyEmailPrompt } from '../../components';
+import { ConfirmDialog, ConfirmSummary, Button, ButtonLink, POTWCountdown, NomineeAvatar, POTWResults, ShareVote, VerifyEmailPrompt, formatShare } from '../../components';
 
 const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -304,7 +304,7 @@ export const PlayerOfTheWeek = () => {
                                     <p className="text-sm text-gray-600 dark:text-gray-300">
                                         {poll.winner_source === 'ADMIN'
                                             ? 'Named by the league office.'
-                                            : `Chosen by fans with ${winner.percent ?? 0}% of the vote.`}{' '}
+                                            : `Chosen by fans with ${formatShare(winner.percent)}% of the vote.`}{' '}
                                         Voting closed {formatDateTime(poll.closes_at)}.
                                     </p>
                                 </div>

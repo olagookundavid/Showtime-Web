@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
+/** A vote share with one decimal place, so every share lines up: 24 -> "24.0", 29.2 -> "29.2". */
+export const formatShare = (percent: number | null | undefined): string => (percent ?? 0).toFixed(1);
+
 /** React Query key for an edition's fan vote in the admin. */
 export const potwPollQueryKey = (totwId: string) => ['adminPOTWPoll', totwId];
 
