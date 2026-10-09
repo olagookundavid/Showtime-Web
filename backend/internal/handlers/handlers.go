@@ -39,6 +39,7 @@ type Handlers struct {
 	BadgeHandler                transport.IBadgeHandler
 	TOTWHandler                 transport.ITOTWHandler
 	POTWHandler                 transport.IPOTWHandler
+	GamePassHandler             transport.IGamePassHandler
 	BroadcastHandler            broadcast.IBroadcastHandler
 }
 
@@ -77,6 +78,7 @@ func NewHandlers(
 	totwHandler transport.ITOTWHandler,
 	potwHandler transport.IPOTWHandler,
 	broadcastHandler broadcast.IBroadcastHandler,
+	gamePassHandler transport.IGamePassHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -113,5 +115,6 @@ func NewHandlers(
 		TOTWHandler:                 totwHandler,
 		POTWHandler:                 potwHandler,
 		BroadcastHandler:            broadcastHandler,
+		GamePassHandler:             gamePassHandler,
 	}
 }

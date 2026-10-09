@@ -46,6 +46,24 @@ var (
 	ErrDuplicateDiscountCode = errors.New("a discount code with that name already exists")
 )
 
+// Game Pass errors. Validation failures match ErrInvalidGamePassConfig so the
+// handler can answer 422, while the message stays the specific reason an admin
+// should read (e.g. which band a new one overlaps).
+var (
+	ErrInvalidGamePassConfig = errors.New("invalid game pass configuration")
+	ErrDuplicateSeasonTier   = errors.New("a season admission tier with that name already exists")
+)
+
+type gamePassConfigError struct{ msg string }
+
+func (e gamePassConfigError) Error() string { return e.msg }
+func (e gamePassConfigError) Unwrap() error { return ErrInvalidGamePassConfig }
+
+// InvalidGamePassConfig returns a validation error carrying msg verbatim.
+func InvalidGamePassConfig(format string, args ...any) error {
+	return gamePassConfigError{msg: fmt.Sprintf(format, args...)}
+}
+
 var (
 	ErrExampleNotFound  = errors.New("example not found")
 	ErrDuplicateExample = errors.New("example already exists")

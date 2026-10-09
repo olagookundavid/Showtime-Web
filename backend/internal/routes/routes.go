@@ -94,6 +94,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupClaimRoutes(v1_api, app)
 	SetupCommentRoutes(v1_api, app)
 	SetupDiscountRoutes(v1_api, app)
+	SetupGamePassRoutes(v1_api, app)
 	SetupFantasyRoutes(v1_api, app)
 	SetupTOTWRoutes(v1_api, app)
 	SetupBadgeRoutes(v1_api, app)
@@ -873,6 +874,35 @@ func SetupDiscountRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminDiscounts.POST("", app.Handlers.DiscountHandler.Create)
 		adminDiscounts.PUT("/:id", app.Handlers.DiscountHandler.Update)
 		adminDiscounts.DELETE("/:id", app.Handlers.DiscountHandler.Delete)
+	}
+}
+
+// SetupGamePassRoutes carries the Game Pass bundle product: the season rates
+// and discount bands buyers are priced from, and their admin management.
+func SetupGamePassRoutes(r *gin.RouterGroup, app *api.Application) {
+	// Public pricing inputs, active only, so the buyer page can preview a total.
+	// The preview is never trusted: checkout recomputes the price server side.
+	r.GET("/season-admission-tiers", app.Handlers.GamePassHandler.ListActiveSeasonTiers)
+	r.GET("/game-pass/discount-bands", app.Handlers.GamePassHandler.ListActiveDiscountBands)
+
+	adminSeasonTiers := r.Group("/admin/season-admission-tiers")
+	adminSeasonTiers.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "season_admission_tiers"))
+	{
+		adminSeasonTiers.GET("", app.Handlers.GamePassHandler.ListSeasonTiers)
+		adminSeasonTiers.POST("", app.Handlers.GamePassHandler.CreateSeasonTier)
+		adminSeasonTiers.PUT("/:id", app.Handlers.GamePassHandler.UpdateSeasonTier)
+		adminSeasonTiers.DELETE("/:id", app.Handlers.GamePassHandler.DeleteSeasonTier)
+	}
+
+	adminBands := r.Group("/admin/game-pass/discount-bands")
+	adminBands.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "game_pass_discounts"))
+	{
+		adminBands.GET("", app.Handlers.GamePassHandler.ListDiscountBands)
+		adminBands.GET("/:id", app.Handlers.GamePassHandler.GetDiscountBand)
+		adminBands.POST("", app.Handlers.GamePassHandler.CreateDiscountBand)
+		adminBands.PUT("/:id", app.Handlers.GamePassHandler.UpdateDiscountBand)
+		adminBands.PATCH("/:id/status", app.Handlers.GamePassHandler.SetDiscountBandStatus)
+		adminBands.DELETE("/:id", app.Handlers.GamePassHandler.DeleteDiscountBand)
 	}
 }
 

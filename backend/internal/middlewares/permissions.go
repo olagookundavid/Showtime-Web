@@ -120,6 +120,12 @@ var FeatureAccess = map[string]map[string]AccessLevel{
 		domain.RoleAdmin: AccessFull, domain.RoleTicketer: AccessFull,
 		domain.RoleStoreManager: AccessFull,
 	},
+	"season_admission_tiers": {
+		domain.RoleAdmin: AccessFull, domain.RoleTicketer: AccessFull,
+	},
+	"game_pass_discounts": {
+		domain.RoleAdmin: AccessFull, domain.RoleTicketer: AccessFull,
+	},
 	"event_days": {
 		domain.RoleAdmin: AccessFull, domain.RoleCommissioner: AccessFull,
 		domain.RoleNewsHead: AccessFull, domain.RoleContentCreator: AccessFull,
