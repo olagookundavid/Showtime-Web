@@ -2708,6 +2708,31 @@ export const fantasyApi = {
     }>(`/fantasy/season/${seasonId}/market`, { params });
     return res.data;
   },
+  /** Clubs and positions present in the season's market, for the filter chips. */
+  getMarketFilters: async (
+    seasonId: string,
+  ): Promise<{
+    teams: {
+      id: string;
+      name: string;
+      short_name: string;
+      logo: string;
+    }[];
+    positions: string[];
+  }> => {
+    const res = await api.get<{
+      data: {
+        teams: {
+          id: string;
+          name: string;
+          short_name: string;
+          logo: string;
+        }[];
+        positions: string[];
+      };
+    }>(`/fantasy/season/${seasonId}/market/filters`);
+    return res.data.data;
+  },
   getPlayerBreakdown: async (
     playerId: string,
     gwId: string,

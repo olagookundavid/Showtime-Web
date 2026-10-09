@@ -10,6 +10,7 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+	"showtime-backend/internal/richtext"
 	"strings"
 	"time"
 
@@ -32,19 +33,6 @@ type NewsService struct {
 
 func NewNewsService(newsRepo ports.NewsRepository, storage ports.StorageService) INewsService {
 	return &NewsService{repo: newsRepo, storage: storage}
-}
-
-// inlineImageTagRe matches the body tag [image:URL] / [image:URL|caption] used
-// to embed photos inside article content. Group 1 is the URL.
-var inlineImageTagRe = regexp.MustCompile(`\[image:([^|\]]+)`)
-
-// inlineImageURLs extracts every inline image URL referenced in article content.
-func inlineImageURLs(content string) map[string]struct{} {
-	urls := make(map[string]struct{})
-	for _, m := range inlineImageTagRe.FindAllStringSubmatch(content, -1) {
-		urls[m[1]] = struct{}{}
-	}
-	return urls
 }
 
 // scheduleImageDelete removes an object from storage in the background; used
@@ -218,8 +206,8 @@ func (s *NewsService) UpdateNews(ctx context.Context, id string, req dto.CreateN
 		}
 		// Inline body images dropped in this edit are no longer referenced anywhere
 		// (each upload is unique per article), so remove them from storage too.
-		newInline := inlineImageURLs(req.Content)
-		for url := range inlineImageURLs(existingNews.Content) {
+		newInline := richtext.ImageURLs(req.Content)
+		for url := range richtext.ImageURLs(existingNews.Content) {
 			if _, still := newInline[url]; !still && url != req.FeaturedImage {
 				s.scheduleImageDelete(url, "inline image removed from content")
 			}
@@ -254,7 +242,7 @@ func (s *NewsService) DeleteNews(ctx context.Context, id string) error {
 			if existing.FeaturedImage != "" {
 				s.scheduleImageDelete(existing.FeaturedImage, "article deleted")
 			}
-			for url := range inlineImageURLs(existing.Content) {
+			for url := range richtext.ImageURLs(existing.Content) {
 				if url != existing.FeaturedImage {
 					s.scheduleImageDelete(url, "article deleted (inline image)")
 				}

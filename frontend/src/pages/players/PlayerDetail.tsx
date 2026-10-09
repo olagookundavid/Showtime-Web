@@ -10,7 +10,7 @@ import {
   dropdownCompetitionsFor,
 } from "../../services/api";
 import type { PlayerBadge } from "../../types";
-import { Loader, Spinner, SeasonStageTabs, BackButton, BadgeImage, CrownIcon, SproutIcon, Button, Field, Select, Modal } from "../../components";
+import { Loader, Spinner, SeasonStageTabs, BackButton, BadgeImage, CrownIcon, SproutIcon, Button, Field, Select, Modal, RichContent } from "../../components";
 import { useSearchParams } from "react-router-dom";
 import { getStatsForPosition, formatStatNumber } from "../../utils";
 import {
@@ -301,9 +301,8 @@ export const PlayerDetail = () => {
             )}
             {player.bio && (
               <div className="mt-4 p-4 bg-black/20 dark:bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
-                <p className="text-xs md:text-lg text-gray-100 leading-relaxed italic">
-                  {player.bio}
-                </p>
+                {/* Always light-on-dark: the bio sits on the player hero. */}
+                <RichContent html={player.bio} variant="basic" className="prose-invert italic" />
               </div>
             )}
           </div>
@@ -607,9 +606,7 @@ export const PlayerDetail = () => {
                   {selectedBadge.category}
                 </span>
               )}
-              <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 max-w-sm mx-auto leading-relaxed">
-                {selectedBadge.description}
-              </p>
+              <RichContent html={selectedBadge.description} variant="basic" className="mt-2 max-w-sm mx-auto" />
               <div className="mt-4 px-4 py-1.5 rounded-full bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-black inline-flex items-center gap-1.5">
                 <StarIcon className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>

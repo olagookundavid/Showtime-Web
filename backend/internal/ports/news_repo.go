@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	"showtime-backend/internal/richtext"
 	"strconv"
 	"time"
 
@@ -32,15 +33,18 @@ func NewNewsRepository(db *pgxpool.Pool) NewsRepository {
 
 func (r *NewsPGRepository) Create(ctx context.Context, news *domain.News) error {
 	query := `
-		INSERT INTO news (title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at, is_hero_only, comments_enabled)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		INSERT INTO news (title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at, is_hero_only, comments_enabled, content_text)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	// Every article writer (news admin, TOTW stories, hero slides) lands here, so
+	// the body is cleaned once for all of them.
+	news.Content = richtext.SanitizeArticle(news.Content)
 	err := r.db.QueryRow(ctx, query,
-		news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.CreatedAt, news.UpdatedAt, news.IsHeroOnly, news.CommentsEnabled,
+		news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.CreatedAt, news.UpdatedAt, news.IsHeroOnly, news.CommentsEnabled, richtext.PlainText(news.Content),
 	).Scan(&news.ID)
 
 	if err != nil {
@@ -53,14 +57,15 @@ func (r *NewsPGRepository) Create(ctx context.Context, news *domain.News) error 
 func (r *NewsPGRepository) Update(ctx context.Context, news *domain.News) error {
 	query := `
 		UPDATE news
-		SET title = $2, slug = $3, excerpt = $4, content = $5, featured_image = $6, featured_media_type = $7, featured_youtube_url = $8, author = $9, category = $10, published_at = $11, updated_at = $12, comments_enabled = $13
+		SET title = $2, slug = $3, excerpt = $4, content = $5, featured_image = $6, featured_media_type = $7, featured_youtube_url = $8, author = $9, category = $10, published_at = $11, updated_at = $12, comments_enabled = $13, content_text = $14
 		WHERE id = $1
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	news.Content = richtext.SanitizeArticle(news.Content)
 	tag, err := r.db.Exec(ctx, query,
-		news.ID, news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.UpdatedAt, news.CommentsEnabled,
+		news.ID, news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.UpdatedAt, news.CommentsEnabled, richtext.PlainText(news.Content),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update news item: %w", err)
@@ -91,7 +96,7 @@ func (r *NewsPGRepository) FindAll(ctx context.Context, q dto.PaginationQuery) (
 		argCount++
 	}
 	if q.Search != "" {
-		baseQuery += ` AND (title ILIKE $` + strconv.Itoa(argCount) + ` OR content ILIKE $` + strconv.Itoa(argCount) + ` OR category ILIKE $` + strconv.Itoa(argCount) + ` OR author ILIKE $` + strconv.Itoa(argCount) + `)`
+		baseQuery += ` AND (title ILIKE $` + strconv.Itoa(argCount) + ` OR content_text ILIKE $` + strconv.Itoa(argCount) + ` OR category ILIKE $` + strconv.Itoa(argCount) + ` OR author ILIKE $` + strconv.Itoa(argCount) + `)`
 		args = append(args, "%"+q.Search+"%")
 		argCount++
 	}

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { AdminPOTWPanel, potwPollQueryKey, Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, FemaleIcon, MaleIcon, ImageUploadField, Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea, NewsContentEditor, DashboardPageHeader } from "../../components";
+import { AdminPOTWPanel, potwPollQueryKey, Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, FemaleIcon, MaleIcon, ImageUploadField, Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea, RichTextEditor, DashboardPageHeader } from "../../components";
 import {
   getAdminTOTWs,
   getAdminTOTWById,
@@ -24,7 +24,7 @@ import type {
   EventDayResponse,
   Competition,
 } from "../../types";
-import { getApiErrorMessage } from "../../utils";
+import { getApiErrorMessage, isRichTextEmpty } from "../../utils";
 import {
   PlusIcon,
   TrashIcon,
@@ -1166,7 +1166,7 @@ export const AdminTOTW = () => {
     const potwSlot = validSlots.find((s) => s.is_player_of_the_week);
 
     const newsArticlePayload: CreateNewsPayload | undefined =
-      storyTitle.trim() && storyContent.trim()
+      storyTitle.trim() && !isRichTextEmpty(storyContent)
         ? {
             title: storyTitle.trim(),
             excerpt: storyExcerpt.trim(),
@@ -2273,7 +2273,7 @@ export const AdminTOTW = () => {
                     <h3 className="text-base md:text-lg font-black italic tracking-tight text-sffl-navy dark:text-white">
                       Attached Editorial Story (Gameweek Breakdown)
                     </h3>
-                    {storyTitle.trim() && storyContent.trim() ? (
+                    {storyTitle.trim() && !isRichTextEmpty(storyContent) ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                         Story Attached
                       </span>
@@ -2389,12 +2389,12 @@ export const AdminTOTW = () => {
                 {/* Story Content Editor */}
                 <div>
                   <span className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
-                    Story Content (Tagged Markdown)
+                    Story Content
                   </span>
-                  <NewsContentEditor
+                  <RichTextEditor
+                    aria-label="Story content"
                     value={storyContent}
                     onChange={setStoryContent}
-                    rows={10}
                   />
                 </div>
               </div>

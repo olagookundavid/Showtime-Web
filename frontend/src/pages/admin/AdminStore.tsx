@@ -26,9 +26,9 @@ import {
     getAdminOrders,
 } from '../../services/api';
 import type { Order, StoreProduct, ProductImage, ProductOption } from '../../types';
-import { Loader, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea, DiscountCodesPanel, DashboardPageHeader } from '../../components';
+import { Loader, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, IconButton, Input, Modal, Select, RichTextEditor, DiscountCodesPanel, DashboardPageHeader } from '../../components';
 import { useImageUpload } from '../../hooks';
-import { getApiErrorMessage } from '../../utils';
+import { getApiErrorMessage, htmlToPlainText } from '../../utils';
 import { STANDARD_PRODUCT_TAGS } from '../../constants';
 
 type Tab = 'PRODUCTS' | 'ORDERS' | 'DISCOUNTS';
@@ -721,7 +721,7 @@ export const AdminStore = () => {
                                                             </div>
                                                         )}
                                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-8">
-                                                            {p.description || 'No description provided.'}
+                                                            {htmlToPlainText(p.description) || 'No description provided.'}
                                                         </p>
 
                                                         <div className="grid grid-cols-3 gap-2 mt-4 text-[10px] bg-gray-50 dark:bg-gray-900/40 p-2 rounded-xl border border-gray-100 dark:border-gray-700 text-center">
@@ -852,15 +852,14 @@ export const AdminStore = () => {
                                 <Field
                                     label="Description"
                                     htmlFor="store-product-description"
-                                    hint="Tip: leave a blank line between paragraphs to render with spacing on the product page."
+                                    hint="Use bold, lists and links to make it easy to scan. Shown on the product page."
                                 >
-                                    <Textarea
+                                    <RichTextEditor
                                         id="store-product-description"
-                                        rows={8}
+                                        variant="basic"
                                         value={formData.description}
-                                        onChange={e => setFormData(d => ({ ...d, description: e.target.value }))}
-                                        placeholder={'Describe the product. Leave a blank line between paragraphs.\n\nFabric · Fit · Care · What\'s in the box — anything a buyer wants to know.'}
-                                        className="leading-relaxed"
+                                        onChange={html => setFormData(d => ({ ...d, description: html }))}
+                                        placeholder="Describe the product: fabric, fit, care, what's in the box — anything a buyer wants to know."
                                     />
                                 </Field>
 

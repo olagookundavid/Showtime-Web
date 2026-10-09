@@ -91,6 +91,12 @@ type SquadPlayer struct {
 	// reserve can sit on a fantasy bench but cannot be started.
 	IsReserve bool `json:"is_reserve"`
 
+	// OwnedBy and SelectedByPct are the season-wide ownership of this player,
+	// the same figures the market shows, carried here so a squad member never
+	// depends on a paged market pull to display them.
+	OwnedBy       int     `json:"owned_by"`
+	SelectedByPct float64 `json:"selected_by_pct"`
+
 	// SellPrice is what this player would fetch right now.
 	SellPrice float64 `json:"sell_price"`
 	// CanSell is always true: the squad carries no restrictions. It is kept so

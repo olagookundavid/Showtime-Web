@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRightIcon, PlusIcon } from "@heroicons/react/24/outline";
 import type { StoreProduct } from "../../types";
-import { getAvailableStock } from "../../utils";
+import { getAvailableStock, htmlToPlainText } from "../../utils";
 import { Button } from "../ui";
 import { LazyImage } from "../ui/LazyImage";
 
@@ -108,7 +108,7 @@ export const ProductCard = ({ product, onQuickView }: Props) => {
           </Link>
         </h3>
         <p className="line-clamp-1 text-xs text-gray-500 dark:text-gray-400">
-          {product.description || "Official Showtime Flag Football merchandise."}
+          {htmlToPlainText(product.description) || "Official Showtime Flag Football merchandise."}
         </p>
         <div className="mt-auto flex items-center justify-between gap-3 pt-2">
           <span className="text-sm font-black text-sffl-navy dark:text-white">

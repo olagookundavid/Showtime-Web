@@ -11,7 +11,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Button, Field, ImageUploadField, Input, LightboxImage, Modal, Select, Textarea, isDeletedPlayer, DeletedPlayerName, deletedRowClass, DashboardPageHeader } from "../../components";
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Button, Field, ImageUploadField, Input, LightboxImage, Modal, Select, RichTextEditor, isDeletedPlayer, DeletedPlayerName, deletedRowClass, DashboardPageHeader } from "../../components";
 import {
   getPlayers,
   getTeams,
@@ -805,12 +805,12 @@ export const AdminPlayers = () => {
                 />
               </Field>
               <Field label="Bio" htmlFor="player-bio">
-                <Textarea
+                <RichTextEditor
                   id="player-bio"
+                  variant="basic"
                   value={form.bio}
-                  onChange={(e) => set("bio", e.target.value)}
-                  rows={3}
-                  placeholder="Player bio..."
+                  onChange={(html) => set("bio", html)}
+                  placeholder="A short bio: playing style, career highlights, fun facts."
                 />
               </Field>
               <div>

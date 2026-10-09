@@ -11,6 +11,7 @@ import (
 	"showtime-backend/internal/dto"
 	"pkg-common/logger"
 	"showtime-backend/internal/ports"
+	"showtime-backend/internal/richtext"
 	"showtime-backend/pkg/email"
 	"strings"
 
@@ -931,7 +932,7 @@ func (s *StoreService) CreateStoreProduct(ctx context.Context, createdBy string,
 	p := domain.Product{
 		Name:        req.Name,
 		SKU:         sku,
-		Description: req.Description,
+		Description: richtext.SanitizeBasic(req.Description),
 		Price:       req.Price,
 		Quantity:    req.Quantity,
 		Threshold:   req.Threshold,
@@ -970,7 +971,7 @@ func (s *StoreService) UpdateStoreProduct(ctx context.Context, id string, req dt
 		ID:          id,
 		Name:        req.Name,
 		SKU:         sku,
-		Description: req.Description,
+		Description: richtext.SanitizeBasic(req.Description),
 		Price:       req.Price,
 		Quantity:    req.Quantity,
 		Threshold:   req.Threshold,

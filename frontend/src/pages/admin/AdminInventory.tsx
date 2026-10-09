@@ -24,7 +24,7 @@ import {
     toggleAdminPaymentMethod,
 } from '../../services/api';
 import type { InventoryProduct, InventorySale, PaymentMethod } from '../../types';
-import { Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, Input, Modal, Select, Textarea, DashboardPageHeader } from '../../components';
+import { Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, Input, Modal, Select, RichTextEditor, DashboardPageHeader } from '../../components';
 import { getApiErrorMessage } from '../../utils';
 
 type Tab = 'PRODUCTS' | 'SALES' | 'REPORTS' | 'SETTINGS';
@@ -671,11 +671,11 @@ export const AdminInventory = () => {
                                 </Field>
 
                                 <Field label="Description" htmlFor="product-description">
-                                    <Textarea
+                                    <RichTextEditor
                                         id="product-description"
+                                        variant="basic"
                                         value={formData.description}
-                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                        rows={2}
+                                        onChange={html => setFormData(d => ({ ...d, description: html }))}
                                     />
                                 </Field>
 

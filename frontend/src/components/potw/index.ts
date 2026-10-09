@@ -4,6 +4,7 @@ export { NomineeAvatar, POTWResults } from './POTWResults';
 export { ShareVote } from './ShareVote';
 export {
   potwPollQueryKey,
+  formatShare,
   useNow,
   useServerCountdown,
   splitDuration,

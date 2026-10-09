@@ -271,37 +271,26 @@ export function FantasySquadBuilder() {
     queryClient.invalidateQueries({ queryKey: ["fantasyLineup"] });
   };
 
-  // Every club with a player on the market this season, for the team filter
-  // chip in the pickers below. A wide, unfiltered pull rather than a
-  // dedicated endpoint — the market list already carries the club on every
-  // row, so this reuses it instead of adding a new one.
-  const { data: allMarketPlayers } = useQuery({
-    queryKey: ["playerMarketAllTeams", season?.id],
-    queryFn: () => fantasyApi.listPlayerMarket(season!.id, { limit: 500 }),
+  // Clubs and positions on this season's market, for the filter chips. Served
+  // by its own endpoint so it never depends on paging the whole player list.
+  const { data: marketFilters } = useQuery({
+    queryKey: ["playerMarketFilters", season?.id],
+    queryFn: () => fantasyApi.getMarketFilters(season!.id),
     enabled: !!season?.id,
     staleTime: 5 * 60 * 1000,
   });
-  const marketTeams = useMemo(() => {
-    const byId = new Map<string, { id: string; name: string }>();
-    for (const p of allMarketPlayers?.data ?? []) {
-      if (p.team_id && !byId.has(p.team_id)) {
-        byId.set(p.team_id, {
-          id: p.team_id,
-          name: p.team_short_name || p.team_name || "—",
-        });
-      }
-    }
-    return Array.from(byId.values()).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  }, [allMarketPlayers]);
-  const marketPositions = useMemo(() => {
-    const positions = new Set<string>();
-    for (const p of allMarketPlayers?.data ?? []) {
-      if (p.position) positions.add(p.position);
-    }
-    return Array.from(positions).sort();
-  }, [allMarketPlayers]);
+  const marketTeams = useMemo(
+    () =>
+      (marketFilters?.teams ?? []).map((t) => ({
+        id: t.id,
+        name: t.short_name || t.name || "—",
+      })),
+    [marketFilters],
+  );
+  const marketPositions = useMemo(
+    () => marketFilters?.positions ?? [],
+    [marketFilters],
+  );
 
   // Player metadata cache ensuring photos and team info are never dropped across transfers/bench
   const playerMetadataLookup = useMemo(() => {
@@ -312,18 +301,10 @@ export function FantasySquadBuilder() {
         team_name: string;
         team_short_name: string;
         team_logo: string;
+        owned_by: number;
+        selected_by_pct: number;
       }
     >();
-    for (const p of allMarketPlayers?.data ?? []) {
-      if (p.player_id) {
-        map.set(p.player_id, {
-          image: p.player_image || "",
-          team_name: p.team_name || "",
-          team_short_name: p.team_short_name || "",
-          team_logo: p.team_logo || "",
-        });
-      }
-    }
     for (const p of mySquad?.players ?? []) {
       if (p.player_id) {
         const existing = map.get(p.player_id);
@@ -332,6 +313,8 @@ export function FantasySquadBuilder() {
           team_name: p.club_name || existing?.team_name || "",
           team_short_name: p.club_short_name || existing?.team_short_name || "",
           team_logo: p.club_logo || existing?.team_logo || "",
+          owned_by: p.owned_by ?? existing?.owned_by ?? 0,
+          selected_by_pct: p.selected_by_pct ?? existing?.selected_by_pct ?? 0,
         });
       }
     }
@@ -343,11 +326,13 @@ export function FantasySquadBuilder() {
           team_name: p.team_name || existing?.team_name || "",
           team_short_name: p.team_short_name || existing?.team_short_name || "",
           team_logo: p.team_logo || existing?.team_logo || "",
+          owned_by: existing?.owned_by ?? 0,
+          selected_by_pct: existing?.selected_by_pct ?? 0,
         });
       }
     }
     return map;
-  }, [allMarketPlayers, mySquad, currentLineup]);
+  }, [mySquad, currentLineup]);
 
   // Local squad state: slot -> FantasyPlayerListItem
   const [squad, setSquad] =
@@ -492,8 +477,8 @@ export function FantasySquadBuilder() {
             price: p.purchase_price || 0,
             rating: 5,
             total_points: p.points || 0,
-            owned_by: 0,
-            selected_by_pct: 0,
+            owned_by: meta?.owned_by ?? 0,
+            selected_by_pct: meta?.selected_by_pct ?? 0,
             transfers_in: 0,
             transfers_out: 0,
           };
@@ -662,10 +647,6 @@ export function FantasySquadBuilder() {
       }
     }
     // 4. Check market players (all market cache, or current filtered page)
-    const amp = allMarketPlayers?.data?.find((p) => p.player_id === id);
-    if (amp) {
-      return { name: amp.player_name };
-    }
     const mp = marketData?.data?.find((p) => p.player_id === id);
     if (mp) {
       return { name: mp.player_name };
@@ -1642,8 +1623,8 @@ export function FantasySquadBuilder() {
       price: reservePlayer.purchase_price,
       rating: 0,
       total_points: 0,
-      owned_by: 0,
-      selected_by_pct: 0,
+      owned_by: meta?.owned_by ?? 0,
+      selected_by_pct: meta?.selected_by_pct ?? 0,
       transfers_in: 0,
       transfers_out: 0,
     };
@@ -1671,8 +1652,8 @@ export function FantasySquadBuilder() {
       price: r.purchase_price,
       rating: 0,
       total_points: 0,
-      owned_by: 0,
-      selected_by_pct: 0,
+      owned_by: meta?.owned_by ?? 0,
+      selected_by_pct: meta?.selected_by_pct ?? 0,
       transfers_in: 0,
       transfers_out: 0,
     };
@@ -2914,8 +2895,12 @@ export function FantasySquadBuilder() {
                                 price: p.purchase_price,
                                 rating: 0,
                                 total_points: 0,
-                                owned_by: 0,
-                                selected_by_pct: 0,
+                                owned_by:
+                                  playerMetadataLookup.get(p.player_id)
+                                    ?.owned_by ?? 0,
+                                selected_by_pct:
+                                  playerMetadataLookup.get(p.player_id)
+                                    ?.selected_by_pct ?? 0,
                                 transfers_in: 0,
                                 transfers_out: 0,
                               })

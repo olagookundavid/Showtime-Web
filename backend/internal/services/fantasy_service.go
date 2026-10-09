@@ -44,6 +44,7 @@ type IFantasyService interface {
 	ListSeasons(ctx context.Context, page, limit int) ([]dto.FantasySeasonResponse, int, error)
 	GetGameweeks(ctx context.Context, seasonID string) ([]dto.GameweekResponse, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
+	ListMarketFilters(ctx context.Context, seasonID string) (*dto.MarketFiltersResponse, error)
 	EnterSeason(ctx context.Context, userID, seasonID string, req dto.EnterSeasonRequest) (*dto.DashboardTeam, error)
 	GetDashboard(ctx context.Context, userID, seasonID string) (*dto.FantasyDashboardResponse, error)
 	SaveLineup(ctx context.Context, userID string, req dto.SaveLineupRequest) (*dto.FantasyLineupResponse, error)
@@ -840,6 +841,10 @@ func (s *FantasyService) GetGameweeks(ctx context.Context, seasonID string) ([]d
 		res = append(res, *gameweekResponse(&list[i], nil))
 	}
 	return res, nil
+}
+
+func (s *FantasyService) ListMarketFilters(ctx context.Context, seasonID string) (*dto.MarketFiltersResponse, error) {
+	return s.repo.ListMarketFilters(ctx, seasonID)
 }
 
 func (s *FantasyService) ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error) {

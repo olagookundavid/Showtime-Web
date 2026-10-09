@@ -99,11 +99,8 @@ func (s *POTWService) ListPublicPolls(ctx context.Context) ([]dto.POTWPollSummar
 	now := s.now()
 	out := make([]dto.POTWPollSummary, len(polls))
 	for i, p := range polls {
-		// Vote totals stay hidden while voting runs (no bandwagon effect).
-		total := 0
-		if p.Status(now) == domain.POTWPollClosed {
-			total = p.TotalVotes
-		}
+		// The public never sees vote counts, only percentage shares after the
+		// deadline (see mapPoll), so the archive carries no totals.
 		out[i] = dto.POTWPollSummary{
 			ID:              p.ID,
 			TOTWID:          p.TOTWID,
@@ -112,7 +109,6 @@ func (s *POTWService) ListPublicPolls(ctx context.Context) ([]dto.POTWPollSummar
 			Status:          p.Status(now),
 			OpensAt:         p.OpensAt,
 			ClosesAt:        p.ClosesAt,
-			TotalVotes:      total,
 			WinnerPlayerID:  p.WinnerPlayerID,
 			WinnerSource:    p.WinnerSource,
 		}
@@ -162,7 +158,7 @@ func (s *POTWService) publicResponse(ctx context.Context, poll *domain.POTWPoll,
 	if err != nil {
 		return nil, err
 	}
-	resp := s.mapPoll(poll, poll.Status(s.now()) == domain.POTWPollClosed)
+	resp := s.mapPoll(poll, poll.Status(s.now()) == domain.POTWPollClosed, false)
 	if userID != "" {
 		if vote, err := s.repo.GetUserVote(ctx, poll.ID, userID); err == nil {
 			resp.MyVote = vote
@@ -185,7 +181,7 @@ func (s *POTWService) GetAdminPoll(ctx context.Context, totwID string) (*dto.POT
 	if poll, err = s.finalizeIfDue(ctx, poll); err != nil {
 		return nil, err
 	}
-	return s.mapPoll(poll, true), nil
+	return s.mapPoll(poll, true, true), nil
 }
 
 // SavePoll creates the edition's poll or changes it. Nominees must come from the
@@ -458,11 +454,13 @@ func (s *POTWService) syncBadges(ctx context.Context, totwID string) {
 
 // ── Mapping & helpers ───────────────────────────────────────────────────────
 
-func (s *POTWService) mapPoll(p *domain.POTWPoll, showResults bool) *dto.POTWPollResponse {
-	// While voting runs the public sees no counts at all — not even the total —
-	// so early numbers can't sway later voters. Admins (showResults) see them live.
+// mapPoll shapes a poll for the response. showResults reveals each nominee's
+// share and the winner (after the deadline, or always for admins). withCounts
+// adds the raw numbers — per-nominee votes, the total and votes per day — which
+// only admins get: fans see percentage shares only, never how many voted.
+func (s *POTWService) mapPoll(p *domain.POTWPoll, showResults, withCounts bool) *dto.POTWPollResponse {
 	totalVotes := 0
-	if showResults {
+	if withCounts {
 		totalVotes = p.TotalVotes
 	}
 	resp := &dto.POTWPollResponse{
@@ -490,7 +488,7 @@ func (s *POTWService) mapPoll(p *domain.POTWPoll, showResults bool) *dto.POTWPol
 		resp.WinnerPlayerID = p.WinnerPlayerID
 		resp.WinnerSource = p.WinnerSource
 	}
-	if showResults {
+	if withCounts {
 		for _, d := range p.VotesByDay {
 			resp.VotesByDay = append(resp.VotesByDay, dto.POTWDayCountResponse{Day: d.Day, Votes: d.Votes})
 		}
@@ -516,13 +514,15 @@ func (s *POTWService) mapPoll(p *domain.POTWPoll, showResults bool) *dto.POTWPol
 			Stat3Label:   n.Stat3Label,
 		}
 		if showResults {
-			votes := n.Votes
 			pct := 0.0
 			if p.TotalVotes > 0 {
 				pct = math.Round(float64(n.Votes)*1000/float64(p.TotalVotes)) / 10
 			}
-			nr.Votes = &votes
 			nr.Percent = &pct
+			if withCounts {
+				votes := n.Votes
+				nr.Votes = &votes
+			}
 		}
 		nr.IsWinner = resp.WinnerPlayerID != nil && *resp.WinnerPlayerID == n.PlayerID
 		resp.Nominees[i] = nr

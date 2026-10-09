@@ -357,6 +357,65 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 		}
 	})
 
+	t.Run("market filters list exactly the clubs and positions the market lists", func(t *testing.T) {
+		inactiveClubID := mustScan(t, f.pool,
+			`INSERT INTO teams (name, short_name, status) VALUES ('Filter Inactive Club', 'FIC', 'inactive') RETURNING id`)
+		inactivePlayerID := mustScan(t, f.pool,
+			`INSERT INTO players (name, position, gender, team_id) VALUES ('Filter Inactive Player', 'Rusher', 'M', $1) RETURNING id`,
+			inactiveClubID)
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, price) VALUES ($1, $2, NULL, 10.00)`,
+			f.seasonID, inactivePlayerID)
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx, `DELETE FROM fantasy_player_prices WHERE player_id = $1`, inactivePlayerID)
+			_, _ = f.pool.Exec(ctx, `DELETE FROM players WHERE id = $1`, inactivePlayerID)
+			_, _ = f.pool.Exec(ctx, `DELETE FROM teams WHERE id = $1`, inactiveClubID)
+		})
+
+		filters, err := repo.ListMarketFilters(ctx, f.seasonID)
+		if err != nil {
+			t.Fatalf("ListMarketFilters: %v", err)
+		}
+		// Every club on the market page must be offered as a chip, and no more.
+		list, _, err := repo.ListPlayerMarket(ctx, f.seasonID, nil, "", "", "", "", 1, 200)
+		if err != nil {
+			t.Fatalf("ListPlayerMarket: %v", err)
+		}
+		wantTeams := map[string]bool{}
+		wantPos := map[string]bool{}
+		for _, p := range list {
+			wantTeams[p.TeamID] = true
+			wantPos[p.Position] = true
+		}
+		gotTeams := map[string]bool{}
+		for _, tm := range filters.Teams {
+			if tm.ID == inactiveClubID {
+				t.Errorf("inactive club offered as a filter")
+			}
+			gotTeams[tm.ID] = true
+		}
+		for id := range wantTeams {
+			if !gotTeams[id] {
+				t.Errorf("club %s is on the market but missing from the filters", id)
+			}
+		}
+		if len(gotTeams) != len(wantTeams) {
+			t.Errorf("filters list %d clubs, market has %d", len(gotTeams), len(wantTeams))
+		}
+		gotPos := map[string]bool{}
+		for _, p := range filters.Positions {
+			gotPos[p] = true
+		}
+		if gotPos["Rusher"] && !wantPos["Rusher"] {
+			t.Errorf("a position only held by an inactive club was offered")
+		}
+		for p := range wantPos {
+			if !gotPos[p] {
+				t.Errorf("position %q is on the market but missing from the filters", p)
+			}
+		}
+	})
+
 	t.Run("excludes inactive team players from player market, lineup candidates, and purchase", func(t *testing.T) {
 		inactiveClubID := mustScan(t, f.pool,
 			`INSERT INTO teams (name, short_name, status) VALUES ('Inactive Club', 'INC', 'inactive') RETURNING id`)
@@ -1076,7 +1135,39 @@ func TestPartialLineupsAreNeverLocked(t *testing.T) {
 		 VALUES ($1, $2, 140.00, 'DRAFT') RETURNING id`,
 		draftTeamID, f.gameweekID)
 
+	// LockLineupsForGameweek only promotes a DRAFT that really holds 14 picks
+	// (anything smaller is demoted to PARTIAL), so the "complete" sheet needs a
+	// full set. The partial one keeps a handful, as a half-finished save would.
+	slots := []string{
+		"QB_M", "QB_F", "REC_1", "REC_2", "REC_3", "REC_4", "REC_5",
+		"RUSHER", "DEF_1", "DEF_2", "DEF_3", "DEF_4", "DEF_5", "DEF_6",
+	}
+	pickPlayerIDs := make([]string, 0, len(slots))
+	for i, slot := range slots {
+		playerID := mustScan(t, f.pool,
+			`INSERT INTO players (name, position, gender, team_id)
+			 VALUES ($1, 'Receiver', 'M', (SELECT team_id FROM players WHERE id = $2)) RETURNING id`,
+			fmt.Sprintf("ITest Pick %d", i), f.playerID)
+		pickPlayerIDs = append(pickPlayerIDs, playerID)
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_lineup_picks (lineup_id, player_id, slot, purchase_price)
+			 VALUES ($1, $2, $3, 10.00)`, draftLineupID, playerID, slot)
+		if i < 3 {
+			mustExec(t, f.pool,
+				`INSERT INTO fantasy_lineup_picks (lineup_id, player_id, slot, purchase_price)
+				 VALUES ($1, $2, $3, 10.00)`, partialLineupID, playerID, slot)
+		}
+	}
+
 	t.Cleanup(func() {
+		// Picks go with their lineups (cascade) once the teams are removed.
+		defer func() {
+			for _, id := range pickPlayerIDs {
+				if _, err := f.pool.Exec(ctx, `DELETE FROM players WHERE id = $1`, id); err != nil {
+					t.Logf("cleanup: could not remove player %s: %v", id, err)
+				}
+			}
+		}()
 		// Teams first, then the managers they belong to.
 		for _, id := range []string{partialTeamID, draftTeamID} {
 			if _, err := f.pool.Exec(ctx, `DELETE FROM fantasy_teams WHERE id = $1`, id); err != nil {

@@ -34,10 +34,16 @@ export {
   parseYouTubeId,
   youTubeEmbedUrl,
   youTubeThumbnailUrl,
-  parseNewsContent,
-  parseInlineMentions,
 } from './newsContent';
-export type { NewsSegment, InlinePart, NewsRefData } from './newsContent';
+export type { NewsRefData } from './newsContent';
+export {
+  looksLikeHtml,
+  plainTextToHtml,
+  toEditorHtml,
+  htmlToPlainText,
+  isRichTextEmpty,
+  readingTime,
+} from './richText';
 export { cupStageOf } from './cupStage';
 export {
   isStaleBuildError,

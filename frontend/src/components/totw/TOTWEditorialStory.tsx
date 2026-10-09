@@ -8,10 +8,10 @@ import {
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 import type { TeamOfTheWeek } from "../../types";
-import { NewsContent } from "../news/NewsContent";
-import { YouTubeEmbed } from "../news/YouTubeEmbed";
+import { YouTubeEmbed } from "../news";
+import { RichContent } from "../richtext";
 import { Button, LightboxImage } from "../ui";
-import { parseYouTubeId } from "../../utils";
+import { parseYouTubeId, readingTime } from "../../utils";
 
 interface TOTWEditorialStoryProps {
   totw: TeamOfTheWeek;
@@ -37,13 +37,6 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
     } catch {
       return dateString;
     }
-  };
-
-  const readingTime = (content?: string) => {
-    if (!content) return "1 min read";
-    const words = content.trim().split(/\s+/).length;
-    const mins = Math.max(1, Math.ceil(words / 200));
-    return `${mins} min read`;
   };
 
   const heroVideoId =
@@ -150,9 +143,7 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
           ) : null}
 
           {/* Editorial Body Content */}
-          <div className="max-w-4xl text-gray-800 dark:text-gray-200 text-base md:text-lg leading-relaxed space-y-5">
-            <NewsContent content={news.content} />
-          </div>
+          <RichContent html={news.content} className="max-w-4xl" />
         </article>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 p-8 sm:p-12 text-center space-y-4 shadow-sm">

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -66,6 +67,7 @@ type IFantasyRepository interface {
 	OverridePlayerPrice(ctx context.Context, seasonID, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error)
 	GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
+	ListMarketFilters(ctx context.Context, seasonID string) (*dto.MarketFiltersResponse, error)
 	// GetSeasonRatingLines aggregates every rateable player's season-to-date
 	// stat totals for a competition, so prices can be recomputed from ratings.
 	GetSeasonRatingLines(ctx context.Context, competitionID string) ([]PlayerRatingLine, error)
@@ -794,6 +796,35 @@ func (r *FantasyRepository) BulkUpsertPlayerPrices(ctx context.Context, prices [
 	return tx.Commit(ctx)
 }
 
+// marketPoolWhere is the eligibility rule for the transfer market, shared by
+// the player list and the filter options so a club or position chip can never
+// offer a filter that lists nobody. Expects the aliases p (players), t (teams)
+// and $1 as the season id.
+const marketPoolWhere = `
+		WHERE p.team_id IS NOT NULL
+		  AND COALESCE(t.status, 'active') = 'active'
+		  -- Deactivated players (migration 088) keep their history but cannot be
+		  -- signed, picked or fielded again.
+		  AND COALESCE(p.status, 'active') = 'active'
+		  -- Exclude reserve squad players (migration 087): only main squad players
+		  -- are active and eligible to be bought on the fantasy transfer market.
+		  AND NOT EXISTS (
+		      SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id
+		  )
+		  AND (
+		      NOT EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          JOIN fantasy_seasons fs ON fs.id = $1
+		          WHERE ct.competition_id = fs.competition_id
+		      )
+		      OR EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          JOIN fantasy_seasons fs ON fs.id = $1
+		          WHERE ct.competition_id = fs.competition_id AND ct.team_id = t.id
+		      )
+		  )
+`
+
 // ListPlayerMarket returns the selectable player pool. positions filters on the
 // rating categories a slot accepts (a receiver slot passes both "Receiver" and
 // "Center"); gender narrows to the gender-locked QB slots. Both filters run in
@@ -838,29 +869,7 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 			WHERE ft.season_id = $1
 			GROUP BY sp.player_id
 		) sel ON sel.player_id = p.id
-		WHERE p.team_id IS NOT NULL
-		  AND COALESCE(t.status, 'active') = 'active'
-		  -- Deactivated players (migration 088) keep their history but cannot be
-		  -- signed, picked or fielded again.
-		  AND COALESCE(p.status, 'active') = 'active'
-		  -- Exclude reserve squad players (migration 087): only main squad players
-		  -- are active and eligible to be bought on the fantasy transfer market.
-		  AND NOT EXISTS (
-		      SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id
-		  )
-		  AND (
-		      NOT EXISTS (
-		          SELECT 1 FROM competition_teams ct
-		          JOIN fantasy_seasons fs ON fs.id = $1
-		          WHERE ct.competition_id = fs.competition_id
-		      )
-		      OR EXISTS (
-		          SELECT 1 FROM competition_teams ct
-		          JOIN fantasy_seasons fs ON fs.id = $1
-		          WHERE ct.competition_id = fs.competition_id AND ct.team_id = t.id
-		      )
-		  )
-	`
+	` + marketPoolWhere
 	args := []interface{}{seasonID}
 	argIdx := 2
 
@@ -3151,3 +3160,61 @@ func BuildDreamTeamForTest(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLin
 	return buildDreamTeam(scorers)
 }
 
+
+// ListMarketFilters returns the clubs and positions present in the season's
+// market pool, so the picker's filter chips do not depend on paging through
+// the whole player list.
+func (r *FantasyRepository) ListMarketFilters(ctx context.Context, seasonID string) (*dto.MarketFiltersResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT t.id::text, COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       COALESCE(p.position, '')
+		FROM players p
+		JOIN teams t ON p.team_id = t.id
+		JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL AND fpp.price > 0
+	`+marketPoolWhere, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query market filters: %w", err)
+	}
+	defer rows.Close()
+
+	resp := &dto.MarketFiltersResponse{Teams: []dto.MarketFilterTeam{}, Positions: []string{}}
+	seenTeam := map[string]bool{}
+	seenPos := map[string]bool{}
+	for rows.Next() {
+		var t dto.MarketFilterTeam
+		var pos string
+		if err := rows.Scan(&t.ID, &t.Name, &t.ShortName, &t.Logo, &pos); err != nil {
+			return nil, err
+		}
+		if !seenTeam[t.ID] {
+			seenTeam[t.ID] = true
+			resp.Teams = append(resp.Teams, t)
+		}
+		if pos != "" && !seenPos[pos] {
+			seenPos[pos] = true
+			resp.Positions = append(resp.Positions, pos)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(resp.Teams, func(i, j int) bool {
+		a, b := resp.Teams[i], resp.Teams[j]
+		an, bn := a.ShortName, b.ShortName
+		if an == "" {
+			an = a.Name
+		}
+		if bn == "" {
+			bn = b.Name
+		}
+		if an != bn {
+			return an < bn
+		}
+		return a.ID < b.ID
+	})
+	sort.Strings(resp.Positions)
+	return resp, nil
+}

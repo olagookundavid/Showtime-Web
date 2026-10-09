@@ -13,6 +13,7 @@ import {
 import { getStoreProducts } from "../../services/api";
 import type { StoreProduct } from "../../types";
 import { Button, Input, Select, ProductCard, QuickViewModal, StoreHeroCarousel } from "../../components";
+import { htmlToPlainText } from "../../utils";
 import { STANDARD_PRODUCT_TAGS } from "../../constants";
 
 type SortOption = "featured" | "newest" | "price-asc" | "price-desc";
@@ -56,8 +57,7 @@ export const Store = () => {
       const matchesSearch =
         !query ||
         product.name.toLowerCase().includes(query) ||
-        (product.description &&
-          product.description.toLowerCase().includes(query));
+        htmlToPlainText(product.description).toLowerCase().includes(query);
 
       if (!matchesSearch) return false;
       if (selectedTag === "All") return true;
