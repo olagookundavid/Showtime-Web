@@ -433,6 +433,40 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
               </div>
             </div>
 
+            {/* Quick Score Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-wrap justify-center gap-2">
+                {[6, 7, 8, 9].map((points) => (
+                  <Button
+                    key={points}
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateScore(state.manual_home + points, state.manual_away)
+                    }
+                    aria-label={`Add ${points} to ${state.home} score`}
+                  >
+                    +{points}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[6, 7, 8, 9].map((points) => (
+                  <Button
+                    key={points}
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateScore(state.manual_home, state.manual_away + points)
+                    }
+                    aria-label={`Add ${points} to ${state.away} score`}
+                  >
+                    +{points}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             {/* Score Alignment Notice (Staff Only) */}
             {!manualOnly && (
               <div
