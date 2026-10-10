@@ -45,6 +45,27 @@ func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playServ
 // or bootstraps a fresh one from the match data.
 func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*BroadcastState, error) {
 	if state, ok := h.hub.LoadState(c.Request.Context(), matchID); ok {
+		// HomeShort/AwayShort is always non-empty once set (it falls back to the
+		// full name), so empty here means this state was bootstrapped before
+		// those fields existed. Backfill it from match data so older on-air
+		// matches pick up short names without needing a fresh bootstrap.
+		if state.HomeShort == "" && state.AwayShort == "" {
+			if detail, err := h.matchService.GetMatchDetail(c.Request.Context(), matchID); err == nil {
+				if detail.Match.HomeTeam != nil {
+					state.HomeShort = detail.Match.HomeTeam.ShortName
+					if state.HomeShort == "" {
+						state.HomeShort = state.Home
+					}
+				}
+				if detail.Match.AwayTeam != nil {
+					state.AwayShort = detail.Match.AwayTeam.ShortName
+					if state.AwayShort == "" {
+						state.AwayShort = state.Away
+					}
+				}
+				h.hub.SetState(state)
+			}
+		}
 		return state, nil
 	}
 
@@ -56,14 +77,24 @@ func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*Br
 
 	homeName := "HOME"
 	awayName := "AWAY"
+	homeShort := "HOME"
+	awayShort := "AWAY"
 	homeLogo := ""
 	awayLogo := ""
 	if matchDetail.Match.HomeTeam != nil {
 		homeName = matchDetail.Match.HomeTeam.Name
+		homeShort = matchDetail.Match.HomeTeam.ShortName
+		if homeShort == "" {
+			homeShort = homeName
+		}
 		homeLogo = matchDetail.Match.HomeTeam.Logo
 	}
 	if matchDetail.Match.AwayTeam != nil {
 		awayName = matchDetail.Match.AwayTeam.Name
+		awayShort = matchDetail.Match.AwayTeam.ShortName
+		if awayShort == "" {
+			awayShort = awayName
+		}
 		awayLogo = matchDetail.Match.AwayTeam.Logo
 	}
 
@@ -92,6 +123,8 @@ func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*Br
 		MatchID:      matchID,
 		Home:         homeName,
 		Away:         awayName,
+		HomeShort:    homeShort,
+		AwayShort:    awayShort,
 		HomeLogo:     homeLogo,
 		AwayLogo:     awayLogo,
 		ManualHome:   pbpHome,

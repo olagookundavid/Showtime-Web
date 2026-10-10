@@ -10,8 +10,9 @@ import {
 import { fitTeamName } from "../utils";
 import "./BroadcastOverlay.css";
 
-// Inner width of a scorebug team box: 204px less 15px padding each side.
-const TEAM_NAME_WIDTH = 174;
+// Inner width of a scorebug team box: 180px less 15px padding each side,
+// less the crest (64px) and the gap next to it (10px).
+const TEAM_NAME_WIDTH = 76;
 
 /** A club name sized (and if needed split over two lines) to show in full. */
 function TeamName({ name }: { name: string }) {
@@ -122,6 +123,9 @@ export function BroadcastOverlay() {
     ? `${["1ST", "2ND", "3RD", "4TH"][parseInt(state.down[0], 10) - 1] || "—"} & GOAL`
     : `${["1ST", "2ND", "3RD", "4TH"][parseInt(state.down, 10) - 1] || "—"} DOWN`;
 
+  // The down & ball pills float to whichever side currently has possession.
+  const homeHasBall = state.possession === state.home;
+
   const initials = activeGraphic?.player
     ? activeGraphic.player
         .split(" ")
@@ -144,15 +148,12 @@ export function BroadcastOverlay() {
       {showScorebug && (
         <div className={`scorebug-container ${!state.scorebug ? "off" : ""}`}>
           <div className="scorebug-main">
-            {/* Showtime Badge Logo */}
-            <div className="bug-logo">
-              <img src="/showtime-broadcast-logo.webp" alt="Showtime" />
-            </div>
-
             {/* Home Team */}
             <div className="bug-team home">
-              <small>HOME</small>
-              <TeamName name={state.home} />
+              {state.home_logo && (
+                <img className="bug-team-logo" src={state.home_logo} alt="" />
+              )}
+              <TeamName name={state.home_short || state.home} />
             </div>
 
             {/* Home Score */}
@@ -168,10 +169,9 @@ export function BroadcastOverlay() {
               </div>
             </div>
 
-            {/* Center: Period & Countdown Clock */}
-            <div className="bug-middle">
-              <b>{state.period}</b>
-              <small>{clockDisplay}</small>
+            {/* Center: Showtime Badge Logo */}
+            <div className="bug-logo">
+              <img src="/showtime-broadcast-logo.webp" alt="Showtime" />
             </div>
 
             {/* Away Score */}
@@ -189,15 +189,25 @@ export function BroadcastOverlay() {
 
             {/* Away Team */}
             <div className="bug-team away">
-              <small>AWAY</small>
-              <TeamName name={state.away} />
+              <TeamName name={state.away_short || state.away} />
+              {state.away_logo && (
+                <img className="bug-team-logo" src={state.away_logo} alt="" />
+              )}
             </div>
           </div>
 
-          {/* Down & Ball Possession Pill */}
-          <div className="bug-detail-pill">
-            <span>{downText}</span>
-            <span>BALL: {state.possession}</span>
+          {/* Period & Countdown Clock, directly under the centered logo */}
+          <div className="bug-clock-box">
+            <b>{state.period}</b>
+            <small>{clockDisplay}</small>
+          </div>
+
+          {/* Down & Ball Possession, floating to whichever side has the ball */}
+          <div className={`bug-down-pill ${homeHasBall ? "side-home" : "side-away"}`}>
+            {downText}
+          </div>
+          <div className={`bug-ball-pill ${homeHasBall ? "side-home" : "side-away"}`}>
+            BALL
           </div>
         </div>
       )}
