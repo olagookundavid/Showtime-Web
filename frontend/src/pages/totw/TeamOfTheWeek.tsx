@@ -13,6 +13,7 @@ import type {
   TeamOfTheWeek as TeamOfTheWeekData,
 } from "../../types";
 import { useAuth } from "../../contexts";
+import { gameFormatOfCompetitionFormat } from "../../utils";
 import {
   TeamOfTheWeekModule,
   TOTWEditorialStory,
@@ -183,8 +184,8 @@ export const TeamOfTheWeek: React.FC = () => {
           </h1>
           <p className="text-gray-300 text-sm md:text-base leading-relaxed">
             Honoring the premier offensive and defensive playmakers across
-            official Showtime matchdays. Browse current and historical Starting
-            XIV lineups, player box scores, and read in-depth editorial
+            official Showtime matchdays. Browse current and historical
+            lineups, player box scores, and read in-depth editorial
             breakdowns.
           </p>
         </div>
@@ -383,7 +384,7 @@ export const TeamOfTheWeek: React.FC = () => {
               </span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-              Select any past gameweek to inspect historical Starting XIV
+              Select any past gameweek to inspect historical
               lineups, player box scores, and MVP ratings.
             </p>
           </div>
@@ -484,7 +485,7 @@ export const TeamOfTheWeek: React.FC = () => {
                   {/* Card Footer */}
                   <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
                     <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                      14 Starting Players
+                      {gameFormatOfCompetitionFormat(edition.competition_format).startersTotal} Starting Players
                     </span>
                     <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-sffl-red group-hover:translate-x-0.5 transition-transform">
                       <span>{isSelected ? "Viewing" : "Inspect Lineup"}</span>

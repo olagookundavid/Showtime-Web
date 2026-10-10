@@ -43,7 +43,7 @@ type IMatchService interface {
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
-	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
+	FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error)
 	OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error
 	InitializeCup(ctx context.Context, competitionID string, req dto.InitializeCupRequest) error
 	AdvanceCupRound(ctx context.Context, competitionID string, req dto.AdvanceCupRequest) error
@@ -987,8 +987,8 @@ func (s *MatchService) GetMatchByID(ctx context.Context, id string) (*domain.Mat
 	return s.repo.GetMatchByID(ctx, id)
 }
 
-func (s *MatchService) CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error) {
-	return s.repo.CountFemalePlayers(ctx, playerIDs)
+func (s *MatchService) FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error) {
+	return s.repo.FemalePlayerIDs(ctx, playerIDs)
 }
 
 func (s *MatchService) OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error {

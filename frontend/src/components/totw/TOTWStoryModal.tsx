@@ -112,7 +112,7 @@ export const TOTWStoryModal: React.FC<TOTWStoryModalProps> = ({
         open
         onClose={onClose}
         title={initialStory ? 'Edit Gameweek Editorial Breakdown' : 'Author Gameweek Breakdown'}
-        subtitle={`Attached to ${totwWeekTitle} • Displayed inline below the Starting XIV pitch`}
+        subtitle={`Attached to ${totwWeekTitle} • Displayed inline below the lineup pitch`}
         maxWidth="4xl"
         footer={
           <>

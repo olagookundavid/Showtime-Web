@@ -24,7 +24,8 @@ import type {
   EventDayResponse,
   Competition,
 } from "../../types";
-import { getApiErrorMessage, isRichTextEmpty } from "../../utils";
+import { getApiErrorMessage, isRichTextEmpty, gameFormatOf, GAME_FORMATS } from "../../utils";
+import type { GameFormatSpec } from "../../utils";
 import {
   PlusIcon,
   TrashIcon,
@@ -258,6 +259,71 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
   },
 ];
 
+// A 5v5 (cup) edition uses a subset of the slot codes above, with its own pitch
+// spots and labels where the 7v7 layout doesn't fit. The codes it uses come from
+// the format table (utils/gameFormat.ts).
+const SLOT_OVERRIDES_5V5: Record<string, Partial<TOTWSlotDef>> = {
+  QB: {
+    label: "Quarterback",
+    coord_x: "50%",
+    coord_y: "86%",
+    unit_x: "50%",
+    unit_y: "78%",
+  },
+  WR3: {
+    label: "Wide Receiver 3 (Slot)",
+    coord_x: "72%",
+    coord_y: "56%",
+    unit_x: "70%",
+    unit_y: "26%",
+  },
+  DEF1: {
+    label: "Cornerback 1",
+    coord_x: "22%",
+    coord_y: "40%",
+    unit_x: "22%",
+    unit_y: "50%",
+  },
+  DEF2: {
+    label: "Cornerback 2",
+    coord_x: "78%",
+    coord_y: "40%",
+    unit_x: "78%",
+    unit_y: "50%",
+  },
+  DEF3: {
+    label: "Free Safety",
+    coord_x: "34%",
+    coord_y: "20%",
+    unit_x: "34%",
+    unit_y: "22%",
+    default_stat1_label: "Int",
+    default_stat2_label: "Flag Pulls",
+    default_stat3_label: "Pass Def",
+  },
+  DEF4: {
+    label: "Strong Safety",
+    coord_x: "66%",
+    coord_y: "20%",
+    unit_x: "66%",
+    unit_y: "22%",
+    default_stat1_label: "Int",
+    default_stat2_label: "Flag Pulls",
+    default_stat3_label: "Pass Def",
+  },
+};
+
+const SLOT_DEFS_5V5: TOTWSlotDef[] = GAME_FORMATS["5V5"].totw.slotCodes.flatMap(
+  (code) => {
+    const base = DEFAULT_TOTW_SLOTS.find((s) => s.slot_code === code);
+    return base ? [{ ...base, ...SLOT_OVERRIDES_5V5[code] }] : [];
+  },
+);
+
+/** The slots of a Team of the Week for a game format: 14 for 7v7, 10 for 5v5. */
+const slotDefsFor = (spec: GameFormatSpec): TOTWSlotDef[] =>
+  spec.id === "5V5" ? SLOT_DEFS_5V5 : DEFAULT_TOTW_SLOTS;
+
 /**
  * Normalizes any slot code alias to canonical DEFAULT_TOTW_SLOTS code
  */
@@ -411,9 +477,9 @@ interface SlotFormData extends TOTWPlayerSlot {
   is_player_of_the_week?: boolean;
 }
 
-// The 14 canonical positions (OFF 1–7, DEF 1–7), all unassigned.
-const emptySlots = (): SlotFormData[] =>
-  DEFAULT_TOTW_SLOTS.map((s) => ({
+// Every position of the edition's format (14 for 7v7, 10 for 5v5), all unassigned.
+const emptySlots = (defs: TOTWSlotDef[]): SlotFormData[] =>
+  defs.map((s) => ({
     player_id: "",
     slot_code: s.slot_code,
     position: s.position,
@@ -439,9 +505,13 @@ type PendingAction =
   | { kind: "save"; payload: TOTWPayload }
   | { kind: "publish"; item: TOTWListItem; publish: boolean }
   | { kind: "delete"; item: TOTWListItem }
-  | { kind: "clearLineup" };
+  | { kind: "clearLineup" }
+  | { kind: "switchCompetition"; compId: string };
 
-const FAILURE: Record<Exclude<PendingAction["kind"], "clearLineup">, string> = {
+const FAILURE: Record<
+  Exclude<PendingAction["kind"], "clearLineup" | "switchCompetition">,
+  string
+> = {
   save: "Failed to save Team of the Week.",
   publish: "Failed to toggle publish status.",
   delete: "Failed to delete Team of the Week.",
@@ -498,7 +568,9 @@ export const AdminTOTW = () => {
   );
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
 
-  const [slots, setSlots] = useState<SlotFormData[]>(emptySlots);
+  const [slots, setSlots] = useState<SlotFormData[]>(() =>
+    emptySlots(DEFAULT_TOTW_SLOTS),
+  );
 
   // Player picker modal state (Default to slot position tab with ALL and Women available)
   const [pickingSlotIndex, setPickingSlotIndex] = useState<number | null>(null);
@@ -520,6 +592,11 @@ export const AdminTOTW = () => {
     queryFn: () => getCompetitions(1, 100),
   });
   const competitions: Competition[] = competitionsData?.data || [];
+
+  // The competition decides the lineup shape: cups are 5v5 (10 players), all
+  // others 7v7 (14). The slot set, counts and women's quota all follow from it.
+  const formFormat = gameFormatOf(competitions.find((c) => c.id === formCompId));
+  const slotDefs = slotDefsFor(formFormat);
 
   const { data: eventDays = [] } = useQuery<EventDayResponse[]>({
     queryKey: ["adminAllEventDays"],
@@ -637,15 +714,15 @@ export const AdminTOTW = () => {
     [slots],
   );
 
-  // Female quota counts (3 females required in Offence and 3 females required in Defence)
+  // Female quota counts (the format's minimum is required in Offence and in Defence)
   const offenseFemalesCount = slots.filter(
     (s) => s.unit === "Offence" && s.player_id && isFemale(getSlotGender(s)),
   ).length;
   const defenseFemalesCount = slots.filter(
     (s) => s.unit === "Defence" && s.player_id && isFemale(getSlotGender(s)),
   ).length;
-  const offenseFemalesValid = offenseFemalesCount >= 3;
-  const defenseFemalesValid = defenseFemalesCount >= 3;
+  const offenseFemalesValid = offenseFemalesCount >= formFormat.minFemalePerUnit;
+  const defenseFemalesValid = defenseFemalesCount >= formFormat.minFemalePerUnit;
 
   // Active slot being inspected
   const activeSlot = slots[selectedSlotIndex] || slots[0];
@@ -655,7 +732,19 @@ export const AdminTOTW = () => {
     if (!action) return;
     if (action.kind === "clearLineup") {
       // Only the form changes; nothing is saved until the edition is.
-      setSlots(emptySlots());
+      setSlots(emptySlots(slotDefs));
+      setSelectedSlotIndex(0);
+      setPendingAction(null);
+      return;
+    }
+    if (action.kind === "switchCompetition") {
+      // A different game format has different positions, so the board starts again.
+      setFormCompId(action.compId);
+      setSlots(
+        emptySlots(
+          slotDefsFor(gameFormatOf(competitions.find((c) => c.id === action.compId))),
+        ),
+      );
       setSelectedSlotIndex(0);
       setPendingAction(null);
       return;
@@ -704,19 +793,36 @@ export const AdminTOTW = () => {
     }
   };
 
+  // Choosing another competition can change the game format (a cup is 5v5), and
+  // with it the whole board. Ask before clearing a lineup that's already filled.
+  const handleFormCompChange = (compId: string) => {
+    const next = gameFormatOf(competitions.find((c) => c.id === compId));
+    if (next.id === formFormat.id) {
+      setFormCompId(compId);
+    } else if (filledCount === 0) {
+      setFormCompId(compId);
+      setSlots(emptySlots(slotDefsFor(next)));
+      setSelectedSlotIndex(0);
+    } else {
+      setPendingAction({ kind: "switchCompetition", compId });
+    }
+  };
+
   // Initialize or Reset Form
   const handleNewTOTW = () => {
     setIsEditing(true);
     setEditingTotwId(null);
-    setFormCompId(selectedCompId || competitions[0]?.id || "");
+    const newCompId = selectedCompId || competitions[0]?.id || "";
+    const newFormat = gameFormatOf(competitions.find((c) => c.id === newCompId));
+    setFormCompId(newCompId);
     setFormEventDayId("");
     setFormWeekTitle("Week " + (totwList.length + 1));
     setFormHeadline("TEAM OF THE WEEK");
-    setFormSubHeadline("Starting XIV honors for top performers");
+    setFormSubHeadline(`${newFormat.totw.title} honors for top performers`);
     setFormIsPublished(false);
     setPitchTab("all");
     setSelectedSlotIndex(0);
-    setSlots(emptySlots());
+    setSlots(emptySlots(slotDefsFor(newFormat)));
     setStoryTitle("");
     setStoryExcerpt("");
     setStoryContent("");
@@ -763,8 +869,9 @@ export const AdminTOTW = () => {
         setIsStoryExpanded(false);
       }
 
-      // Initialize 14 canonical default slots (OFF1..OFF7, DEF1..DEF7)
-      const newSlots = emptySlots();
+      // Start from the edition's own format: 14 slots for 7v7, 10 for a cup (5v5).
+      const defs = slotDefsFor(gameFormatOf(fullTotw.competition));
+      const newSlots = emptySlots(defs);
 
       if (fullTotw.players && fullTotw.players.length > 0) {
         const assignedPlayerIds = new Set<string>();
@@ -780,7 +887,7 @@ export const AdminTOTW = () => {
           if (slotIdx !== -1) {
             filledSlotIndices.add(slotIdx);
             assignedPlayerIds.add(p.player_id);
-            const defSlot = DEFAULT_TOTW_SLOTS[slotIdx];
+            const defSlot = defs[slotIdx];
             newSlots[slotIdx] = {
               player_id: p.player_id,
               slot_code: defSlot.slot_code,
@@ -821,7 +928,7 @@ export const AdminTOTW = () => {
           if (slotIdx !== -1) {
             filledSlotIndices.add(slotIdx);
             assignedPlayerIds.add(p.player_id);
-            const defSlot = DEFAULT_TOTW_SLOTS[slotIdx];
+            const defSlot = defs[slotIdx];
             newSlots[slotIdx] = {
               player_id: p.player_id,
               slot_code: defSlot.slot_code,
@@ -855,6 +962,17 @@ export const AdminTOTW = () => {
       }
 
       setSlots(newSlots);
+
+      // An edition built for another format (e.g. 14 players on a cup) has players
+      // with no place on this board. Say so, so none are dropped unnoticed.
+      const placed = newSlots.filter((slot) => slot.player_id).length;
+      const onEdition = (fullTotw.players || []).filter((p) => p.player_id).length;
+      if (onEdition > placed) {
+        toast.error(
+          `${onEdition - placed} player${onEdition - placed === 1 ? "" : "s"} on this edition don't fit its ${gameFormatOf(fullTotw.competition).label} lineup and were left out. Review it before saving.`,
+          { duration: 8000 },
+        );
+      }
       setSelectedSlotIndex(0);
       setIsEditing(true);
     } catch {
@@ -1104,7 +1222,7 @@ export const AdminTOTW = () => {
 
     const validSlots = slots.filter((s) => s.player_id.trim() !== "");
     if (validSlots.length === 0) {
-      toast.error("Please assign at least one player to the Starting XIV.");
+      toast.error(`Please assign at least one player to the ${formFormat.totw.title}.`);
       return null;
     }
 
@@ -1118,7 +1236,7 @@ export const AdminTOTW = () => {
       return null;
     }
 
-    // Female quota validation: At least 3 female players in Offence and at least 3 female players in Defence
+    // Female quota validation: the format's minimum of women in Offence and in Defence
     const offFilled = validSlots.filter((s) => s.unit === "Offence");
     const defFilled = validSlots.filter((s) => s.unit === "Defence");
     const offFemales = offFilled.filter((s) =>
@@ -1129,35 +1247,41 @@ export const AdminTOTW = () => {
     ).length;
 
     if (formIsPublished) {
-      if (validSlots.length < 14) {
+      if (validSlots.length < formFormat.startersTotal) {
         toast.error(
-          "Cannot publish incomplete Team of the Week: all 14 starting positions must be filled.",
+          `Cannot publish incomplete Team of the Week: all ${formFormat.startersTotal} starting positions must be filled.`,
         );
         return null;
       }
-      if (offFemales < 3) {
+      if (offFemales < formFormat.minFemalePerUnit) {
         toast.error(
-          `Cannot publish: Offence requires at least 3 female players (currently has ${offFemales} of 3).`,
+          `Cannot publish: Offence requires at least ${formFormat.minFemalePerUnit} female players (currently has ${offFemales} of ${formFormat.minFemalePerUnit}).`,
         );
         return null;
       }
-      if (defFemales < 3) {
+      if (defFemales < formFormat.minFemalePerUnit) {
         toast.error(
-          `Cannot publish: Defence requires at least 3 female players (currently has ${defFemales} of 3).`,
+          `Cannot publish: Defence requires at least ${formFormat.minFemalePerUnit} female players (currently has ${defFemales} of ${formFormat.minFemalePerUnit}).`,
         );
         return null;
       }
     } else {
       // In draft mode: if unit is complete, enforce female quota
-      if (offFilled.length === 7 && offFemales < 3) {
+      if (
+        offFilled.length === formFormat.offenseSize &&
+        offFemales < formFormat.minFemalePerUnit
+      ) {
         toast.error(
-          `Offence requires at least 3 female players (currently has ${offFemales} of 3).`,
+          `Offence requires at least ${formFormat.minFemalePerUnit} female players (currently has ${offFemales} of ${formFormat.minFemalePerUnit}).`,
         );
         return null;
       }
-      if (defFilled.length === 7 && defFemales < 3) {
+      if (
+        defFilled.length === formFormat.defenseSize &&
+        defFemales < formFormat.minFemalePerUnit
+      ) {
         toast.error(
-          `Defence requires at least 3 female players (currently has ${defFemales} of 3).`,
+          `Defence requires at least ${formFormat.minFemalePerUnit} female players (currently has ${defFemales} of ${formFormat.minFemalePerUnit}).`,
         );
         return null;
       }
@@ -1400,12 +1524,37 @@ export const AdminTOTW = () => {
         return {
           title: "Clear the lineup?",
           description:
-            "This empties all 14 positions on the board. Nothing is saved until you save the edition.",
+            `This empties all ${formFormat.startersTotal} positions on the board. Nothing is saved until you save the edition.`,
           confirmLabel: "Clear Lineup",
           tone: "warning" as const,
           icon: XMarkIcon,
-          body: <ConfirmSummary rows={[["Starters", `${filledCount} / 14`]]} />,
+          body: (
+            <ConfirmSummary
+              rows={[["Starters", `${filledCount} / ${formFormat.startersTotal}`]]}
+            />
+          ),
         };
+      case "switchCompetition": {
+        const next = gameFormatOf(
+          competitions.find((c) => c.id === pendingAction.compId),
+        );
+        return {
+          title: `Switch to a ${next.label} Team of the Week?`,
+          description: `${next.label} lineups have ${next.startersTotal} positions with at least ${next.minFemalePerUnit} women in each unit, so the board is cleared. Nothing is saved until you save the edition.`,
+          confirmLabel: "Switch and clear",
+          tone: "warning" as const,
+          icon: XMarkIcon,
+          body: (
+            <ConfirmSummary
+              rows={[
+                ["From", `${formFormat.label} (${formFormat.startersTotal} players)`],
+                ["To", `${next.label} (${next.startersTotal} players)`],
+                ["Players on the board", String(filledCount)],
+              ]}
+            />
+          ),
+        };
+      }
       default:
         return {
           title: editingTotwId
@@ -1425,7 +1574,7 @@ export const AdminTOTW = () => {
                   competitions.find((c) => c.id === formCompId)?.name,
                 ],
                 ["Week", formWeekTitle.trim()],
-                ["Starters", `${filledCount} / 14`],
+                ["Starters", `${filledCount} / ${formFormat.startersTotal}`],
                 [
                   "Player of the Week",
                   slots.find((s) => s.is_player_of_the_week)?.player_name,
@@ -1453,7 +1602,7 @@ export const AdminTOTW = () => {
     <div className="space-y-6 md:space-y-8 animate-fade-in pb-16">
       <DashboardPageHeader
         title="Team of the Week"
-        subtitle="Manage Starting XIV selections (OFF 1–7 & DEF 1–7), ratings, and player honours."
+        subtitle="Manage the Starting XIV (7v7) or Starting X (cup 5v5) selections, ratings, and player honours."
         actions={
           !isEditing && (
             <Button icon={PlusIcon} onClick={handleNewTOTW} className="w-full sm:w-auto shrink-0">
@@ -1475,7 +1624,7 @@ export const AdminTOTW = () => {
           emptyMessage={
             selectedCompId
               ? "No Team of the Week editions for this competition."
-              : "No Team of the Week editions yet. Create the first Starting XIV edition to highlight your star performers."
+              : "No Team of the Week editions yet. Create the first edition to highlight your star performers."
           }
           headerActions={
             <>
@@ -1520,8 +1669,10 @@ export const AdminTOTW = () => {
                     : "Create Team of the Week"}
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Click any slot on the pitch to assign any player (OFF 1–7 &
-                  DEF 1–7)
+                  Click any slot on the pitch to assign any player (
+                  {formFormat.label}: {formFormat.offenseSize} attack,{" "}
+                  {formFormat.defenseSize} defence, at least{" "}
+                  {formFormat.minFemalePerUnit} women in each)
                 </p>
               </div>
             </div>
@@ -1550,7 +1701,7 @@ export const AdminTOTW = () => {
                 <Select
                   id="totw-competition"
                   value={formCompId}
-                  onChange={(e) => setFormCompId(e.target.value)}
+                  onChange={(e) => handleFormCompChange(e.target.value)}
                 >
                   <option value="">Select Competition</option>
                   {competitions.map((c) => (
@@ -1626,21 +1777,21 @@ export const AdminTOTW = () => {
                   onClick={() => setPitchTab("all")}
                   aria-pressed={pitchTab === "all"}
                 >
-                  Full pitch (14)
+                  Full pitch ({formFormat.startersTotal})
                 </Button>
                 <Button
                   variant={pitchTab === "offence" ? "navy" : "ghost"}
                   onClick={() => setPitchTab("offence")}
                   aria-pressed={pitchTab === "offence"}
                 >
-                  Offence ({filledOffenceCount}/7)
+                  Offence ({filledOffenceCount}/{formFormat.offenseSize})
                 </Button>
                 <Button
                   variant={pitchTab === "defence" ? "navy" : "ghost"}
                   onClick={() => setPitchTab("defence")}
                   aria-pressed={pitchTab === "defence"}
                 >
-                  Defence ({filledDefenceCount}/7)
+                  Defence ({filledDefenceCount}/{formFormat.defenseSize})
                 </Button>
               </div>
 
@@ -1695,7 +1846,7 @@ export const AdminTOTW = () => {
                 </div>
 
                 <span className="text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600">
-                  {filledCount} / 14 Starters
+                  {filledCount} / {formFormat.startersTotal} Starters
                 </span>
                 {formEventDayId && (
                   <Button variant="navy" icon={SparklesIcon} onClick={handleAutofillAll}>
@@ -1742,7 +1893,7 @@ export const AdminTOTW = () => {
                 </>
               )}
 
-              {/* 14 Interactive Position Nodes on Pitch: OFF 1-7 & DEF 1-7 */}
+              {/* Interactive position nodes on the pitch: every slot of the format */}
               {visibleSlots.map((slot) => {
                 const isSelected = selectedSlotIndex === slot.index;
                 const isOccupied = Boolean(slot.player_id);
@@ -1916,10 +2067,10 @@ export const AdminTOTW = () => {
               })}
             </div>
 
-            {/* Quick 14-Slot Navigation Strip */}
+            {/* Quick slot navigation strip */}
             <div className="space-y-1.5 pt-2">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs font-bold text-gray-500 dark:text-gray-400">
-                <span>Starting XIV Position Navigator</span>
+                <span>{formFormat.totw.title} Position Navigator</span>
                 <span>Click any slot to inspect & edit</span>
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
@@ -2026,7 +2177,7 @@ export const AdminTOTW = () => {
                       }
                     />
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 px-2">
-                      {selectedSlotIndex + 1} of 14
+                      {selectedSlotIndex + 1} of {slots.length}
                     </span>
                     <IconButton
                       variant="secondary"
@@ -2232,7 +2383,7 @@ export const AdminTOTW = () => {
                       </h5>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                         Click to select any player from the roster for this
-                        Starting XIV spot.
+                        {formFormat.totw.title} spot.
                       </p>
                     </div>
                     <Button
@@ -2284,7 +2435,7 @@ export const AdminTOTW = () => {
                     )}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Write official matchday coverage, player highlights, and analysis to accompany this Starting XIV.
+                    Write official matchday coverage, player highlights, and analysis to accompany this {formFormat.totw.title}.
                   </p>
                 </div>
               </div>

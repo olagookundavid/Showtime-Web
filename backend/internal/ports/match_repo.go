@@ -65,7 +65,7 @@ type MatchRepository interface {
 	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
 	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
-	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
+	FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error)
 }
 
 type PostgresMatchRepository struct {
@@ -1518,12 +1518,25 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 	return players, total, nil
 }
 
-func (r *PostgresMatchRepository) CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error) {
+// FemalePlayerIDs returns which of the given players are women, so a lineup's
+// women's quota can be checked per unit rather than only in total.
+func (r *PostgresMatchRepository) FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error) {
+	females := make(map[string]bool)
 	if len(playerIDs) == 0 {
-		return 0, nil
+		return females, nil
 	}
-	var count int
-	query := `SELECT COUNT(*) FROM players WHERE id = ANY($1::uuid[]) AND UPPER(COALESCE(gender, '')) = 'F'`
-	err := r.db.QueryRow(ctx, query, playerIDs).Scan(&count)
-	return count, err
+	rows, err := r.db.Query(ctx,
+		`SELECT id::text FROM players WHERE id = ANY($1::uuid[]) AND UPPER(COALESCE(gender, '')) = 'F'`, playerIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		females[id] = true
+	}
+	return females, rows.Err()
 }

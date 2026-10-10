@@ -522,7 +522,9 @@ const AdminCompetitions = () => {
                 hint={
                   form.format === "PLAYOFFS"
                     ? "Knockout competitions show a bracket instead of standings. Winners advance automatically."
-                    : "Regular, preseason, and cup competitions track standings and team performances."
+                    : form.format === "CUP"
+                      ? "Cup competitions are played 5v5: team sheets and Team of the Week use 10 starters (5 attack, 5 defence) with at least 2 women in each unit. Every other format is 7v7."
+                      : "Regular, preseason, and cup competitions track standings and team performances."
                 }
               >
                 <Select

@@ -3,17 +3,17 @@ package dto
 import "time"
 
 type TOTWPlayerSlotInput struct {
-	PlayerID   string  `json:"player_id" binding:"required"`
-	SlotCode   string  `json:"slot_code" binding:"required"`
-	Position   string  `json:"position" binding:"required"`
-	Unit       string  `json:"unit" binding:"required"` // "Offence" | "Defence"
-	CoordX     string  `json:"coord_x"`
-	CoordY     string  `json:"coord_y"`
-	Rating     float64 `json:"rating"`
-	Stat1Value string  `json:"stat1_value"`
-	Stat1Label string  `json:"stat1_label"`
-	Stat2Value string  `json:"stat2_value"`
-	Stat2Label string  `json:"stat2_label"`
+	PlayerID          string  `json:"player_id" binding:"required"`
+	SlotCode          string  `json:"slot_code" binding:"required"`
+	Position          string  `json:"position" binding:"required"`
+	Unit              string  `json:"unit" binding:"required"` // "Offence" | "Defence"
+	CoordX            string  `json:"coord_x"`
+	CoordY            string  `json:"coord_y"`
+	Rating            float64 `json:"rating"`
+	Stat1Value        string  `json:"stat1_value"`
+	Stat1Label        string  `json:"stat1_label"`
+	Stat2Value        string  `json:"stat2_value"`
+	Stat2Label        string  `json:"stat2_label"`
 	Stat3Value        string  `json:"stat3_value"`
 	Stat3Label        string  `json:"stat3_label"`
 	IsPlayerOfTheWeek bool    `json:"is_player_of_the_week"`
@@ -27,7 +27,7 @@ type SaveTOTWRequest struct {
 	Headline          string                `json:"headline" binding:"required"`   // e.g. "Showtime Pro · Gameday 3"
 	SubHeadline       string                `json:"sub_headline"`                  // default "Offence & defence lineup"
 	IsPublished       bool                  `json:"is_published"`
-	Players           []TOTWPlayerSlotInput `json:"players" binding:"required"`    // Starting XIV
+	Players           []TOTWPlayerSlotInput `json:"players" binding:"required"` // Starting XIV
 	NewsID            *string               `json:"news_id,omitempty"`
 	NewsArticle       *CreateNewsRequest    `json:"news_article,omitempty"`
 }
@@ -72,10 +72,13 @@ type TOTWResponse struct {
 }
 
 type TOTWListItemResponse struct {
-	ID                string     `json:"id"`
-	CompetitionID     string     `json:"competition_id"`
-	CompetitionName   string     `json:"competition_name,omitempty"`
-	CompetitionLogo   string     `json:"competition_logo,omitempty"`
+	ID              string `json:"id"`
+	CompetitionID   string `json:"competition_id"`
+	CompetitionName string `json:"competition_name,omitempty"`
+	CompetitionLogo string `json:"competition_logo,omitempty"`
+	// CompetitionFormat (SEASON, CUP, ...) tells the pages which lineup shape the
+	// edition has: a cup edition is 5v5, everything else 7v7.
+	CompetitionFormat string     `json:"competition_format,omitempty"`
 	EventDayID        *string    `json:"event_day_id,omitempty"`
 	PlayerOfTheWeekID *string    `json:"player_of_the_week_id,omitempty"`
 	NewsID            *string    `json:"news_id,omitempty"`

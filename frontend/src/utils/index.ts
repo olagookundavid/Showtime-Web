@@ -55,3 +55,22 @@ export {
 } from './staleBuild';
 export { fitTeamName } from './fitTeamName';
 export type { FittedName } from './fitTeamName';
+export {
+  GAME_FORMATS,
+  gameFormatOf,
+  gameFormatOfCompetitionFormat,
+  schemeFor,
+  validCoverage,
+} from './gameFormat';
+export type {
+  GameFormatId,
+  GameFormatSpec,
+  OffenseSlotSpec,
+  SchemeSpec,
+} from './gameFormat';
+export { buildAutoFillLineup } from './autoFillLineup';
+export type {
+  LineupCandidate,
+  LineupBoard,
+  AutoFillResult,
+} from './autoFillLineup';

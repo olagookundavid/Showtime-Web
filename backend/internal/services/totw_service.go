@@ -291,16 +291,18 @@ func (s *TOTWService) ListTOTWArchive(ctx context.Context, competitionID string,
 
 	res := make([]dto.TOTWListItemResponse, len(list))
 	for i, item := range list {
-		var compName, compLogo string
+		var compName, compLogo, compFormat string
 		if item.Competition != nil {
 			compName = item.Competition.Name
 			compLogo = item.Competition.Logo
+			compFormat = item.Competition.Format
 		}
 		res[i] = dto.TOTWListItemResponse{
 			ID:                item.ID,
 			CompetitionID:     item.CompetitionID,
 			CompetitionName:   compName,
 			CompetitionLogo:   compLogo,
+			CompetitionFormat: compFormat,
 			EventDayID:        item.EventDayID,
 			PlayerOfTheWeekID: item.PlayerOfTheWeekID,
 			NewsID:            item.NewsID,
@@ -355,9 +357,10 @@ func (s *TOTWService) mapToResponse(totw *domain.TeamOfTheWeek) *dto.TOTWRespons
 
 	if totw.Competition != nil {
 		resp.Competition = &dto.CompetitionResponse{
-			ID:   totw.Competition.ID,
-			Name: totw.Competition.Name,
-			Logo: totw.Competition.Logo,
+			ID:     totw.Competition.ID,
+			Name:   totw.Competition.Name,
+			Logo:   totw.Competition.Logo,
+			Format: totw.Competition.Format,
 		}
 	}
 

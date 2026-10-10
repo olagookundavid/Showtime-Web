@@ -26,7 +26,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { DashboardPageHeader, Button, Input, Select, ConfirmDialog, ConfirmSummary, Modal, Spinner, useTeamHeadTeam } from "../../components";
-import { getApiErrorMessage, formatMatchDate, formatMatchTime, isMatchLocked, getMatchLockCountdown } from "../../utils";
+import { getApiErrorMessage, formatMatchDate, formatMatchTime, isMatchLocked, getMatchLockCountdown, gameFormatOfCompetitionFormat, schemeFor, validCoverage, buildAutoFillLineup } from "../../utils";
 
 interface ClubPlayer {
   id: string;
@@ -228,169 +228,15 @@ const PitchSlot = ({
   );
 };
 
-// ── Coverage Schemes ────────────────────────────────────────────────────────
-interface CoverageLayout {
-  name: string;
-  tagline: string;
-  description: string;
-  deep: [number, number][];
-  under: [number, number][];
-}
+// ── Lineup helpers ───────────────────────────────────────────────────────────
+// What each position is called, and how many there are, comes from the match's
+// game format (cups are 5v5, everything else 7v7): see utils/gameFormat.ts.
+type Lineup = Record<string, ClubPlayer | null>;
 
-const COVERAGE_SCHEMES: Record<number, CoverageLayout> = {
-  1: {
-    name: "Cover 1",
-    tagline: "1 Rusher · 5 Underneath · 1 Deep",
-    description:
-      "Aggressive man coverage underneath with a single deep center-field safety.",
-    deep: [[50, 18]],
-    under: [
-      [12, 42],
-      [31, 40],
-      [50, 43],
-      [69, 40],
-      [88, 42],
-    ],
-  },
-  2: {
-    name: "Cover 2",
-    tagline: "1 Rusher · 4 Underneath · 2 Deep",
-    description:
-      "Balanced coverage with two deep safeties protecting the sidelines and seams.",
-    deep: [
-      [32, 18],
-      [68, 18],
-    ],
-    under: [
-      [14, 42],
-      [38, 40],
-      [62, 40],
-      [86, 42],
-    ],
-  },
-  3: {
-    name: "Cover 3",
-    tagline: "1 Rusher · 3 Underneath · 3 Deep",
-    description:
-      "Three deep zone defenders guarding deep thirds, backed by central underneath coverage.",
-    deep: [
-      [20, 18],
-      [50, 15],
-      [80, 18],
-    ],
-    under: [
-      [18, 42],
-      [50, 40],
-      [82, 42],
-    ],
-  },
-  4: {
-    name: "Cover 4",
-    tagline: "1 Rusher · 2 Underneath · 4 Deep",
-    description:
-      "Quarters defense with four deep safeties for maximum deep-ball and prevent protection.",
-    deep: [
-      [14, 18],
-      [38, 16],
-      [62, 16],
-      [86, 18],
-    ],
-    under: [
-      [32, 42],
-      [68, 42],
-    ],
-  },
-};
+const emptyLineup = (keys: string[]): Lineup =>
+  Object.fromEntries(keys.map((k) => [k, null]));
 
-// ── Offensive Starter Slot Definitions ───────────────────────────────────────
-interface StarterSlotMeta {
-  key: string;
-  label: string;
-  shortRole: string;
-  unit: "OFFENSE" | "DEFENSE";
-  requiredGender?: "M" | "F";
-  recommendedPosition: string;
-  x: number;
-  y: number;
-}
-
-const OFFENSE_SLOTS: StarterSlotMeta[] = [
-  {
-    key: "WR_1",
-    label: "Wide Receiver 1",
-    shortRole: "Receiver",
-    unit: "OFFENSE",
-    recommendedPosition: "Receiver",
-    x: 12,
-    y: 28,
-  },
-  {
-    key: "WR_2",
-    label: "Wide Receiver 2",
-    shortRole: "Receiver",
-    unit: "OFFENSE",
-    recommendedPosition: "Receiver",
-    x: 36,
-    y: 24,
-  },
-  {
-    key: "CENTER",
-    label: "Center (Snapper)",
-    shortRole: "Center",
-    unit: "OFFENSE",
-    recommendedPosition: "Center",
-    x: 50,
-    y: 54,
-  },
-  {
-    key: "WR_3",
-    label: "Wide Receiver 3",
-    shortRole: "Receiver",
-    unit: "OFFENSE",
-    recommendedPosition: "Receiver",
-    x: 64,
-    y: 24,
-  },
-  {
-    key: "WR_4",
-    label: "Wide Receiver 4",
-    shortRole: "Receiver",
-    unit: "OFFENSE",
-    recommendedPosition: "Receiver",
-    x: 88,
-    y: 28,
-  },
-  {
-    key: "MALE_QB",
-    label: "Male QB",
-    shortRole: "Male QB",
-    unit: "OFFENSE",
-    requiredGender: "M",
-    recommendedPosition: "QB",
-    x: 38,
-    y: 77,
-  },
-  {
-    key: "FEMALE_QB",
-    label: "Female QB / Rec",
-    shortRole: "Female QB",
-    unit: "OFFENSE",
-    requiredGender: "F",
-    recommendedPosition: "QB",
-    x: 62,
-    y: 77,
-  },
-];
-
-const DEFENSE_SLOT_KEYS = [
-  "RUSHER",
-  "DEF_1",
-  "DEF_2",
-  "DEF_3",
-  "DEF_4",
-  "DEF_5",
-  "DEF_6",
-];
+const isWoman = (p: ClubPlayer) => (p.gender || "").toUpperCase() === "F";
 
 export const TeamHeadTeamSheets = () => {
   const team = useTeamHeadTeam();
@@ -427,6 +273,24 @@ export const TeamHeadTeamSheets = () => {
     return matches.find((m) => m.id === selectedMatchId) || null;
   }, [matches, selectedMatchId]);
 
+  // The match's game format decides the lineup shape: positions, schemes, squad cap
+  // and the women's quota. Cup competitions are 5v5, everything else is 7v7.
+  const competitionFormat = currentMatch?.competition?.format;
+  const format = useMemo(
+    () => gameFormatOfCompetitionFormat(competitionFormat),
+    [competitionFormat],
+  );
+  const offenseSlots = useMemo(
+    () =>
+      format.offense.map((slot) => ({
+        ...slot,
+        unit: "OFFENSE" as const,
+        x: slot.builder.x,
+        y: slot.builder.y,
+      })),
+    [format],
+  );
+
   // ── Current Match Team Sheet from Server ──────────────────────────────────
   const { data: teamSheetData, isLoading: teamSheetLoading } = useQuery({
     queryKey: ["teamHeadTeamSheet", selectedMatchId],
@@ -458,28 +322,12 @@ export const TeamHeadTeamSheets = () => {
 
   // ── Local Lineup State ───────────────────────────────────────────────────
   const [coverage, setCoverage] = useState<number>(2);
-  const [offenseStarters, setOffenseStarters] = useState<
-    Record<string, ClubPlayer | null>
-  >({
-    WR_1: null,
-    WR_2: null,
-    CENTER: null,
-    WR_3: null,
-    WR_4: null,
-    MALE_QB: null,
-    FEMALE_QB: null,
-  });
-  const [defenseStarters, setDefenseStarters] = useState<
-    Record<string, ClubPlayer | null>
-  >({
-    RUSHER: null,
-    DEF_1: null,
-    DEF_2: null,
-    DEF_3: null,
-    DEF_4: null,
-    DEF_5: null,
-    DEF_6: null,
-  });
+  const [offenseStarters, setOffenseStarters] = useState<Lineup>(() =>
+    emptyLineup(format.offense.map((slot) => slot.key)),
+  );
+  const [defenseStarters, setDefenseStarters] = useState<Lineup>(() =>
+    emptyLineup(format.defenseSlotKeys),
+  );
   const [substitutes, setSubstitutes] = useState<ClubPlayer[]>([]);
 
   // ── Interactive UI Selection State ───────────────────────────────────────
@@ -513,6 +361,24 @@ export const TeamHeadTeamSheets = () => {
   // Saving waits on this confirm dialog.
   const [confirmSave, setConfirmSave] = useState(false);
 
+  // True when the saved sheet was built for a different format than this match
+  // now has (e.g. a competition switched to a cup), so its starters were benched.
+  const [sheetNeedsRebuild, setSheetNeedsRebuild] = useState(false);
+
+  // A different match can be a different format. Clear the board straight away so
+  // the last match's lineup never shows under the new one while its sheet loads.
+  useEffect(() => {
+    const clear = window.setTimeout(() => {
+      setOffenseStarters(emptyLineup(format.offense.map((slot) => slot.key)));
+      setDefenseStarters(emptyLineup(format.defenseSlotKeys));
+      setSubstitutes([]);
+      setSelectedSlotForSwap(null);
+      setPickerTarget(null);
+      setSheetNeedsRebuild(false);
+    }, 0);
+    return () => window.clearTimeout(clear);
+  }, [selectedMatchId, format]);
+
   // ── Populate State when Team Sheet Data Loads ────────────────────────────
   useEffect(() => {
     if (!teamSheetData || !team?.id || clubPlayers.length === 0) return;
@@ -525,8 +391,7 @@ export const TeamHeadTeamSheets = () => {
       ? teamSheetData.home_team || []
       : teamSheetData.away_team || [];
 
-    const nextCoverage =
-      serverCoverage >= 1 && serverCoverage <= 4 ? serverCoverage : 2;
+    const nextCoverage = validCoverage(format, serverCoverage);
     // Helper to find player details from clubPlayers or fallback to server row
     const resolvePlayer = (sp: TeamSheetPlayer): ClubPlayer => {
       const matchInClub = clubPlayers.find((cp) => cp.id === sp.player_id);
@@ -547,63 +412,35 @@ export const TeamHeadTeamSheets = () => {
       };
     };
 
-    const newOffense: Record<string, ClubPlayer | null> = {
-      WR_1: null,
-      WR_2: null,
-      CENTER: null,
-      WR_3: null,
-      WR_4: null,
-      MALE_QB: null,
-      FEMALE_QB: null,
-    };
-    const newDefense: Record<string, ClubPlayer | null> = {
-      RUSHER: null,
-      DEF_1: null,
-      DEF_2: null,
-      DEF_3: null,
-      DEF_4: null,
-      DEF_5: null,
-      DEF_6: null,
-    };
+    const offenseKeys = format.offense.map((slot) => slot.key);
+    const newOffense = emptyLineup(offenseKeys);
+    const newDefense = emptyLineup(format.defenseSlotKeys);
     const newSubs: ClubPlayer[] = [];
 
-    // Partition starters and substitutes
+    // A sheet saved for another format names positions this match doesn't have
+    // (a 7v7 "MALE_QB" on a 5v5 cup match). Placing those starters by guesswork
+    // would put the wrong players in the wrong spots, so the whole lineup goes to
+    // the bench and the manager rebuilds it.
+    const fitsFormat = serverPlayers
+      .filter((sp) => sp.is_starter)
+      .every((sp) =>
+        sp.starter_unit === "OFFENSE"
+          ? offenseKeys.includes(sp.position_slot ?? "")
+          : sp.starter_unit === "DEFENSE"
+            ? format.defenseSlotKeys.includes(sp.position_slot ?? "")
+            : false,
+      );
+
     serverPlayers.forEach((sp) => {
       const player = resolvePlayer(sp);
-      if (sp.is_starter) {
-        if (
-          sp.starter_unit === "OFFENSE" &&
-          sp.position_slot &&
-          newOffense[sp.position_slot] === null
-        ) {
-          newOffense[sp.position_slot] = player;
-        } else if (
-          sp.starter_unit === "DEFENSE" &&
-          sp.position_slot &&
-          newDefense[sp.position_slot] === null
-        ) {
-          newDefense[sp.position_slot] = player;
-        } else {
-          // Fallback sequential placement if slots were not keyed
-          const emptyOffenseKey = Object.keys(newOffense).find(
-            (k) => newOffense[k] === null,
-          );
-          if (emptyOffenseKey) {
-            newOffense[emptyOffenseKey] = player;
-          } else {
-            const emptyDefenseKey = Object.keys(newDefense).find(
-              (k) => newDefense[k] === null,
-            );
-            if (emptyDefenseKey) {
-              newDefense[emptyDefenseKey] = player;
-            } else {
-              newSubs.push(player);
-            }
-          }
+      if (sp.is_starter && fitsFormat && sp.position_slot) {
+        const board = sp.starter_unit === "OFFENSE" ? newOffense : newDefense;
+        if (board[sp.position_slot] === null) {
+          board[sp.position_slot] = player;
+          return;
         }
-      } else {
-        newSubs.push(player);
       }
+      newSubs.push(player);
     });
 
     const updateTimeout = window.setTimeout(() => {
@@ -612,9 +449,10 @@ export const TeamHeadTeamSheets = () => {
       setDefenseStarters(newDefense);
       setSubstitutes(newSubs);
       setSelectedSlotForSwap(null);
+      setSheetNeedsRebuild(!fitsFormat);
     }, 0);
     return () => window.clearTimeout(updateTimeout);
-  }, [teamSheetData, currentMatch, team?.id, clubPlayers]);
+  }, [teamSheetData, currentMatch, team?.id, clubPlayers, format]);
 
   // ── Computed Lineup Metrics ──────────────────────────────────────────────
   const allAssignedStarters = useMemo(() => {
@@ -640,6 +478,14 @@ export const TeamHeadTeamSheets = () => {
   }, [allAssignedStarters]);
 
   const isStarterUniquenessValid = starterIdSet.size === startersCount;
+
+  // Each unit must start the format's minimum of women.
+  const offenseWomen = allAssignedStarters.offense.filter(([, p]) =>
+    isWoman(p),
+  ).length;
+  const defenseWomen = allAssignedStarters.defense.filter(([, p]) =>
+    isWoman(p),
+  ).length;
 
   const isMatchFinished = currentMatch?.status === "FINISHED";
 
@@ -673,21 +519,21 @@ export const TeamHeadTeamSheets = () => {
       return "This match is finished — its team sheet is locked.";
     if (isMatchLockedCurrently)
       return "Team sheet is locked (locks 10 minutes before kickoff). Contact the commissioner if emergency adjustments are needed.";
-    if (totalSquadCount > 25) return "Match squad is over the 25-player cap.";
+    if (totalSquadCount > format.squadCap)
+      return `Match squad is over the ${format.squadCap}-player cap.`;
     if (!isStarterUniquenessValid)
       return "A player is in more than one starter slot.";
     if (startersCount > 0) {
       if (
-        allAssignedStarters.offense.length !== 7 ||
-        allAssignedStarters.defense.length !== 7
+        allAssignedStarters.offense.length !== format.offenseSize ||
+        allAssignedStarters.defense.length !== format.defenseSize
       ) {
-        return "Fill all 14 starter slots (7 attack · 7 defence), or clear them to save the squad only.";
+        return `Fill all ${format.startersTotal} starter slots (${format.offenseSize} attack · ${format.defenseSize} defence), or clear them to save the squad only.`;
       }
-      const femaleStarters = allAssignedStarters.all.filter(
-        (p) => (p.gender || "").toUpperCase() === "F",
-      ).length;
-      if (femaleStarters < 2)
-        return "The starting lineup needs at least 2 female players.";
+      if (offenseWomen < format.minFemalePerUnit)
+        return `Attack needs at least ${format.minFemalePerUnit} women (you have ${offenseWomen}).`;
+      if (defenseWomen < format.minFemalePerUnit)
+        return `Defence needs at least ${format.minFemalePerUnit} women (you have ${defenseWomen}).`;
     }
     return null;
   }, [
@@ -697,6 +543,9 @@ export const TeamHeadTeamSheets = () => {
     isStarterUniquenessValid,
     startersCount,
     allAssignedStarters,
+    format,
+    offenseWomen,
+    defenseWomen,
   ]);
 
   // Helper format rating
@@ -815,7 +664,7 @@ export const TeamHeadTeamSheets = () => {
     if (!player) {
       const meta =
         unit === "OFFENSE"
-          ? OFFENSE_SLOTS.find((s) => s.key === slotKey)
+          ? offenseSlots.find((s) => s.key === slotKey)
           : null;
       setPickerTarget({
         type: "STARTER",
@@ -904,8 +753,8 @@ export const TeamHeadTeamSheets = () => {
       setDefenseStarters((prev) => ({ ...prev, [slotKey]: null }));
     }
 
-    // Add to substitutes if not exceeding 25 squad cap
-    if (totalSquadCount < 25) {
+    // Add to substitutes if not exceeding the squad cap
+    if (totalSquadCount < format.squadCap) {
       setSubstitutes((prev) => [...prev, player]);
       toast.success(`${player.name} moved to match substitutes.`);
     } else {
@@ -927,8 +776,10 @@ export const TeamHeadTeamSheets = () => {
       );
       return;
     }
-    if (totalSquadCount >= 25) {
-      toast.error("Maximum match squad limit of 25 players reached!");
+    if (totalSquadCount >= format.squadCap) {
+      toast.error(
+        `Maximum match squad limit of ${format.squadCap} players reached!`,
+      );
       return;
     }
 
@@ -967,7 +818,9 @@ export const TeamHeadTeamSheets = () => {
 
   /**
    * Intelligent Auto-Fill Lineup
-   * Automatically assigns best available players from roster into 14 starter slots.
+   * Fills every starter slot of the match's format with the best-rated fitting
+   * players, meeting each unit's women's quota where the squad allows
+   * (see utils/autoFillLineup.ts).
    */
   const handleAutoFill = () => {
     if (isMatchLockedCurrently || isMatchFinished) {
@@ -976,76 +829,10 @@ export const TeamHeadTeamSheets = () => {
       );
       return;
     }
-    // Sort highest rated players first so auto-fill selects the top performers
-    const available = [...clubPlayers].sort(
-      (a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0),
-    );
-    const assignedIds = new Set<string>();
-
-    const pickNext = (
-      predicate: (p: ClubPlayer) => boolean,
-    ): ClubPlayer | null => {
-      const found = available.find(
-        (p) => !assignedIds.has(p.id) && predicate(p),
-      );
-      if (found) {
-        assignedIds.add(found.id);
-        return found;
-      }
-      // Fallback to any remaining player
-      const fallback = available.find((p) => !assignedIds.has(p.id));
-      if (fallback) {
-        assignedIds.add(fallback.id);
-        return fallback;
-      }
-      return null;
-    };
-
-    const newOff: Record<string, ClubPlayer | null> = {};
-    // 1. Male QB
-    newOff.MALE_QB = pickNext(
-      (p) =>
-        (p.gender === "M" || !p.gender) &&
-        (p.position === "QB" || p.secondary_position === "QB"),
-    );
-    // 2. Female QB / Rec
-    newOff.FEMALE_QB = pickNext(
-      (p) =>
-        p.gender === "F" && (p.position === "QB" || p.position === "Receiver"),
-    );
-    // 3. Center
-    newOff.CENTER = pickNext(
-      (p) => p.position === "Center" || p.secondary_position === "Center",
-    );
-    // 4. Receivers
-    newOff.WR_1 = pickNext((p) => p.position === "Receiver");
-    newOff.WR_2 = pickNext((p) => p.position === "Receiver");
-    newOff.WR_3 = pickNext((p) => p.position === "Receiver");
-    newOff.WR_4 = pickNext((p) => p.position === "Receiver");
-
-    const newDef: Record<string, ClubPlayer | null> = {};
-    // 5. Rusher
-    newDef.RUSHER = pickNext(
-      (p) => p.position === "Rusher" || p.secondary_position === "Rusher",
-    );
-    // 6. Defenders
-    for (let i = 1; i <= 6; i++) {
-      newDef[`DEF_${i}`] = pickNext(
-        (p) => p.position === "Defender" || p.secondary_position === "Defender",
-      );
-    }
-
-    // Remaining players become bench substitutes up to 11 (total <= 25)
-    const newSubs: ClubPlayer[] = [];
-    for (const p of available) {
-      if (!assignedIds.has(p.id) && assignedIds.size + newSubs.length < 25) {
-        newSubs.push(p);
-      }
-    }
-
-    setOffenseStarters(newOff);
-    setDefenseStarters(newDef);
-    setSubstitutes(newSubs);
+    const { offense, defense, bench } = buildAutoFillLineup(clubPlayers, format);
+    setOffenseStarters(offense);
+    setDefenseStarters(defense);
+    setSubstitutes(bench);
     setSelectedSlotForSwap(null);
     toast.success("Lineup auto-filled based on roster roles!");
   };
@@ -1059,8 +846,8 @@ export const TeamHeadTeamSheets = () => {
       const playersPayload: SaveTeamSheetPayload["players"] = [];
       const playerIds: string[] = [];
 
-      // 7 Offense starters
-      OFFENSE_SLOTS.forEach((slot, idx) => {
+      // Attack starters
+      offenseSlots.forEach((slot, idx) => {
         const p = offenseStarters[slot.key];
         if (p) {
           playersPayload.push({
@@ -1074,8 +861,8 @@ export const TeamHeadTeamSheets = () => {
         }
       });
 
-      // 7 Defense starters
-      DEFENSE_SLOT_KEYS.forEach((slotKey, idx) => {
+      // Defence starters
+      format.defenseSlotKeys.forEach((slotKey, idx) => {
         const p = defenseStarters[slotKey];
         if (p) {
           playersPayload.push({
@@ -1083,7 +870,7 @@ export const TeamHeadTeamSheets = () => {
             is_starter: true,
             starter_unit: "DEFENSE",
             position_slot: slotKey,
-            order_index: idx + 7,
+            order_index: idx + format.offenseSize,
           });
           playerIds.push(p.id);
         }
@@ -1094,14 +881,14 @@ export const TeamHeadTeamSheets = () => {
         playersPayload.push({
           player_id: p.id,
           is_starter: false,
-          order_index: idx + 14,
+          order_index: idx + format.startersTotal,
         });
         playerIds.push(p.id);
       });
 
       const payload: SaveTeamSheetPayload = {
         team_id: team.id,
-        coverage,
+        coverage: coverageValue,
         players: playersPayload,
         player_ids: playerIds,
       };
@@ -1131,8 +918,9 @@ export const TeamHeadTeamSheets = () => {
   });
 
   // ── Defense Slot Mapping for Pitch Based on Coverage ────────────────────
-  const currentDefenseScheme =
-    COVERAGE_SCHEMES[coverage] || COVERAGE_SCHEMES[2];
+  // A scheme the match's format offers (a saved Cover 4 doesn't exist in 5v5).
+  const coverageValue = validCoverage(format, coverage);
+  const currentDefenseScheme = schemeFor(format, coverageValue);
 
   const defenseSlotsMeta = useMemo(() => {
     const slots: Array<{
@@ -1153,7 +941,7 @@ export const TeamHeadTeamSheets = () => {
     });
 
     // Underneath defenders
-    currentDefenseScheme.under.forEach(([x, y], idx) => {
+    currentDefenseScheme.builder.under.forEach(([x, y], idx) => {
       const defKey = `DEF_${idx + 1}`;
       slots.push({
         key: defKey,
@@ -1165,14 +953,14 @@ export const TeamHeadTeamSheets = () => {
     });
 
     // Deep defenders
-    const underCount = currentDefenseScheme.under.length;
-    currentDefenseScheme.deep.forEach(([x, y], idx) => {
+    const underCount = currentDefenseScheme.builder.under.length;
+    currentDefenseScheme.builder.deep.forEach(([x, y], idx) => {
       const defKey = `DEF_${underCount + idx + 1}`;
       slots.push({
         key: defKey,
         label: `Deep Defender ${idx + 1}`,
         roleOnPitch:
-          idx === 0 && currentDefenseScheme.deep.length === 1
+          idx === 0 && currentDefenseScheme.builder.deep.length === 1
             ? "Free Safety"
             : "Deep Defender",
         x,
@@ -1288,7 +1076,7 @@ export const TeamHeadTeamSheets = () => {
         subtitle={
           <>
             Set <span className="font-bold">{team.name}</span>'s starting units
-            (7 attack, 7 defence), coverage scheme and substitutes for each
+            ({format.offenseSize} attack, {format.defenseSize} defence), coverage scheme and substitutes for each
             match.
           </>
         }
@@ -1372,6 +1160,11 @@ export const TeamHeadTeamSheets = () => {
             )}
           </div>
         )}
+        {currentMatch && (
+          <span className="self-start sm:self-auto px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs font-black uppercase tracking-tight text-gray-700 dark:text-gray-200">
+            {format.label} match
+          </span>
+        )}
         {selectedMatchId && (
           <Link
             to={`/matches/${selectedMatchId}?tab=rating`}
@@ -1415,10 +1208,10 @@ export const TeamHeadTeamSheets = () => {
             <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600">
               <span
                 aria-hidden="true"
-                className={`w-2.5 h-2.5 rounded-full ${startersCount === 14 ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}
+                className={`w-2.5 h-2.5 rounded-full ${startersCount === format.startersTotal ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}
               />
               <span className="text-xs font-black text-gray-900 dark:text-white uppercase">
-                Starters: {startersCount} / 14
+                Starters: {startersCount} / {format.startersTotal}
               </span>
               <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
                 ({allAssignedStarters.offense.length} Off ·{" "}
@@ -1433,15 +1226,17 @@ export const TeamHeadTeamSheets = () => {
               </span>
             </div>
 
-            {/* Total 25-cap badge */}
+            {/* Squad cap badge */}
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-black uppercase ${
-                totalSquadCount <= 25
+                totalSquadCount <= format.squadCap
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
                   : "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
               }`}
             >
-              <span>Match Squad: {totalSquadCount} / 25 Cap</span>
+              <span>
+                Match Squad: {totalSquadCount} / {format.squadCap} Cap
+              </span>
             </div>
 
             {/* Uniqueness status */}
@@ -1474,6 +1269,30 @@ export const TeamHeadTeamSheets = () => {
             )}
           </div>
 
+          {/* ── Saved lineup was built for another format ── */}
+          {sheetNeedsRebuild && (
+            <div
+              role="status"
+              className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 p-4 rounded-xl md:rounded-2xl flex items-start gap-3 text-amber-900 dark:text-amber-200 shadow-sm"
+            >
+              <ExclamationTriangleIcon
+                className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
+              <div className="text-xs md:text-sm">
+                <span className="font-black uppercase tracking-wide mr-1.5">
+                  Rebuild the lineup:
+                </span>
+                <span>
+                  This match is played {format.label}, but its saved lineup was
+                  built for a different format. Your players have been moved to
+                  the bench. Set the {format.startersTotal} starters again and
+                  save.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* ── Selection Instruction Banner (if a slot is selected for swapping) ── */}
           {selectedSlotForSwap && (
             <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3 text-amber-900 dark:text-amber-200 text-xs md:text-sm font-bold shadow-sm animate-fade-in">
@@ -1504,7 +1323,7 @@ export const TeamHeadTeamSheets = () => {
               className="flex-col sm:flex-row uppercase tracking-tight"
               onClick={() => setMobileUnitTab("offense")}
             >
-              Attack ({allAssignedStarters.offense.length}/7)
+              Attack ({allAssignedStarters.offense.length}/{format.offenseSize})
             </Button>
             <Button
               variant={mobileUnitTab === "defense" ? "navy" : "secondary"}
@@ -1514,7 +1333,7 @@ export const TeamHeadTeamSheets = () => {
               className="flex-col sm:flex-row uppercase tracking-tight"
               onClick={() => setMobileUnitTab("defense")}
             >
-              Defense ({allAssignedStarters.defense.length}/7)
+              Defense ({allAssignedStarters.defense.length}/{format.defenseSize})
             </Button>
             <Button
               variant={mobileUnitTab === "bench" ? "navy" : "secondary"}
@@ -1543,16 +1362,28 @@ export const TeamHeadTeamSheets = () => {
                     Offensive Starters
                   </h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    2 QBs (1 Male · 1 Female) · 1 Center · 4 Receivers
+                    {format.offenseDetail}
                   </p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-xs font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                  {allAssignedStarters.offense.length} / 7 Selected
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-black uppercase border ${
+                      offenseWomen >= format.minFemalePerUnit
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                        : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+                    }`}
+                    title={`Each unit needs at least ${format.minFemalePerUnit} women`}
+                  >
+                    Women {offenseWomen} / {format.minFemalePerUnit}
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                    {allAssignedStarters.offense.length} / {format.offenseSize} Selected
+                  </span>
+                </div>
               </div>
 
               <PitchField>
-                {OFFENSE_SLOTS.map((slot) => {
+                {offenseSlots.map((slot) => {
                   const p = offenseStarters[slot.key];
                   return (
                     <PitchSlot
@@ -1594,16 +1425,33 @@ export const TeamHeadTeamSheets = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {currentDefenseScheme.tagline}
                   </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-black uppercase border ${
+                        defenseWomen >= format.minFemalePerUnit
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                          : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+                      }`}
+                      title={`Each unit needs at least ${format.minFemalePerUnit} women`}
+                    >
+                      Women {defenseWomen} / {format.minFemalePerUnit}
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                      {allAssignedStarters.defense.length} / {format.defenseSize} Selected
+                    </span>
+                  </div>
                 </div>
 
-                {/* Coverage Selector (Cover 1 to 4) */}
-                <div className="grid grid-cols-4 gap-1 w-full sm:w-auto bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
-                  {[1, 2, 3, 4].map((num) => (
+                {/* Coverage Selector: the schemes the match's format offers */}
+                <div
+                  className={`grid ${format.coverages.length === 3 ? "grid-cols-3" : "grid-cols-4"} gap-1 w-full sm:w-auto bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl`}
+                >
+                  {format.coverages.map((num) => (
                     <Button
                       key={num}
                       size="sm"
-                      variant={coverage === num ? "navy" : "secondary"}
-                      aria-pressed={coverage === num}
+                      variant={coverageValue === num ? "navy" : "secondary"}
+                      aria-pressed={coverageValue === num}
                       onClick={() => setCoverage(num)}
                     >
                       Cover {num}
@@ -1613,7 +1461,7 @@ export const TeamHeadTeamSheets = () => {
               </div>
 
               <PitchField
-                note={`Cover ${coverage} · ${currentDefenseScheme.description}`}
+                note={`Cover ${coverageValue} · ${currentDefenseScheme.description}`}
               >
                 {defenseSlotsMeta.map((slot) => {
                   const p = defenseStarters[slot.key];
@@ -1662,7 +1510,7 @@ export const TeamHeadTeamSheets = () => {
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Bench players for this match. Select a starter on the pitch,
-                  then tap a substitute to swap them. (Max 25 total match
+                  then tap a substitute to swap them. (Max {format.squadCap} total match
                   squad).
                 </p>
               </div>
@@ -1671,7 +1519,7 @@ export const TeamHeadTeamSheets = () => {
                 variant="navy"
                 size="sm"
                 icon={UserPlusIcon}
-                disabled={totalSquadCount >= 25}
+                disabled={totalSquadCount >= format.squadCap}
                 className="self-start sm:self-auto uppercase tracking-tight"
                 onClick={() => openPicker({ type: "BENCH" })}
               >
@@ -1689,8 +1537,8 @@ export const TeamHeadTeamSheets = () => {
                   No Substitutes Assigned Yet
                 </h3>
                 <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
-                  Add bench players from your club roster. You can carry up to
-                  11 substitutes (25 total match squad limit).
+                  Add bench players from your club roster. You can carry up to{" "}
+                  {format.squadCap - format.startersTotal} substitutes ({format.squadCap} total match squad limit).
                 </p>
                 <Button
                   size="sm"
@@ -1984,10 +1832,10 @@ export const TeamHeadTeamSheets = () => {
           <ConfirmSummary
             rows={[
               ["Match", currentMatch ? matchLabel(currentMatch) : undefined],
-              ["Starters", `${startersCount} / 14`],
+              ["Starters", `${startersCount} / ${format.startersTotal}`],
               ["Substitutes", String(substitutes.length)],
-              ["Match squad", `${totalSquadCount} / 25`],
-              ["Coverage", `Cover ${coverage}`],
+              ["Match squad", `${totalSquadCount} / ${format.squadCap}`],
+              ["Coverage", `Cover ${coverageValue}`],
             ]}
           />
         }
