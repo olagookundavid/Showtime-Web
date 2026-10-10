@@ -45,6 +45,7 @@ type MatchRepository interface {
 	DeleteMatch(ctx context.Context, id string) error
 	SetMatchSlot(ctx context.Context, matchID, slot string, teamID *string) error
 	SetMatchPBPLock(ctx context.Context, matchID string, locked bool) error
+	SetMatchScore(ctx context.Context, matchID string, home, away int) error
 	SetMatchMVP(ctx context.Context, matchID string, playerID *string) error
 	OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error
 	CountMatchesByCompetition(ctx context.Context, competitionID string) (int64, error)
@@ -823,6 +824,14 @@ func (r *PostgresMatchRepository) SetMatchSlot(ctx context.Context, matchID, slo
 
 func (r *PostgresMatchRepository) SetMatchPBPLock(ctx context.Context, matchID string, locked bool) error {
 	_, err := r.db.Exec(ctx, `UPDATE matches SET pbp_locked = $1, updated_at = NOW() WHERE id = $2`, locked, matchID)
+	return err
+}
+
+// SetMatchScore directly updates a match's score columns, bypassing UpdateMatch's
+// competition/standings validation — used by the broadcast studio's on-air
+// scoreboard, which writes on every producer tap.
+func (r *PostgresMatchRepository) SetMatchScore(ctx context.Context, matchID string, home, away int) error {
+	_, err := r.db.Exec(ctx, `UPDATE matches SET home_score = $1, away_score = $2, updated_at = NOW() WHERE id = $3`, home, away, matchID)
 	return err
 }
 

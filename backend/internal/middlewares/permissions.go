@@ -66,7 +66,7 @@ var FeatureAccess = map[string]map[string]AccessLevel{
 	},
 	"broadcast_studio": {
 		domain.RoleAdmin: AccessFull, domain.RoleBroadcast: AccessFull,
-		domain.RoleContentCreator: AccessFull,
+		domain.RoleContentCreator: AccessFull, domain.RoleStats: AccessFull,
 	},
 	"stats_edit": {
 		domain.RoleAdmin: AccessFull, domain.RoleCommissioner: AccessFull,

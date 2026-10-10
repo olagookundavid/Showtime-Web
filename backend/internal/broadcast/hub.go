@@ -77,6 +77,11 @@ type Hub struct {
 	stop      chan struct{}
 	stopped   chan struct{}
 	closeOnce sync.Once
+
+	// OnScoreChange, when set, is called after a producer-originated update
+	// (see ApplyProducerUpdate) whose manual score differs from what was there
+	// before. It is not invoked for bootstrap or event-day on-air switches.
+	OnScoreChange func(matchID string, home, away int)
 }
 
 // NewHub initializes a broadcast hub. store may be nil for a memory-only hub.
@@ -225,6 +230,24 @@ func (h *Hub) SetState(state *BroadcastState) {
 		return
 	}
 	h.broadcastData(cp.MatchID, data)
+}
+
+// ApplyProducerUpdate applies a producer-originated state update (from the
+// producer WebSocket or the REST fallback) and, when the manual score
+// differs from what was there before, notifies OnScoreChange so it can be
+// synced to the match record elsewhere. Internal callers (bootstrap,
+// event-day on-air switches) should keep calling SetState directly so they
+// don't re-trigger that sync.
+func (h *Hub) ApplyProducerUpdate(state *BroadcastState) {
+	h.mu.RLock()
+	prev, hadPrev := h.states[state.MatchID]
+	h.mu.RUnlock()
+
+	h.SetState(state)
+
+	if h.OnScoreChange != nil && (!hadPrev || prev.ManualHome != state.ManualHome || prev.ManualAway != state.ManualAway) {
+		h.OnScoreChange(state.MatchID, state.ManualHome, state.ManualAway)
+	}
 }
 
 // clientGroups returns the set a client belongs in: producers or viewers keyed
@@ -409,7 +432,7 @@ func (c *Client) ReadPump() {
 			var state BroadcastState
 			if err := json.Unmarshal(message, &state); err == nil {
 				state.MatchID = c.MatchID
-				c.Hub.SetState(&state)
+				c.Hub.ApplyProducerUpdate(&state)
 			} else {
 				log.Printf("[BroadcastClient] unmarshal error: %v", err)
 			}

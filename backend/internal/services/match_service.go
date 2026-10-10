@@ -45,6 +45,7 @@ type IMatchService interface {
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
 	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
 	OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error
+	SetMatchScore(ctx context.Context, matchID string, home, away int) error
 	InitializeCup(ctx context.Context, competitionID string, req dto.InitializeCupRequest) error
 	AdvanceCupRound(ctx context.Context, competitionID string, req dto.AdvanceCupRequest) error
 	GetCupState(ctx context.Context, competitionID string) (*dto.CupStateResponse, error)
@@ -993,6 +994,13 @@ func (s *MatchService) CountFemalePlayers(ctx context.Context, playerIDs []strin
 
 func (s *MatchService) OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error {
 	return s.repo.OverrideMatchMVP(ctx, matchID, playerID, override)
+}
+
+// SetMatchScore directly updates a match's score columns — used by the
+// broadcast studio's on-air scoreboard, which writes on every producer tap
+// and should not pay for UpdateMatch's competition/standings validation.
+func (s *MatchService) SetMatchScore(ctx context.Context, matchID string, home, away int) error {
+	return s.repo.SetMatchScore(ctx, matchID, home, away)
 }
 
 // cupMatchLimit is well above the 22 matches a 10-team cup ever has.

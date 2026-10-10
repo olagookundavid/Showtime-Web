@@ -231,7 +231,7 @@ export const adminBottomNavFor = (role: Role | undefined): DashboardBottomNavIte
       },
     ];
   if (role === "stats")
-    return [MATCH, STATS, { name: "Teams", path: "/admin/teams", icon: ShieldCheckIcon, solidIcon: ShieldCheckSolid }];
+    return [MATCH, STATS, BROADCAST, { name: "Teams", path: "/admin/teams", icon: ShieldCheckIcon, solidIcon: ShieldCheckSolid }];
   if (role === "admin" || role === "app_admin") {
     return [
       { name: "Dash", path: "/admin", end: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },

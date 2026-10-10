@@ -67,7 +67,9 @@ export const FEATURE_ACCESS: Record<FeatureKey, Partial<Record<Role, AccessLevel
     stats: "full",
   },
   play_by_play_commit: { admin: "full", commissioner: "full", head_referee: "full" },
-  broadcast_studio: { admin: "full", broadcast: "full", content_creator: "full" },
+  broadcast_studio: {
+    admin: "full", broadcast: "full", content_creator: "full", stats: "full",
+  },
   stats_edit: { admin: "full", commissioner: "full", head_referee: "full" },
   players: {
     admin: "full", commissioner: "full", head_referee: "full", referee: "full",

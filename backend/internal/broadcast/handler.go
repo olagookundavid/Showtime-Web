@@ -146,7 +146,7 @@ func (h *BroadcastHandler) UpdateState(c *gin.Context) {
 	}
 
 	state.MatchID = matchID
-	h.hub.SetState(&state)
+	h.hub.ApplyProducerUpdate(&state)
 	c.JSON(http.StatusOK, state)
 }
 

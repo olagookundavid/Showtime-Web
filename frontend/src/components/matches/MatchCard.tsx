@@ -4,6 +4,7 @@ import { CalendarDaysIcon, TicketIcon } from "@heroicons/react/24/outline";
 import type { Match } from "../../types";
 import { generateGoogleCalendarLink, formatMatchTime, formatMatchDate } from "../../utils";
 import { Button, ButtonLink, LightboxImage } from "../ui";
+import { useLiveMatchScore } from "../../hooks";
 
 interface MatchCardProps {
   match: Match;
@@ -13,6 +14,12 @@ interface MatchCardProps {
 export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
   const isFinished = match.status === "FINISHED";
   const isLive = match.status === "LIVE";
+  const { homeScore, awayScore } = useLiveMatchScore(
+    match.id,
+    match.home_score,
+    match.away_score,
+    isLive,
+  );
   const isBye =
     match.competition?.format === "PLAYOFFS" &&
     ((match.home_team?.id &&
@@ -77,7 +84,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
         <div className="flex flex-col items-center justify-center w-1/3">
           {(isFinished || isLive) && !isBye ? (
             <div className="text-base md:text-4xl font-black text-sffl-navy dark:text-white whitespace-nowrap">
-              {match.home_score} - {match.away_score}
+              {homeScore} - {awayScore}
             </div>
           ) : (
             <div className="text-sm md:text-2xl font-bold text-gray-400 dark:text-gray-300">

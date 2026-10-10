@@ -10,3 +10,4 @@ export { useBroadcastViewer } from './useBroadcastViewer';
 export { LEADERBOARD_LIMIT, num, rankBadgeClass, useFantasyLeaderboard } from './useFantasyLeaderboard';
 export { useReserveDrag } from './useReserveDrag';
 export type { ReserveDragState } from './useReserveDrag';
+export { useLiveMatchScore } from './useLiveMatchScore';

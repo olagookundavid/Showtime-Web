@@ -548,6 +548,15 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 
 	broadcastRepo := ports.NewBroadcastStateRepository(pool)
 	broadcastHub := broadcast.NewHub(broadcastRepo)
+	// Sync the on-air scoreboard to the match record and tell anyone watching
+	// (AdminMatches, the public match pages) as soon as the producer changes it.
+	broadcastHub.OnScoreChange = func(matchID string, home, away int) {
+		if err := matchService.SetMatchScore(context.Background(), matchID, home, away); err != nil {
+			log.Error("failed to sync broadcast score to match", map[string]interface{}{"match_id": matchID, "error": err.Error()})
+			return
+		}
+		services.GlobalSSEBroker.Broadcast(matchID, "score_updated", map[string]int{"home_score": home, "away_score": away})
+	}
 	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService, broadcastRepo)
 
 	h := handlers.NewHandlers(

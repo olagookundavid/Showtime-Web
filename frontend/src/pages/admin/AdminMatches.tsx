@@ -48,7 +48,7 @@ import {
 } from "../../components";
 import { KNOCKOUT_STAGES } from "../../constants";
 import { formatMatchDate, formatMatchTime } from "../../utils";
-import { usePermissions } from "../../hooks";
+import { usePermissions, useLiveMatchScore } from "../../hooks";
 
 interface FormData {
   competition_id: string;
@@ -103,6 +103,21 @@ const STATUS_COLORS: Record<string, string> = {
 
 // A stable empty list, so the tables aren't handed a fresh array on every render.
 const NO_MATCHES: Match[] = [];
+
+// Live matches get their score over SSE (the broadcast studio's on-air
+// scoreboard), so they get their own subscription rather than reading the
+// row straight from the table's query cache.
+const LiveScoreCell = ({ match }: { match: Match }) => {
+  const { homeScore, awayScore } = useLiveMatchScore(
+    match.id,
+    match.home_score,
+    match.away_score,
+    match.status === "LIVE",
+  );
+
+  if (match.status !== "FINISHED" && match.status !== "LIVE") return <>—</>;
+  return <>{homeScore} - {awayScore}</>;
+};
 
 // Every save and delete goes through the confirm dialog first.
 type PendingAction = { kind: "save" } | { kind: "delete"; match: Match };
@@ -618,9 +633,7 @@ export const AdminMatches = () => {
         header: "Score",
         cell: (m) => (
           <span className="font-bold text-gray-900 dark:text-gray-100">
-            {m.status === "FINISHED"
-              ? `${m.home_score} - ${m.away_score}`
-              : "—"}
+            <LiveScoreCell match={m} />
           </span>
         ),
       },
