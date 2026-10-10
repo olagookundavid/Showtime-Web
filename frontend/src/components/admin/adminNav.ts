@@ -50,6 +50,13 @@ const ADMIN_BRAND_LABELS: Record<string, string> = {
   ticketer: "Ticketing Portal",
   referee: "Referee Portal",
   stats: "Stats Portal",
+  broadcast: "Broadcast Portal",
+  commissioner: "Commissioner Portal",
+  fantasy_commissioner: "Fantasy Commissioner Portal",
+  head_referee: "Head Referee Portal",
+  news_head: "News Portal",
+  content_creator: "Content Portal",
+  store_manager: "Store Portal",
 };
 
 export const adminBrandLabelFor = (role?: string) =>
