@@ -112,6 +112,9 @@ func (s *GamePassService) CreateSeasonTier(ctx context.Context, req dto.CreateSe
 	if err := validateSeasonTier(t); err != nil {
 		return nil, err
 	}
+	if err := s.checkSeasonTierOrderUnique(ctx, t); err != nil {
+		return nil, err
+	}
 	if err := s.seasonTierRepo.Create(ctx, t); err != nil {
 		return nil, err
 	}
@@ -142,6 +145,9 @@ func (s *GamePassService) UpdateSeasonTier(ctx context.Context, id string, req d
 	if err := validateSeasonTier(t); err != nil {
 		return nil, err
 	}
+	if err := s.checkSeasonTierOrderUnique(ctx, t); err != nil {
+		return nil, err
+	}
 	if err := s.seasonTierRepo.Update(ctx, t); err != nil {
 		return nil, err
 	}
@@ -159,6 +165,26 @@ func validateSeasonTier(t *domain.SeasonAdmissionTier) error {
 	}
 	if t.Price < 0 {
 		return appErrors.InvalidGamePassConfig("tier price cannot be negative")
+	}
+	return nil
+}
+
+// checkSeasonTierOrderUnique names the conflicting tier when display_order
+// is already taken. This is the common path to a clear error; the unique
+// index on season_admission_tiers.display_order is the backstop for a race
+// between two admins, surfacing as the less specific ErrDuplicateDisplayOrder.
+func (s *GamePassService) checkSeasonTierOrderUnique(ctx context.Context, t *domain.SeasonAdmissionTier) error {
+	all, err := s.seasonTierRepo.List(ctx, false)
+	if err != nil {
+		return err
+	}
+	for _, o := range all {
+		if o.ID == t.ID {
+			continue
+		}
+		if o.DisplayOrder == t.DisplayOrder {
+			return appErrors.InvalidGamePassConfig("display order %d is already used by %q", t.DisplayOrder, o.Name)
+		}
 	}
 	return nil
 }

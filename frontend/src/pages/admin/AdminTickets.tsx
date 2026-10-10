@@ -1,4 +1,4 @@
-import { ConfirmDialog, DataTable, type Column, RowActions, type RowAction, DashboardPageHeader, Button, IconButton, Input, Select } from "../../components";
+import { ConfirmDialog, DataTable, type Column, RowActions, type RowAction, DashboardPageHeader, Button, IconButton, Input, Select, Tabs, Modal } from "../../components";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -8,6 +8,7 @@ import {
   CheckCircleIcon,
   EnvelopeIcon,
   ExclamationCircleIcon,
+  EyeIcon,
   HashtagIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
@@ -22,26 +23,12 @@ import {
   searchTicketsByEmail,
   getEventDays,
   getAllEventDays,
+  adminListGamePassOrders,
+  adminGetGamePassOrder,
 } from "../../services/api";
-import type { TicketResponse, EventDayResponse } from "../../types";
+import type { TicketResponse, EventDayResponse, GamePassOrderResponse } from "../../types";
 import { useAuth } from "../../contexts";
-import { formatMatchDate } from "../../utils";
-
-type ApiError = {
-  response?: {
-    data?: {
-      error?: string;
-    };
-  };
-};
-
-const getApiErrorMessage = (error: unknown, fallback: string): string => {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const apiError = error as ApiError;
-    return apiError.response?.data?.error || fallback;
-  }
-  return fallback;
-};
+import { formatMatchDate, getApiErrorMessage } from "../../utils";
 
 // Game days are dated in Lagos time (WAT), so "today" is too.
 const lagosToday = () =>
@@ -62,6 +49,9 @@ const eventDayLabel = (ed: EventDayResponse) =>
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_TICKETS: TicketResponse[] = [];
+const NO_ORDERS: GamePassOrderResponse[] = [];
+
+type TicketTab = "tickets" | "game-pass";
 
 // Every key action goes through a confirm dialog first.
 const ACTIONS = {
@@ -283,6 +273,34 @@ export const AdminTickets = () => {
   const totalPages = ticketsData?.total_pages || 1;
   const loading = loadingEventDays || loadingTickets;
 
+  // ── Game Pass orders tab ──────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<TicketTab>("tickets");
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderStatus, setOrderStatus] = useState("");
+  const [orderEmail, setOrderEmail] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  const { data: ordersData, isLoading: loadingOrders } = useQuery({
+    queryKey: ["adminGamePassOrders", { page: orderPage, status: orderStatus, email: orderEmail }],
+    queryFn: () =>
+      adminListGamePassOrders(orderPage, 10, orderStatus || undefined, orderEmail || undefined),
+    enabled: activeTab === "game-pass",
+  });
+
+  const orders = ordersData?.data ?? NO_ORDERS;
+  const orderTotalPages = ordersData?.total_pages || 1;
+
+  const {
+    data: selectedOrder,
+    isLoading: loadingOrderDetail,
+    isError: orderDetailFailed,
+    error: orderDetailError,
+  } = useQuery({
+    queryKey: ["adminGamePassOrder", selectedOrderId],
+    queryFn: () => adminGetGamePassOrder(selectedOrderId!),
+    enabled: !!selectedOrderId,
+  });
+
   // Search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMode, setSearchMode] = useState<"code" | "email">("code");
@@ -461,13 +479,78 @@ export const AdminTickets = () => {
     [actionLoading, eventDayById, today],
   );
 
+  const orderColumns = useMemo<Column<GamePassOrderResponse>[]>(
+    () => [
+      {
+        header: "Buyer",
+        cell: (o) => (
+          <div className="min-w-0">
+            <div className="font-bold text-sffl-navy dark:text-white">{o.name}</div>
+            <div className="truncate text-xs text-gray-500 dark:text-gray-400">{o.email}</div>
+          </div>
+        ),
+      },
+      { header: "Tier", cell: (o) => o.tier_name },
+      {
+        header: "Gamedays",
+        align: "center",
+        cell: (o) => `${o.gameday_count} × ${o.holders}`,
+      },
+      {
+        header: "Total",
+        align: "right",
+        cell: (o) => (
+          <span className="font-semibold dark:text-white">₦{o.total.toLocaleString()}</span>
+        ),
+      },
+      {
+        header: "Status",
+        align: "center",
+        cell: (o) => (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(o.payment_status.toUpperCase())}`}
+          >
+            {o.payment_status}
+          </span>
+        ),
+      },
+      {
+        header: "Actions",
+        align: "right",
+        cell: (o) => (
+          <RowActions
+            label={`Actions for order ${o.paystack_reference || o.email}`}
+            actions={[
+              {
+                label: "View details",
+                icon: EyeIcon,
+                onSelect: () => setSelectedOrderId(o.id),
+              },
+            ]}
+          />
+        ),
+      },
+    ],
+    [],
+  );
+
   const action = pendingAction ? ACTIONS[pendingAction.kind] : null;
 
   return (
     <div className="space-y-6">
       <DashboardPageHeader
         title="Tickets"
-        subtitle="Search and check in tickets, and review ticket sales."
+        subtitle="Search and check in tickets, review ticket sales, and track Game Pass orders."
+      />
+
+      <Tabs
+        aria-label="Ticket view"
+        items={[
+          { value: "tickets", label: "Tickets" },
+          { value: "game-pass", label: "Game Pass Orders" },
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
       />
 
       {/* ── Search / Check-in Section ─────────────────────────────────── */}
@@ -571,66 +654,190 @@ export const AdminTickets = () => {
         )}
       </div>
 
-      {/* ── All Tickets Table ─────────────────────────────────────────── */}
-      <DataTable
-        data={tickets}
-        columns={ticketColumns}
-        searchable={false}
-        serverPage={page}
-        totalServerPages={totalPages}
-        onPageChange={setPage}
-        loading={loading}
-        getRowId={(t) => t.id}
-        emptyMessage="No tickets found"
-        headerActions={
-          <>
+      {activeTab === "tickets" ? (
+        /* ── All Tickets Table ───────────────────────────────────────── */
+        <DataTable
+          data={tickets}
+          columns={ticketColumns}
+          searchable={false}
+          serverPage={page}
+          totalServerPages={totalPages}
+          onPageChange={setPage}
+          loading={loading}
+          getRowId={(t) => t.id}
+          emptyMessage="No tickets found"
+          headerActions={
+            <>
+              <Select
+                value={selectedEventDay}
+                onChange={(e) => {
+                  setFilterEventDay(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Game day"
+                className="w-full sm:w-72"
+              >
+                {isAdmin && <option value="">All game days</option>}
+                {upcoming.length > 0 && (
+                  <optgroup label="Upcoming">
+                    {upcoming.map((ed) => (
+                      <option key={ed.id} value={ed.id}>
+                        {eventDayLabel(ed)}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {past.length > 0 && (
+                  <optgroup label="Past">
+                    {past.map((ed) => (
+                      <option key={ed.id} value={ed.id}>
+                        {eventDayLabel(ed)}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </Select>
+              <Select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Ticket status"
+                className="w-full sm:w-44"
+              >
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="PAID">Paid</option>
+                <option value="USED">Used</option>
+                <option value="FAILED">Failed</option>
+              </Select>
+            </>
+          }
+        />
+      ) : (
+        /* ── Game Pass Orders Table ──────────────────────────────────── */
+        <DataTable
+          data={orders}
+          columns={orderColumns}
+          searchPlaceholder="Search by email..."
+          onSearchSubmit={(q) => {
+            setOrderEmail(q);
+            setOrderPage(1);
+          }}
+          serverPage={orderPage}
+          totalServerPages={orderTotalPages}
+          onPageChange={setOrderPage}
+          loading={loadingOrders}
+          getRowId={(o) => o.id}
+          emptyMessage="No Game Pass orders found"
+          headerActions={
             <Select
-              value={selectedEventDay}
+              value={orderStatus}
               onChange={(e) => {
-                setFilterEventDay(e.target.value);
-                setPage(1);
+                setOrderStatus(e.target.value);
+                setOrderPage(1);
               }}
-              aria-label="Game day"
-              className="w-full sm:w-72"
-            >
-              {isAdmin && <option value="">All game days</option>}
-              {upcoming.length > 0 && (
-                <optgroup label="Upcoming">
-                  {upcoming.map((ed) => (
-                    <option key={ed.id} value={ed.id}>
-                      {eventDayLabel(ed)}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {past.length > 0 && (
-                <optgroup label="Past">
-                  {past.map((ed) => (
-                    <option key={ed.id} value={ed.id}>
-                      {eventDayLabel(ed)}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </Select>
-            <Select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Ticket status"
+              aria-label="Order status"
               className="w-full sm:w-44"
             >
               <option value="">All Statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="PAID">Paid</option>
-              <option value="USED">Used</option>
-              <option value="FAILED">Failed</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="failed">Failed</option>
             </Select>
-          </>
-        }
-      />
+          }
+        />
+      )}
+
+      <Modal
+        open={!!selectedOrderId}
+        onClose={() => setSelectedOrderId(null)}
+        title="Game Pass order"
+        maxWidth="lg"
+      >
+        {orderDetailFailed ? (
+          <div className="py-8 text-center text-sm font-medium text-red-600 dark:text-red-400">
+            {getApiErrorMessage(orderDetailError, "Failed to load this order.")}
+          </div>
+        ) : loadingOrderDetail || !selectedOrder ? (
+          <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+            Loading order…
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3">
+              <dt className="text-gray-500 dark:text-gray-400">Buyer</dt>
+              <dd className="dark:text-white">{selectedOrder.name}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Email</dt>
+              <dd className="break-all dark:text-white">{selectedOrder.email}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Phone</dt>
+              <dd className="dark:text-white">{selectedOrder.phone || "—"}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Tier</dt>
+              <dd className="dark:text-white">{selectedOrder.tier_name}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Gamedays</dt>
+              <dd className="dark:text-white">
+                {selectedOrder.gamedays.map((g) => g.title).join(", ") || "—"}
+              </dd>
+              <dt className="text-gray-500 dark:text-gray-400">Holders</dt>
+              <dd className="font-bold dark:text-white">{selectedOrder.holders}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Total</dt>
+              <dd className="font-bold dark:text-white">
+                ₦{selectedOrder.total.toLocaleString()}
+                {selectedOrder.discount_percent > 0 &&
+                  ` (${selectedOrder.discount_percent}% off ₦${selectedOrder.standard_total.toLocaleString()})`}
+              </dd>
+              <dt className="text-gray-500 dark:text-gray-400">Reference</dt>
+              <dd className="break-all font-mono dark:text-white">
+                {selectedOrder.paystack_reference || "—"}
+              </dd>
+              <dt className="text-gray-500 dark:text-gray-400">Status</dt>
+              <dd>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(selectedOrder.payment_status.toUpperCase())}`}
+                >
+                  {selectedOrder.payment_status}
+                </span>
+              </dd>
+            </dl>
+
+            {selectedOrder.tickets && selectedOrder.tickets.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-sm font-bold text-gray-500 dark:text-gray-400">
+                  Ticket codes
+                </h3>
+                <DataTable
+                  data={selectedOrder.tickets}
+                  compact
+                  searchable={false}
+                  paginated={false}
+                  getRowId={(t) => t.id}
+                  columns={[
+                    {
+                      header: "Code",
+                      cell: (t) => (
+                        <span className="font-mono font-bold text-sffl-navy dark:text-white">
+                          {t.ticket_code}
+                        </span>
+                      ),
+                    },
+                    { header: "Gameday", cell: (t) => t.event_title },
+                    {
+                      header: "Status",
+                      align: "center",
+                      cell: (t) => (
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(t.status)}`}>
+                          {t.status}
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={pendingAction !== null}

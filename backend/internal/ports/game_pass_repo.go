@@ -37,6 +37,14 @@ func NewSeasonAdmissionTierRepository(db *pgxpool.Pool) SeasonAdmissionTierRepos
 
 const seasonTierColumns = `id, name, price, description, display_order, is_active, created_at, updated_at`
 
+// isUniqueViolationOn reports whether err is a Postgres unique-violation on
+// the named constraint specifically, so two different unique indexes on the
+// same table (name, display_order) can be told apart and given their own error.
+func isUniqueViolationOn(err error, constraint string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == constraint
+}
+
 func scanSeasonTier(row pgx.Row) (*domain.SeasonAdmissionTier, error) {
 	var t domain.SeasonAdmissionTier
 	if err := row.Scan(&t.ID, &t.Name, &t.Price, &t.Description, &t.DisplayOrder, &t.IsActive, &t.CreatedAt, &t.UpdatedAt); err != nil {
@@ -97,8 +105,11 @@ func (r *PostgresSeasonAdmissionTierRepository) Create(ctx context.Context, t *d
 		t.Name, t.Price, t.Description, t.DisplayOrder, t.IsActive,
 	).Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if isUniqueViolationOn(err, "uq_season_admission_tiers_name") {
 			return appErrors.ErrDuplicateSeasonTier
+		}
+		if isUniqueViolationOn(err, "uq_season_admission_tiers_display_order") {
+			return appErrors.ErrDuplicateDisplayOrder
 		}
 		return fmt.Errorf("failed to create season admission tier: %w", err)
 	}
@@ -120,8 +131,11 @@ func (r *PostgresSeasonAdmissionTierRepository) Update(ctx context.Context, t *d
 		if errors.Is(err, pgx.ErrNoRows) {
 			return appErrors.ErrNotFound
 		}
-		if isUniqueViolation(err) {
+		if isUniqueViolationOn(err, "uq_season_admission_tiers_name") {
 			return appErrors.ErrDuplicateSeasonTier
+		}
+		if isUniqueViolationOn(err, "uq_season_admission_tiers_display_order") {
+			return appErrors.ErrDuplicateDisplayOrder
 		}
 		return fmt.Errorf("failed to update season admission tier: %w", err)
 	}

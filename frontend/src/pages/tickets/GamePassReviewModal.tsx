@@ -1,8 +1,19 @@
 import { useState } from "react";
-import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
-import { Button, Checkbox, Field, Input, Modal } from "../../components";
+import { useNavigate } from "react-router-dom";
+import { CreditCardIcon, LockClosedIcon, SparklesIcon, TicketIcon } from "@heroicons/react/24/outline";
+import {
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  ConfirmSummary,
+  Field,
+  Input,
+  Modal,
+} from "../../components";
 import type { EventDayResponse } from "../../types";
 import type { GamePassTotals } from "../../utils";
+import { getApiErrorMessage } from "../../utils";
+import { checkoutGamePass } from "../../services/api";
 import {
   newsletterEnabled,
   subscribeToNewsletter,
@@ -12,74 +23,88 @@ import {
 interface Props {
   open: boolean;
   onClose: () => void;
+  tierId: string;
   tierName: string;
   gamedays: EventDayResponse[];
   holders: number;
   totals: GamePassTotals;
 }
 
-/**
- * There is no Game Pass backend yet, so this is a review + lead-capture form,
- * not a checkout. Submitting shows a confirmation state — it never pretends
- * to take payment. The optional newsletter opt-in reuses real infrastructure;
- * the Game Pass interest itself has nowhere to persist until a waitlist
- * endpoint exists (see the backend handoff notes).
- */
 export const GamePassReviewModal = ({
   open,
   onClose,
+  tierId,
   tierName,
   gamedays,
   holders,
   totals,
 }: Props) => {
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [joinNewsletter, setJoinNewsletter] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // Every close path (X button, backdrop, Escape, Cancel, Done) resets the
-  // confirmation state, so re-opening on this same selection shows the form
-  // again rather than the stale "thanks" screen.
   const handleClose = () => {
-    setSubmitted(false);
+    setError("");
     onClose();
   };
 
   const canSubmit = !!name && !!email && !!phone.trim();
 
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
-    setSubmitting(true);
-    if (joinNewsletter) {
-      void subscribeToNewsletter({ firstName: toFirstName(name), email });
+  const handleCheckout = async () => {
+    setError("");
+    setPurchasing(true);
+
+    try {
+      const result = await checkoutGamePass({
+        name,
+        email,
+        phone,
+        tier_id: tierId,
+        gameday_ids: gamedays.map((d) => d.id),
+        holders,
+      });
+
+      // Fire-and-forget, same as the single-ticket flow: never awaited, so a
+      // failure here is invisible to the buyer rather than costing them their pass.
+      if (joinNewsletter) {
+        void subscribeToNewsletter(
+          { firstName: toFirstName(name), email },
+          { keepalive: true },
+        );
+      }
+
+      if (result.authorization_url) {
+        window.location.href = result.authorization_url;
+      } else if (result.paystack_reference) {
+        navigate(`/tickets/game-pass/confirm?reference=${result.paystack_reference}`);
+      }
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Failed to start Game Pass checkout. Please try again."));
+      setPurchasing(false);
     }
-    setSubmitting(false);
-    setSubmitted(true);
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      title="Review your Game Pass"
-      maxWidth="lg"
-      shape="square"
-      footer={
-        submitted ? (
-          <Button fullWidth shape="square" size="lg" onClick={handleClose}>
-            Done
-          </Button>
-        ) : (
+    <>
+      <Modal
+        open={open}
+        onClose={handleClose}
+        title="Review your Game Pass"
+        maxWidth="lg"
+        shape="square"
+        footer={
           <>
             <Button
               variant="secondary"
               shape="square"
               size="lg"
               className="flex-1"
-              disabled={submitting}
+              disabled={purchasing}
               onClick={handleClose}
             >
               Cancel
@@ -88,31 +113,20 @@ export const GamePassReviewModal = ({
               shape="square"
               size="lg"
               className="flex-1"
-              loading={submitting}
-              disabled={!canSubmit || submitting}
-              onClick={handleSubmit}
+              loading={purchasing}
+              icon={totals.total === 0 ? TicketIcon : CreditCardIcon}
+              disabled={!canSubmit || purchasing}
+              onClick={() => setConfirmOpen(true)}
             >
-              Notify me
+              {purchasing
+                ? "Processing…"
+                : totals.total === 0
+                  ? "Get Free Game Pass"
+                  : "Pay with Paystack"}
             </Button>
           </>
-        )
-      }
-    >
-      {submitted ? (
-        <div className="space-y-3 py-6 text-center">
-          <CheckCircleIcon
-            className="mx-auto h-12 w-12 text-emerald-500"
-            aria-hidden="true"
-          />
-          <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-            Thanks — we&apos;ll be in touch
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Game Pass purchases are launching soon. We&apos;ll email you the moment
-            they&apos;re available.
-          </p>
-        </div>
-      ) : (
+        }
+      >
         <div className="space-y-4">
           <div className="space-y-2 bg-gray-50 p-4 dark:bg-gray-700">
             <div className="inline-block bg-sffl-navy px-3 py-1 text-xs font-bold text-white">
@@ -144,11 +158,6 @@ export const GamePassReviewModal = ({
             </div>
           </div>
 
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Game Pass purchases are launching soon. Leave your details and
-            we&apos;ll notify you the moment they&apos;re available.
-          </p>
-
           <Field
             label={<>Full Name <span className="text-red-500">*</span></>}
             htmlFor="gamepass-name"
@@ -167,7 +176,7 @@ export const GamePassReviewModal = ({
           <Field
             label={<>Email Address <span className="text-red-500">*</span></>}
             htmlFor="gamepass-email"
-            hint="We'll email you when Game Pass launches"
+            hint="Your Game Pass confirmation will be sent to this email"
           >
             <Input
               id="gamepass-email"
@@ -195,6 +204,12 @@ export const GamePassReviewModal = ({
             />
           </Field>
 
+          {error && (
+            <div className="bg-red-50 p-3 text-sm font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
           {newsletterEnabled && (
             <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/40">
               <Checkbox
@@ -213,11 +228,47 @@ export const GamePassReviewModal = ({
           )}
 
           <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-gray-500">
-            <SparklesIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            No payment is taken now — this just registers your interest.
+            {totals.total === 0 ? (
+              <SparklesIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <LockClosedIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
+            {totals.total === 0
+              ? "Your free Game Pass will be issued instantly"
+              : "You will be redirected to Paystack for secure payment"}
           </p>
         </div>
-      )}
-    </Modal>
+      </Modal>
+
+      {/* Sits outside the Modal, so its backdrop clicks don't close the review. */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={totals.total === 0 ? "Get this free Game Pass?" : "Pay for this Game Pass?"}
+        description={
+          totals.total === 0
+            ? "Your tickets will be emailed to you straight away."
+            : "You will be taken to Paystack to complete payment."
+        }
+        confirmLabel={totals.total === 0 ? "Get free Game Pass" : "Pay now"}
+        tone="info"
+        icon={TicketIcon}
+        pending={purchasing}
+        body={
+          <ConfirmSummary
+            rows={[
+              ["Tier", tierName],
+              ["Gamedays", String(gamedays.length)],
+              ["Pass holders", String(holders)],
+              ["Total", `₦${totals.total.toLocaleString()}`],
+            ]}
+          />
+        }
+        onConfirm={async () => {
+          await handleCheckout();
+          setConfirmOpen(false);
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
+    </>
   );
 };

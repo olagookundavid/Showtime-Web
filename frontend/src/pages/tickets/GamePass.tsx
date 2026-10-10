@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useOutletContext } from "react-router-dom";
-import { getEventDays } from "../../services/api";
+import {
+  getActiveGamePassDiscountBands,
+  getActiveSeasonAdmissionTiers,
+  getEventDays,
+} from "../../services/api";
 import type { EventDayResponse } from "../../types";
 import {
   AdmissionTierPicker,
@@ -15,7 +19,7 @@ import {
   type GamedayStoreContext,
 } from "../../components";
 import { MinusIcon, PlusIcon, TicketIcon } from "@heroicons/react/24/outline";
-import { calculateGamePassTotals, getRepresentativeTierRates } from "../../utils";
+import { calculateGamePassTotals, seasonTiersToRates } from "../../utils";
 import { GamePassReviewModal } from "./GamePassReviewModal";
 
 const MIN_GAMEDAYS_FOR_PASS = 2;
@@ -33,14 +37,29 @@ export const GamePass = () => {
   });
   const eventDays: EventDayResponse[] = useMemo(() => eventDaysData || [], [eventDaysData]);
 
+  // A Game Pass prices off the season-wide admission tier, not any one
+  // gameday's own ticket price — these two public endpoints are the live
+  // version of what used to be hardcoded.
+  const { data: seasonTiersData } = useQuery({
+    queryKey: ["activeSeasonAdmissionTiers"],
+    queryFn: getActiveSeasonAdmissionTiers,
+    staleTime: 30_000,
+  });
+  const { data: discountBandsData } = useQuery({
+    queryKey: ["activeGamePassDiscountBands"],
+    queryFn: getActiveGamePassDiscountBands,
+    staleTime: 30_000,
+  });
+  const discountBands = discountBandsData ?? [];
+
   const [selectedTierName, setSelectedTierName] = useState<string | null>(null);
   const [selectedGamedayIds, setSelectedGamedayIds] = useState<string[]>([]);
   const [holders, setHolders] = useState(1);
   const [reviewOpen, setReviewOpen] = useState(false);
 
   const representativeRates = useMemo(
-    () => getRepresentativeTierRates(eventDays),
-    [eventDays],
+    () => seasonTiersToRates(seasonTiersData ?? []),
+    [seasonTiersData],
   );
   const selectedRate =
     representativeRates.find((r) => r.name === selectedTierName) ?? null;
@@ -66,6 +85,7 @@ export const GamePass = () => {
     gamedayCount,
     holders,
     rate: selectedRate?.rate ?? 0,
+    bands: discountBands,
   });
 
   const canReview = !!selectedRate && gamedayCount >= MIN_GAMEDAYS_FOR_PASS;
@@ -104,6 +124,7 @@ export const GamePass = () => {
                 <StepSectionHeader step={2} title="Pick your gamedays" />
                 <DiscountBandTiles
                   gamedayCount={gamedayCount}
+                  bands={discountBands}
                   nextBandAt={totals.nextBandAt}
                   nextBandPercent={totals.nextBandPercent}
                 />
@@ -175,10 +196,11 @@ export const GamePass = () => {
         </div>
       )}
 
-      {selectedRate && (
+      {selectedRate && selectedRate.id && (
         <GamePassReviewModal
           open={reviewOpen}
           onClose={() => setReviewOpen(false)}
+          tierId={selectedRate.id}
           tierName={selectedRate.name}
           gamedays={selectedGamedays}
           holders={holders}

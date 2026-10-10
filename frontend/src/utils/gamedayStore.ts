@@ -1,4 +1,9 @@
-import type { EventDayResponse, TicketTierResponse } from '../types';
+import type {
+    EventDayResponse,
+    GamePassDiscountBandResponse,
+    SeasonAdmissionTierResponse,
+    TicketTierResponse,
+} from '../types';
 
 /** One perk per line. Blank lines are dropped. Shared by every tier card. */
 export const parseTierPerks = (description?: string): string[] =>
@@ -19,9 +24,52 @@ export interface RepresentativeTierRate {
     name: string;
     rate: number;
     description: string;
-    /** True for the highest-rate tier — the one that gets the gold treatment. */
+    /** True for the tier that gets the gold treatment — highest price for the
+     *  per-gameday rates, highest display_order for season tiers. */
     isTop: boolean;
+    /** The season admission tier's id, when this rate came from one (Game Pass). Undefined for the per-gameday-derived rates used by single-ticket purchase. */
+    id?: string;
 }
+
+/**
+ * A Game Pass bundle prices off the season-wide admission tier, not any one
+ * gameday's ticket price, so this is a separate source from
+ * `getRepresentativeTierRates` even though it feeds the same tier picker.
+ */
+export const seasonTiersToRates = (
+    tiers: SeasonAdmissionTierResponse[],
+): RepresentativeTierRate[] => {
+    // Both the list order and the gold "top tier" treatment follow the
+    // admin's own display_order — the highest display_order gets the gold.
+    const active = [...tiers].filter((t) => t.is_active).sort((a, b) => a.display_order - b.display_order);
+    const topOrder = active.length > 1 ? Math.max(...active.map((t) => t.display_order)) : null;
+
+    return active.map((t) => ({
+        id: t.id,
+        name: t.name,
+        rate: t.price,
+        description: t.description,
+        isTop: topOrder !== null && t.display_order === topOrder,
+    }));
+};
+
+export type GamePassTierMatch = 'match' | 'price-mismatch' | 'none';
+
+/**
+ * Whether a gameday's own ticket tier lines up with an active season tier —
+ * the same name+price rule GamePassService.Checkout and the public Game Pass
+ * picker (getGamedaySelectionStatus below) already apply, mirrored here so
+ * the admin Event Days page can show it instead of leaving it invisible.
+ */
+export const gamePassMatchForTier = (
+    tier: { name: string; price: number },
+    seasonTiers: SeasonAdmissionTierResponse[],
+): { status: GamePassTierMatch; seasonTier: SeasonAdmissionTierResponse | null } => {
+    const key = tier.name.trim().toLowerCase();
+    const season = seasonTiers.find((s) => s.is_active && s.name.trim().toLowerCase() === key);
+    if (!season) return { status: 'none', seasonTier: null };
+    return { status: season.price === tier.price ? 'match' : 'price-mismatch', seasonTier: season };
+};
 
 export const getRepresentativeTierRates = (
     eventDays: EventDayResponse[],
@@ -101,23 +149,27 @@ export const getGamedaySelectionStatus = (
     return { status: 'match', tier };
 };
 
-export interface BundleDiscountBand {
-    min: number;
-    max: number;
-    percent: number;
-}
+/** Active discount bands, sorted by their starting gameday count. */
+const activeBandsSorted = (
+    bands: GamePassDiscountBandResponse[],
+): GamePassDiscountBandResponse[] =>
+    [...bands].filter((b) => b.is_active).sort((a, b) => a.min_gamedays - b.min_gamedays);
 
-/** 2-3 gamedays: 5% off. 4-5: 10% off. 6 or more: 15% off, uncapped (a real
- *  season can run longer than the mockup's 8-gameday sample). */
-export const BUNDLE_DISCOUNT_BANDS: BundleDiscountBand[] = [
-    { min: 2, max: 3, percent: 5 },
-    { min: 4, max: 5, percent: 10 },
-    { min: 6, max: Infinity, percent: 15 },
-];
-
-export const getBundleDiscountBand = (gamedayCount: number): BundleDiscountBand | null => {
+/** Same rule as the backend's `domain.GamePassDiscountBand.Covers`: the
+ *  first active band whose range includes this many gamedays. `max_gamedays`
+ *  of null means open-ended (the top band). */
+export const getBundleDiscountBand = (
+    gamedayCount: number,
+    sortedActiveBands: GamePassDiscountBandResponse[],
+): GamePassDiscountBandResponse | null => {
     if (gamedayCount < 2) return null;
-    return BUNDLE_DISCOUNT_BANDS.find((b) => gamedayCount >= b.min && gamedayCount <= b.max) ?? null;
+    return (
+        sortedActiveBands.find(
+            (b) =>
+                gamedayCount >= b.min_gamedays &&
+                (b.max_gamedays === null || gamedayCount <= b.max_gamedays),
+        ) ?? null
+    );
 };
 
 export interface GamePassTotals {
@@ -134,26 +186,29 @@ export const calculateGamePassTotals = ({
     gamedayCount,
     holders,
     rate,
+    bands,
 }: {
     gamedayCount: number;
     holders: number;
     rate: number;
+    bands: GamePassDiscountBandResponse[];
 }): GamePassTotals => {
     const standardTotal = gamedayCount * holders * rate;
-    const band = getBundleDiscountBand(gamedayCount);
-    const discountPercent = band?.percent ?? 0;
+    const sortedBands = activeBandsSorted(bands);
+    const band = getBundleDiscountBand(gamedayCount, sortedBands);
+    const discountPercent = band?.discount_percent ?? 0;
     const discountAmount = Math.round((standardTotal * discountPercent) / 100);
     const total = standardTotal - discountAmount;
 
-    const currentIndex = band ? BUNDLE_DISCOUNT_BANDS.indexOf(band) : -1;
-    const nextBand = BUNDLE_DISCOUNT_BANDS[currentIndex + 1];
+    const currentIndex = band ? sortedBands.indexOf(band) : -1;
+    const nextBand = sortedBands[currentIndex + 1];
 
     return {
         standardTotal,
         discountPercent,
         discountAmount,
         total,
-        nextBandAt: nextBand ? nextBand.min : null,
-        nextBandPercent: nextBand ? nextBand.percent : null,
+        nextBandAt: nextBand ? nextBand.min_gamedays : null,
+        nextBandPercent: nextBand ? nextBand.discount_percent : null,
     };
 };

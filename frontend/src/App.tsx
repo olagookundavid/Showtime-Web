@@ -23,6 +23,7 @@ import {
   Stats,
   Tickets,
   TicketConfirmation,
+  GamePassConfirmation,
   ReferralGenerator,
   Login,
   Signup,
@@ -347,7 +348,27 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <CartProvider>
-            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                // Colours and the red bottom border live in index.css
+                // (.showtime-toast) alongside the rest of the component CSS.
+                className: "showtime-toast",
+                style: {
+                  borderRadius: 0,
+                  fontWeight: 600,
+                  padding: "12px 16px",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+                },
+                success: {
+                  iconTheme: { primary: "#10b981", secondary: "#ffffff" },
+                },
+                error: {
+                  iconTheme: { primary: "#c62828", secondary: "#ffffff" }, // sffl-red
+                },
+              }}
+            />
             <BrowserRouter>
               <ScrollToTop />
               <AdSenseScript />
@@ -404,6 +425,10 @@ function App() {
                       <Route
                         path="/tickets/confirm"
                         element={<TicketConfirmation />}
+                      />
+                      <Route
+                        path="/tickets/game-pass/confirm"
+                        element={<GamePassConfirmation />}
                       />
                       <Route
                         path="/tickets/referrals"

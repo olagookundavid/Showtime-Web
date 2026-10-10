@@ -24,10 +24,15 @@ import {
   createTier,
   updateTicketTier,
   deleteTicketTier,
+  getActiveSeasonAdmissionTiers,
 } from "../../services/api";
-import type { EventDayResponse, TicketTierResponse } from "../../types";
+import type {
+  EventDayResponse,
+  SeasonAdmissionTierResponse,
+  TicketTierResponse,
+} from "../../types";
 import { useDebounced, usePermissions } from "../../hooks";
-import { getApiErrorMessage } from "../../utils";
+import { gamePassMatchForTier, getApiErrorMessage } from "../../utils";
 
 type EventDayPayload = Parameters<typeof updateEventDay>[1];
 type TierPayload = Parameters<typeof updateTicketTier>[2];
@@ -236,6 +241,7 @@ const EditEventDayModal = ({
 
 interface EditTierModalProps {
   tier: TicketTierResponse;
+  seasonTiers: SeasonAdmissionTierResponse[];
   pending: boolean;
   onClose: () => void;
   onSubmit: (payload: TierPayload) => void;
@@ -244,6 +250,7 @@ interface EditTierModalProps {
 // Mounted per tier (keyed by id), so the form starts from that record.
 const EditTierModal = ({
   tier,
+  seasonTiers,
   pending,
   onClose,
   onSubmit,
@@ -315,6 +322,27 @@ const EditTierModal = ({
             <strong>{tier.sold_count}</strong> ticket(s) already sold. Price
             modifications will apply to future sales only.
           </span>
+        </div>
+      )}
+
+      {seasonTiers.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {seasonTiers.map((s) => (
+            <Button
+              key={s.id}
+              variant="secondary"
+              size="sm"
+              icon={TicketIcon}
+              onClick={() => {
+                setName(s.name);
+                setPrice(String(s.price));
+                setDescription(s.description);
+              }}
+              className="rounded-full"
+            >
+              {s.name} (₦{s.price.toLocaleString()}) · Game Pass
+            </Button>
+          ))}
         </div>
       )}
 
@@ -449,6 +477,18 @@ export const AdminEventDays = () => {
   });
 
   const eventDays: EventDayResponse[] = data?.data ?? [];
+
+  // Public, unauthenticated endpoint on purpose: Event Days and Season Tier
+  // Rates are gated by different feature keys, so an admin with access to
+  // this page may not have access to that one. This is the same list a
+  // storefront visitor sees, which is all a name/price match needs.
+  const { data: seasonTiersData } = useQuery({
+    queryKey: ["activeSeasonAdmissionTiers"],
+    queryFn: getActiveSeasonAdmissionTiers,
+    staleTime: 30_000,
+  });
+  const seasonTiers = seasonTiersData ?? [];
+
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [addTierFor, setAddTierFor] = useState<string | null>(null);
   const [manageAllocationsFor, setManageAllocationsFor] = useState<
@@ -981,7 +1021,9 @@ export const AdminEventDays = () => {
                 <div className="p-4 sm:p-5">
                   {ed.tiers && ed.tiers.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {ed.tiers.map((tier: TicketTierResponse) => (
+                      {ed.tiers.map((tier: TicketTierResponse) => {
+                        const gamePass = gamePassMatchForTier(tier, seasonTiers);
+                        return (
                         <div
                           key={tier.id}
                           className="bg-gray-50 dark:bg-gray-700/80 rounded-xl p-4 border border-gray-200 dark:border-gray-600 flex flex-col justify-between"
@@ -1050,19 +1092,41 @@ export const AdminEventDays = () => {
                             )}
                           </div>
 
-                          {tier.is_hidden && (
-                            <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600/60">
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
-                                <LockClosedIcon
-                                  className="w-3 h-3"
-                                  aria-hidden="true"
-                                />
-                                Code: {tier.access_code || "None"}
-                              </span>
+                          {(tier.is_hidden || gamePass.status !== "none") && (
+                            <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600/60 flex flex-wrap gap-1.5">
+                              {tier.is_hidden && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                  <LockClosedIcon
+                                    className="w-3 h-3"
+                                    aria-hidden="true"
+                                  />
+                                  Code: {tier.access_code || "None"}
+                                </span>
+                              )}
+                              {gamePass.status === "match" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                                  <TicketIcon
+                                    className="w-3 h-3"
+                                    aria-hidden="true"
+                                  />
+                                  Game Pass · {gamePass.seasonTier?.name}
+                                </span>
+                              )}
+                              {gamePass.status === "price-mismatch" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                  <TicketIcon
+                                    className="w-3 h-3"
+                                    aria-hidden="true"
+                                  />
+                                  Game Pass price differs (season rate ₦
+                                  {gamePass.seasonTier?.price.toLocaleString()})
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-gray-400 dark:text-gray-500 text-sm text-center py-4">
@@ -1092,6 +1156,22 @@ export const AdminEventDays = () => {
                             className="rounded-full"
                           >
                             {p.name} (₦{p.price.toLocaleString()})
+                          </Button>
+                        ))}
+                        {seasonTiers.map((s) => (
+                          <Button
+                            key={s.id}
+                            variant="secondary"
+                            size="sm"
+                            icon={TicketIcon}
+                            onClick={() => {
+                              setTierName(s.name);
+                              setTierPrice(String(s.price));
+                              setTierDesc(s.description);
+                            }}
+                            className="rounded-full"
+                          >
+                            {s.name} (₦{s.price.toLocaleString()}) · Game Pass
                           </Button>
                         ))}
                       </div>
@@ -1230,6 +1310,7 @@ export const AdminEventDays = () => {
         <EditTierModal
           key={editingTier.tier.id}
           tier={editingTier.tier}
+          seasonTiers={seasonTiers}
           pending={busy}
           onClose={() => setEditingTier(null)}
           onSubmit={(payload) =>

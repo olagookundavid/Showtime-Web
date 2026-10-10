@@ -33,6 +33,7 @@ export { Stats } from "./stats/Stats";
 // Tickets
 export { Tickets } from "./tickets/Tickets";
 export { TicketConfirmation } from "./tickets/TicketConfirmation";
+export { GamePassConfirmation } from "./tickets/GamePassConfirmation";
 export { ReferralGenerator } from "./tickets/ReferralGenerator";
 
 // Players

@@ -66,6 +66,8 @@ func statusForGamePassErr(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, appErrors.ErrDuplicateSeasonTier):
 		return http.StatusConflict
+	case errors.Is(err, appErrors.ErrDuplicateDisplayOrder):
+		return http.StatusConflict
 	case errors.Is(err, appErrors.ErrInvalidGamePassConfig):
 		return http.StatusUnprocessableEntity
 	default:

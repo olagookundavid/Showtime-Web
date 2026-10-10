@@ -80,7 +80,7 @@ const BandFormModal = ({
     String(initial?.discount_percent ?? ""),
   );
   const [displayOrder, setDisplayOrder] = useState(
-    String(initial?.display_order ?? 0),
+    initial ? String(initial.display_order) : "",
   );
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
 
@@ -106,11 +106,16 @@ const BandFormModal = ({
       toast.error("Discount must be between 0 and 100");
       return;
     }
+    const order = parseInt(displayOrder, 10);
+    if (isNaN(order) || order < 1) {
+      toast.error("Display order must be 1 or greater");
+      return;
+    }
     onSubmit({
       min_gamedays: min,
       max_gamedays: max,
       discount_percent: discount,
-      display_order: parseInt(displayOrder, 10) || 0,
+      display_order: order,
       is_active: isActive,
     });
   };
@@ -130,7 +135,7 @@ const BandFormModal = ({
           <Button
             type="submit"
             form="game-pass-band-form"
-            disabled={pending || !minGamedays || !discountPercent}
+            disabled={pending || !minGamedays || !discountPercent || !displayOrder}
           >
             Save Changes
           </Button>
@@ -221,16 +226,21 @@ const BandFormModal = ({
         )}
 
         <Field
-          label="Display Order"
+          label={
+            <>
+              Display Order <span className="text-sffl-red">*</span>
+            </>
+          }
           htmlFor="band-display-order"
           hint="Controls the order bands are evaluated/shown in"
         >
           <Input
             id="band-display-order"
             type="number"
-            min="0"
+            min="1"
             value={displayOrder}
             onChange={(e) => setDisplayOrder(e.target.value)}
+            placeholder="1"
           />
         </Field>
 

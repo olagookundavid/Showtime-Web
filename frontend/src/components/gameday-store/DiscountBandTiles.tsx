@@ -1,39 +1,49 @@
-import { BUNDLE_DISCOUNT_BANDS, getBundleDiscountBand } from "../../utils";
+import type { GamePassDiscountBandResponse } from "../../types";
+import { getBundleDiscountBand } from "../../utils";
 
 type Props = {
   gamedayCount: number;
+  bands: GamePassDiscountBandResponse[];
   nextBandAt: number | null;
   nextBandPercent: number | null;
 };
 
-/** The 2-3 / 4-5 / 6+ gameday discount bands, with the currently applicable one highlighted. */
-export const DiscountBandTiles = ({ gamedayCount, nextBandAt, nextBandPercent }: Props) => {
-  const activeBand = getBundleDiscountBand(gamedayCount);
+const bandLabel = (band: GamePassDiscountBandResponse) =>
+  band.max_gamedays === null
+    ? `${band.min_gamedays}+ gamedays`
+    : `${band.min_gamedays}-${band.max_gamedays} gamedays`;
+
+/** The admin-configured gameday discount bands, with the currently applicable one highlighted. */
+export const DiscountBandTiles = ({ gamedayCount, bands, nextBandAt, nextBandPercent }: Props) => {
+  const sortedBands = [...bands]
+    .filter((b) => b.is_active)
+    .sort((a, b) => a.min_gamedays - b.min_gamedays);
+  const activeBand = getBundleDiscountBand(gamedayCount, sortedBands);
   const gamedaysToGo = nextBandAt !== null ? nextBandAt - gamedayCount : 0;
+
+  if (sortedBands.length === 0) return null;
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-3 gap-2">
-        {BUNDLE_DISCOUNT_BANDS.map((band) => {
-          const isActive = activeBand === band;
-          const label =
-            band.max === Infinity ? `${band.min}+ gamedays` : `${band.min}-${band.max} gamedays`;
+      <div className="flex flex-wrap gap-2">
+        {sortedBands.map((band) => {
+          const isActive = activeBand?.id === band.id;
           return (
             <div
-              key={label}
-              className={`border p-3 text-center ${
+              key={band.id}
+              className={`min-w-26 flex-1 border p-3 text-center ${
                 isActive
                   ? "border-sffl-navy bg-sffl-navy text-white"
                   : "border-gray-200 bg-white text-sffl-navy dark:border-gray-700 dark:bg-gray-900 dark:text-white"
               }`}
             >
-              <div className="text-lg font-black">{band.percent}%</div>
+              <div className="text-lg font-black">{band.discount_percent}%</div>
               <div
                 className={`text-[10px] font-bold uppercase tracking-wide ${
                   isActive ? "text-white/70" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
-                off {label}
+                off {bandLabel(band)}
               </div>
             </div>
           );

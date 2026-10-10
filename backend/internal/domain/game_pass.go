@@ -153,6 +153,16 @@ func ValidateDiscountBand(b GamePassDiscountBand, others []GamePassDiscountBand)
 	if b.DiscountPercent < 0 || b.DiscountPercent > 100 {
 		return fmt.Errorf("discount percent must be between 0 and 100")
 	}
+
+	// Display order is a plain position identifier — wrong regardless of
+	// whether either band is active — so this runs ahead of the
+	// active-only early-return the overlap/open-ended rules below need.
+	for _, o := range others {
+		if o.ID != b.ID && o.DisplayOrder == b.DisplayOrder {
+			return fmt.Errorf("display order %d is already used by %s (%d%%)", b.DisplayOrder, o.RangeLabel(), o.DiscountPercent)
+		}
+	}
+
 	if !b.IsActive {
 		return nil
 	}

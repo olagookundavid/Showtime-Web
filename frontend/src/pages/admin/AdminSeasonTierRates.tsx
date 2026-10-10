@@ -46,6 +46,30 @@ const FAILURE: Record<PendingAction["kind"], string> = {
 
 const formatPrice = (price: number) => `₦${price.toLocaleString()}`;
 
+// Same names and per-gameday prices as the ticket tier presets on event days
+// (AdminEventDays.tsx) — a season tier's price is the per-gameday rate Game
+// Pass bundles multiply, and Checkout matches a season tier to a gameday's
+// ticket tier by name, so keeping the presets in step keeps new tiers
+// checkout-compatible by default.
+const tierPresets = [
+  { name: "Free", price: 0, desc: "Complimentary Access" },
+  {
+    name: "Regular",
+    price: 3000,
+    desc: "General Admission + Popcorn + Bottled Water",
+  },
+  {
+    name: "VIP",
+    price: 30000,
+    desc: "Premium Seating + 1 Complimentary Beer, Cocktail or Mocktail + Small Chops & Meal + Priority Parking",
+  },
+  {
+    name: "VIP PLUS",
+    price: 50000,
+    desc: "Premium Lounge Access + 2 Complimentary Beers or Cocktails + Complimentary Meal & Small Chops + 10% Off All Purchases That Day + Priority Parking",
+  },
+];
+
 // ─── Shared modal frame ─────────────────────────────────────────────────────
 
 interface ModalFrameProps {
@@ -123,11 +147,16 @@ const EditTierRateModal = ({
       toast.error("Valid price (0 or greater) is required");
       return;
     }
+    const numOrder = parseInt(displayOrder, 10);
+    if (isNaN(numOrder) || numOrder < 1) {
+      toast.error("Display order must be 1 or greater");
+      return;
+    }
     onSubmit({
       name: trimmedName,
       price: numPrice,
       description: description.trim(),
-      display_order: parseInt(displayOrder, 10) || 0,
+      display_order: numOrder,
     });
   };
 
@@ -137,7 +166,7 @@ const EditTierRateModal = ({
       subtitle={tier.name}
       onClose={onClose}
       onSubmit={handleSubmit}
-      submitDisabled={pending || !name.trim() || !price}
+      submitDisabled={pending || !name.trim() || !price || !displayOrder}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field
@@ -179,14 +208,18 @@ const EditTierRateModal = ({
       </div>
 
       <Field
-        label="Display Order"
+        label={
+          <>
+            Display Order <span className="text-sffl-red">*</span>
+          </>
+        }
         htmlFor="edit-tier-rate-order"
         hint="Controls the order tiers appear in on the Game Pass picker"
       >
         <Input
           id="edit-tier-rate-order"
           type="number"
-          min="0"
+          min="1"
           value={displayOrder}
           onChange={(e) => setDisplayOrder(e.target.value)}
         />
@@ -262,13 +295,18 @@ export const AdminSeasonTierRates = () => {
       toast.error("Valid price (0 or greater) is required");
       return;
     }
+    const numOrder = parseInt(newOrder, 10);
+    if (isNaN(numOrder) || numOrder < 1) {
+      toast.error("Display order must be 1 or greater");
+      return;
+    }
     setSaving(true);
     try {
       await createSeasonAdmissionTier({
         name: trimmedName,
         price: numPrice,
         description: newDescription.trim() || undefined,
-        display_order: newOrder ? parseInt(newOrder, 10) : undefined,
+        display_order: numOrder,
       });
       resetCreateForm();
       setShowCreateForm(false);
@@ -401,6 +439,26 @@ export const AdminSeasonTierRates = () => {
           <h2 className="text-lg font-bold text-sffl-navy dark:text-white mb-4">
             New Tier Rate
           </h2>
+
+          {/* Quick presets */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {tierPresets.map((p) => (
+              <Button
+                key={p.name}
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setNewName(p.name);
+                  setNewPrice(String(p.price));
+                  setNewDescription(p.desc);
+                }}
+                className="rounded-full"
+              >
+                {p.name} (₦{p.price.toLocaleString()})
+              </Button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Name *" htmlFor="new-tier-rate-name">
               <Input
@@ -421,14 +479,14 @@ export const AdminSeasonTierRates = () => {
                 placeholder="2000"
               />
             </Field>
-            <Field label="Display Order" htmlFor="new-tier-rate-order">
+            <Field label="Display Order *" htmlFor="new-tier-rate-order">
               <Input
                 id="new-tier-rate-order"
                 type="number"
-                min="0"
+                min="1"
                 value={newOrder}
                 onChange={(e) => setNewOrder(e.target.value)}
-                placeholder="0"
+                placeholder="1"
               />
             </Field>
           </div>
@@ -450,7 +508,7 @@ export const AdminSeasonTierRates = () => {
             icon={CheckIcon}
             onClick={handleCreate}
             loading={saving}
-            disabled={saving || !newName.trim() || !newPrice}
+            disabled={saving || !newName.trim() || !newPrice || !newOrder}
             className="mt-4 w-full sm:w-auto"
           >
             Create Tier Rate

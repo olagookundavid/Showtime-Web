@@ -145,6 +145,8 @@ import type {
   GamePassDiscountBandResponse,
   CreateGamePassDiscountBandPayload,
   UpdateGamePassDiscountBandPayload,
+  GamePassCheckoutPayload,
+  GamePassOrderResponse,
 } from "../types";
 
 const api = axios.create({
@@ -1084,6 +1086,83 @@ export const updateGamePassDiscountBand = async (
 export const deleteGamePassDiscountBand = async (id: string) => {
   const response = await api.delete(`/admin/game-pass/discount-bands/${id}`);
   return response.data;
+};
+
+// -------- PUBLIC GAME PASS PRICING API -------- //
+export const getActiveSeasonAdmissionTiers = async (): Promise<
+  SeasonAdmissionTierResponse[]
+> => {
+  const response = await api.get<{ data: SeasonAdmissionTierResponse[] }>(
+    "/season-admission-tiers",
+  );
+  return response.data.data || [];
+};
+
+export const getActiveGamePassDiscountBands = async (): Promise<
+  GamePassDiscountBandResponse[]
+> => {
+  const response = await api.get<{ data: GamePassDiscountBandResponse[] }>(
+    "/game-pass/discount-bands",
+  );
+  return response.data.data || [];
+};
+
+// -------- GAME PASS CHECKOUT API -------- //
+export const checkoutGamePass = async (
+  payload: GamePassCheckoutPayload,
+): Promise<GamePassOrderResponse> => {
+  // Unwrapped on the wire (bare 201 body) — same shape as purchaseTicket.
+  const response = await api.post<GamePassOrderResponse>(
+    "/game-pass/checkout",
+    payload,
+  );
+  return response.data;
+};
+
+export const verifyGamePassPayment = async (
+  reference: string,
+): Promise<GamePassOrderResponse> => {
+  const response = await api.post<{ data: GamePassOrderResponse }>(
+    `/game-pass/verify/${reference}`,
+  );
+  return response.data.data;
+};
+
+export const getGamePassOrderByReference = async (
+  reference: string,
+): Promise<GamePassOrderResponse> => {
+  const response = await api.get<{ data: GamePassOrderResponse }>(
+    `/game-pass/orders/by-ref/${reference}`,
+  );
+  return response.data.data;
+};
+
+// -------- ADMIN GAME PASS ORDERS API -------- //
+export const adminListGamePassOrders = async (
+  page = 1,
+  limit = 10,
+  status?: string,
+  email?: string,
+): Promise<PaginatedResponse<GamePassOrderResponse>> => {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (status) params.append("status", status);
+  if (email) params.append("email", email);
+  const response = await api.get<PaginatedResponse<GamePassOrderResponse>>(
+    `/admin/game-pass/orders?${params}`,
+  );
+  return response.data;
+};
+
+export const adminGetGamePassOrder = async (
+  id: string,
+): Promise<GamePassOrderResponse> => {
+  const response = await api.get<{ data: GamePassOrderResponse }>(
+    `/admin/game-pass/orders/${id}`,
+  );
+  return response.data.data;
 };
 
 // -------- ADMIN USER MANAGEMENT API -------- //

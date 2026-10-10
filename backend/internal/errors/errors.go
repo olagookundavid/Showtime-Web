@@ -52,6 +52,7 @@ var (
 var (
 	ErrInvalidGamePassConfig = errors.New("invalid game pass configuration")
 	ErrDuplicateSeasonTier   = errors.New("a season admission tier with that name already exists")
+	ErrDuplicateDisplayOrder = errors.New("a season admission tier with that display order already exists")
 )
 
 type gamePassConfigError struct{ msg string }
