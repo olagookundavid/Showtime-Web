@@ -24,6 +24,8 @@ import { FootballIcon } from "../icons/FootballIcon";
 import { PitchIcon } from "../icons/PitchIcon";
 import { Button } from "../ui";
 import { Modal } from "../ui/Modal";
+import { gameFormatOf, schemeFor, validCoverage } from "../../utils";
+import type { GameFormatSpec } from "../../utils";
 
 interface MatchTeamSheetTabProps {
   match: Match;
@@ -44,153 +46,74 @@ const RATING_SORT_LABEL: Record<
   low: { label: "Lowest Rated", icon: ArrowUpIcon },
 };
 
-// Defensive coordinate formations for 7 players: 1 Rusher + 6 Defenders
-// Top half of pitch (y: 16% - 43%)
-interface DefensiveScheme {
-  name: string;
-  description: string;
-  points: Array<{ x: number; y: number; role: string }>;
-}
+// Whether a player is a woman, from the gender stored on the team sheet.
+const isWoman = (p: TeamSheetPlayer) =>
+  (p.gender || "").toUpperCase().startsWith("F");
 
-const DEFENSIVE_SCHEMES: Record<number, DefensiveScheme> = {
-  1: {
-    name: "Cover 1",
-    description: "Aggressive man coverage with 1 deep safety",
-    points: [
-      { x: 50, y: 42, role: "Rusher" },
-      { x: 14, y: 33, role: "Underneath Defender" },
-      { x: 32, y: 31, role: "Underneath Defender" },
-      { x: 50, y: 33, role: "Underneath Defender" },
-      { x: 68, y: 31, role: "Underneath Defender" },
-      { x: 86, y: 33, role: "Underneath Defender" },
-      { x: 50, y: 17, role: "Deep Safety" },
-    ],
-  },
-  2: {
-    name: "Cover 2",
-    description:
-      "Balanced coverage with 4 underneath defenders and 2 deep safeties",
-    points: [
-      { x: 50, y: 42, role: "Rusher" },
-      { x: 16, y: 33, role: "Underneath Defender" },
-      { x: 38, y: 31, role: "Underneath Defender" },
-      { x: 62, y: 31, role: "Underneath Defender" },
-      { x: 84, y: 33, role: "Underneath Defender" },
-      { x: 33, y: 17, role: "Deep Safety" },
-      { x: 67, y: 17, role: "Deep Safety" },
-    ],
-  },
-  3: {
-    name: "Cover 3",
-    description: "3 deep zones with 3 underneath zone defenders",
-    points: [
-      { x: 50, y: 42, role: "Rusher" },
-      { x: 22, y: 33, role: "Underneath Defender" },
-      { x: 50, y: 31, role: "Underneath Defender" },
-      { x: 78, y: 33, role: "Underneath Defender" },
-      { x: 20, y: 17, role: "Deep Zone Defender" },
-      { x: 50, y: 16, role: "Deep Safety" },
-      { x: 80, y: 17, role: "Deep Zone Defender" },
-    ],
-  },
-  4: {
-    name: "Cover 4",
-    description:
-      "Quarters defense with 4 deep safeties and 2 underneath defenders",
-    points: [
-      { x: 50, y: 42, role: "Rusher" },
-      { x: 35, y: 33, role: "Underneath Defender" },
-      { x: 65, y: 33, role: "Underneath Defender" },
-      { x: 15, y: 18, role: "Quarter Defender" },
-      { x: 38, y: 16, role: "Quarter Defender" },
-      { x: 62, y: 16, role: "Quarter Defender" },
-      { x: 85, y: 18, role: "Quarter Defender" },
-    ],
-  },
+// Picks the lineup for a team nobody has submitted a sheet for: the best-fitting
+// players of the squad for each position of the match's format. Quarterbacks are
+// placed first, then the center, then receivers, so a position-flexible player
+// isn't spent before the specialist slot that needs them.
+const projectLineup = (squad: TeamSheetPlayer[], format: GameFormatSpec) => {
+  const used = new Set<string>();
+  const posOf = (p: TeamSheetPlayer) => (p.position || "").toLowerCase();
+  const take = (fits: (p: TeamSheetPlayer) => boolean) => {
+    const found = squad.find((p) => !used.has(p.player_id) && fits(p));
+    if (found) used.add(found.player_id);
+    return found;
+  };
+  const priority = { QB: 0, Center: 1, Receiver: 2 } as const;
+
+  const off: TeamSheetPlayer[] = [];
+  [...format.offense]
+    .sort(
+      (a, b) =>
+        priority[a.recommendedPosition] - priority[b.recommendedPosition],
+    )
+    .forEach((slot) => {
+      const genderOk = (p: TeamSheetPlayer) =>
+        slot.requiredGender === "F"
+          ? isWoman(p)
+          : slot.requiredGender === "M"
+            ? !isWoman(p)
+            : true;
+      let player = take((p) => slot.positions.includes(posOf(p)) && genderOk(p));
+      // A men's QB slot settles for any QB; a women's slot for any woman.
+      if (!player && slot.requiredGender === "M") {
+        player = take((p) => posOf(p) === "qb");
+      }
+      if (!player && slot.requiredGender === "F") player = take(isWoman);
+      if (player) off.push({ ...player, position_slot: slot.key });
+    });
+  // Anyone still missing is filled from whoever is left.
+  while (off.length < format.offenseSize) {
+    const extra = take(() => true);
+    if (!extra) break;
+    off.push(extra);
+  }
+
+  const def: TeamSheetPlayer[] = [];
+  const rusher = take((p) => posOf(p) === "rusher");
+  if (rusher) def.push({ ...rusher, position_slot: "RUSHER" });
+  for (let i = 1; i < format.defenseSize; i++) {
+    const defender = take(
+      (p) => posOf(p) === "defender" || posOf(p) === "allrounder",
+    );
+    if (!defender) break;
+    def.push({ ...defender, position_slot: `DEF_${i}` });
+  }
+  while (def.length < format.defenseSize) {
+    const extra = take(() => true);
+    if (!extra) break;
+    def.push(extra);
+  }
+
+  return {
+    off,
+    def,
+    subs: squad.filter((p) => !used.has(p.player_id)),
+  };
 };
-
-interface OffensiveSlotDef {
-  key: string;
-  label: string;
-  shortRole: string;
-  x: number;
-  y: number;
-  aliases: string[];
-  isFemale?: boolean;
-  isMale?: boolean;
-  positionMatcher?: (pos: string, gender: string) => boolean;
-}
-
-// Canonical offensive 7-player coordinate layout
-// Bottom half of pitch (y: 56% - 79%)
-const OFFENSIVE_SLOTS: OffensiveSlotDef[] = [
-  {
-    key: "CENTER",
-    label: "Center (Snapper)",
-    shortRole: "Center",
-    x: 50,
-    y: 56,
-    aliases: ["CENTER", "C", "OFF_C"],
-    positionMatcher: (pos) => pos === "center",
-  },
-  {
-    key: "WR_1",
-    label: "Receiver 1",
-    shortRole: "Receiver",
-    x: 12,
-    y: 64,
-    aliases: ["WR_1", "WR1", "OFF_WR1"],
-    positionMatcher: (pos) => pos === "receiver" || pos === "allrounder",
-  },
-  {
-    key: "WR_2",
-    label: "Receiver 2",
-    shortRole: "Receiver",
-    x: 31,
-    y: 66,
-    aliases: ["WR_2", "WR2", "OFF_WR2"],
-    positionMatcher: (pos) => pos === "receiver" || pos === "allrounder",
-  },
-  {
-    key: "WR_3",
-    label: "Receiver 3",
-    shortRole: "Receiver",
-    x: 69,
-    y: 66,
-    aliases: ["WR_3", "WR3", "OFF_WR3"],
-    positionMatcher: (pos) => pos === "receiver" || pos === "allrounder",
-  },
-  {
-    key: "WR_4",
-    label: "Receiver 4",
-    shortRole: "Receiver",
-    x: 88,
-    y: 64,
-    aliases: ["WR_4", "WR4", "OFF_WR4"],
-    positionMatcher: (pos) => pos === "receiver" || pos === "allrounder",
-  },
-  {
-    key: "MALE_QB",
-    label: "Male QB",
-    shortRole: "Male QB",
-    x: 38,
-    y: 79,
-    aliases: ["MALE_QB", "QB_M", "OFF_QB_M", "OFF_QB", "QB"],
-    isMale: true,
-    positionMatcher: (pos, g) => pos === "qb" && !g.startsWith("f"),
-  },
-  {
-    key: "FEMALE_QB",
-    label: "Female QB / Rec",
-    shortRole: "Female QB",
-    x: 62,
-    y: 79,
-    aliases: ["FEMALE_QB", "QB_F", "OFF_QB_F", "OFF_FQB", "FQB"],
-    isFemale: true,
-    positionMatcher: (pos, g) =>
-      g.startsWith("f") && (pos === "qb" || pos === "receiver"),
-  },
-];
 
 export const MatchTeamSheetTab = ({
   match,
@@ -199,6 +122,11 @@ export const MatchTeamSheetTab = ({
 }: MatchTeamSheetTabProps) => {
   const homeTeam = match.home_team;
   const awayTeam = match.away_team;
+  // Cups are played 5v5, everything else 7v7: that decides the lineup shape.
+  const format = useMemo(
+    () => gameFormatOf(match.competition),
+    [match.competition],
+  );
 
   // View state
   const [selectedTeam, setSelectedTeam] = useState<"home" | "away">("home");
@@ -235,13 +163,21 @@ export const MatchTeamSheetTab = ({
       selectedTeam === "home"
         ? teamSheet?.home_coverage
         : teamSheet?.away_coverage;
-    return cov && DEFENSIVE_SCHEMES[cov] ? cov : 2;
-  }, [teamSheet, selectedTeam]);
+    return validCoverage(format, cov);
+  }, [teamSheet, selectedTeam, format]);
+  const scheme = schemeFor(format, activeCoverage);
 
-  // Check if team sheet has confirmed starters
+  // A sheet counts as confirmed only when its starters fill the match's format.
+  // One saved for a different format (a competition switched to or from a cup) or
+  // left half-built would misplace players, so it falls back to a projection.
   const hasConfirmedStarters = useMemo(() => {
-    return activeSheet.some((p) => p.is_starter);
-  }, [activeSheet]);
+    const starters = (unit: string) =>
+      activeSheet.filter((p) => p.is_starter && p.starter_unit === unit).length;
+    return (
+      starters("OFFENSE") === format.offenseSize &&
+      starters("DEFENSE") === format.defenseSize
+    );
+  }, [activeSheet, format]);
 
   // Partition players into Starters (Offense/Defense) and Substitutes
   const { offensiveStarters, defensiveStarters, substitutes } = useMemo(() => {
@@ -260,123 +196,20 @@ export const MatchTeamSheetTab = ({
       };
     }
 
-    // Intelligently project 7 Offense and 7 Defense from available roster
-    const usedIds = new Set<string>();
-    const isFem = (p: TeamSheetPlayer) =>
-      (p.gender || "").toUpperCase().startsWith("F");
-    const posOf = (p: TeamSheetPlayer) => (p.position || "").toLowerCase();
-
-    // 1. Offense selection (7 players: 2 QBs [1 M, 1 F], 1 Center, 4 Receivers)
-    const off: TeamSheetPlayer[] = [];
-
-    // Male QB
-    const maleQB =
-      activeSheet.find(
-        (p) => !usedIds.has(p.player_id) && posOf(p) === "qb" && !isFem(p),
-      ) ||
-      activeSheet.find((p) => !usedIds.has(p.player_id) && posOf(p) === "qb");
-    if (maleQB) {
-      off.push({ ...maleQB, position_slot: "QB_M" });
-      usedIds.add(maleQB.player_id);
-    }
-
-    // Female QB / Receiver
-    const femaleQB =
-      activeSheet.find(
-        (p) =>
-          !usedIds.has(p.player_id) &&
-          isFem(p) &&
-          (posOf(p) === "qb" || posOf(p) === "receiver"),
-      ) || activeSheet.find((p) => !usedIds.has(p.player_id) && isFem(p));
-    if (femaleQB) {
-      off.push({ ...femaleQB, position_slot: "QB_F" });
-      usedIds.add(femaleQB.player_id);
-    }
-
-    // Center
-    const center = activeSheet.find(
-      (p) => !usedIds.has(p.player_id) && posOf(p) === "center",
-    );
-    if (center) {
-      off.push({ ...center, position_slot: "C" });
-      usedIds.add(center.player_id);
-    }
-
-    // 4 Receivers
-    activeSheet
-      .filter(
-        (p) =>
-          !usedIds.has(p.player_id) &&
-          (posOf(p) === "receiver" || posOf(p) === "allrounder"),
-      )
-      .slice(0, 4)
-      .forEach((p, idx) => {
-        off.push({ ...p, position_slot: `WR${idx + 1}` });
-        usedIds.add(p.player_id);
-      });
-
-    // Fill remaining off slots up to 7
-    if (off.length < 7) {
-      activeSheet
-        .filter((p) => !usedIds.has(p.player_id))
-        .slice(0, 7 - off.length)
-        .forEach((p) => {
-          off.push(p);
-          usedIds.add(p.player_id);
-        });
-    }
-
-    // 2. Defense selection (7 players: 1 Rusher, 6 Defenders)
-    const def: TeamSheetPlayer[] = [];
-
-    // Rusher
-    const rusher = activeSheet.find(
-      (p) => !usedIds.has(p.player_id) && posOf(p) === "rusher",
-    );
-    if (rusher) {
-      def.push({ ...rusher, position_slot: "RUSH" });
-      usedIds.add(rusher.player_id);
-    }
-
-    // 6 Defenders
-    activeSheet
-      .filter(
-        (p) =>
-          !usedIds.has(p.player_id) &&
-          (posOf(p) === "defender" || posOf(p) === "allrounder"),
-      )
-      .slice(0, 6)
-      .forEach((p, idx) => {
-        def.push({ ...p, position_slot: `DEF${idx + 1}` });
-        usedIds.add(p.player_id);
-      });
-
-    // Fill remaining def slots up to 7
-    if (def.length < 7) {
-      activeSheet
-        .filter((p) => !usedIds.has(p.player_id))
-        .slice(0, 7 - def.length)
-        .forEach((p) => {
-          def.push(p);
-          usedIds.add(p.player_id);
-        });
-    }
-
-    // 3. Substitutes (all remaining squad players)
-    const subs = activeSheet.filter((p) => !usedIds.has(p.player_id));
-
+    // Not confirmed: project the best-fitting players of the squad.
+    const { off, def, subs } = projectLineup(activeSheet, format);
     return {
       offensiveStarters: off,
       defensiveStarters: def,
       substitutes: subs,
     };
-  }, [activeSheet, hasConfirmedStarters]);
+  }, [activeSheet, hasConfirmedStarters, format]);
 
-  // Unified 14-player field starters: 7 Defense (top) + 7 Offense (bottom)
+  // Unified field starters: defense on the top half, offense on the bottom half
   const fieldStarters = useMemo(() => {
     // 1. Offense mapping
     const assignedOffIds = new Set<string>();
-    const offenseNodes: PitchStarterNode[] = OFFENSIVE_SLOTS.map((slotDef) => {
+    const offenseNodes: PitchStarterNode[] = format.offense.map((slotDef) => {
       let player = offensiveStarters.find(
         (p) =>
           !assignedOffIds.has(p.player_id) &&
@@ -386,12 +219,15 @@ export const MatchTeamSheetTab = ({
           ),
       );
 
-      if (!player && slotDef.positionMatcher) {
+      if (!player) {
         player = offensiveStarters.find((p) => {
           if (assignedOffIds.has(p.player_id)) return false;
-          const pos = (p.position || "").toLowerCase();
-          const g = (p.gender || "").toLowerCase();
-          return slotDef.positionMatcher!(pos, g);
+          if (!slotDef.positions.includes((p.position || "").toLowerCase())) {
+            return false;
+          }
+          if (slotDef.requiredGender === "F") return isWoman(p);
+          if (slotDef.requiredGender === "M") return !isWoman(p);
+          return true;
         });
       }
 
@@ -407,18 +243,17 @@ export const MatchTeamSheetTab = ({
 
       return {
         player,
-        role: slotDef.label,
+        role: slotDef.publicLabel,
         unit: "OFFENSE" as const,
-        x: slotDef.x,
-        y: slotDef.y,
+        x: slotDef.pitch.x,
+        y: slotDef.pitch.y,
         slotKey: slotDef.key,
       };
     });
 
     // 2. Defense mapping
-    const scheme = DEFENSIVE_SCHEMES[activeCoverage] || DEFENSIVE_SCHEMES[2];
     const assignedDefIds = new Set<string>();
-    const defenseNodes: PitchStarterNode[] = scheme.points.map((pt, idx) => {
+    const defenseNodes: PitchStarterNode[] = scheme.pitch.map((pt, idx) => {
       const aliases =
         idx === 0 ? ["RUSHER", "RUSH", "DEF_R"] : [`DEF_${idx}`, `DEF${idx}`];
 
@@ -460,7 +295,7 @@ export const MatchTeamSheetTab = ({
     });
 
     return [...defenseNodes, ...offenseNodes];
-  }, [offensiveStarters, defensiveStarters, activeCoverage]);
+  }, [offensiveStarters, defensiveStarters, format, scheme]);
 
   // Filter substitutes based on unit filter
   const filteredSubstitutes = useMemo(() => {
@@ -657,7 +492,7 @@ export const MatchTeamSheetTab = ({
               aria-pressed={unitFilter === "ALL"}
               onClick={() => setUnitFilter("ALL")}
             >
-              <span className="hidden min-[400px]:inline">Full </span>Lineup (14)
+              <span className="hidden min-[400px]:inline">Full </span>Lineup ({format.startersTotal})
             </Button>
             <Button
               size="sm"
@@ -667,7 +502,7 @@ export const MatchTeamSheetTab = ({
               onClick={() => setUnitFilter("OFFENSE")}
             >
               <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
-              Attack (7)
+              Attack ({format.offenseSize})
             </Button>
             <Button
               size="sm"
@@ -677,7 +512,7 @@ export const MatchTeamSheetTab = ({
               onClick={() => setUnitFilter("DEFENSE")}
             >
               <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
-              Defense (7)
+              Defense ({format.defenseSize})
             </Button>
           </div>
 
@@ -687,7 +522,7 @@ export const MatchTeamSheetTab = ({
                 className="w-4 h-4 shrink-0"
                 aria-hidden="true"
               />
-              Scheme: {DEFENSIVE_SCHEMES[activeCoverage]?.name}
+              Scheme: {scheme.name}
             </span>
             <span
               className="text-gray-300 dark:text-gray-600"
@@ -697,7 +532,7 @@ export const MatchTeamSheetTab = ({
             </span>
             <span className="inline-flex items-center gap-1">
               <FootballIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-              Offense: 2 QBs · 1 C · 4 WRs
+              Offense: {format.offenseSummary}
             </span>
           </div>
         </div>
@@ -729,7 +564,7 @@ export const MatchTeamSheetTab = ({
       {/* ── VIEW 1: Interactive Pitch Formation ── */}
       {viewFormat === "pitch" && (
         <div className="space-y-6">
-          {/* The Unified Turf Pitch (14 Starters: Defense Top, Offense Bottom) */}
+          {/* The Unified Turf Pitch (all starters: Defense Top, Offense Bottom) */}
           <div
             className="w-full h-170 sm:h-190 md:h-210 rounded-2xl relative overflow-hidden shadow-xl border-2 border-[#1c4d63] bg-linear-to-b from-[#123c52] to-[#0c2a3b] select-none"
             style={{
@@ -745,7 +580,7 @@ export const MatchTeamSheetTab = ({
             <div className="absolute inset-x-0 top-0 h-[10%] flex items-center justify-center bg-black/25 border-b border-white/20 text-white/30 font-black italic tracking-widest sm:tracking-[0.24em] text-xs sm:text-lg md:text-xl pointer-events-none select-none px-4">
               <span className="truncate">
                 DEFENSE ·{" "}
-                {DEFENSIVE_SCHEMES[activeCoverage]?.name.toUpperCase()}
+                {scheme.name.toUpperCase()}
               </span>
             </div>
 
@@ -782,7 +617,7 @@ export const MatchTeamSheetTab = ({
               LINE OF SCRIMMAGE
             </span>
 
-            {/* 14 Starters on the field */}
+            {/* Starters on the field */}
             {fieldStarters.map((item, idx) => {
               const p = item.player;
               const isDimmed = unitFilter !== "ALL" && item.unit !== unitFilter;
@@ -908,10 +743,10 @@ export const MatchTeamSheetTab = ({
               )}
               <span className="min-w-0">
                 {unitFilter === "ALL"
-                  ? "Showtime 7v7 Lineup · 14 Starters (7 Defense / 7 Attack)"
+                  ? `Showtime ${format.label} Lineup · ${format.startersTotal} Starters (${format.defenseSize} Defense / ${format.offenseSize} Attack)`
                   : unitFilter === "OFFENSE"
-                    ? "Showtime Attack · 7 Starters (2 QBs · 1 Center · 4 Receivers)"
-                    : `Showtime Defense · ${DEFENSIVE_SCHEMES[activeCoverage]?.name} (1 Rusher · 6 Defenders)`}
+                    ? `Showtime Attack · ${format.offenseSize} Starters (${format.offenseSummary})`
+                    : `Showtime Defense · ${scheme.name} (${format.defenseSummary})`}
               </span>
             </div>
           </div>

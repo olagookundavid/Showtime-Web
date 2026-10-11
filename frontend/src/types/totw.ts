@@ -49,6 +49,8 @@ export interface TOTWListItem {
     competition_id: string;
     competition_name?: string;
     competition_logo?: string;
+    /** SEASON, CUP, ...: a cup edition is 5v5, everything else 7v7. */
+    competition_format?: string;
     event_day_id?: string;
     player_of_the_week_id?: string;
     week_title: string;

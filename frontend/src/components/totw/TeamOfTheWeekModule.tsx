@@ -13,7 +13,7 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-import { formatStatNumber } from "../../utils";
+import { formatStatNumber, gameFormatOf } from "../../utils";
 import { Button, ButtonLink, Select } from "../ui";
 
 const isPlayerOfTheWeek = (totw: TeamOfTheWeek, player: TOTWPlayer): boolean =>
@@ -184,7 +184,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 md:px-6 md:py-3.5 bg-[#091D36]/80 border-b border-white/5 text-xs">
           <div className="min-w-0">
             <div className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-[#91A7C1]">
-              Starting XIV
+              {gameFormatOf(totw.competition).totw.title}
             </div>
             <div className="text-xs md:text-sm font-bold text-white">
               {totw.sub_headline || "Offence & defence lineup"}
@@ -193,11 +193,11 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
           <div className="flex items-center gap-4 text-[11px] md:text-xs font-bold text-gray-300">
             <span className="flex items-center gap-1.5">
               <i className="w-2.5 h-2.5 rounded-full bg-sffl-red inline-block"></i>
-              Offence 7
+              Offence {totw.players.filter((p) => p.unit === "Offence").length}
             </span>
             <span className="flex items-center gap-1.5">
               <i className="w-2.5 h-2.5 rounded-full bg-[#76BAFF] inline-block"></i>
-              Defence 7
+              Defence {totw.players.filter((p) => p.unit === "Defence").length}
             </span>
           </div>
         </div>
@@ -244,7 +244,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               OFFENCE
             </span>
 
-            {/* 14 Player Pins */}
+            {/* Player pins */}
             {players.map((p, idx) => {
               const isSelected = idx === selectedIndex;
               const isPlayerDef = p.unit === "Defence";
@@ -358,7 +358,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 Player spotlight
               </span>
               <div className="text-sm md:text-base font-black text-white">
-                Meet the Starting XIV
+                Meet the {gameFormatOf(totw.competition).totw.title}
               </div>
             </div>
             <div className="text-xs font-black text-[#91A7C0]">
