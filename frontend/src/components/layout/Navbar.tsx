@@ -237,13 +237,6 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 <div className="absolute top-full left-0 w-48 z-50 pt-2">
                   <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
                     <Link
-                      to="/stats"
-                      aria-current={statsActive && !tab ? "page" : undefined}
-                      className={dropdownItem(statsActive && !tab)}
-                    >
-                      Stats Hub
-                    </Link>
-                    <Link
                       to="/stats?tab=players"
                       aria-current={
                         statsActive && tab === "players" ? "page" : undefined
