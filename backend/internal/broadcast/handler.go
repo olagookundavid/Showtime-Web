@@ -45,19 +45,22 @@ func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playServ
 // or bootstraps a fresh one from the match data.
 func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*BroadcastState, error) {
 	if state, ok := h.hub.LoadState(c.Request.Context(), matchID); ok {
-		// HomeShort/AwayShort is always non-empty once set (it falls back to the
-		// full name), so empty here means this state was bootstrapped before
-		// those fields existed. Backfill it from match data so older on-air
-		// matches pick up short names without needing a fresh bootstrap.
-		if state.HomeShort == "" && state.AwayShort == "" {
+		// HomeShort/AwayShort fall back to the full name when a team has no
+		// short name yet, so a value equal to the full name may just mean the
+		// short name was added to the team *after* this state was bootstrapped.
+		// Re-check against current match data so it picks it up without
+		// needing a fresh bootstrap.
+		homeStale := state.HomeShort == "" || state.HomeShort == state.Home
+		awayStale := state.AwayShort == "" || state.AwayShort == state.Away
+		if homeStale || awayStale {
 			if detail, err := h.matchService.GetMatchDetail(c.Request.Context(), matchID); err == nil {
-				if detail.Match.HomeTeam != nil {
+				if homeStale && detail.Match.HomeTeam != nil {
 					state.HomeShort = detail.Match.HomeTeam.ShortName
 					if state.HomeShort == "" {
 						state.HomeShort = state.Home
 					}
 				}
-				if detail.Match.AwayTeam != nil {
+				if awayStale && detail.Match.AwayTeam != nil {
 					state.AwayShort = detail.Match.AwayTeam.ShortName
 					if state.AwayShort == "" {
 						state.AwayShort = state.Away

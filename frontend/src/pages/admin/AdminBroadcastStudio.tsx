@@ -57,6 +57,17 @@ const CALL_BUTTONS = [
   { label: "Flag pull", call: "FLAG PULL" },
 ];
 
+const DOWN_OPTIONS = [
+  { value: "1", label: "1st Down" },
+  { value: "2", label: "2nd Down" },
+  { value: "3", label: "3rd Down" },
+  { value: "4", label: "4th Down" },
+  { value: "1G", label: "1st & Goal" },
+  { value: "2G", label: "2nd & Goal" },
+  { value: "3G", label: "3rd & Goal" },
+  { value: "4G", label: "4th & Goal" },
+];
+
 const PENALTIES = [
   "Offside",
   "Illegal participation",
@@ -120,7 +131,11 @@ interface BroadcastControlPanelProps {
  * and vMix links. Used by the match studio and by the event-day studio, which
  * swaps the match it controls without reloading the page.
  */
-export function BroadcastControlPanel({ matchId, overlayTarget, header }: BroadcastControlPanelProps) {
+export function BroadcastControlPanel({
+  matchId,
+  overlayTarget,
+  header,
+}: BroadcastControlPanelProps) {
   const id = matchId;
 
   const {
@@ -311,12 +326,15 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
         <span
           className={`self-start sm:self-auto mb-3 sm:mb-0 shrink-0 px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5 ${
             isConnected
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-              : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+              : "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
           }`}
         >
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} aria-hidden="true" />
-          {isConnected ? 'Live sync active' : 'Connecting...'}
+          <span
+            className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}
+            aria-hidden="true"
+          />
+          {isConnected ? "Live sync active" : "Connecting..."}
         </span>
       </div>
 
@@ -434,9 +452,9 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
             </div>
 
             {/* Quick Score Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-wrap justify-center gap-2">
-                {[6, 7, 8, 9].map((points) => (
+            <div className="grid grid-cols-5 items-start gap-3">
+              <div className="col-span-2 flex flex-wrap justify-center gap-2">
+                {[2, 3, 6, 7, 8, 9].map((points) => (
                   <Button
                     key={points}
                     variant="outline"
@@ -450,8 +468,9 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
                   </Button>
                 ))}
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {[6, 7, 8, 9].map((points) => (
+              <div className="col-span-1" aria-hidden="true" />
+              <div className="col-span-2 flex flex-wrap justify-center gap-2">
+                {[2, 3, 6, 7, 8, 9].map((points) => (
                   <Button
                     key={points}
                     variant="outline"
@@ -557,32 +576,47 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
 
             {/* Down & Possession */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-              <Field label="Down & distance" htmlFor="broadcast-down">
-                <Select
-                  id="broadcast-down"
-                  value={state.down}
-                  onChange={(e) => updateField("down", e.target.value)}
-                >
-                  <option value="1">1st Down</option>
-                  <option value="2">2nd Down</option>
-                  <option value="3">3rd Down</option>
-                  <option value="4">4th Down</option>
-                  <option value="1G">1st & Goal</option>
-                  <option value="2G">2nd & Goal</option>
-                  <option value="3G">3rd & Goal</option>
-                  <option value="4G">4th & Goal</option>
-                </Select>
+              <Field label="Down & distance">
+                <div className="flex flex-wrap gap-2">
+                  {DOWN_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      variant={state.down === opt.value ? "navy" : "secondary"}
+                      size="sm"
+                      onClick={() => updateField("down", opt.value)}
+                      aria-pressed={state.down === opt.value}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
               </Field>
 
-              <Field label="Ball possession" htmlFor="broadcast-possession">
-                <Select
-                  id="broadcast-possession"
-                  value={state.possession}
-                  onChange={(e) => updateField("possession", e.target.value)}
-                >
-                  <option value={state.home}>{state.home} (Home)</option>
-                  <option value={state.away}>{state.away} (Away)</option>
-                </Select>
+              <Field label="Ball possession">
+                <div className="flex gap-2">
+                  <Button
+                    variant={
+                      state.possession === state.home ? "navy" : "secondary"
+                    }
+                    size="sm"
+                    fullWidth
+                    onClick={() => updateField("possession", state.home)}
+                    aria-pressed={state.possession === state.home}
+                  >
+                    {state.home_short || state.home} (Home)
+                  </Button>
+                  <Button
+                    variant={
+                      state.possession === state.away ? "navy" : "secondary"
+                    }
+                    size="sm"
+                    fullWidth
+                    onClick={() => updateField("possession", state.away)}
+                    aria-pressed={state.possession === state.away}
+                  >
+                    {state.away_short || state.away} (Away)
+                  </Button>
+                </div>
               </Field>
             </div>
           </div>
@@ -822,9 +856,9 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
                 by itself. For a single input, use <b>Everything</b>.
               </p>
               <p className="font-semibold text-gray-700 dark:text-gray-200">
-                {overlayTarget.kind === 'day'
-                  ? 'These links follow whichever match is on air today, so vMix keeps the same inputs all day.'
-                  : 'These links show this match only. To stream a whole match day, use the event day studio.'}
+                {overlayTarget.kind === "day"
+                  ? "These links follow whichever match is on air today, so vMix keeps the same inputs all day."
+                  : "These links show this match only. To stream a whole match day, use the event day studio."}
               </p>
             </div>
 
@@ -875,15 +909,18 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
 /** On-air control for a single match, with vMix links that follow that match. */
 export function AdminBroadcastStudio() {
   const { matchId } = useParams<{ matchId: string }>();
-  const id = matchId || '';
+  const id = matchId || "";
 
   return (
     <BroadcastControlPanel
       matchId={id}
-      overlayTarget={{ kind: 'match', matchId: id }}
+      overlayTarget={{ kind: "match", matchId: id }}
       header={(state) => (
         <DashboardPageHeader
-          back={{ to: '/admin/broadcast?view=matches', label: 'Back to matches' }}
+          back={{
+            to: "/admin/broadcast?view=matches",
+            label: "Back to matches",
+          }}
           title={`${state.home} vs ${state.away}`}
           subtitle="On-air graphics control for vMix. For a full match day on one stream, use the event day studio instead."
         />
