@@ -270,12 +270,17 @@ const SLOT_OVERRIDES_5V5: Record<string, Partial<TOTWSlotDef>> = {
     unit_x: "50%",
     unit_y: "78%",
   },
+  // The center and the three receivers line up evenly in one row just behind the
+  // line of scrimmage (WR1, center, WR3, WR2), the quarterback centred behind them.
+  C: { coord_x: "38%", coord_y: "58%", unit_x: "38%" },
+  WR1: { coord_y: "58%", unit_x: "14%" },
+  WR2: { coord_y: "58%", unit_x: "86%" },
   WR3: {
     label: "Wide Receiver 3 (Slot)",
-    coord_x: "72%",
-    coord_y: "56%",
-    unit_x: "70%",
-    unit_y: "26%",
+    coord_x: "62%",
+    coord_y: "58%",
+    unit_x: "62%",
+    unit_y: "50%",
   },
   DEF1: {
     label: "Cornerback 1",

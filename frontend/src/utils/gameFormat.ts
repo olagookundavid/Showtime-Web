@@ -249,6 +249,9 @@ const SPEC_7V7: GameFormatSpec = {
   },
 };
 
+// 5v5 attack: the center and three receivers line up in one row just behind the
+// line of scrimmage (WR3 is the slot receiver between the center and WR2), with
+// the quarterback behind them. Team of the Week uses the same row (AdminTOTW).
 const SPEC_5V5: GameFormatSpec = {
   id: "5V5",
   label: "5v5",
@@ -261,8 +264,8 @@ const SPEC_5V5: GameFormatSpec = {
       recommendedPosition: "Receiver",
       positions: RECEIVER_POSITIONS,
       aliases: ["WR_1", "WR1", "OFF_WR1"],
-      builder: { x: 16, y: 28 },
-      pitch: { x: 14, y: 64 },
+      builder: { x: 14, y: 54 },
+      pitch: { x: 14, y: 58 },
     },
     {
       key: "WR_2",
@@ -272,8 +275,8 @@ const SPEC_5V5: GameFormatSpec = {
       recommendedPosition: "Receiver",
       positions: RECEIVER_POSITIONS,
       aliases: ["WR_2", "WR2", "OFF_WR2"],
-      builder: { x: 50, y: 22 },
-      pitch: { x: 68, y: 67 },
+      builder: { x: 86, y: 54 },
+      pitch: { x: 86, y: 58 },
     },
     {
       key: "CENTER",
@@ -283,8 +286,8 @@ const SPEC_5V5: GameFormatSpec = {
       recommendedPosition: "Center",
       positions: ["center"],
       aliases: ["CENTER", "C", "OFF_C"],
-      builder: { x: 50, y: 54 },
-      pitch: { x: 50, y: 56 },
+      builder: { x: 38, y: 54 },
+      pitch: { x: 38, y: 58 },
     },
     {
       key: "WR_3",
@@ -294,8 +297,8 @@ const SPEC_5V5: GameFormatSpec = {
       recommendedPosition: "Receiver",
       positions: RECEIVER_POSITIONS,
       aliases: ["WR_3", "WR3", "OFF_WR3"],
-      builder: { x: 84, y: 28 },
-      pitch: { x: 86, y: 64 },
+      builder: { x: 62, y: 54 },
+      pitch: { x: 62, y: 58 },
     },
     {
       key: "QB",
