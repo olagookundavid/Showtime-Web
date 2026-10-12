@@ -11,6 +11,7 @@ import {
   overlayTargetUrl,
   OVERLAY_LAYERS,
   type BroadcastState,
+  type BroadcastPlayer,
   type GraphicEvent,
   type OverlayLayer,
   type OverlayTarget,
@@ -22,6 +23,7 @@ import {
   Field,
   Input,
   Select,
+  Modal,
   DashboardPageHeader,
 } from "../../components";
 import {
@@ -37,15 +39,6 @@ import {
 
 const CALL_BUTTONS = [
   { label: "Touchdown", call: "TOUCHDOWN", red: true },
-  { label: "First down", call: "FIRST DOWN" },
-  { label: "Second down", call: "SECOND DOWN" },
-  { label: "Third down", call: "THIRD DOWN" },
-  { label: "Fourth down", call: "FOURTH DOWN" },
-  { label: "1st & Goal", call: "1ST & GOAL" },
-  { label: "2nd & Goal", call: "2ND & GOAL" },
-  { label: "3rd & Goal", call: "3RD & GOAL" },
-  { label: "4th & Goal", call: "4TH & GOAL" },
-  { label: "1 min warning", call: "1 MINUTE WARNING" },
   { label: "Safety", call: "SAFETY" },
   { label: "Penalty", call: "PENALTY" },
   { label: "Interception", call: "INTERCEPTION" },
@@ -53,8 +46,6 @@ const CALL_BUTTONS = [
   { label: "XP good", call: "EXTRA POINT GOOD" },
   { label: "XP bad", call: "EXTRA POINT NO GOOD" },
   { label: "Sack", call: "SACK" },
-  { label: "Bat down", call: "BAT DOWN" },
-  { label: "Flag pull", call: "FLAG PULL" },
 ];
 
 const DOWN_OPTIONS = [
@@ -66,6 +57,14 @@ const DOWN_OPTIONS = [
   { value: "2G", label: "2nd & Goal" },
   { value: "3G", label: "3rd & Goal" },
   { value: "4G", label: "4th & Goal" },
+];
+
+// One-shot lower-third events that don't map to a persistent down state, kept
+// next to the Down & Distance buttons so operators find them in one place.
+const DOWN_EVENT_BUTTONS = [
+  { label: "1 min warning", call: "1 MINUTE WARNING" },
+  { label: "Bat down", call: "BAT DOWN" },
+  { label: "Flag pull", call: "FLAG PULL" },
 ];
 
 const PENALTIES = [
@@ -157,7 +156,6 @@ export function BroadcastControlPanel({
   const [now, setNow] = useState(() => Date.now());
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
-  const [statInput, setStatInput] = useState("TOUCHDOWN RECEPTION");
   const [selectedPenalty, setSelectedPenalty] = useState(PENALTIES[0]);
   const [recentPlays, setRecentPlays] = useState<PlayLogItem[]>([]);
   // Score after the latest scored play; null until a play carries a score.
@@ -167,6 +165,7 @@ export function BroadcastControlPanel({
   } | null>(null);
   const [copiedLayer, setCopiedLayer] = useState<OverlayLayer | null>(null);
   const [manualOnly, setManualOnly] = useState(readManualOnly);
+  const [touchdownModalOpen, setTouchdownModalOpen] = useState(false);
 
   const handleManualOnlyChange = (value: boolean) => {
     setManualOnly(value);
@@ -226,6 +225,7 @@ export function BroadcastControlPanel({
   const matchOverlayUrl = overlayUrl(id);
   const clockInput = clockDraft ?? formatClock(calculateClockNow(state, now));
   const team = selectedTeam || state.home || "Home Team";
+  const teamPlayers = players.filter((p) => p.team_name === team);
 
   const handleToggleClock = () => {
     setClockDraft(null);
@@ -262,7 +262,7 @@ export function BroadcastControlPanel({
         callType,
       );
 
-    let statText = statInput;
+    let statText = "";
     if (callType === "PENALTY") {
       statText = selectedPenalty;
     } else if (callType === "1 MINUTE WARNING") {
@@ -285,6 +285,24 @@ export function BroadcastControlPanel({
     fireGraphic(graphic);
   };
 
+  // Touchdown fires through its own player-picker modal (scoped to the
+  // selected team's roster) instead of the generic "Select player" dropdown,
+  // so the banner always shows the player's photo rather than their kit
+  // number: this always suppresses `number` and forces `compact: false`.
+  const handleTouchdownSelect = (player: BroadcastPlayer | null) => {
+    const graphic: GraphicEvent = {
+      type: "TOUCHDOWN",
+      number: "",
+      player: player ? player.name : "",
+      team,
+      photo: player?.image || "",
+      compact: false,
+      duration: 5500,
+    };
+    fireGraphic(graphic);
+    setTouchdownModalOpen(false);
+  };
+
   // Prepare a play from the queue into the form (manual workflow)
   const handlePreparePlay = (p: PlayLogItem) => {
     const name = p.target?.name || p.off_qb?.name || p.defender?.name || "";
@@ -298,11 +316,6 @@ export function BroadcastControlPanel({
     }
     if (p.offense_team?.name) {
       setSelectedTeam(p.offense_team.name);
-    }
-    const playDesc =
-      p.notes || `${p.play_type || "PLAY"} ${p.result || ""}`.trim();
-    if (playDesc) {
-      setStatInput(playDesc);
     }
   };
 
@@ -590,6 +603,23 @@ export function BroadcastControlPanel({
                     </Button>
                   ))}
                 </div>
+                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Quick events
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {DOWN_EVENT_BUTTONS.map((btn) => (
+                      <Button
+                        key={btn.call}
+                        variant="navy"
+                        size="sm"
+                        onClick={() => handleTriggerCall(btn.call)}
+                      >
+                        {btn.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </Field>
 
               <Field label="Ball possession">
@@ -665,44 +695,46 @@ export function BroadcastControlPanel({
                 </Select>
               </Field>
 
-              <Field label="Team" htmlFor="broadcast-team">
-                <Select
-                  id="broadcast-team"
-                  value={team}
-                  onChange={(e) => setSelectedTeam(e.target.value)}
-                >
-                  <option value={state.home}>{state.home}</option>
-                  <option value={state.away}>{state.away}</option>
-                </Select>
+              <Field label="Team">
+                <div className="flex gap-2">
+                  <Button
+                    variant={team === state.home ? "navy" : "secondary"}
+                    size="sm"
+                    fullWidth
+                    onClick={() => setSelectedTeam(state.home)}
+                    aria-pressed={team === state.home}
+                  >
+                    {state.home_short || state.home} (Home)
+                  </Button>
+                  <Button
+                    variant={team === state.away ? "navy" : "secondary"}
+                    size="sm"
+                    fullWidth
+                    onClick={() => setSelectedTeam(state.away)}
+                    aria-pressed={team === state.away}
+                  >
+                    {state.away_short || state.away} (Away)
+                  </Button>
+                </div>
               </Field>
             </div>
 
-            {/* Custom Stat Line & Penalty selector */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Stat line / subtitle" htmlFor="broadcast-stat">
-                <Input
-                  id="broadcast-stat"
-                  type="text"
-                  value={statInput}
-                  onChange={(e) => setStatInput(e.target.value)}
-                  placeholder="e.g. 42 YD TOUCHDOWN · 2 TD TODAY"
-                />
-              </Field>
-
-              <Field label="Penalty call type" htmlFor="broadcast-penalty">
-                <Select
-                  id="broadcast-penalty"
-                  value={selectedPenalty}
-                  onChange={(e) => setSelectedPenalty(e.target.value)}
-                >
-                  {PENALTIES.map((pen) => (
-                    <option key={pen} value={pen}>
-                      {pen}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
+            {/* Penalty selector */}
+            <Field label="Penalty call type">
+              <div className="flex flex-wrap gap-2">
+                {PENALTIES.map((pen) => (
+                  <Button
+                    key={pen}
+                    variant={selectedPenalty === pen ? "navy" : "secondary"}
+                    size="sm"
+                    onClick={() => setSelectedPenalty(pen)}
+                    aria-pressed={selectedPenalty === pen}
+                  >
+                    {pen}
+                  </Button>
+                ))}
+              </div>
+            </Field>
 
             {/* Event Button Grid */}
             <div>
@@ -714,7 +746,11 @@ export function BroadcastControlPanel({
                   <Button
                     key={btn.call}
                     variant={btn.red ? "danger" : "navy"}
-                    onClick={() => handleTriggerCall(btn.call)}
+                    onClick={() =>
+                      btn.call === "TOUCHDOWN"
+                        ? setTouchdownModalOpen(true)
+                        : handleTriggerCall(btn.call)
+                    }
                     fullWidth
                     className={`uppercase tracking-wider ${btn.red ? "col-span-2 sm:col-span-3 md:col-span-4 py-3 text-sm" : ""}`}
                   >
@@ -902,6 +938,63 @@ export function BroadcastControlPanel({
           </div>
         </div>
       </div>
+
+      <Modal
+        open={touchdownModalOpen}
+        onClose={() => setTouchdownModalOpen(false)}
+        title={`Touchdown — ${team}`}
+        subtitle="Pick the player to show their photo on air"
+        maxWidth="md"
+      >
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={() => handleTouchdownSelect(null)}
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer text-left"
+          >
+            <span className="flex-1 min-w-0 font-semibold text-sm text-gray-800 dark:text-gray-200">
+              No specific player
+            </span>
+          </button>
+
+          {teamPlayers.map((p) => (
+            <button
+              key={p.player_id}
+              type="button"
+              onClick={() => handleTouchdownSelect(p)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer text-left"
+            >
+              <span className="shrink-0 w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-sffl-navy/30 overflow-hidden flex items-center justify-center text-xs font-black text-sffl-navy dark:text-white">
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  p.name
+                    .split(" ")
+                    .map((x) => x[0])
+                    .slice(0, 2)
+                    .join("")
+                )}
+              </span>
+              <span className="flex-1 min-w-0 font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">
+                {p.name}
+              </span>
+              <span className="shrink-0 text-xs text-gray-400 font-semibold">
+                #{p.jersey_number} · {p.position}
+              </span>
+            </button>
+          ))}
+
+          {teamPlayers.length === 0 && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+              No roster players found for {team}.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

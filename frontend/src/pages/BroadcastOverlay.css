@@ -160,9 +160,9 @@
   box-shadow: 0 7px 16px rgba(0, 0, 0, 0.4);
 }
 
-/* Sits above the score box, flush with the top of the main bar. */
+/* Sits below the score box, flush with the bottom of the main bar. */
 .bug-down-pill {
-  top: -40px;
+  top: 112px;
   height: 40px;
   width: 108px;
   background: #f4f7fc;
@@ -178,22 +178,23 @@
   left: 410px;
 }
 
+/* Sits above the score box, flush with the top of the main bar. */
 .bug-ball-pill {
-  top: 112px;
-  height: 56px;
-  width: 180px;
+  top: -40px;
+  height: 40px;
+  width: 108px;
   background: #e63c34;
   color: #ffffff;
-  font: 900 18px Arial, sans-serif;
-  letter-spacing: 2px;
+  font: 900 11px Arial, sans-serif;
+  letter-spacing: 1px;
 }
 
 .bug-ball-pill.side-home {
-  left: 0;
+  left: 180px;
 }
 
 .bug-ball-pill.side-away {
-  left: 518px;
+  left: 410px;
 }
 
 /* ── 2. LOWER-THIRD GRAPHIC BANNER ── */

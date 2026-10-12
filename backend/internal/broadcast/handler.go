@@ -45,27 +45,49 @@ func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playServ
 // or bootstraps a fresh one from the match data.
 func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*BroadcastState, error) {
 	if state, ok := h.hub.LoadState(c.Request.Context(), matchID); ok {
-		// HomeShort/AwayShort fall back to the full name when a team has no
-		// short name yet, so a value equal to the full name may just mean the
-		// short name was added to the team *after* this state was bootstrapped.
-		// Re-check against current match data so it picks it up without
-		// needing a fresh bootstrap.
-		homeStale := state.HomeShort == "" || state.HomeShort == state.Home
-		awayStale := state.AwayShort == "" || state.AwayShort == state.Away
-		if homeStale || awayStale {
-			if detail, err := h.matchService.GetMatchDetail(c.Request.Context(), matchID); err == nil {
-				if homeStale && detail.Match.HomeTeam != nil {
-					state.HomeShort = detail.Match.HomeTeam.ShortName
-					if state.HomeShort == "" {
-						state.HomeShort = state.Home
+		// A team's name (or short name) can change after this match's broadcast
+		// state was first bootstrapped — the cached/persisted state otherwise
+		// never picks that up. Re-sync against current match data on every load
+		// so state.Home/Away stays the single source of truth that /players and
+		// the rest of the admin app compare against (a stale name here used to
+		// make team-scoped player lookups silently return nothing).
+		if detail, err := h.matchService.GetMatchDetail(c.Request.Context(), matchID); err == nil {
+			changed := false
+			if detail.Match.HomeTeam != nil {
+				if name := detail.Match.HomeTeam.Name; name != "" && name != state.Home {
+					if state.Possession == state.Home {
+						state.Possession = name
 					}
+					state.Home = name
+					changed = true
 				}
-				if awayStale && detail.Match.AwayTeam != nil {
-					state.AwayShort = detail.Match.AwayTeam.ShortName
-					if state.AwayShort == "" {
-						state.AwayShort = state.Away
+				homeShort := detail.Match.HomeTeam.ShortName
+				if homeShort == "" {
+					homeShort = state.Home
+				}
+				if homeShort != state.HomeShort {
+					state.HomeShort = homeShort
+					changed = true
+				}
+			}
+			if detail.Match.AwayTeam != nil {
+				if name := detail.Match.AwayTeam.Name; name != "" && name != state.Away {
+					if state.Possession == state.Away {
+						state.Possession = name
 					}
+					state.Away = name
+					changed = true
 				}
+				awayShort := detail.Match.AwayTeam.ShortName
+				if awayShort == "" {
+					awayShort = state.Away
+				}
+				if awayShort != state.AwayShort {
+					state.AwayShort = awayShort
+					changed = true
+				}
+			}
+			if changed {
 				h.hub.SetState(state)
 			}
 		}
