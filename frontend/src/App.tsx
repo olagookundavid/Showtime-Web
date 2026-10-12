@@ -423,8 +423,8 @@ function App() {
                           path="/store/confirm"
                           element={<OrderConfirmation />}
                         />
-                        <Route path="/store/orders" element={<MyOrders />} />
                       </Route>
+                      <Route path="/store/orders" element={<MyOrders />} />
                       <Route path="/account" element={<MyProfile />} />
 
                       {/* Fantasy Flag Football */}
