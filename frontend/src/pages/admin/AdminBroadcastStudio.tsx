@@ -232,6 +232,17 @@ export function BroadcastControlPanel({
     toggleClock();
   };
 
+  // "Select player" is scoped to the active team, so switching teams must
+  // drop a previously selected player from the other team instead of
+  // silently keeping it selected underneath a now-blank dropdown.
+  const handleSelectTeam = (teamName: string) => {
+    setSelectedTeam(teamName);
+    const current = players.find((p) => p.player_id === selectedPlayerId);
+    if (current && current.team_name !== teamName) {
+      setSelectedPlayerId("");
+    }
+  };
+
   const copyUrl = (layer: OverlayLayer) => {
     navigator.clipboard.writeText(overlayTargetUrl(overlayTarget, layer));
     setCopiedLayer(layer);
@@ -287,12 +298,14 @@ export function BroadcastControlPanel({
 
   // Touchdown fires through its own player-picker modal (scoped to the
   // selected team's roster) instead of the generic "Select player" dropdown,
-  // so the banner always shows the player's photo rather than their kit
-  // number: this always suppresses `number` and forces `compact: false`.
+  // so the banner always shows the player's photo alongside their kit
+  // number: this forces `compact: false` so the photo isn't hidden (the
+  // compact regex in handleTriggerCall wrongly matches "DOWN" inside
+  // "TOUCHDOWN").
   const handleTouchdownSelect = (player: BroadcastPlayer | null) => {
     const graphic: GraphicEvent = {
       type: "TOUCHDOWN",
-      number: "",
+      number: player ? String(player.jersey_number) : "",
       player: player ? player.name : "",
       team,
       photo: player?.image || "",
@@ -677,19 +690,12 @@ export function BroadcastControlPanel({
                 <Select
                   id="broadcast-player"
                   value={selectedPlayerId}
-                  onChange={(e) => {
-                    const pid = e.target.value;
-                    setSelectedPlayerId(pid);
-                    const p = players.find((pl) => pl.player_id === pid);
-                    if (p) {
-                      setSelectedTeam(p.team_name);
-                    }
-                  }}
+                  onChange={(e) => setSelectedPlayerId(e.target.value)}
                 >
                   <option value="">-- No specific player --</option>
-                  {players.map((p) => (
+                  {teamPlayers.map((p) => (
                     <option key={p.player_id} value={p.player_id}>
-                      #{p.jersey_number} {p.name} · {p.position} ({p.team_name})
+                      #{p.jersey_number} {p.name} · {p.position}
                     </option>
                   ))}
                 </Select>
@@ -701,7 +707,7 @@ export function BroadcastControlPanel({
                     variant={team === state.home ? "navy" : "secondary"}
                     size="sm"
                     fullWidth
-                    onClick={() => setSelectedTeam(state.home)}
+                    onClick={() => handleSelectTeam(state.home)}
                     aria-pressed={team === state.home}
                   >
                     {state.home_short || state.home} (Home)
@@ -710,7 +716,7 @@ export function BroadcastControlPanel({
                     variant={team === state.away ? "navy" : "secondary"}
                     size="sm"
                     fullWidth
-                    onClick={() => setSelectedTeam(state.away)}
+                    onClick={() => handleSelectTeam(state.away)}
                     aria-pressed={team === state.away}
                   >
                     {state.away_short || state.away} (Away)
