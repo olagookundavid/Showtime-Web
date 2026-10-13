@@ -26,11 +26,11 @@ type IDiscountHandler interface {
 type DiscountHandler struct {
 	service      services.IDiscountService
 	storeService services.IStoreService
-	productRepo  ports.TicketProductRepository
+	tierRepo     ports.TicketTierRepository
 }
 
-func NewDiscountHandler(service services.IDiscountService, storeService services.IStoreService, productRepo ports.TicketProductRepository) IDiscountHandler {
-	return &DiscountHandler{service: service, storeService: storeService, productRepo: productRepo}
+func NewDiscountHandler(service services.IDiscountService, storeService services.IStoreService, tierRepo ports.TicketTierRepository) IDiscountHandler {
+	return &DiscountHandler{service: service, storeService: storeService, tierRepo: tierRepo}
 }
 
 // statusForDiscountErr maps the business errors onto HTTP codes. Everything a
@@ -143,32 +143,21 @@ func (h *DiscountHandler) Preview(c *gin.Context) {
 		}
 		lines = priced
 
-	case req.ProductID != "":
-		product, err := h.productRepo.GetProduct(c.Request.Context(), req.ProductID)
+	case req.TierID != "":
+		tier, err := h.tierRepo.GetByID(c.Request.Context(), req.TierID)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "ticket not found"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ticket tier not found"})
 			return
-		}
-		// The line is priced off the product on the day being bought, not off
-		// anything the client sends.
-		unitPrice := product.BasePrice
-		if req.EventDayID != "" {
-			days, err := h.productRepo.GetProductDays(c.Request.Context(), product.ID, []string{req.EventDayID})
-			if err != nil || len(days) != 1 {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "this ticket is not on sale for that day"})
-				return
-			}
-			unitPrice = days[0].Price
 		}
 		qty := req.Quantity
 		if qty < 1 {
 			qty = 1
 		}
 		lines = []services.CartLine{{
-			EntityType: domain.DiscountEntityTicketProduct,
-			EntityID:   product.ID,
-			Name:       product.Name,
-			UnitPrice:  float64(unitPrice),
+			EntityType: domain.DiscountEntityTicketTier,
+			EntityID:   tier.ID,
+			Name:       tier.Name,
+			UnitPrice:  float64(tier.Price),
 			Quantity:   qty,
 		}}
 

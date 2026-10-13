@@ -8,7 +8,7 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { getTicketByReference } from "../../services/api";
-import { Loader, formatDayLong } from "../../components";
+import { Loader } from "../../components";
 
 export const TicketConfirmation = () => {
   const [searchParams] = useSearchParams();
@@ -112,64 +112,52 @@ export const TicketConfirmation = () => {
                 {ticket.ticket_code}
               </p>
               <p className="text-xs text-gray-400 mt-2">
-                Show this code at the venue for check-in on each match day
+                Show this code at the venue for check-in
               </p>
             </div>
           )}
 
           {/* Details */}
           <div className="p-4 sm:p-6 space-y-4">
-            {/* Every match day this ticket covers */}
-            <div>
-              <span className="text-xs text-gray-500 uppercase font-bold">
-                {ticket.days.length > 1
-                  ? `Game Pass · ${ticket.days.length} match days`
-                  : "Match day"}
-              </span>
-              <ul className="mt-2 space-y-2">
-                {ticket.days.map((day) => (
-                  <li
-                    key={day.id}
-                    className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-gray-100 p-3 dark:border-gray-700"
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-bold text-sffl-navy dark:text-white wrap-break-word">
-                        {day.title || "—"}
-                      </span>
-                      <span className="block text-xs text-gray-500 dark:text-gray-400">
-                        {day.date ? formatDayLong(day.date) : "—"}
-                        {day.venue && ` • ${day.venue}`}
-                      </span>
-                    </span>
-                    {day.checked_in_at && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400">
-                        <CheckCircleIcon
-                          className="w-4 h-4"
-                          aria-hidden="true"
-                        />
-                        Checked in
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
             <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-4">
               <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
-                  Ticket
+                  Event
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white ">
-                  {ticket.product_name || "—"}
+                <p className="font-bold text-sffl-navy dark:text-white wrap-break-word">
+                  {ticket.event_title || "—"}
                 </p>
               </div>
               <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
-                  Qty
+                  Venue
+                </span>
+                <p className="font-bold text-sffl-navy dark:text-white wrap-break-word">
+                  {ticket.event_venue || "—"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs text-gray-500 uppercase font-bold">
+                  Date
                 </span>
                 <p className="font-bold text-sffl-navy dark:text-white ">
-                  {ticket.quantity}
+                  {ticket.event_date
+                    ? new Date(
+                        ticket.event_date + "T00:00:00",
+                      ).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "—"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs text-gray-500 uppercase font-bold">
+                  Tier
+                </span>
+                <p className="font-bold text-sffl-navy dark:text-white ">
+                  {ticket.tier_name || "—"}
                 </p>
               </div>
               <div className="min-w-0">
@@ -198,26 +186,21 @@ export const TicketConfirmation = () => {
               </div>
               <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
+                  Qty
+                </span>
+                <p className="font-bold text-sffl-navy dark:text-white ">
+                  {ticket.quantity}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs text-gray-500 uppercase font-bold">
                   Total Paid
                 </span>
                 <p className="font-black text-sffl-red text-xl">
                   ₦{ticket.total_amount?.toLocaleString()}
                 </p>
-                {ticket.game_pass_discount_amount > 0 && (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                    Includes {ticket.game_pass_discount_percent}% Game Pass
-                    saving (₦
-                    {ticket.game_pass_discount_amount.toLocaleString()})
-                  </p>
-                )}
               </div>
             </div>
-
-            {isPaid && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                We will also email you a reminder the day before each match day.
-              </p>
-            )}
 
             <div className="border-t dark:border-gray-700 pt-4 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-gray-500 min-w-0 break-all">

@@ -20,7 +20,7 @@ import { Spinner } from '../ui/Spinner';
 import { getApiErrorMessage } from '../../utils';
 
 type ItemDraft = {
-    entity_type: 'product' | 'ticket_product';
+    entity_type: 'product' | 'ticket_tier';
     entity_id: string;
     name: string;
     price: number;
@@ -229,7 +229,7 @@ export const DiscountCodesPanel = () => {
             return;
         }
         if (form.items.length === 0) {
-            setFormError('Add at least one product or ticket this code applies to.');
+            setFormError('Add at least one product or ticket tier this code applies to.');
             return;
         }
         const bad = form.items.find(i => !(parseFloat(i.amount_off) > 0));
@@ -267,7 +267,7 @@ export const DiscountCodesPanel = () => {
                 <div>
                     <h2 className="text-lg font-black text-sffl-navy dark:text-white">Discount Codes</h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        One code can cover several products and tickets, each with its own amount off.
+                        One code can cover several products and ticket tiers, each with its own amount off.
                     </p>
                 </div>
                 <Button icon={PlusIcon} onClick={openCreate}>
@@ -282,7 +282,7 @@ export const DiscountCodesPanel = () => {
                     <TagIcon className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" aria-hidden="true" />
                     <p className="font-bold text-gray-700 dark:text-gray-300">No discount codes yet</p>
                     <p className="text-xs text-gray-400 mt-1">
-                        Create one to give money off specific products or tickets.
+                        Create one to give money off specific products or ticket tiers.
                     </p>
                 </div>
             ) : (
@@ -360,7 +360,7 @@ export const DiscountCodesPanel = () => {
                                             >
                                                 <span className="text-gray-600 dark:text-gray-300 truncate">
                                                     {i.entity_name || '(deleted item)'}
-                                                    {i.entity_type === 'ticket_product' && (
+                                                    {i.entity_type === 'ticket_tier' && (
                                                         <span className="ml-1.5 text-[9px] uppercase font-bold text-gray-400">ticket</span>
                                                     )}
                                                 </span>
@@ -504,7 +504,7 @@ export const DiscountCodesPanel = () => {
                                                             {i.name}
                                                         </p>
                                                         <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                                            {i.entity_type === 'ticket_product' ? 'Ticket' : 'Store product'} ·
+                                                            {i.entity_type === 'ticket_tier' ? 'Ticket tier' : 'Product'} ·
                                                             ₦{i.price.toLocaleString()}
                                                             {off > 0 && (
                                                                 <span className="inline-flex items-center gap-1 ml-1 text-emerald-600 dark:text-emerald-400 font-bold">
@@ -545,8 +545,8 @@ export const DiscountCodesPanel = () => {
                                             value={targetSearch}
                                             icon={MagnifyingGlassIcon}
                                             onChange={e => setTargetSearch(e.target.value)}
-                                            placeholder="Search products and tickets to add"
-                                            aria-label="Search products and tickets"
+                                            placeholder="Search products and ticket tiers to add"
+                                            aria-label="Search products and ticket tiers"
                                         />
                                     </div>
                                     <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
@@ -570,7 +570,7 @@ export const DiscountCodesPanel = () => {
                                                 >
                                                     <span className="text-sm text-gray-700 dark:text-gray-200 truncate">
                                                         {t.name}
-                                                        {t.entity_type === 'ticket_product' && (
+                                                        {t.entity_type === 'ticket_tier' && (
                                                             <span className="ml-1.5 text-[9px] uppercase font-bold text-gray-400">
                                                                 ticket
                                                             </span>

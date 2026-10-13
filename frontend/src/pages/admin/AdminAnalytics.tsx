@@ -26,20 +26,16 @@ const NO_SALES: TicketResponse[] = [];
 // No dependencies, so the columns live here rather than in a useMemo.
 const SALES_COLUMNS: Column<TicketResponse>[] = [
     {
-        header: 'Match day',
+        header: 'Event',
         cell: (sale) => (
-            <span className="font-bold text-sffl-navy dark:text-white">
-                {sale.days.length > 1
-                    ? `Game Pass · ${sale.days.length} match days`
-                    : sale.days[0]?.title || '—'}
-            </span>
+            <span className="font-bold text-sffl-navy dark:text-white">{sale.event_title || '—'}</span>
         ),
     },
     {
-        header: 'Ticket',
+        header: 'Tier',
         cell: (sale) => (
             <span className="text-sm font-bold bg-gray-100 dark:bg-gray-600 dark:text-gray-200 px-2 py-1 rounded">
-                {sale.product_name || '—'}
+                {sale.tier_name || '—'}
             </span>
         ),
     },

@@ -1,10 +1,10 @@
 /** Who may redeem a code. Defaults to 'all'. */
 export type DiscountAudience = 'all' | 'authenticated' | 'guest';
 
-/** One product or ticket a code covers, with its own naira reduction. */
+/** One product or ticket tier a code covers, with its own naira reduction. */
 export interface DiscountCodeItem {
     id?: string;
-    entity_type: 'product' | 'ticket_product';
+    entity_type: 'product' | 'ticket_tier';
     entity_id: string;
     entity_name?: string;
     entity_price?: number;
@@ -34,12 +34,12 @@ export interface SaveDiscountCodePayload {
     expires_at?: string | null;
     audience?: DiscountAudience;
     is_active?: boolean;
-    items: { entity_type: 'product' | 'ticket_product'; entity_id: string; amount_off: number }[];
+    items: { entity_type: 'product' | 'ticket_tier'; entity_id: string; amount_off: number }[];
 }
 
-/** A product or ticket selectable in the admin code editor. */
+/** A product or tier selectable in the admin code editor. */
 export interface DiscountTarget {
-    entity_type: 'product' | 'ticket_product';
+    entity_type: 'product' | 'ticket_tier';
     entity_id: string;
     name: string;
     price: number;

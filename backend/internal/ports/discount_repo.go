@@ -83,10 +83,10 @@ func (r *DiscountRepository) loadItems(ctx context.Context, codes map[string]*do
 	query := `
 		SELECT i.id, i.discount_code_id, i.entity_type, i.entity_id, i.amount_off,
 		       COALESCE(p.name, t.name, '') AS entity_name,
-		       COALESCE(p.price, t.base_price::numeric, 0) AS entity_price
+		       COALESCE(p.price, t.price::numeric, 0) AS entity_price
 		FROM discount_code_items i
 		LEFT JOIN store_products p ON i.entity_type = 'product' AND p.id = i.entity_id
-		LEFT JOIN ticket_products t ON i.entity_type = 'ticket_product' AND t.id = i.entity_id
+		LEFT JOIN ticket_tiers t ON i.entity_type = 'ticket_tier' AND t.id = i.entity_id
 		WHERE i.discount_code_id = ANY($1::uuid[])
 		ORDER BY i.created_at ASC`
 
@@ -266,7 +266,7 @@ func (r *DiscountRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// ListTargets returns every product and ticket product a code can be pointed at,
+// ListTargets returns every product and ticket tier a code can be pointed at,
 // as one merged list for the admin picker.
 func (r *DiscountRepository) ListTargets(ctx context.Context, search string, page, limit int) ([]domain.DiscountCodeItem, int, error) {
 	page, limit, offset := paging(page, limit, 100)
@@ -275,34 +275,36 @@ func (r *DiscountRepository) ListTargets(ctx context.Context, search string, pag
 	defer cancel()
 
 	// A catalogue outgrows any dropdown, so the filter runs in the database and
-	// the picker only ever holds what was asked for.
+	// the picker only ever holds what was asked for. A tier is searchable by its
+	// own name or by the event it belongs to — "VIP" and "Lagos" both work.
 	search = strings.TrimSpace(search)
 	productWhere := `WHERE p.is_active = TRUE`
-	tierWhere := `WHERE t.is_active = TRUE`
+	tierWhere := `WHERE e.is_active = TRUE`
 	args := []interface{}{}
 	if search != "" {
 		args = append(args, "%"+search+"%")
 		productWhere += ` AND p.name ILIKE $1`
-		tierWhere += ` AND t.name ILIKE $1`
+		tierWhere += ` AND (t.name ILIKE $1 OR e.title ILIKE $1)`
 	}
 
 	countQuery := `
 		SELECT (SELECT COUNT(*) FROM store_products p ` + productWhere + `)
-		     + (SELECT COUNT(*) FROM ticket_products t ` + tierWhere + `)`
+		     + (SELECT COUNT(*) FROM ticket_tiers t JOIN event_days e ON e.id = t.event_day_id ` + tierWhere + `)`
 	var total int
 	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count discount targets: %w", err)
 	}
 
-	// Only sellable targets: inactive products can't be bought, so offering them
-	// in the picker would only create dead code lines.
+	// Only sellable targets: inactive products and past events can't be bought,
+	// so offering them in the picker would only create dead code lines.
 	query := `
 		SELECT 'product' AS entity_type, p.id, p.name, p.price::numeric, '' AS group_label
 		FROM store_products p
 		` + productWhere + `
 		UNION ALL
-		SELECT 'ticket_product', t.id, t.name, t.base_price::numeric, 'Ticket'
-		FROM ticket_products t
+		SELECT 'ticket_tier', t.id, t.name, t.price::numeric, e.title
+		FROM ticket_tiers t
+		JOIN event_days e ON e.id = t.event_day_id
 		` + tierWhere + `
 		ORDER BY entity_type, group_label, name, id` +
 		fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)

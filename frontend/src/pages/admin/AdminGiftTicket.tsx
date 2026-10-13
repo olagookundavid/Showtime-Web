@@ -2,21 +2,21 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { GiftIcon, ClipboardIcon, CheckIcon, CheckCircleIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
-import { adminListTicketProducts, giftTicket } from '../../services/api';
-import type { TicketResponse } from '../../types';
-import { ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Select, DashboardPageHeader, TicketDayPicker } from '../../components';
+import { getAllEventDays, giftTicket } from '../../services/api';
+import type { EventDayResponse, TicketResponse } from '../../types';
+import { ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Select, DashboardPageHeader } from '../../components';
 import { getApiErrorMessage } from '../../utils';
 
 const MAX_QUANTITY = 10;
 
 export const AdminGiftTicket = () => {
-    const { data: products = [], isLoading } = useQuery({
-        queryKey: ['adminTicketProducts'],
-        queryFn: adminListTicketProducts,
+    const { data: eventDays = [], isLoading } = useQuery({
+        queryKey: ['adminEventDaysList'],
+        queryFn: () => getAllEventDays(),
     });
 
-    const [productId, setProductId] = useState('');
-    const [dayIds, setDayIds] = useState<string[]>([]);
+    const [eventDayId, setEventDayId] = useState('');
+    const [tierId, setTierId] = useState('');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -37,25 +37,21 @@ export const AdminGiftTicket = () => {
         }
     };
 
-    const activeProducts = products.filter((p) => p.is_active);
-    const selectedProduct = activeProducts.find((p) => p.id === productId);
-    // Only match days that can still be attended and are on sale.
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date());
-    const availableDays = (selectedProduct?.days ?? []).filter((d) => d.is_active && d.event_date >= today);
-    const selectedDays = availableDays.filter((d) => dayIds.includes(d.event_day_id));
+    const selectedEventDay: EventDayResponse | undefined = eventDays.find((e) => e.id === eventDayId);
+    const tiers = selectedEventDay?.tiers || [];
+    const selectedTier = tiers.find((t) => t.id === tierId);
 
     const resetForm = () => {
         setName('');
         setEmail('');
         setPhone('');
         setQuantity(1);
-        setProductId('');
-        setDayIds([]);
+        setTierId('');
     };
 
     const requestGift = () => {
-        if (!productId || selectedDays.length === 0 || !name.trim() || !email.trim()) {
-            toast.error('Ticket, at least one match day, recipient name and email are required');
+        if (!eventDayId || !tierId || !name.trim() || !email.trim()) {
+            toast.error('Event, tier, recipient name and email are required');
             return;
         }
         setConfirming(true);
@@ -66,8 +62,8 @@ export const AdminGiftTicket = () => {
         setIssued(null);
         try {
             const result = await giftTicket({
-                product_id: productId,
-                event_day_ids: selectedDays.map((d) => d.event_day_id),
+                event_day_id: eventDayId,
+                tier_id: tierId,
                 name: name.trim(),
                 email: email.trim(),
                 phone: phone.trim() || undefined,
@@ -93,47 +89,43 @@ export const AdminGiftTicket = () => {
             />
 
             <div className="max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow p-4 sm:p-5 md:p-7 space-y-5">
-                {/* Ticket */}
-                <Field label="Ticket" htmlFor="gift-product">
+                {/* Event Day */}
+                <Field label="Event Day" htmlFor="gift-event-day">
                     <Select
-                        id="gift-product"
-                        value={productId}
+                        id="gift-event-day"
+                        value={eventDayId}
                         onChange={(e) => {
-                            setProductId(e.target.value);
-                            setDayIds([]);
+                            setEventDayId(e.target.value);
+                            setTierId('');
                         }}
                         disabled={isLoading}
                     >
-                        <option value="">{isLoading ? 'Loading tickets' : 'Select a ticket'}</option>
-                        {activeProducts.map((p) => (
-                            <option key={p.id} value={p.id}>
-                                {p.name}
-                                {p.is_hidden ? ' (hidden)' : ''}
+                        <option value="">{isLoading ? 'Loading event days' : 'Select an event day'}</option>
+                        {eventDays.map((ed) => (
+                            <option key={ed.id} value={ed.id}>
+                                {ed.title} — {new Date(ed.date).toLocaleDateString()}
+                                {ed.is_active ? '' : ' (inactive)'}
                             </option>
                         ))}
                     </Select>
                 </Field>
 
-                {/* Match days */}
-                <Field
-                    label="Match days"
-                    hint="Pick one for a normal ticket, or several to gift a Game Pass. One code covers them all."
-                >
-                    {!selectedProduct ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Select a ticket first.</p>
-                    ) : availableDays.length === 0 ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            This ticket is not on sale for any upcoming match day. Add days on the Ticket Products page.
-                        </p>
-                    ) : (
-                        <TicketDayPicker
-                            mode="multi"
-                            name="Match days to gift"
-                            days={availableDays}
-                            selected={dayIds}
-                            onChange={setDayIds}
-                        />
-                    )}
+                {/* Tier */}
+                <Field label="Ticket Tier" htmlFor="gift-tier">
+                    <Select
+                        id="gift-tier"
+                        value={tierId}
+                        onChange={(e) => setTierId(e.target.value)}
+                        disabled={!selectedEventDay}
+                    >
+                        <option value="">{selectedEventDay ? 'Select a tier' : 'Select an event day first'}</option>
+                        {tiers.map((t) => (
+                            <option key={t.id} value={t.id}>
+                                {t.name} — ₦{t.price.toLocaleString()}
+                                {t.capacity > 0 ? ` (${t.available} left)` : ''}
+                            </option>
+                        ))}
+                    </Select>
                 </Field>
 
                 {/* Recipient Name */}
@@ -197,7 +189,7 @@ export const AdminGiftTicket = () => {
                 <Button
                     icon={GiftIcon}
                     onClick={requestGift}
-                    disabled={submitting || !productId || selectedDays.length === 0 || !name.trim() || !email.trim()}
+                    disabled={submitting || !eventDayId || !tierId || !name.trim() || !email.trim()}
                     fullWidth
                 >
                     Gift Ticket
@@ -230,7 +222,7 @@ export const AdminGiftTicket = () => {
 
             <ConfirmDialog
                 open={confirming}
-                title={selectedDays.length > 1 ? 'Gift this Game Pass?' : 'Gift this ticket?'}
+                title="Gift this ticket?"
                 description="The ticket is issued without payment and emailed to the recipient straight away."
                 confirmLabel="Gift Ticket"
                 tone="success"
@@ -240,8 +232,8 @@ export const AdminGiftTicket = () => {
                 onCancel={() => setConfirming(false)}
                 body={
                     <ConfirmSummary rows={[
-                        ['Ticket', selectedProduct?.name],
-                        [selectedDays.length > 1 ? 'Match days' : 'Match day', selectedDays.map((d) => d.event_title).join(', ')],
+                        ['Event', selectedEventDay?.title],
+                        ['Tier', selectedTier?.name],
                         ['Recipient', name.trim()],
                         ['Email', email.trim()],
                         ['Quantity', String(quantity)],

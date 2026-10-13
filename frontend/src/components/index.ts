@@ -19,7 +19,6 @@ export * from './seller';
 export * from './stats';
 export * from './store';
 export * from './team-head';
-export * from './tickets';
 export * from './totw';
 export * from './ui';
 export * from './widgets';

@@ -24,16 +24,9 @@ type ITicketHandler interface {
 	UpdateEventDay(c *gin.Context)
 	DeleteEventDay(c *gin.Context)
 	ListAllEventDays(c *gin.Context)
-	ListProductsAdmin(c *gin.Context)
-	CreateProduct(c *gin.Context)
-	UpdateProduct(c *gin.Context)
-	DeleteProduct(c *gin.Context)
-	SaveProductDay(c *gin.Context)
-	DeleteProductDay(c *gin.Context)
-	ListPublicProducts(c *gin.Context)
-	GetGamePassRules(c *gin.Context)
-	SaveGamePassRules(c *gin.Context)
-	QuotePrice(c *gin.Context)
+	CreateTier(c *gin.Context)
+	UpdateTier(c *gin.Context)
+	DeleteTier(c *gin.Context)
 	Purchase(c *gin.Context)
 	GiftTicket(c *gin.Context)
 	Webhook(c *gin.Context)
@@ -49,6 +42,7 @@ type ITicketHandler interface {
 	ListReferralStats(c *gin.Context)
 }
 
+
 type TicketHandler struct {
 	service  services.ITicketService
 	paystack *services.PaystackClient
@@ -63,13 +57,14 @@ func NewTicketHandler(service services.ITicketService, paystack *services.Paysta
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ListEventDays godoc
-// @Summary List active match days
+// @Summary List active event days with tiers
 // @Tags event-days
 // @Produce json
 // @Success 200
 // @Router /api/v1/event-days [get]
 func (h *TicketHandler) ListEventDays(c *gin.Context) {
-	eventDays, err := h.service.ListActiveEventDays(c.Request.Context())
+	code := c.Query("code")
+	eventDays, err := h.service.ListActiveEventDays(c.Request.Context(), code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -86,7 +81,8 @@ func (h *TicketHandler) ListEventDays(c *gin.Context) {
 // @Router /api/v1/event-days/{id} [get]
 func (h *TicketHandler) GetEventDay(c *gin.Context) {
 	id := c.Param("id")
-	eventDay, err := h.service.GetEventDayByID(c.Request.Context(), id)
+	code := c.Query("code")
+	eventDay, err := h.service.GetEventDayByID(c.Request.Context(), id, code)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "event day not found"})
 		return
@@ -103,7 +99,8 @@ func (h *TicketHandler) GetEventDay(c *gin.Context) {
 // @Router /api/v1/event-days/by-date/{date} [get]
 func (h *TicketHandler) GetEventDayByDate(c *gin.Context) {
 	date := c.Param("date")
-	eventDay, err := h.service.GetEventDayByDate(c.Request.Context(), date)
+	code := c.Query("code")
+	eventDay, err := h.service.GetEventDayByDate(c.Request.Context(), date, code)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "no event day found for this date"})
 		return
@@ -187,143 +184,70 @@ func (h *TicketHandler) ListAllEventDays(c *gin.Context) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Ticket Products
+// Ticket Tiers
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ListPublicProducts godoc
-// @Summary List ticket products on sale, with their upcoming match days
-// @Tags tickets
-// @Produce json
-// @Param code query string false "Access code that unlocks a hidden ticket"
-// @Success 200
-// @Router /api/v1/ticket-products [get]
-func (h *TicketHandler) ListPublicProducts(c *gin.Context) {
-	products, err := h.service.ListPublicProducts(c.Request.Context(), c.Query("code"))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": products})
-}
-
-// GetGamePassRules godoc
-// @Summary The Game Pass discount ladder
-// @Tags tickets
-// @Produce json
-// @Success 200
-// @Router /api/v1/ticket-products/game-pass-rules [get]
-func (h *TicketHandler) GetGamePassRules(c *gin.Context) {
-	rules, err := h.service.GetGamePassRules(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": rules})
-}
-
-// QuotePrice godoc
-// @Summary Price a ticket or Game Pass selection
-// @Tags tickets
+// CreateTier godoc
+// @Summary Create a ticket tier for an event day (admin)
+// @Tags event-days
 // @Accept json
 // @Produce json
-// @Param body body dto.PriceQuoteRequest true "Selection"
-// @Success 200 {object} dto.PriceQuoteResponse
-// @Router /api/v1/ticket-products/quote [post]
-func (h *TicketHandler) QuotePrice(c *gin.Context) {
-	var req dto.PriceQuoteRequest
+// @Param id path string true "Event Day ID"
+// @Param body body dto.CreateTicketTierRequest true "Tier"
+// @Success 201
+// @Router /api/v1/event-days/{id}/tiers [post]
+func (h *TicketHandler) CreateTier(c *gin.Context) {
+	eventDayID := c.Param("id")
+	var req dto.CreateTicketTierRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	quote, err := h.service.QuotePrice(c.Request.Context(), req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, quote)
-}
 
-func (h *TicketHandler) ListProductsAdmin(c *gin.Context) {
-	products, err := h.service.ListProductsAdmin(c.Request.Context())
+	result, err := h.service.CreateTier(c.Request.Context(), eventDayID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": products})
-}
 
-func (h *TicketHandler) CreateProduct(c *gin.Context) {
-	var req dto.CreateTicketProductRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	result, err := h.service.CreateProduct(c.Request.Context(), req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
 	c.JSON(http.StatusCreated, result)
 }
 
-func (h *TicketHandler) UpdateProduct(c *gin.Context) {
-	var req dto.UpdateTicketProductRequest
+// UpdateTier godoc
+// @Summary Update a ticket tier for an event day (admin)
+// @Tags event-days
+// @Accept json
+// @Produce json
+// @Param id path string true "Event Day ID"
+// @Param tierId path string true "Tier ID"
+// @Param body body dto.UpdateTicketTierRequest true "Tier update fields"
+// @Success 200 {object} dto.TicketTierResponse
+// @Router /api/v1/event-days/{id}/tiers/{tierId} [put]
+func (h *TicketHandler) UpdateTier(c *gin.Context) {
+	eventDayID := c.Param("id")
+	tierID := c.Param("tierId")
+	var req dto.UpdateTicketTierRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := h.service.UpdateProduct(c.Request.Context(), c.Param("id"), req)
+
+	result, err := h.service.UpdateTier(c.Request.Context(), eventDayID, tierID, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, result)
 }
 
-func (h *TicketHandler) DeleteProduct(c *gin.Context) {
-	if err := h.service.DeleteProduct(c.Request.Context(), c.Param("id")); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+func (h *TicketHandler) DeleteTier(c *gin.Context) {
+	id := c.Param("tierId")
+	if err := h.service.DeleteTier(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "ticket deleted"})
-}
-
-// SaveProductDay sets a ticket's price and capacity on one match day.
-func (h *TicketHandler) SaveProductDay(c *gin.Context) {
-	var req dto.SaveProductDayRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	result, err := h.service.SaveProductDay(c.Request.Context(), c.Param("id"), req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, result)
-}
-
-func (h *TicketHandler) DeleteProductDay(c *gin.Context) {
-	if err := h.service.DeleteProductDay(c.Request.Context(), c.Param("id"), c.Param("eventDayId")); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "match day removed from ticket"})
-}
-
-// SaveGamePassRules replaces the Game Pass discount ladder.
-func (h *TicketHandler) SaveGamePassRules(c *gin.Context) {
-	var req dto.SaveGamePassRulesRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	rules, err := h.service.SaveGamePassRules(c.Request.Context(), req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": rules})
+	c.JSON(http.StatusOK, gin.H{"message": "tier deleted"})
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -484,7 +408,7 @@ func (h *TicketHandler) LookupByCode(c *gin.Context) {
 }
 
 // Checkin godoc
-// @Summary Check in a ticket for one match day (admin)
+// @Summary Check in a ticket (admin)
 // @Tags tickets
 // @Accept json
 // @Produce json
@@ -501,7 +425,7 @@ func (h *TicketHandler) Checkin(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Checkin(c.Request.Context(), id, req.CheckedInBy, req.EventDayID); err != nil {
+	if err := h.service.Checkin(c.Request.Context(), id, req.CheckedInBy); err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
@@ -544,7 +468,7 @@ func (h *TicketHandler) AdminCheckin(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.AdminCheckin(c.Request.Context(), id, req.CheckedInBy, req.EventDayID); err != nil {
+	if err := h.service.AdminCheckin(c.Request.Context(), id, req.CheckedInBy); err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
@@ -656,3 +580,4 @@ func (h *TicketHandler) ListReferralStats(c *gin.Context) {
 		"total_pages": totalPages,
 	})
 }
+
