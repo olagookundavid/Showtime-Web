@@ -164,6 +164,7 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
 const NAV_FEATURE: Record<string, FeatureKey> = {
   Dashboard: "dashboard",
   Analytics: "dashboard",
+  Traffic: "dashboard",
   Matches: "matches",
   "Play by Play": "play_by_play",
   "Broadcast Studio": "broadcast_studio",
