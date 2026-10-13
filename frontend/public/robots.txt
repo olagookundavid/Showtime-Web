@@ -1,0 +1,12 @@
+# Without this file the SPA rewrite serves index.html at /robots.txt.
+# Public pages stay crawlable (search + the AdSense crawler); signed-in
+# dashboards are kept out of search results.
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /team-head
+Disallow: /player-portal
+Disallow: /seller
+Disallow: /account
+
+Sitemap: https://www.showtimeflag.football/sitemap.xml
