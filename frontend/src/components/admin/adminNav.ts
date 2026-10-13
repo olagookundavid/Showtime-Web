@@ -16,6 +16,7 @@ import {
   ArrowsRightLeftIcon,
   ClockIcon,
   TicketIcon,
+  TagIcon,
   CalendarDaysIcon,
   UserPlusIcon,
   BuildingStorefrontIcon,
@@ -119,7 +120,12 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     title: "Ticketing",
     links: [
       { name: "Tickets", path: "/admin/tickets", icon: TicketIcon },
-      { name: "Event Days", path: "/admin/event-days", icon: CalendarDaysIcon },
+      {
+        name: "Ticket Products",
+        path: "/admin/ticket-products",
+        icon: TagIcon,
+      },
+      { name: "Match Days", path: "/admin/event-days", icon: CalendarDaysIcon },
       {
         name: "Season Tier Rates",
         path: "/admin/season-admission-tiers",
@@ -183,7 +189,8 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   Transfers: "transfers",
   "Transfer Windows": "transfer_windows",
   Tickets: "tickets",
-  "Event Days": "event_days",
+  "Ticket Products": "tickets",
+  "Match Days": "event_days",
   "Season Tier Rates": "season_admission_tiers",
   "Game Pass Discounts": "game_pass_discounts",
   Referrals: "referrals",

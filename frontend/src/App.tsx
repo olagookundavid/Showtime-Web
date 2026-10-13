@@ -22,6 +22,7 @@ import {
   Standings,
   Stats,
   Tickets,
+  GamePass,
   TicketConfirmation,
   GamePassConfirmation,
   ReferralGenerator,
@@ -191,6 +192,11 @@ const AdminStandings = lazy(() =>
 const AdminTickets = lazy(() =>
   import("./pages/admin/AdminTickets").then((m) => ({
     default: m.AdminTickets,
+  })),
+);
+const AdminTicketProducts = lazy(() =>
+  import("./pages/admin/AdminTicketProducts").then((m) => ({
+    default: m.AdminTicketProducts,
   })),
 );
 const AdminEventDays = lazy(() =>
@@ -735,6 +741,14 @@ function App() {
                         element={
                           <FeatureGuard feature="tickets">
                             <AdminTickets />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="ticket-products"
+                        element={
+                          <FeatureGuard feature="tickets">
+                            <AdminTicketProducts />
                           </FeatureGuard>
                         }
                       />

@@ -26,7 +26,7 @@ import {
   adminListGamePassOrders,
   adminGetGamePassOrder,
 } from "../../services/api";
-import type { TicketResponse, EventDayResponse, GamePassOrderResponse } from "../../types";
+import type { TicketResponse, TicketDayResponse, EventDayResponse, GamePassOrderResponse } from "../../types";
 import { useAuth } from "../../contexts";
 import { formatMatchDate, getApiErrorMessage } from "../../utils";
 
@@ -57,7 +57,8 @@ type TicketTab = "tickets" | "game-pass";
 const ACTIONS = {
   checkin: {
     title: "Check in this ticket?",
-    description: "This marks the ticket as used.",
+    description:
+      "This admits the ticket for the match day shown. A Game Pass is checked in one day at a time.",
     confirmLabel: "Check In",
     tone: "success",
     icon: CheckCircleIcon,
@@ -73,7 +74,7 @@ const ACTIONS = {
   force: {
     title: "Force check-in?",
     description:
-      "This will verify payment first if pending, then check the ticket in.",
+      "This will verify payment first if pending, then check the ticket in for the match day shown, even if it is not today.",
     confirmLabel: "Force Check-in",
     tone: "warning",
     icon: BoltIcon,
@@ -97,18 +98,47 @@ const statusColor = (status: string) => {
   }
 };
 
-// The backend only fills event_date on the code lookup; the table and email
-// search send the placeholder "0001-01-01". So trust the loaded game day
-// first, and skip that placeholder. If the date is unknown, leave the
-// actions on and let the backend decide.
-const isPastGameDay = (
+// A ticket is only past once every match day on it has gone, so a Game Pass
+// with a day still to come keeps its actions.
+const isPastGameDay = (t: TicketResponse, today: string) =>
+  t.days.length > 0 && t.days.every((d) => !!d.date && d.date < today);
+
+// Which match day a check-in is for: the day the table is filtered to when the
+// ticket is on it, else today's day. Undefined leaves the server to pick today's.
+const dayToCheckin = (
   t: TicketResponse,
-  eventDayById: Map<string, EventDayResponse>,
+  filterDayId: string,
   today: string,
-) => {
-  const date = eventDayById.get(t.event_day_id)?.date ?? t.event_date;
-  return !!date && !date.startsWith("0001") && date < today;
-};
+): TicketDayResponse | undefined =>
+  t.days.find((d) => filterDayId && d.event_day_id === filterDayId) ??
+  t.days.find((d) => d.date === today);
+
+// Every match day on a ticket, with a tick once it has been attended.
+const TicketDays = ({ ticket }: { ticket: TicketResponse }) => (
+  <ul className="space-y-1">
+    {ticket.days.map((d) => (
+      <li key={d.id} className="flex items-center gap-1.5 text-sm">
+        {d.checked_in_at ? (
+          <CheckCircleIcon
+            className="w-4 h-4 shrink-0 text-green-600"
+            aria-label="Checked in"
+          />
+        ) : (
+          <span className="w-4 shrink-0" aria-hidden="true" />
+        )}
+        <span className="min-w-0 truncate">
+          {d.title || "—"}
+          {d.date && (
+            <span className="text-gray-500 dark:text-gray-400">
+              {" "}
+              · {formatEventDate(d.date)}
+            </span>
+          )}
+        </span>
+      </li>
+    ))}
+  </ul>
+);
 
 const TicketSummary = ({
   t,
@@ -130,10 +160,17 @@ const TicketSummary = ({
     )}
     <dt className="text-gray-500 dark:text-gray-400">Email</dt>
     <dd className="break-all dark:text-white">{t.email}</dd>
-    <dt className="text-gray-500 dark:text-gray-400">Event</dt>
-    <dd className="dark:text-white">{t.event_title || "—"}</dd>
-    <dt className="text-gray-500 dark:text-gray-400">Tier</dt>
-    <dd className="dark:text-white">{t.tier_name || "—"}</dd>
+    <dt className="text-gray-500 dark:text-gray-400">
+      {t.days.length > 1 ? "Match days" : "Match day"}
+    </dt>
+    <dd className="dark:text-white">
+      <TicketDays ticket={t} />
+    </dd>
+    <dt className="text-gray-500 dark:text-gray-400">Ticket</dt>
+    <dd className="dark:text-white">
+      {t.product_name || "—"}
+      {t.purchase_type === "GAME_PASS" && " (Game Pass)"}
+    </dd>
     <dt className="text-gray-500 dark:text-gray-400">Admits</dt>
     <dd className="font-bold dark:text-white">{t.quantity}</dd>
     {showReference && (
@@ -153,25 +190,29 @@ const TicketActions = ({
   ticket: t,
   loading,
   pastGameDay,
+  day,
   onAction,
 }: {
   ticket: TicketResponse;
   loading: boolean;
   pastGameDay: boolean;
+  /** The match day a check-in would be for, when it is known. */
+  day: TicketDayResponse | undefined;
   onAction: (kind: TicketAction, ticket: TicketResponse) => void;
 }) => {
   // Past game days keep the actions listed but inert, with the reason shown.
   const blocked = loading || pastGameDay;
   const hint = pastGameDay ? "Game day has passed" : undefined;
+  const dayDone = !!day?.checked_in_at;
 
   const actions: RowAction[] =
     t.status === "PAID"
       ? [
           {
-            label: "Check In",
+            label: day ? `Check in for ${day.title}` : "Check In",
             icon: CheckCircleIcon,
-            disabled: blocked,
-            hint,
+            disabled: blocked || dayDone,
+            hint: dayDone ? "Already checked in for this match day." : hint,
             onSelect: () => onAction("checkin", t),
           },
         ]
@@ -199,7 +240,7 @@ const TicketActions = ({
                 label: "Checked in",
                 icon: CheckBadgeIcon,
                 disabled: true,
-                hint: "This ticket has already been used.",
+                hint: "This ticket has been used on every match day.",
               },
             ]
           : [
@@ -236,7 +277,7 @@ export const AdminTickets = () => {
   });
 
   const today = lagosToday();
-  const { upcoming, past, eventDayById } = useMemo(() => {
+  const { upcoming, past } = useMemo(() => {
     const all = eventDaysData ?? [];
     return {
       upcoming: all
@@ -245,7 +286,6 @@ export const AdminTickets = () => {
       past: all
         .filter((ed) => ed.date < today)
         .sort((a, b) => b.date.localeCompare(a.date)),
-      eventDayById: new Map(all.map((ed) => [ed.id, ed])),
     };
   }, [eventDaysData, today]);
 
@@ -375,14 +415,16 @@ export const AdminTickets = () => {
   };
 
   // Regular check-in (PAID → USED)
-  const handleCheckin = async (ticketId: string) => {
+  const handleCheckin = async (ticket: TicketResponse) => {
     if (!user) return;
-    setActionLoading(ticketId);
+    setActionLoading(ticket.id);
     try {
-      await checkinTicket(ticketId, user.name || user.email);
-      setSearchResults((prev) =>
-        prev.map((t) => (t.id === ticketId ? { ...t, status: "USED" } : t)),
+      await checkinTicket(
+        ticket.id,
+        user.name || user.email,
+        dayToCheckin(ticket, selectedEventDay, today)?.event_day_id,
       );
+      setSearchResults([]);
       queryClient.invalidateQueries({ queryKey: ["adminTickets"] });
       toast.success("Ticket checked in.");
     } catch (err: unknown) {
@@ -393,14 +435,16 @@ export const AdminTickets = () => {
   };
 
   // Admin force check-in (any status → USED)
-  const handleAdminCheckin = async (ticketId: string) => {
+  const handleAdminCheckin = async (ticket: TicketResponse) => {
     if (!user) return;
-    setActionLoading(ticketId);
+    setActionLoading(ticket.id);
     try {
-      await adminCheckinTicket(ticketId, user.name || user.email);
-      setSearchResults((prev) =>
-        prev.map((t) => (t.id === ticketId ? { ...t, status: "USED" } : t)),
+      await adminCheckinTicket(
+        ticket.id,
+        user.name || user.email,
+        dayToCheckin(ticket, selectedEventDay, today)?.event_day_id,
       );
+      setSearchResults([]);
       queryClient.invalidateQueries({ queryKey: ["adminTickets"] });
       toast.success("Ticket checked in.");
     } catch (err: unknown) {
@@ -416,8 +460,8 @@ export const AdminTickets = () => {
     if (!pendingAction) return;
     const { kind, ticket } = pendingAction;
     if (kind === "verify") await handleVerify(ticket);
-    else if (kind === "checkin") await handleCheckin(ticket.id);
-    else await handleAdminCheckin(ticket.id);
+    else if (kind === "checkin") await handleCheckin(ticket);
+    else await handleAdminCheckin(ticket);
     setPendingAction(null);
   };
 
@@ -432,8 +476,20 @@ export const AdminTickets = () => {
           </span>
         ),
       },
-      { header: "Event", cell: (t) => t.event_title || "—" },
-      { header: "Tier", cell: (t) => t.tier_name || "—" },
+      { header: "Match days", cell: (t) => <TicketDays ticket={t} /> },
+      {
+        header: "Ticket",
+        cell: (t) => (
+          <span>
+            {t.product_name || "—"}
+            {t.purchase_type === "GAME_PASS" && (
+              <span className="ml-1.5 rounded bg-sffl-navy px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+                Game Pass
+              </span>
+            )}
+          </span>
+        ),
+      },
       { header: "Name", cell: (t) => t.name || "—" },
       { header: "Email", cell: (t) => t.email },
       {
@@ -470,13 +526,14 @@ export const AdminTickets = () => {
           <TicketActions
             ticket={t}
             loading={actionLoading === t.id}
-            pastGameDay={isPastGameDay(t, eventDayById, today)}
+            pastGameDay={isPastGameDay(t, today)}
+            day={dayToCheckin(t, selectedEventDay, today)}
             onAction={(kind, ticket) => setPendingAction({ kind, ticket })}
           />
         ),
       },
     ],
-    [actionLoading, eventDayById, today],
+    [actionLoading, selectedEventDay, today],
   );
 
   const orderColumns = useMemo<Column<GamePassOrderResponse>[]>(
@@ -674,10 +731,10 @@ export const AdminTickets = () => {
                   setFilterEventDay(e.target.value);
                   setPage(1);
                 }}
-                aria-label="Game day"
+                aria-label="Match day"
                 className="w-full sm:w-72"
               >
-                {isAdmin && <option value="">All game days</option>}
+                {isAdmin && <option value="">All match days</option>}
                 {upcoming.length > 0 && (
                   <optgroup label="Upcoming">
                     {upcoming.map((ed) => (

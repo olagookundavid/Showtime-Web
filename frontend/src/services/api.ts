@@ -34,8 +34,14 @@ import type {
   PlayPayload,
   SituationUpdate,
   BulkRecomputeResult,
-  TicketTierResponse,
   EventDayResponse,
+  TicketProductResponse,
+  CreateTicketProductPayload,
+  UpdateTicketProductPayload,
+  SaveProductDayPayload,
+  GamePassRule,
+  PriceQuote,
+  PriceQuoteRequest,
   TicketResponse,
   PurchaseTicketPayload,
   GiftTicketPayload,
@@ -800,25 +806,18 @@ export const deleteStanding = async (id: string) => {
 };
 
 // ─── Event Days & Tickets ─────────────────────────────────────────────────────
-// Event Day endpoints
-export const getEventDays = async (
-  code?: string,
-): Promise<EventDayResponse[]> => {
-  const url = code
-    ? `/event-days?code=${encodeURIComponent(code)}`
-    : "/event-days";
-  const response = await api.get<{ data: EventDayResponse[] }>(url);
+// Match day (event day) endpoints
+export const getEventDays = async (): Promise<EventDayResponse[]> => {
+  const response = await api.get<{ data: EventDayResponse[] }>("/event-days");
   return response.data.data || [];
 };
 
 export const getEventDayByDate = async (
   date: string,
-  code?: string,
 ): Promise<EventDayResponse> => {
-  const url = code
-    ? `/event-days/by-date/${date}?code=${encodeURIComponent(code)}`
-    : `/event-days/by-date/${date}`;
-  const response = await api.get<EventDayResponse>(url);
+  const response = await api.get<EventDayResponse>(
+    `/event-days/by-date/${date}`,
+  );
   return response.data;
 };
 
@@ -826,6 +825,35 @@ export const getEventDayById = async (
   id: string,
 ): Promise<EventDayResponse> => {
   const response = await api.get<EventDayResponse>(`/event-days/${id}`);
+  return response.data;
+};
+
+// Ticket products: what is on sale, and the Game Pass discount ladder
+export const getTicketProducts = async (
+  accessCode?: string,
+): Promise<TicketProductResponse[]> => {
+  const response = await api.get<{ data: TicketProductResponse[] }>(
+    "/ticket-products",
+    { params: { code: accessCode || undefined } },
+  );
+  return response.data.data || [];
+};
+
+export const getGamePassRules = async (): Promise<GamePassRule[]> => {
+  const response = await api.get<{ data: GamePassRule[] }>(
+    "/ticket-products/game-pass-rules",
+  );
+  return response.data.data || [];
+};
+
+/** Prices a selection with the same code the purchase uses. */
+export const quoteTicketPrice = async (
+  payload: PriceQuoteRequest,
+): Promise<PriceQuote> => {
+  const response = await api.post<PriceQuote>(
+    "/ticket-products/quote",
+    payload,
+  );
   return response.data;
 };
 
@@ -873,9 +901,15 @@ export const adminListTickets = async (
   return response.data;
 };
 
-export const checkinTicket = async (id: string, checkedInBy: string) => {
+/** Checks a ticket in for one match day. Left out, the day is today's. */
+export const checkinTicket = async (
+  id: string,
+  checkedInBy: string,
+  eventDayId?: string,
+) => {
   const response = await api.post(`/admin/tickets/${id}/checkin`, {
     checked_in_by: checkedInBy,
+    event_day_id: eventDayId,
   });
   return response.data;
 };
@@ -889,9 +923,14 @@ export const verifyTicket = async (
   return response.data;
 };
 
-export const adminCheckinTicket = async (id: string, checkedInBy: string) => {
+export const adminCheckinTicket = async (
+  id: string,
+  checkedInBy: string,
+  eventDayId?: string,
+) => {
   const response = await api.post(`/admin/tickets/${id}/admin-checkin`, {
     checked_in_by: checkedInBy,
+    event_day_id: eventDayId,
   });
   return response.data;
 };
@@ -972,48 +1011,72 @@ export const deleteEventDay = async (id: string) => {
   return response.data;
 };
 
-export const createTier = async (
-  eventDayId: string,
-  payload: {
-    name: string;
-    price: number;
-    capacity?: number;
-    description?: string;
-    is_hidden?: boolean;
-    access_code?: string;
-  },
-): Promise<TicketTierResponse> => {
-  const response = await api.post<TicketTierResponse>(
-    `/admin/event-days/${eventDayId}/tiers`,
+// Admin ticket products
+export const adminListTicketProducts = async (): Promise<
+  TicketProductResponse[]
+> => {
+  const response = await api.get<{ data: TicketProductResponse[] }>(
+    "/admin/ticket-products",
+  );
+  return response.data.data || [];
+};
+
+export const adminCreateTicketProduct = async (
+  payload: CreateTicketProductPayload,
+): Promise<TicketProductResponse> => {
+  const response = await api.post<TicketProductResponse>(
+    "/admin/ticket-products",
     payload,
   );
   return response.data;
 };
 
-export const updateTicketTier = async (
-  eventDayId: string,
-  tierId: string,
-  payload: {
-    name?: string;
-    price?: number;
-    capacity?: number;
-    description?: string;
-    is_hidden?: boolean;
-    access_code?: string;
-  },
-): Promise<TicketTierResponse> => {
-  const response = await api.put<TicketTierResponse>(
-    `/admin/event-days/${eventDayId}/tiers/${tierId}`,
+export const adminUpdateTicketProduct = async (
+  id: string,
+  payload: UpdateTicketProductPayload,
+): Promise<TicketProductResponse> => {
+  const response = await api.put<TicketProductResponse>(
+    `/admin/ticket-products/${id}`,
     payload,
   );
   return response.data;
 };
 
-export const deleteTicketTier = async (eventDayId: string, tierId: string) => {
+export const adminDeleteTicketProduct = async (id: string) => {
+  const response = await api.delete(`/admin/ticket-products/${id}`);
+  return response.data;
+};
+
+/** Sets a ticket's price and capacity on one match day, adding the day if new. */
+export const adminSaveTicketProductDay = async (
+  productId: string,
+  payload: SaveProductDayPayload,
+): Promise<TicketProductResponse> => {
+  const response = await api.put<TicketProductResponse>(
+    `/admin/ticket-products/${productId}/days`,
+    payload,
+  );
+  return response.data;
+};
+
+export const adminRemoveTicketProductDay = async (
+  productId: string,
+  eventDayId: string,
+) => {
   const response = await api.delete(
-    `/admin/event-days/${eventDayId}/tiers/${tierId}`,
+    `/admin/ticket-products/${productId}/days/${eventDayId}`,
   );
   return response.data;
+};
+
+export const adminSaveGamePassRules = async (
+  rules: GamePassRule[],
+): Promise<GamePassRule[]> => {
+  const response = await api.put<{ data: GamePassRule[] }>(
+    "/admin/game-pass/rules",
+    { rules },
+  );
+  return response.data.data || [];
 };
 
 // -------- ADMIN SEASON ADMISSION TIERS API -------- //
@@ -2731,7 +2794,8 @@ export const discountsApi = {
   preview: async (params: {
     code: string;
     items?: CheckoutItemPayload[];
-    tier_id?: string;
+    product_id?: string;
+    event_day_id?: string;
     quantity?: number;
   }): Promise<DiscountPreview> => {
     const res = await api.post<DiscountPreview>("/discounts/preview", params);
