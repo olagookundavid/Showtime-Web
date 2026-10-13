@@ -18,17 +18,19 @@ import {
     Field,
     Input,
     Loader,
+    MatchReachTable,
     MetricCard,
     RankedBarList,
     Select,
     Tabs,
+    TicketFunnel,
     TrafficChart,
     TrafficHeatmap,
     type Column,
 } from '../../components';
 import { downloadSiteTrafficExport, getSiteEvents, getSiteTrafficSummary } from '../../services/api';
 import { getApiErrorMessage, lagosToday } from '../../utils';
-import type { SiteBreakdownRow, SiteDailyPoint, SiteEvent, SiteHeatCell, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
+import type { SiteBreakdownRow, SiteDailyPoint, SiteEvent, SiteHeatCell, SiteMatchReach, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
 
 type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 type TrafficTab = 'overview' | 'audience' | 'content' | 'events';
@@ -67,6 +69,7 @@ const NO_DAYS: SiteDailyPoint[] = [];
 const NO_MONTHS: SiteMonthlyPoint[] = [];
 const NO_ROWS: SiteBreakdownRow[] = [];
 const NO_CELLS: SiteHeatCell[] = [];
+const NO_MATCHES: SiteMatchReach[] = [];
 
 const fullNumber = new Intl.NumberFormat('en-NG');
 const oneDecimal = new Intl.NumberFormat('en-NG', { maximumFractionDigits: 1 });
@@ -103,7 +106,7 @@ const DAILY_COLUMNS: Column<SiteDailyPoint>[] = [
         sortable: true,
         className: 'whitespace-nowrap',
         cell: (d) => (
-            <span>
+            <span className="text-gray-900 dark:text-white">
                 {d.date}
                 {d.match_day && <span className="ml-2 text-xs font-bold text-gray-500 dark:text-gray-400">Match day</span>}
             </span>
@@ -114,7 +117,7 @@ const DAILY_COLUMNS: Column<SiteDailyPoint>[] = [
 ];
 
 const MONTHLY_COLUMNS: Column<SiteMonthlyPoint>[] = [
-    { header: 'Month', className: 'whitespace-nowrap', cell: (m) => <span className="font-bold">{monthLabel(m.month)}</span> },
+    { header: 'Month', className: 'whitespace-nowrap', cell: (m) => <span className="font-bold text-sffl-navy dark:text-white">{monthLabel(m.month)}</span> },
     { header: 'Unique visitors', align: 'right', cell: (m) => fullNumber.format(m.visitors) },
     { header: 'Page views', align: 'right', cell: (m) => fullNumber.format(m.page_views) },
     { header: 'Sessions', align: 'right', cell: (m) => fullNumber.format(m.sessions) },
@@ -495,6 +498,15 @@ export const AdminTraffic = () => {
                             </div>
                         </section>
 
+                        {summary.ticket_funnel && (
+                            <Panel
+                                title="Ticket funnel"
+                                description="How many visitors move toward a ticket, and where they drop off. Use it to judge ticket campaigns and checkout changes."
+                            >
+                                <TicketFunnel funnel={summary.ticket_funnel} />
+                            </Panel>
+                        )}
+
                         <Panel title="Month by month" description="Monthly reach, ready to quote. The current month is still in progress.">
                             <DataTable
                                 data={summary.monthly ?? NO_MONTHS}
@@ -537,12 +549,22 @@ export const AdminTraffic = () => {
                 )}
 
                 {summary && tab === 'content' && (
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
-                        <RankedBarList title="Site sections" countLabel="views" rows={summary.sections ?? NO_ROWS} />
-                        <RankedBarList title="Top pages" countLabel="views" rows={summary.top_pages ?? NO_ROWS} />
-                        <RankedBarList title="Where visits come from" countLabel="visits" rows={summary.sources ?? NO_ROWS} emptyMessage="No visits with a known source yet." />
-                        <RankedBarList title="Campaigns" countLabel="visits" rows={summary.campaigns ?? NO_ROWS} emptyMessage="No campaign links used yet. Add ?utm_campaign=name to a shared link to see it here." />
-                        <RankedBarList title="Actions taken" countLabel="times" rows={summary.actions ?? NO_ROWS} formatName={eventLabel} emptyMessage="No logins, sign-ups or checkouts recorded yet." />
+                    <div className="space-y-6 lg:space-y-8">
+                        <Panel
+                            title="Most viewed matches"
+                            description="Each match page's audience, split into the build-up, match day and after. The figure sponsors ask for first."
+                        >
+                            <MatchReachTable matches={summary.top_matches ?? NO_MATCHES} />
+                        </Panel>
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+                            <RankedBarList title="Most read news" countLabel="views" rows={summary.top_news ?? NO_ROWS} emptyMessage="No news stories were read in this period." />
+                            <RankedBarList title="Site sections" countLabel="views" rows={summary.sections ?? NO_ROWS} />
+                            <RankedBarList title="Most viewed players" countLabel="views" rows={summary.top_players ?? NO_ROWS} emptyMessage="No player profiles were viewed in this period." />
+                            <RankedBarList title="Most viewed teams" countLabel="views" rows={summary.top_teams ?? NO_ROWS} emptyMessage="No team pages were viewed in this period." />
+                            <RankedBarList title="Where visits come from" countLabel="visits" rows={summary.sources ?? NO_ROWS} emptyMessage="No visits with a known source yet." />
+                            <RankedBarList title="Campaigns" countLabel="visits" rows={summary.campaigns ?? NO_ROWS} emptyMessage="No campaign links used yet. Add ?utm_campaign=name to a shared link to see it here." />
+                            <RankedBarList title="Actions taken" countLabel="times" rows={summary.actions ?? NO_ROWS} formatName={eventLabel} emptyMessage="No logins, sign-ups or checkouts recorded yet." />
+                        </div>
                     </div>
                 )}
             </div>
