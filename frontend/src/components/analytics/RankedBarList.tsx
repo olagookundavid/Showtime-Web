@@ -36,15 +36,8 @@ export const RankedBarList = ({
                         return (
                             <li key={row.name} className="min-w-0">
                                 <div className="flex items-baseline justify-between gap-3 text-sm">
-                                    <span className="min-w-0">
-                                        <span className="block truncate font-medium text-gray-800 dark:text-gray-100" title={name}>
-                                            {name}
-                                        </span>
-                                        {row.label && (
-                                            <span className="block truncate text-xs text-gray-500 dark:text-gray-400" title={row.name}>
-                                                {row.name}
-                                            </span>
-                                        )}
+                                    <span className="min-w-0 truncate font-medium text-gray-800 dark:text-gray-100" title={row.label ? row.name : name}>
+                                        {name}
                                     </span>
                                     <span className="shrink-0 text-gray-600 dark:text-gray-300">
                                         <strong className="font-black text-gray-900 dark:text-white">

@@ -106,9 +106,9 @@ Backend files: `domain/site_event.go`, `dto/site_analytics.go`, `ports/site_even
 
 Admin and app admin only. One period picker (last 7/30/90 days, all time, custom) drives everything; every preset except "All time" is compared with the same-length period just before it.
 
-- **Overview**: audience reach, engagement, visits over time (match days marked), match-day uplift, what visitors did (accounts, tickets, store orders), month by month.
+- **Overview**: audience reach, engagement, visits over time (match days marked), match-day uplift, what visitors did (accounts, tickets, store orders), ticket funnel, month by month.
 - **Audience**: new vs returning, when people visit (heatmap), countries, devices, browsers, operating systems.
-- **Content & sources**: site sections, top pages (news headlines, "Home vs Away" for matches, player/team/product names), where visits come from, campaigns, actions.
+- **Content & sources**: most viewed matches (with the before / on / after match-day split), most read news, site sections, most viewed players and teams, where visits come from, campaigns, actions. The flat "every page" list is in the CSV report only, since on screen it repeated the sections.
 - **Every event**: the raw rows, filterable by event type, with or without bots.
 
 ## What each number means
@@ -128,6 +128,9 @@ Give analysts and sponsors these definitions alongside any figure you quote.
 | Busiest times | Page views per weekday-hour slot, Lagos time. |
 | Site sections | Page views grouped by the first part of the path (`/news/...` is News, `/` is Home). |
 | Sources | Where a visit started: the `utm_source` tag if the link had one, else the referring site, else "Direct". Counted once per visit. |
+| Most viewed matches | Views of each match's own page (`/matches/<id>`) in the period, split by the Lagos date of the view: before the match date, on it, or after. Shows the hype before a fixture and the replay interest after it. |
+| Most read news / players / teams | Views of each story, player profile or team page, named from its record. Listing pages (`/news`) are counted under Site sections instead. |
+| Ticket funnel | Distinct visitors (IPs) who visited the site, then opened `/tickets` or `/game-pass`, then started a ticket checkout; then **paid online orders** from the ticket records (payment reference `SFFL-…`; gifts `SFFL-GIFT-…` and team allocations excluded). The last step counts orders, not people, so one person buying twice counts twice. |
 | Conversions | New accounts, paid tickets and paid store orders from the platform's own tables, not from tracking. Exact. |
 | Change vs previous period | `(this - previous) / previous`. Shows "No data for the previous period" when there is nothing to compare with. |
 

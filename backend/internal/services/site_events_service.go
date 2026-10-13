@@ -340,6 +340,40 @@ func plainPageTitle(path string) string {
 	return strings.Join(words, " ")
 }
 
+// entityRankings fills the most-viewed news, players and teams, each named
+// from its record (headline, player or team name) with one label lookup.
+func (s *SiteEventsService) entityRankings(ctx context.Context, sum *dto.SiteTrafficSummary, from, to time.Time) error {
+	lists := []struct {
+		dst  *[]dto.SiteBreakdownRow
+		kind string
+	}{
+		{&sum.TopNews, "news"},
+		{&sum.TopPlayers, "players"},
+		{&sum.TopTeams, "teams"},
+	}
+	var paths []string
+	for _, l := range lists {
+		rows, err := s.repo.EntityRanking(ctx, l.kind, from, to, 10)
+		if err != nil {
+			return err
+		}
+		*l.dst = rows
+		for _, r := range rows {
+			paths = append(paths, r.Name)
+		}
+	}
+	labels, err := s.repo.PageLabels(ctx, paths)
+	if err != nil {
+		return err
+	}
+	for _, l := range lists {
+		for i := range *l.dst {
+			(*l.dst)[i].Label = labels[(*l.dst)[i].Name]
+		}
+	}
+	return nil
+}
+
 func siteDay(t time.Time) string { return t.In(siteLocation).Format("2006-01-02") }
 
 func (s *SiteEventsService) Summary(ctx context.Context, from, to time.Time, compare bool) (*dto.SiteTrafficSummary, error) {
@@ -396,6 +430,16 @@ func (s *SiteEventsService) Summary(ctx context.Context, from, to time.Time, com
 		} else {
 			sum.TopPages[i].Label = plainPageTitle(sum.TopPages[i].Name)
 		}
+	}
+
+	if sum.TopMatches, err = s.repo.TopMatches(ctx, from, to, 10); err != nil {
+		return nil, err
+	}
+	if err := s.entityRankings(ctx, sum, from, to); err != nil {
+		return nil, err
+	}
+	if sum.TicketFunnel, err = s.repo.TicketFunnel(ctx, from, to); err != nil {
+		return nil, err
 	}
 
 	if sum.Conversions, err = s.repo.Conversions(ctx, from, to); err != nil {
@@ -608,11 +652,41 @@ func (s *SiteEventsService) ExportSummaryCSV(ctx context.Context, from, to time.
 	}
 	row()
 
-	row("Top pages", "Page", "Page views", "Unique visitors")
-	for _, r := range sum.TopPages {
-		row(csvCell(r.Label), csvCell(r.Name), itoa(r.Count), itoa(r.Visitors))
+	f := sum.TicketFunnel
+	ofPrev := func(cur, prev int) string {
+		if prev == 0 {
+			return ""
+		}
+		return pct(float64(cur) / float64(prev))
+	}
+	row("Ticket funnel", "Count", "Share of previous step")
+	row("Visitors (distinct IPs)", itoa(f.Visitors))
+	row("Visited a ticket page", itoa(f.TicketPageVisitors), ofPrev(f.TicketPageVisitors, f.Visitors))
+	row("Started a ticket checkout", itoa(f.CheckoutStarters), ofPrev(f.CheckoutStarters, f.TicketPageVisitors))
+	row("Paid online ticket orders (from ticket records)", itoa(f.PaidOrders), ofPrev(f.PaidOrders, f.CheckoutStarters))
+	row()
+
+	row("Most viewed matches", "Match date", "Page views", "Unique visitors", "Before match day", "On match day", "After match day")
+	for _, m := range sum.TopMatches {
+		row(csvCell(m.Label), m.Date, itoa(m.Views), itoa(m.Visitors), itoa(m.BuildUp), itoa(m.MatchDay), itoa(m.After))
 	}
 	row()
+
+	for _, list := range []struct {
+		title string
+		rows  []dto.SiteBreakdownRow
+	}{
+		{"Most read news", sum.TopNews},
+		{"Most viewed players", sum.TopPlayers},
+		{"Most viewed teams", sum.TopTeams},
+		{"Top pages (all)", sum.TopPages},
+	} {
+		row(list.title, "Page", "Page views", "Unique visitors")
+		for _, r := range list.rows {
+			row(csvCell(r.Label), csvCell(r.Name), itoa(r.Count), itoa(r.Visitors))
+		}
+		row()
+	}
 
 	sections := []struct {
 		title, countLabel string

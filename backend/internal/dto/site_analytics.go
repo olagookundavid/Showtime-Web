@@ -82,6 +82,29 @@ type SiteMatchDayStats struct {
 	AvgVisitorsOtherDay float64 `json:"avg_visitors_other_day"`
 }
 
+// SiteMatchReach is one match page's audience in the period, split by when
+// the views happened relative to the fixture's date (Lagos calendar).
+type SiteMatchReach struct {
+	MatchID  string `json:"match_id"`
+	Label    string `json:"label"`
+	Date     string `json:"date"`
+	Views    int    `json:"views"`
+	Visitors int    `json:"visitors"`
+	BuildUp  int    `json:"build_up"`
+	MatchDay int    `json:"match_day"`
+	After    int    `json:"after"`
+}
+
+// SiteTicketFunnel follows visitors toward a ticket purchase. The first three
+// steps count distinct visitors (IPs); PaidOrders comes from the ticket records
+// (online purchases only: no gifts or team allocations).
+type SiteTicketFunnel struct {
+	Visitors           int `json:"visitors"`
+	TicketPageVisitors int `json:"ticket_page_visitors"`
+	CheckoutStarters   int `json:"checkout_starters"`
+	PaidOrders         int `json:"paid_orders"`
+}
+
 // SitePeriod is the same-length period immediately before the one requested,
 // for "vs previous period" comparisons.
 type SitePeriod struct {
@@ -92,24 +115,29 @@ type SitePeriod struct {
 }
 
 type SiteTrafficSummary struct {
-	From        string             `json:"from"`
-	To          string             `json:"to"`
-	Totals      SiteTotals         `json:"totals"`
-	Previous    *SitePeriod        `json:"previous"`
-	Daily       []SiteDailyPoint   `json:"daily"`
-	Monthly     []SiteMonthlyPoint `json:"monthly"`
-	Heatmap     []SiteHeatCell     `json:"heatmap"`
-	MatchDays   SiteMatchDayStats  `json:"match_days"`
-	Sections    []SiteBreakdownRow `json:"sections"`
-	TopPages    []SiteBreakdownRow `json:"top_pages"`
-	Sources     []SiteBreakdownRow `json:"sources"`
-	Campaigns   []SiteBreakdownRow `json:"campaigns"`
-	Countries   []SiteBreakdownRow `json:"countries"`
-	Devices     []SiteBreakdownRow `json:"devices"`
-	Browsers    []SiteBreakdownRow `json:"browsers"`
-	OSes        []SiteBreakdownRow `json:"oses"`
-	Actions     []SiteBreakdownRow `json:"actions"`
-	Conversions SiteConversions    `json:"conversions"`
+	From         string             `json:"from"`
+	To           string             `json:"to"`
+	Totals       SiteTotals         `json:"totals"`
+	Previous     *SitePeriod        `json:"previous"`
+	Daily        []SiteDailyPoint   `json:"daily"`
+	Monthly      []SiteMonthlyPoint `json:"monthly"`
+	Heatmap      []SiteHeatCell     `json:"heatmap"`
+	MatchDays    SiteMatchDayStats  `json:"match_days"`
+	Sections     []SiteBreakdownRow `json:"sections"`
+	TopPages     []SiteBreakdownRow `json:"top_pages"`
+	TopMatches   []SiteMatchReach   `json:"top_matches"`
+	TopNews      []SiteBreakdownRow `json:"top_news"`
+	TopPlayers   []SiteBreakdownRow `json:"top_players"`
+	TopTeams     []SiteBreakdownRow `json:"top_teams"`
+	TicketFunnel SiteTicketFunnel   `json:"ticket_funnel"`
+	Sources      []SiteBreakdownRow `json:"sources"`
+	Campaigns    []SiteBreakdownRow `json:"campaigns"`
+	Countries    []SiteBreakdownRow `json:"countries"`
+	Devices      []SiteBreakdownRow `json:"devices"`
+	Browsers     []SiteBreakdownRow `json:"browsers"`
+	OSes         []SiteBreakdownRow `json:"oses"`
+	Actions      []SiteBreakdownRow `json:"actions"`
+	Conversions  SiteConversions    `json:"conversions"`
 }
 
 type SiteEventsPage struct {

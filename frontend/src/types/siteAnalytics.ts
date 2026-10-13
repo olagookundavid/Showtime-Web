@@ -57,6 +57,26 @@ export interface SiteConversions {
   store_revenue: number;
 }
 
+/** One match page's audience, split by when the views happened relative to match day (Lagos dates). */
+export interface SiteMatchReach {
+  match_id: string;
+  label: string;
+  date: string;
+  views: number;
+  visitors: number;
+  build_up: number;
+  match_day: number;
+  after: number;
+}
+
+/** Visitors moving toward a ticket. The last step is paid online orders from the ticket records. */
+export interface SiteTicketFunnel {
+  visitors: number;
+  ticket_page_visitors: number;
+  checkout_starters: number;
+  paid_orders: number;
+}
+
 /** The same-length period just before the selected one. */
 export interface SitePeriod {
   from: string;
@@ -77,6 +97,11 @@ export interface SiteTrafficSummary {
   match_days: SiteMatchDayStats;
   sections: SiteBreakdownRow[];
   top_pages: SiteBreakdownRow[];
+  top_matches: SiteMatchReach[];
+  top_news: SiteBreakdownRow[];
+  top_players: SiteBreakdownRow[];
+  top_teams: SiteBreakdownRow[];
+  ticket_funnel: SiteTicketFunnel;
   sources: SiteBreakdownRow[];
   campaigns: SiteBreakdownRow[];
   countries: SiteBreakdownRow[];

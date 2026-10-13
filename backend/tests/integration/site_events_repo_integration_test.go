@@ -327,9 +327,114 @@ func TestSiteEvents_EmptyPeriodListsAreArrays(t *testing.T) {
 	for _, key := range []string{
 		"daily", "monthly", "heatmap", "sections", "top_pages", "sources",
 		"campaigns", "countries", "devices", "browsers", "oses", "actions",
+		"top_matches", "top_news", "top_players", "top_teams",
 	} {
 		if v := string(fields[key]); v == "" || v == "null" {
 			t.Errorf("%s = %q, want a JSON array", key, v)
 		}
+	}
+}
+
+// TestSiteEvents_ContentRankingsAndTicketFunnel runs the per-entity rankings,
+// the match before/on/after split and the ticket funnel against real records.
+// Every fixture is namespaced ("Fixture FC", "SFFL-TESTFUNNEL") and removed.
+func TestSiteEvents_ContentRankingsAndTicketFunnel(t *testing.T) {
+	pool := siteEventsPool(t)
+	ctx := context.Background()
+
+	cleanup := func() {
+		mustExec(t, pool, `DELETE FROM site_events WHERE created_at < $1::timestamptz`, siteEventsFixtureCutoff)
+		mustExec(t, pool, `DELETE FROM tickets WHERE email = 'funnel-fixture@example.test'`)
+		mustExec(t, pool, `DELETE FROM matches WHERE home_team_id IN (SELECT id FROM teams WHERE name LIKE 'Fixture FC%')`)
+		mustExec(t, pool, `DELETE FROM teams WHERE name LIKE 'Fixture FC%'`)
+		mustExec(t, pool, `DELETE FROM news WHERE slug = 'fixture-derby-story'`)
+		mustExec(t, pool, `DELETE FROM players WHERE name = 'Fixture Player'`)
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	var home, away, matchID, playerID string
+	if err := pool.QueryRow(ctx, `INSERT INTO teams (name) VALUES ('Fixture FC Home') RETURNING id::text`).Scan(&home); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `INSERT INTO teams (name) VALUES ('Fixture FC Away') RETURNING id::text`).Scan(&away); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `INSERT INTO matches (home_team_id, away_team_id, date, time, status) VALUES ($1, $2, '2001-06-10', '16:00', 'FINISHED') RETURNING id::text`, home, away).Scan(&matchID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `INSERT INTO players (name) VALUES ('Fixture Player') RETURNING id::text`).Scan(&playerID); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, pool, `INSERT INTO news (title, slug, content) VALUES ('Fixture derby story', 'fixture-derby-story', '<p>x</p>')`)
+
+	matchPath := "/matches/" + matchID
+	views := []fixtureEvent{
+		// Match: 2 the day before, 3 on the day, 1 after (Lagos dates).
+		{at: "2001-06-09T10:00:00Z", typ: "page_view", path: matchPath, ip: "10.0.0.1"},
+		{at: "2001-06-09T22:30:00Z", typ: "page_view", path: matchPath, ip: "10.0.0.2"}, // 23:30 Lagos, still the 9th
+		{at: "2001-06-09T23:30:00Z", typ: "page_view", path: matchPath, ip: "10.0.0.2"}, // 00:30 Lagos on the 10th
+		{at: "2001-06-10T15:00:00Z", typ: "page_view", path: matchPath, ip: "10.0.0.3"},
+		{at: "2001-06-10T16:00:00Z", typ: "page_view", path: matchPath, ip: "10.0.0.1"},
+		{at: "2001-06-11T09:00:00Z", typ: "page_view", path: matchPath, ip: "10.0.0.4"},
+		{at: "2001-06-10T09:00:00Z", typ: "page_view", path: "/matches", ip: "10.0.0.1"},
+		// News: two story views; the listing and a deeper path don't count.
+		{at: "2001-06-10T09:00:00Z", typ: "page_view", path: "/news/fixture-derby-story", ip: "10.0.0.1"},
+		{at: "2001-06-10T09:05:00Z", typ: "page_view", path: "/news/fixture-derby-story", ip: "10.0.0.2"},
+		{at: "2001-06-10T09:06:00Z", typ: "page_view", path: "/news", ip: "10.0.0.2"},
+		{at: "2001-06-10T09:07:00Z", typ: "page_view", path: "/news/fixture-derby-story/comments", ip: "10.0.0.2"},
+		{at: "2001-06-10T09:00:00Z", typ: "page_view", path: "/players/" + playerID, ip: "10.0.0.3"},
+		{at: "2001-06-10T09:00:00Z", typ: "page_view", path: "/teams/" + home, ip: "10.0.0.3"},
+		{at: "2001-06-10T09:01:00Z", typ: "page_view", path: "/teams/" + home, ip: "10.0.0.4"},
+		// Funnel: 3 visitors reach a ticket page, 1 starts checkout.
+		{at: "2001-06-10T10:00:00Z", typ: "page_view", path: "/tickets", ip: "10.0.0.1"},
+		{at: "2001-06-10T10:00:00Z", typ: "page_view", path: "/tickets", ip: "10.0.0.2"},
+		{at: "2001-06-10T10:00:00Z", typ: "page_view", path: "/game-pass", ip: "10.0.0.3"},
+		{at: "2001-06-10T10:01:00Z", typ: "ticket_checkout_started", source: "api", path: "/api/v1/tickets/purchase", ip: "10.0.0.1"},
+	}
+	for _, v := range views {
+		insertFixtureEvent(t, pool, v)
+	}
+	// One paid online order counts; a gift and a team allocation don't.
+	mustExec(t, pool, `INSERT INTO tickets (email, unit_price, total_amount, status, paystack_reference, created_at) VALUES
+		('funnel-fixture@example.test', 5000, 5000, 'PAID', 'SFFL-TESTFUNNEL1', '2001-06-10T10:05:00Z'),
+		('funnel-fixture@example.test', 0, 0, 'PAID', 'SFFL-GIFT-TESTFUNNEL', '2001-06-10T10:05:00Z')`)
+	mustExec(t, pool, `INSERT INTO tickets (email, unit_price, total_amount, status, team_id, created_at) VALUES
+		('funnel-fixture@example.test', 0, 0, 'PAID', $1, '2001-06-10T10:05:00Z')`, home)
+
+	svc := services.NewSiteEventsService(ports.NewSiteEventsRepository(pool))
+	from, to, err := services.ResolveRange("2001-06-01", "2001-06-30", time.Date(2001, 7, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := svc.Summary(ctx, from, to, false)
+	if err != nil {
+		t.Fatalf("Summary: %v", err)
+	}
+
+	if len(sum.TopMatches) != 1 {
+		t.Fatalf("want 1 match (the /matches listing is not a match), got %+v", sum.TopMatches)
+	}
+	m := sum.TopMatches[0]
+	if m.Label != "Fixture FC Home vs Fixture FC Away" || m.Date != "2001-06-10" || m.Views != 6 || m.Visitors != 4 {
+		t.Errorf("match reach wrong: %+v", m)
+	}
+	if m.BuildUp != 2 || m.MatchDay != 3 || m.After != 1 {
+		t.Errorf("before/on/after should follow Lagos dates (2/3/1), got %d/%d/%d", m.BuildUp, m.MatchDay, m.After)
+	}
+
+	if len(sum.TopNews) != 1 || sum.TopNews[0].Label != "Fixture derby story" || sum.TopNews[0].Count != 2 {
+		t.Errorf("news ranking should hold only the story, titled: %+v", sum.TopNews)
+	}
+	if len(sum.TopPlayers) != 1 || sum.TopPlayers[0].Label != "Fixture Player" {
+		t.Errorf("players ranking wrong: %+v", sum.TopPlayers)
+	}
+	if len(sum.TopTeams) != 1 || sum.TopTeams[0].Label != "Fixture FC Home" || sum.TopTeams[0].Count != 2 {
+		t.Errorf("teams ranking wrong: %+v", sum.TopTeams)
+	}
+
+	f := sum.TicketFunnel
+	if f.Visitors != 4 || f.TicketPageVisitors != 3 || f.CheckoutStarters != 1 || f.PaidOrders != 1 {
+		t.Errorf("ticket funnel wrong (want 4/3/1/1): %+v", f)
 	}
 }

@@ -30,6 +30,9 @@ type ISiteEventsRepository interface {
 	Heatmap(ctx context.Context, from, to time.Time) ([]dto.SiteHeatCell, error)
 	MatchDates(ctx context.Context, from, to time.Time) (map[string]bool, error)
 	PageLabels(ctx context.Context, paths []string) (map[string]string, error)
+	EntityRanking(ctx context.Context, kind string, from, to time.Time, limit int) ([]dto.SiteBreakdownRow, error)
+	TopMatches(ctx context.Context, from, to time.Time, limit int) ([]dto.SiteMatchReach, error)
+	TicketFunnel(ctx context.Context, from, to time.Time) (dto.SiteTicketFunnel, error)
 	Breakdown(ctx context.Context, dim string, from, to time.Time, limit int) ([]dto.SiteBreakdownRow, error)
 	Conversions(ctx context.Context, from, to time.Time) (dto.SiteConversions, error)
 	ListEvents(ctx context.Context, f SiteEventFilter, limit, offset int) ([]domain.SiteEvent, int, error)
@@ -469,4 +472,108 @@ func (r *PostgresSiteEventsRepository) StreamEvents(ctx context.Context, f SiteE
 		}
 	}
 	return rows.Err()
+}
+
+// entityPrefixes are the detail pages that get their own ranking. Only
+// these literals reach SQL.
+var entityPrefixes = map[string]string{
+	"news":    "/news/",
+	"players": "/players/",
+	"teams":   "/teams/",
+}
+
+// EntityRanking ranks the detail pages of one kind ("/news/<slug>", ...) by
+// page views. Listing pages ("/news") and deeper paths are excluded.
+func (r *PostgresSiteEventsRepository) EntityRanking(ctx context.Context, kind string, from, to time.Time, limit int) ([]dto.SiteBreakdownRow, error) {
+	prefix, ok := entityPrefixes[kind]
+	if !ok {
+		return nil, fmt.Errorf("unknown entity kind %q", kind)
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT path, COUNT(*) AS views, COUNT(DISTINCT ip) AS visitors
+		FROM site_events
+		WHERE created_at >= $1 AND created_at < $2
+		  AND event_type = 'page_view' AND NOT is_bot
+		  AND starts_with(path, $3)
+		  AND length(path) > length($3)
+		  AND strpos(substr(path, length($3) + 1), '/') = 0
+		GROUP BY path
+		ORDER BY views DESC, path
+		LIMIT $4`, from, to, prefix, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []dto.SiteBreakdownRow{}
+	for rows.Next() {
+		var b dto.SiteBreakdownRow
+		if err := rows.Scan(&b.Name, &b.Count, &b.Visitors); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+// TopMatches ranks match pages by views in the period and splits each match's
+// views into before, on and after its match day (Lagos dates).
+func (r *PostgresSiteEventsRepository) TopMatches(ctx context.Context, from, to time.Time, limit int) ([]dto.SiteMatchReach, error) {
+	rows, err := r.db.Query(ctx, fmt.Sprintf(`
+		SELECT m.id::text,
+		       COALESCE(h.name, 'TBD') || ' vs ' || COALESCE(a.name, 'TBD'),
+		       to_char(m.date, 'YYYY-MM-DD'),
+		       COUNT(*),
+		       COUNT(DISTINCT e.ip),
+		       COUNT(*) FILTER (WHERE (e.created_at AT TIME ZONE '%[1]s')::date < m.date),
+		       COUNT(*) FILTER (WHERE (e.created_at AT TIME ZONE '%[1]s')::date = m.date),
+		       COUNT(*) FILTER (WHERE (e.created_at AT TIME ZONE '%[1]s')::date > m.date)
+		FROM site_events e
+		JOIN matches m ON e.path = '/matches/' || m.id::text
+		LEFT JOIN teams h ON h.id = m.home_team_id
+		LEFT JOIN teams a ON a.id = m.away_team_id
+		WHERE e.created_at >= $1 AND e.created_at < $2
+		  AND e.event_type = 'page_view' AND NOT e.is_bot
+		GROUP BY m.id, h.name, a.name, m.date
+		ORDER BY COUNT(*) DESC, m.date DESC
+		LIMIT $3`, siteTZ), from, to, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []dto.SiteMatchReach{}
+	for rows.Next() {
+		var m dto.SiteMatchReach
+		if err := rows.Scan(&m.MatchID, &m.Label, &m.Date, &m.Views, &m.Visitors, &m.BuildUp, &m.MatchDay, &m.After); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// TicketFunnel counts distinct visitors at each step toward a ticket, then the
+// online orders actually paid. Online purchases carry an "SFFL-" payment
+// reference; gifts use "SFFL-GIFT-" and team allocations have no reference.
+func (r *PostgresSiteEventsRepository) TicketFunnel(ctx context.Context, from, to time.Time) (dto.SiteTicketFunnel, error) {
+	var f dto.SiteTicketFunnel
+	if err := r.db.QueryRow(ctx, `
+		SELECT
+			COUNT(DISTINCT ip) FILTER (WHERE event_type = 'page_view'),
+			COUNT(DISTINCT ip) FILTER (WHERE event_type = 'page_view' AND path IN ('/tickets', '/game-pass')),
+			COUNT(DISTINCT ip) FILTER (WHERE event_type = 'ticket_checkout_started')
+		FROM site_events
+		WHERE created_at >= $1 AND created_at < $2 AND NOT is_bot`, from, to,
+	).Scan(&f.Visitors, &f.TicketPageVisitors, &f.CheckoutStarters); err != nil {
+		return f, err
+	}
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM tickets
+		WHERE status IN ('PAID', 'USED')
+		  AND paystack_reference LIKE 'SFFL-%' AND paystack_reference NOT LIKE 'SFFL-GIFT-%'
+		  AND team_id IS NULL
+		  AND created_at >= $1 AND created_at < $2`, from, to,
+	).Scan(&f.PaidOrders)
+	return f, err
 }
