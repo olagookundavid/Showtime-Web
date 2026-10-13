@@ -7,8 +7,8 @@ import (
 
 // Entity kinds a discount code line can point at.
 const (
-	DiscountEntityProduct    = "product"
-	DiscountEntityTicketTier = "ticket_tier"
+	DiscountEntityProduct       = "product"
+	DiscountEntityTicketProduct = "ticket_product"
 )
 
 // Who is allowed to redeem a code.

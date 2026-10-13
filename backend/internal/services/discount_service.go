@@ -95,7 +95,7 @@ func buildFromRequest(req dto.SaveDiscountCodeRequest) (*domain.DiscountCode, er
 		return nil, fmt.Errorf("code is required")
 	}
 	if len(req.Items) == 0 {
-		return nil, fmt.Errorf("add at least one product or ticket tier to this code")
+		return nil, fmt.Errorf("add at least one product or ticket to this code")
 	}
 
 	audience := req.Audience

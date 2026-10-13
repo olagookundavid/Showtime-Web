@@ -432,9 +432,25 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		eventDaysGroup.POST("", app.Handlers.TicketHandler.CreateEventDay)
 		eventDaysGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateEventDay)
 		eventDaysGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteEventDay)
-		eventDaysGroup.POST("/:id/tiers", app.Handlers.TicketHandler.CreateTier)
-		eventDaysGroup.PUT("/:id/tiers/:tierId", app.Handlers.TicketHandler.UpdateTier)
-		eventDaysGroup.DELETE("/:id/tiers/:tierId", app.Handlers.TicketHandler.DeleteTier)
+	}
+
+	// Ticket products (5K, VIP, VVIP...) and the days they are sold on. Managed by
+	// whoever manages tickets, not by everyone who can edit a match day.
+	ticketProductsGroup := adminRoutes.Group("/ticket-products")
+	ticketProductsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
+	{
+		ticketProductsGroup.GET("", app.Handlers.TicketHandler.ListProductsAdmin)
+		ticketProductsGroup.POST("", app.Handlers.TicketHandler.CreateProduct)
+		ticketProductsGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateProduct)
+		ticketProductsGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteProduct)
+		ticketProductsGroup.PUT("/:id/days", app.Handlers.TicketHandler.SaveProductDay)
+		ticketProductsGroup.DELETE("/:id/days/:eventDayId", app.Handlers.TicketHandler.DeleteProductDay)
+	}
+
+	gamePassGroup := adminRoutes.Group("/game-pass")
+	gamePassGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
+	{
+		gamePassGroup.PUT("/rules", app.Handlers.TicketHandler.SaveGamePassRules)
 	}
 
 	allocationsGroup := adminRoutes.Group("/allocations")
@@ -730,14 +746,23 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 		eventDayRoutes.GET("/by-date/:date", app.Handlers.TicketHandler.GetEventDayByDate)
 	}
 
+	rls := commonAuth.RateLimitStruct{
+		LimiterEnabled: true,
+		Rps:            5,
+		Burst:          10,
+	}
+
+	// Ticket products (Public)
+	productRoutes := r.Group("/ticket-products")
+	{
+		productRoutes.GET("", app.Handlers.TicketHandler.ListPublicProducts)
+		productRoutes.GET("/game-pass-rules", app.Handlers.TicketHandler.GetGamePassRules)
+		productRoutes.POST("/quote", commonAuth.RateLimit(rls), app.Handlers.TicketHandler.QuotePrice)
+	}
+
 	// Ticket routes
 	ticketRoutes := r.Group("/tickets")
 	{
-		rls := commonAuth.RateLimitStruct{
-			LimiterEnabled: true,
-			Rps:            5,
-			Burst:          10,
-		}
 
 		limitedTickets := ticketRoutes.Group("", commonAuth.RateLimit(rls))
 		{

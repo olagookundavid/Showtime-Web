@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"strings"
 	"time"
-
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
@@ -18,20 +18,26 @@ import (
 )
 
 type ITicketService interface {
-	// Event Days
+	// Match days (event days)
 	CreateEventDay(ctx context.Context, req dto.CreateEventDayRequest) (*dto.EventDayResponse, error)
 	UpdateEventDay(ctx context.Context, id string, req dto.UpdateEventDayRequest) error
 	DeleteEventDay(ctx context.Context, id string) error
-	GetEventDayByID(ctx context.Context, id string, code string) (*dto.EventDayResponse, error)
-	GetEventDayByDate(ctx context.Context, date string, code string) (*dto.EventDayResponse, error)
-	ListActiveEventDays(ctx context.Context, code string) ([]dto.EventDayResponse, error)
+	GetEventDayByID(ctx context.Context, id string) (*dto.EventDayResponse, error)
+	GetEventDayByDate(ctx context.Context, date string) (*dto.EventDayResponse, error)
+	ListActiveEventDays(ctx context.Context) ([]dto.EventDayResponse, error)
 	ListAllEventDays(ctx context.Context, search string, page, limit int) ([]dto.EventDayResponse, int, error)
 
-	// Tiers
-	CreateTier(ctx context.Context, eventDayID string, req dto.CreateTicketTierRequest) (*dto.TicketTierResponse, error)
-	ListTiers(ctx context.Context, eventDayID string) ([]dto.TicketTierResponse, error)
-	UpdateTier(ctx context.Context, eventDayID string, tierID string, req dto.UpdateTicketTierRequest) (*dto.TicketTierResponse, error)
-	DeleteTier(ctx context.Context, id string) error
+	// Products
+	CreateProduct(ctx context.Context, req dto.CreateTicketProductRequest) (*dto.TicketProductResponse, error)
+	UpdateProduct(ctx context.Context, id string, req dto.UpdateTicketProductRequest) (*dto.TicketProductResponse, error)
+	DeleteProduct(ctx context.Context, id string) error
+	ListProductsAdmin(ctx context.Context) ([]dto.TicketProductResponse, error)
+	SaveProductDay(ctx context.Context, productID string, req dto.SaveProductDayRequest) (*dto.TicketProductResponse, error)
+	DeleteProductDay(ctx context.Context, productID, eventDayID string) error
+	ListPublicProducts(ctx context.Context, accessCode string) ([]dto.TicketProductResponse, error)
+	GetGamePassRules(ctx context.Context) ([]dto.GamePassRuleResponse, error)
+	SaveGamePassRules(ctx context.Context, req dto.SaveGamePassRulesRequest) ([]dto.GamePassRuleResponse, error)
+	QuotePrice(ctx context.Context, req dto.PriceQuoteRequest) (*dto.PriceQuoteResponse, error)
 
 	// Tickets
 	Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string, userID *string) (*dto.TicketResponse, error)
@@ -41,8 +47,8 @@ type ITicketService interface {
 	GetByReference(ctx context.Context, reference string) (*dto.TicketResponse, error)
 	GetByCode(ctx context.Context, code string) (*dto.TicketResponse, error)
 	SearchByEmail(ctx context.Context, email string, page, limit int) ([]dto.TicketResponse, int, error)
-	Checkin(ctx context.Context, id string, checkedInBy string) error
-	AdminCheckin(ctx context.Context, id string, checkedInBy string) error
+	Checkin(ctx context.Context, id string, checkedInBy string, eventDayID string) error
+	AdminCheckin(ctx context.Context, id string, checkedInBy string, eventDayID string) error
 	List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]dto.TicketResponse, int, error)
 	ExpirePastTickets(ctx context.Context) error
 	CreateReferralCode(ctx context.Context, req dto.CreateReferralRequest) (*dto.ReferralResponse, error)
@@ -50,11 +56,11 @@ type ITicketService interface {
 	ListReferralStats(ctx context.Context, search string, page int, limit int) ([]dto.ReferralStatsResponse, int, error)
 }
 
-
 type TicketService struct {
 	eventDayRepo    ports.EventDayRepository
-	tierRepo        ports.TicketTierRepository
+	productRepo     ports.TicketProductRepository
 	ticketRepo      ports.TicketRepository
+	scheduledRepo   ports.ScheduledEmailRepository
 	matchRepo       ports.MatchRepository
 	paystack        *PaystackClient
 	email           ports.EmailService
@@ -64,8 +70,9 @@ type TicketService struct {
 
 func NewTicketService(
 	eventDayRepo ports.EventDayRepository,
-	tierRepo ports.TicketTierRepository,
+	productRepo ports.TicketProductRepository,
 	ticketRepo ports.TicketRepository,
+	scheduledRepo ports.ScheduledEmailRepository,
 	matchRepo ports.MatchRepository,
 	paystack *PaystackClient,
 	emailService ports.EmailService,
@@ -76,16 +83,17 @@ func NewTicketService(
 		discountService: discountService,
 		discountRepo:    discountRepo,
 		eventDayRepo:    eventDayRepo,
-		tierRepo:        tierRepo,
+		productRepo:     productRepo,
 		ticketRepo:      ticketRepo,
-		matchRepo:    matchRepo,
-		paystack:     paystack,
-		email:        emailService,
+		scheduledRepo:   scheduledRepo,
+		matchRepo:       matchRepo,
+		paystack:        paystack,
+		email:           emailService,
 	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Event Days
+// Match days (event days)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 func (s *TicketService) CreateEventDay(ctx context.Context, req dto.CreateEventDayRequest) (*dto.EventDayResponse, error) {
@@ -110,7 +118,7 @@ func (s *TicketService) CreateEventDay(ctx context.Context, req dto.CreateEventD
 		return nil, fmt.Errorf("failed to create event day: %w", err)
 	}
 
-	return eventDayToResponse(ed, nil, nil), nil
+	return eventDayToResponse(ed, nil), nil
 }
 
 func (s *TicketService) UpdateEventDay(ctx context.Context, id string, req dto.UpdateEventDayRequest) error {
@@ -122,66 +130,43 @@ func (s *TicketService) UpdateEventDay(ctx context.Context, id string, req dto.U
 		}
 		parsedDate = &d
 	}
-	return s.eventDayRepo.Update(ctx, id, req.Title, parsedDate, req.Venue, req.IsActive)
+	if err := s.eventDayRepo.Update(ctx, id, req.Title, parsedDate, req.Venue, req.IsActive); err != nil {
+		return err
+	}
+	// A moved match day moves the reminders that are waiting on it.
+	if parsedDate != nil && s.scheduledRepo != nil {
+		if err := s.scheduledRepo.RescheduleForEventDay(ctx, id, reminderDaysBefore, reminderHour); err != nil {
+			fmt.Printf("⚠️ WARNING: failed to reschedule reminders for event day %s: %s\n", id, err.Error())
+		}
+	}
+	return nil
 }
 
-func (s *TicketService) GetEventDayByID(ctx context.Context, id string, code string) (*dto.EventDayResponse, error) {
+func (s *TicketService) GetEventDayByID(ctx context.Context, id string) (*dto.EventDayResponse, error) {
 	ed, err := s.eventDayRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-
-	allTiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
-	var tiers []domain.TicketTier
-	normalizedCode := strings.ToUpper(strings.TrimSpace(code))
-	for _, t := range allTiers {
-		if !t.IsHidden || (t.AccessCode != nil && strings.ToUpper(strings.TrimSpace(*t.AccessCode)) == normalizedCode) {
-			tiers = append(tiers, t)
-		}
-	}
-	matches := s.getMatchesForDate(ctx, ed.Date)
-
-	return eventDayToResponse(ed, tiers, matches), nil
+	return eventDayToResponse(ed, s.getMatchesForDate(ctx, ed.Date)), nil
 }
 
-func (s *TicketService) GetEventDayByDate(ctx context.Context, date string, code string) (*dto.EventDayResponse, error) {
+func (s *TicketService) GetEventDayByDate(ctx context.Context, date string) (*dto.EventDayResponse, error) {
 	ed, err := s.eventDayRepo.GetByDate(ctx, date)
 	if err != nil {
 		return nil, err
 	}
-
-	allTiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
-	var tiers []domain.TicketTier
-	normalizedCode := strings.ToUpper(strings.TrimSpace(code))
-	for _, t := range allTiers {
-		if !t.IsHidden || (t.AccessCode != nil && strings.ToUpper(strings.TrimSpace(*t.AccessCode)) == normalizedCode) {
-			tiers = append(tiers, t)
-		}
-	}
-	matches := s.getMatchesForDate(ctx, ed.Date)
-
-	return eventDayToResponse(ed, tiers, matches), nil
+	return eventDayToResponse(ed, s.getMatchesForDate(ctx, ed.Date)), nil
 }
 
-func (s *TicketService) ListActiveEventDays(ctx context.Context, code string) ([]dto.EventDayResponse, error) {
+func (s *TicketService) ListActiveEventDays(ctx context.Context) ([]dto.EventDayResponse, error) {
 	eventDays, err := s.eventDayRepo.ListActive(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var responses []dto.EventDayResponse
+	responses := make([]dto.EventDayResponse, 0, len(eventDays))
 	for i := range eventDays {
-		allTiers, _ := s.tierRepo.ListByEventDay(ctx, eventDays[i].ID)
-		var tiers []domain.TicketTier
-		normalizedCode := strings.ToUpper(strings.TrimSpace(code))
-
-		for _, t := range allTiers {
-			if !t.IsHidden || (t.AccessCode != nil && strings.ToUpper(strings.TrimSpace(*t.AccessCode)) == normalizedCode) {
-				tiers = append(tiers, t)
-			}
-		}
-		// matches := s.getMatchesForDate(ctx, eventDays[i].Date)
-		responses = append(responses, *eventDayToResponse(&eventDays[i], tiers, []domain.Match{}))
+		responses = append(responses, *eventDayToResponse(&eventDays[i], nil))
 	}
 	return responses, nil
 }
@@ -194,8 +179,7 @@ func (s *TicketService) ListAllEventDays(ctx context.Context, search string, pag
 
 	responses := make([]dto.EventDayResponse, 0, len(eventDays))
 	for i := range eventDays {
-		tiers, _ := s.tierRepo.ListByEventDay(ctx, eventDays[i].ID)
-		responses = append(responses, *eventDayToResponse(&eventDays[i], tiers, nil))
+		responses = append(responses, *eventDayToResponse(&eventDays[i], nil))
 	}
 	return responses, total, nil
 }
@@ -216,6 +200,7 @@ func (s *TicketService) SearchByEmail(ctx context.Context, email string, page, l
 	}
 	return responses, total, nil
 }
+
 func (s *TicketService) getMatchesForDate(ctx context.Context, date time.Time) []domain.Match {
 	dateStr := date.Format("2006-01-02")
 	// dateStr is the trailing variadic `date` argument, NOT `search`. Passing it
@@ -227,165 +212,192 @@ func (s *TicketService) getMatchesForDate(ctx context.Context, date time.Time) [
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Tiers
+// Purchasing
 // ═══════════════════════════════════════════════════════════════════════════════
 
-func (s *TicketService) CreateTier(ctx context.Context, eventDayID string, req dto.CreateTicketTierRequest) (*dto.TicketTierResponse, error) {
-	// Verify event day exists
-	if _, err := s.eventDayRepo.GetByID(ctx, eventDayID); err != nil {
-		return nil, fmt.Errorf("event day not found: %w", err)
-	}
+// maxPassDays bounds a Game Pass so a request cannot lock an unbounded number of
+// rows in one transaction.
+const maxPassDays = 30
 
-	tier := &domain.TicketTier{
-		EventDayID:  eventDayID,
-		Name:        req.Name,
-		Price:       req.Price,
-		Capacity:    req.Capacity,
-		Description: req.Description,
-		IsHidden:    req.IsHidden,
-	}
-
-	if req.AccessCode != nil {
-		code := strings.ToUpper(strings.TrimSpace(*req.AccessCode))
-		tier.AccessCode = &code
-	}
-
-	if err := s.tierRepo.Create(ctx, tier); err != nil {
-		return nil, fmt.Errorf("failed to create tier: %w", err)
-	}
-
-	return tierToResponse(tier), nil
+// selection is a validated product plus the days it is being bought for.
+type selection struct {
+	product      *domain.TicketProduct
+	days         []domain.TicketProductDay // sorted by date
+	purchaseType domain.PurchaseType
 }
 
-func (s *TicketService) ListTiers(ctx context.Context, eventDayID string) ([]dto.TicketTierResponse, error) {
-	tiers, err := s.tierRepo.ListByEventDay(ctx, eventDayID)
+func (sel *selection) dayPrices() []int {
+	prices := make([]int, len(sel.days))
+	for i, d := range sel.days {
+		prices[i] = d.Price
+	}
+	return prices
+}
+
+func uniqueIDs(ids []string) []string {
+	seen := make(map[string]bool, len(ids))
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out
+}
+
+// resolveSelection checks that a product can be bought for the requested days and
+// returns the priced days. It is the single gate in front of quoting, purchasing
+// and gifting, so all three agree on what is allowed.
+//
+// adminIssue skips the hidden-product access code, which an admin issuing a
+// complimentary ticket has no need for.
+func (s *TicketService) resolveSelection(ctx context.Context, productID string, eventDayIDs []string, purchaseType domain.PurchaseType, quantity int, accessCode string, adminIssue bool) (*selection, error) {
+	ids := uniqueIDs(eventDayIDs)
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("choose at least one match day")
+	}
+	if len(ids) > maxPassDays {
+		return nil, fmt.Errorf("a ticket can cover at most %d match days", maxPassDays)
+	}
+
+	switch purchaseType {
+	case domain.PurchaseTypeSingle:
+		if len(ids) != 1 {
+			return nil, fmt.Errorf("a single ticket is for exactly one match day; use a Game Pass for several")
+		}
+	case domain.PurchaseTypeGamePass:
+		if len(ids) < 2 {
+			return nil, fmt.Errorf("a Game Pass covers two or more match days")
+		}
+	default:
+		return nil, fmt.Errorf("unknown purchase type %q", purchaseType)
+	}
+
+	product, err := s.productRepo.GetProduct(ctx, productID)
+	if err != nil {
+		return nil, fmt.Errorf("ticket not found")
+	}
+	if !product.IsActive {
+		return nil, fmt.Errorf("%s is not on sale", product.Name)
+	}
+	if purchaseType == domain.PurchaseTypeGamePass && !product.AllowGamePass {
+		return nil, fmt.Errorf("%s is not available as a Game Pass", product.Name)
+	}
+	if product.IsHidden && !adminIssue && !accessCodeMatches(product.AccessCode, accessCode) {
+		return nil, fmt.Errorf("ticket not found")
+	}
+
+	days, err := s.productRepo.GetProductDays(ctx, productID, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load match days: %w", err)
+	}
+	if len(days) != len(ids) {
+		return nil, fmt.Errorf("%s is not on sale for one of the selected days", product.Name)
+	}
+
+	today := todayLagos(time.Now())
+	for _, d := range days {
+		title := d.EventDay.Title
+		if !d.IsActive || !d.EventDay.IsActive {
+			return nil, fmt.Errorf("tickets are not on sale for %s", title)
+		}
+		if dateOnly(d.EventDay.Date).Before(today) {
+			return nil, fmt.Errorf("cannot buy tickets for a past match day (%s)", d.EventDay.Date.Format("2006-01-02"))
+		}
+		if avail := d.Available(); avail >= 0 && quantity > avail {
+			return nil, fmt.Errorf("not enough tickets available for %s, only %d remaining", title, avail)
+		}
+	}
+
+	sort.SliceStable(days, func(i, j int) bool {
+		return days[i].EventDay.Date.Before(days[j].EventDay.Date)
+	})
+	return &selection{product: product, days: days, purchaseType: purchaseType}, nil
+}
+
+func accessCodeMatches(productCode *string, given string) bool {
+	if productCode == nil || strings.TrimSpace(*productCode) == "" {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(*productCode), strings.TrimSpace(given))
+}
+
+// ticketDaysFor builds the TicketDay rows a Create call needs from a selection.
+func ticketDaysFor(sel *selection) []domain.TicketDay {
+	days := make([]domain.TicketDay, len(sel.days))
+	for i, d := range sel.days {
+		days[i] = domain.TicketDay{
+			EventDayID:   d.EventDayID,
+			ProductDayID: d.ID,
+			UnitPrice:    d.Price,
+		}
+	}
+	return days
+}
+
+// QuotePrice prices a selection with the same code the purchase uses, so the
+// number shown while choosing is the number that is charged.
+func (s *TicketService) QuotePrice(ctx context.Context, req dto.PriceQuoteRequest) (*dto.PriceQuoteResponse, error) {
+	sel, err := s.resolveSelection(ctx, req.ProductID, req.EventDayIDs, domain.PurchaseType(req.PurchaseType), req.Quantity, "", true)
 	if err != nil {
 		return nil, err
 	}
-	var responses []dto.TicketTierResponse
-	for i := range tiers {
-		responses = append(responses, *tierToResponse(&tiers[i]))
-	}
-	return responses, nil
-}
-
-func (s *TicketService) UpdateTier(ctx context.Context, eventDayID string, tierID string, req dto.UpdateTicketTierRequest) (*dto.TicketTierResponse, error) {
-	tier, err := s.tierRepo.GetByID(ctx, tierID)
+	rules, err := s.productRepo.ListGamePassRules(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("tier not found: %w", err)
+		return nil, err
 	}
-
-	if tier.EventDayID != eventDayID {
-		return nil, fmt.Errorf("tier does not belong to the specified event day")
-	}
-
-	if req.Name != nil {
-		name := strings.TrimSpace(*req.Name)
-		if name == "" {
-			return nil, fmt.Errorf("tier name cannot be empty")
-		}
-		tier.Name = name
-	}
-
-	if req.Price != nil {
-		if *req.Price < 0 {
-			return nil, fmt.Errorf("tier price cannot be negative")
-		}
-		tier.Price = *req.Price
-	}
-
-	if req.Capacity != nil {
-		capVal := *req.Capacity
-		if capVal < 0 {
-			return nil, fmt.Errorf("tier capacity cannot be negative")
-		}
-		if capVal > 0 && capVal < tier.SoldCount {
-			return nil, fmt.Errorf("tier capacity (%d) cannot be less than tickets already sold (%d)", capVal, tier.SoldCount)
-		}
-		tier.Capacity = capVal
-	}
-
-	if req.Description != nil {
-		tier.Description = *req.Description
-	}
-
-	if req.IsHidden != nil {
-		tier.IsHidden = *req.IsHidden
-	}
-
-	if req.AccessCode != nil {
-		code := strings.ToUpper(strings.TrimSpace(*req.AccessCode))
-		if code == "" || !tier.IsHidden {
-			tier.AccessCode = nil
-		} else {
-			tier.AccessCode = &code
-		}
-	} else if !tier.IsHidden {
-		tier.AccessCode = nil
-	}
-
-	if err := s.tierRepo.Update(ctx, tier); err != nil {
-		return nil, fmt.Errorf("failed to update tier: %w", err)
-	}
-
-	return tierToResponse(tier), nil
+	p := PriceTicket(sel.dayPrices(), req.Quantity, sel.purchaseType, rules)
+	return &dto.PriceQuoteResponse{
+		UnitPrice:               p.UnitPrice,
+		Subtotal:                p.Subtotal,
+		GamePassDiscountPercent: p.GamePassPercent,
+		GamePassDiscountAmount:  p.GamePassAmount,
+		Total:                   p.Total,
+		Days:                    len(sel.days),
+	}, nil
 }
-
-func (s *TicketService) DeleteTier(ctx context.Context, id string) error {
-	return s.tierRepo.Delete(ctx, id)
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Tickets
-// ═══════════════════════════════════════════════════════════════════════════════
 
 // Purchase books a ticket. userID is the authenticated buyer when there is one
 // and nil for a guest checkout; it is taken from the caller's token, never from
 // the request body.
 func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string, userID *string) (*dto.TicketResponse, error) {
-	// 1. Look up tier for price
-	tier, err := s.tierRepo.GetByID(ctx, req.TierID)
+	purchaseType := domain.PurchaseType(req.PurchaseType)
+
+	// 1. Validate the product, days and availability.
+	sel, err := s.resolveSelection(ctx, req.ProductID, req.EventDayIDs, purchaseType, req.Quantity, req.AccessCode, false)
 	if err != nil {
-		return nil, fmt.Errorf("tier not found: %w", err)
+		return nil, err
 	}
 
-	// 1b. Verify event day is not in the past
-	eventDay, err := s.eventDayRepo.GetByID(ctx, req.EventDayID)
+	// 2. Price it server-side. Nothing here trusts a client-sent amount.
+	rules, err := s.productRepo.ListGamePassRules(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("event day not found: %w", err)
+		return nil, fmt.Errorf("failed to load Game Pass pricing: %w", err)
 	}
+	pricing := PriceTicket(sel.dayPrices(), req.Quantity, purchaseType, rules)
+	totalAmount := pricing.Total
 
-	// Compare dates (ignore time)
-	now := time.Now().Truncate(24 * time.Hour)
-	eventDate := eventDay.Date.Truncate(24 * time.Hour)
-	if eventDate.Before(now) {
-		return nil, fmt.Errorf("cannot purchase tickets for past events (%s)", eventDay.Date.Format("2006-01-02"))
-	}
-
-	// 2. Check capacity
-	if tier.Capacity > 0 && (tier.SoldCount+req.Quantity) > tier.Capacity {
-		remaining := tier.Capacity - tier.SoldCount
-		return nil, fmt.Errorf("not enough tickets available, only %d remaining", remaining)
-	}
-
-	// 3. Calculate total
-	totalAmount := tier.Price * req.Quantity
-
-	// 3b. Apply a discount code, if one was given. Priced off the tier's own
-	// price, never off anything the client sent. Like the storefront, an
+	// 2b. Apply a discount code, if one was given. Like the storefront, an
 	// unusable code fails the purchase rather than being quietly ignored.
 	//
 	// The code discounts one ticket, not every ticket in the order — the same
-	// "once per product" rule the storefront uses.
+	// "once per product" rule the storefront uses. Codes are for single tickets;
+	// a Game Pass has its own percentage ladder.
 	var discountCode *string
 	var discountCodeID *string
 	var discountAmount int
 	if strings.TrimSpace(req.DiscountCode) != "" {
+		if purchaseType == domain.PurchaseTypeGamePass {
+			return nil, fmt.Errorf("discount codes can't be used on a Game Pass")
+		}
 		app, err := s.discountService.ApplyToCart(ctx, req.DiscountCode, userID != nil && *userID != "", []CartLine{{
-			EntityType: domain.DiscountEntityTicketTier,
-			EntityID:   req.TierID,
-			Name:       tier.Name,
-			UnitPrice:  float64(tier.Price),
+			EntityType: domain.DiscountEntityTicketProduct,
+			EntityID:   sel.product.ID,
+			Name:       sel.product.Name,
+			UnitPrice:  float64(pricing.UnitPrice),
 			Quantity:   req.Quantity,
 		}})
 		if err != nil {
@@ -400,7 +412,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		discountCodeID = &app.CodeID
 	}
 
-	// 4. Generate unique reference
+	// 3. Generate unique reference
 	reference := "SFFL-" + uuid.New().String()[:12]
 
 	var paystackRef *string
@@ -413,7 +425,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		paystackRef = &reference
 		ticketStatus = domain.TicketStatusPaid
 	} else {
-		// 5. Initialize Paystack transaction
+		// 4. Initialize Paystack transaction
 		paystackReq := PaystackInitRequest{
 			Email:       req.Email,
 			Amount:      totalAmount * 100, // Convert Naira to kobo
@@ -431,7 +443,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		authURL = paystackResp.Data.AuthorizationURL
 	}
 
-	var referralCode *string = nil
+	var referralCode *string
 	if req.ReferralCode != nil && *req.ReferralCode != "" {
 		rc, err := s.ticketRepo.GetReferralCode(ctx, *req.ReferralCode)
 		if err == nil && rc != nil {
@@ -439,32 +451,37 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		}
 	}
 
-	// 6. Create ticket with collision protection
+	// 5. Create ticket with collision protection
 	var ticket *domain.Ticket
 	maxRetries := 5
 	var lastErr error
 
 	for i := 0; i < maxRetries; i++ {
+		productID := sel.product.ID
 		ticket = &domain.Ticket{
-			EventDayID:         req.EventDayID,
-			TierID:             req.TierID,
-			Email:              req.Email,
-			Phone:              req.Phone,
-			Name:               req.Name,
-			UserID:             userID,
-			Quantity:           req.Quantity,
-			UnitPrice:          tier.Price,
-			TotalAmount:        totalAmount,
-			Status:             ticketStatus,
-			PaystackReference:  paystackRef,
-			PaystackAccessCode: paystackAccessCode,
-			TicketCode:         GenerateTicketCode(),
-			ReferralCode:       referralCode,
-			DiscountCode:       discountCode,
-			DiscountAmount:     discountAmount,
-			DiscountCodeID:     discountCodeID,
+			ProductID:               &productID,
+			ProductName:             sel.product.Name,
+			PurchaseType:            purchaseType,
+			Email:                   req.Email,
+			Phone:                   req.Phone,
+			Name:                    req.Name,
+			UserID:                  userID,
+			Quantity:                req.Quantity,
+			UnitPrice:               pricing.UnitPrice,
+			Subtotal:                pricing.Subtotal,
+			TotalAmount:             totalAmount,
+			Status:                  ticketStatus,
+			PaystackReference:       paystackRef,
+			PaystackAccessCode:      paystackAccessCode,
+			TicketCode:              GenerateTicketCode(),
+			ReferralCode:            referralCode,
+			DiscountCode:            discountCode,
+			DiscountAmount:          discountAmount,
+			DiscountCodeID:          discountCodeID,
+			GamePassDiscountPercent: pricing.GamePassPercent,
+			GamePassDiscountAmount:  pricing.GamePassAmount,
+			Days:                    ticketDaysFor(sel),
 		}
-
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
 			// Check if it's a unique constraint violation on ticket_code
@@ -486,9 +503,6 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	}
 
 	if ticket.Status == domain.TicketStatusPaid {
-		// Increment sold count on tier
-		_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
-
 		// A free (or fully discounted) ticket never returns through the payment
 		// callback, so settle the code hold here.
 		if discountCodeID != nil {
@@ -496,35 +510,15 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 				fmt.Printf("⚠️ WARNING: failed to confirm discount on free ticket %s: %s\n", ticket.ID, err.Error())
 			}
 		}
-
-		// Load relations for email dispatch
-		ticket.Tier = tier
-		if ed, err := s.eventDayRepo.GetByID(ctx, ticket.EventDayID); err == nil {
-			ticket.EventDay = ed
-		}
-
-		s.sendPurchaseEmail(ticket)
+		s.OnTicketPaid(ctx, ticket)
 	}
 
-	res := &dto.TicketResponse{
-		ID:               ticket.ID,
-		EventDayID:       ticket.EventDayID,
-		TierID:           ticket.TierID,
-		Email:            ticket.Email,
-		Phone:            ticket.Phone,
-		Name:             ticket.Name,
-		Quantity:         ticket.Quantity,
-		UnitPrice:        ticket.UnitPrice,
-		TotalAmount:      ticket.TotalAmount,
-		Status:           string(ticket.Status),
-		AuthorizationURL: authURL,
-		TierName:         tier.Name,
-		CreatedAt:        ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	res := ticketToResponse(ticket)
+	res.AuthorizationURL = authURL
+	// The code is only revealed once the ticket is paid.
+	if ticket.Status != domain.TicketStatusPaid {
+		res.TicketCode = ""
 	}
-	if ticket.PaystackReference != nil {
-		res.PaystackReference = *ticket.PaystackReference
-	}
-
 	return res, nil
 }
 
@@ -532,30 +526,20 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 // The ticket is created as PAID immediately and the standard confirmation
 // email (with the ticket code) is sent, exactly like a normal purchase.
 func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketRequest) (*dto.TicketResponse, error) {
-	// 1. Look up tier and event day
-	tier, err := s.tierRepo.GetByID(ctx, req.TierID)
+	ids := uniqueIDs(req.EventDayIDs)
+	purchaseType := domain.PurchaseTypeSingle
+	if len(ids) > 1 {
+		purchaseType = domain.PurchaseTypeGamePass
+	}
+
+	sel, err := s.resolveSelection(ctx, req.ProductID, ids, purchaseType, req.Quantity, "", true)
 	if err != nil {
-		return nil, fmt.Errorf("tier not found: %w", err)
+		return nil, err
 	}
+	pricing := PriceTicket(sel.dayPrices(), req.Quantity, purchaseType, nil)
 
-	eventDay, err := s.eventDayRepo.GetByID(ctx, req.EventDayID)
-	if err != nil {
-		return nil, fmt.Errorf("event day not found: %w", err)
-	}
-
-	// 2. Ensure the tier actually belongs to the selected event day
-	if tier.EventDayID != req.EventDayID {
-		return nil, fmt.Errorf("tier does not belong to the selected event day")
-	}
-
-	// 3. Respect capacity if one is set
-	if tier.Capacity > 0 && (tier.SoldCount+req.Quantity) > tier.Capacity {
-		remaining := tier.Capacity - tier.SoldCount
-		return nil, fmt.Errorf("not enough tickets available, only %d remaining", remaining)
-	}
-
-	// 4. Create the ticket as a free, already-paid comp ticket.
-	//    Retry on the (extremely unlikely) ticket_code / reference collision.
+	// Create the ticket as a free, already-paid comp ticket.
+	// Retry on the (extremely unlikely) ticket_code / reference collision.
 	reference := "SFFL-GIFT-" + uuid.New().String()[:8]
 
 	var ticket *domain.Ticket
@@ -564,18 +548,22 @@ func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketReques
 
 	for i := 0; i < maxRetries; i++ {
 		ref := reference
+		productID := sel.product.ID
 		ticket = &domain.Ticket{
-			EventDayID:        req.EventDayID,
-			TierID:            req.TierID,
+			ProductID:         &productID,
+			ProductName:       sel.product.Name,
+			PurchaseType:      purchaseType,
 			Email:             req.Email,
 			Phone:             req.Phone,
 			Name:              req.Name,
 			Quantity:          req.Quantity,
-			UnitPrice:         tier.Price,
-			TotalAmount:       tier.Price * req.Quantity,
+			UnitPrice:         pricing.UnitPrice,
+			Subtotal:          pricing.Subtotal,
+			TotalAmount:       pricing.Total,
 			Status:            domain.TicketStatusPaid,
 			PaystackReference: &ref,
 			TicketCode:        GenerateTicketCode(),
+			Days:              ticketDaysFor(sel),
 		}
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
@@ -595,33 +583,16 @@ func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketReques
 		return nil, fmt.Errorf("failed to generate unique ticket after %d attempts: %w", maxRetries, lastErr)
 	}
 
-	// 5. Update inventory and send the confirmation email
-	_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
+	s.OnTicketPaid(ctx, ticket)
+	return ticketToResponse(ticket), nil
+}
 
-	ticket.Tier = tier
-	ticket.EventDay = eventDay
+// OnTicketPaid does what has to happen once a ticket is confirmed paid, whichever
+// way it got there (webhook, verify, free checkout, gift, team allocation): send
+// the confirmation and queue a reminder ahead of each match day.
+func (s *TicketService) OnTicketPaid(ctx context.Context, ticket *domain.Ticket) {
 	s.sendPurchaseEmail(ticket)
-
-	res := &dto.TicketResponse{
-		ID:          ticket.ID,
-		EventDayID:  ticket.EventDayID,
-		TierID:      ticket.TierID,
-		Email:       ticket.Email,
-		Phone:       ticket.Phone,
-		Name:        ticket.Name,
-		Quantity:    ticket.Quantity,
-		UnitPrice:   ticket.UnitPrice,
-		TotalAmount: ticket.TotalAmount,
-		Status:      string(ticket.Status),
-		TierName:    tier.Name,
-		TicketCode:  ticket.TicketCode,
-		CreatedAt:   ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
-	}
-	if ticket.PaystackReference != nil {
-		res.PaystackReference = *ticket.PaystackReference
-	}
-
-	return res, nil
+	s.scheduleReminders(ctx, ticket)
 }
 
 // verifyTicketPayment is the authoritative money check before a ticket is
@@ -668,15 +639,14 @@ func (s *TicketService) HandleWebhook(ctx context.Context, reference string) err
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid); err != nil {
 			return err
 		}
+		ticket.Status = domain.TicketStatusPaid
 		// Settle the discount hold. Only 'reserved' rows move, so a webhook retry
 		// changes nothing.
 		if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
 			fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
 		}
-		// Increment sold count on tier (capacity-guarded, idempotent-bounded)
-		err = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
-		s.sendPurchaseEmail(ticket)
-		return err
+		s.OnTicketPaid(ctx, ticket)
+		return nil
 	}
 
 	// Payment failed — hand the code use back rather than burning it.
@@ -700,29 +670,6 @@ func (s *TicketService) GetByCode(ctx context.Context, code string) (*dto.Ticket
 		return nil, err
 	}
 	return ticketToResponse(ticket), nil
-}
-
-func (s *TicketService) Checkin(ctx context.Context, id string, checkedInBy string) error {
-	err := s.ticketRepo.Checkin(ctx, id, checkedInBy)
-	return err
-
-	//Test Send EMAIl
-	// s.sendPurchaseEmail(&domain.Ticket{
-	// 	Email:       "erijesudo@gmail.com",
-	// 	Quantity:    10,
-	// 	UnitPrice:   3000,
-	// 	TotalAmount: 30000,
-	// 	TicketCode:  "ticket code",
-	// 	EventDay: &domain.EventDay{
-	// 		Title: "SFFL",
-	// 		Venue: "Venue",
-	// 	},
-	// 	Tier: &domain.TicketTier{
-	// 		Name:  "VIP",
-	// 		Price: 3000,
-	// 	},
-	// })
-	// return nil
 }
 
 func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (*dto.TicketResponse, error) {
@@ -751,9 +698,8 @@ func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (
 		if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
 			fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
 		}
-		_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
 		ticket.Status = domain.TicketStatusPaid
-		s.sendPurchaseEmail(ticket)
+		s.OnTicketPaid(ctx, ticket)
 	} else {
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed); err != nil {
 			return nil, err
@@ -767,46 +713,13 @@ func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (
 	return ticketToResponse(ticket), nil
 }
 
-func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy string) error {
-	ticket, err := s.ticketRepo.GetByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("ticket not found: %w", err)
-	}
-
-	if ticket.Status == domain.TicketStatusUsed {
-		return fmt.Errorf("ticket already checked in")
-	}
-
-	// If already paid, go straight to check-in
-	if ticket.Status == domain.TicketStatusPaid {
-		err := s.ticketRepo.AdminCheckin(ctx, id, checkedInBy)
-		return err
-	}
-
-	// If pending, try to verify payment first
-	if ticket.Status == domain.TicketStatusPending && ticket.PaystackReference != nil {
-		verifyResp, verifyErr := s.paystack.VerifyTransaction(*ticket.PaystackReference)
-		if verifyErr == nil && verifyTicketPayment(verifyResp, ticket) == nil {
-			_ = s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid)
-			_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
-			s.sendPurchaseEmail(ticket)
-
-			err := s.ticketRepo.AdminCheckin(ctx, id, checkedInBy)
-			return err
-		}
-		return fmt.Errorf("could not verify that this ticket has been paid for")
-	}
-
-	return fmt.Errorf("ticket is %s and payment could not be verified", ticket.Status)
-}
-
 func (s *TicketService) List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]dto.TicketResponse, int, error) {
 	tickets, total, err := s.ticketRepo.List(ctx, eventDayID, status, page, limit)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	var responses []dto.TicketResponse
+	responses := make([]dto.TicketResponse, 0, len(tickets))
 	for i := range tickets {
 		responses = append(responses, *ticketToResponse(&tickets[i]))
 	}
@@ -825,53 +738,161 @@ func (s *TicketService) ExpirePastTickets(ctx context.Context) error {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Check-in
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// describeDays lists a ticket's days for an error message.
+func describeDays(days []domain.TicketDay) string {
+	parts := make([]string, 0, len(days))
+	for _, d := range days {
+		parts = append(parts, d.Date.Format("Mon 2 Jan"))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// dayForCheckin picks which of a ticket's days a check-in is for. An explicit day
+// must be on the ticket. Otherwise it is today's match day.
+//
+// A strict check-in (the gate) only ever admits a ticket on the day it is for, so
+// an explicit day must also be today, and a ticket with no day today is turned
+// away. The admin override (strict=false) may pick any day, falling back to the
+// earliest one not yet attended.
+func dayForCheckin(ticket *domain.Ticket, eventDayID string, strict bool, now time.Time) (*domain.TicketDay, error) {
+	today := todayLagos(now)
+	isToday := func(d *domain.TicketDay) bool {
+		return !d.Date.IsZero() && dateOnly(d.Date).Equal(today)
+	}
+
+	if eventDayID != "" {
+		for i := range ticket.Days {
+			if ticket.Days[i].EventDayID != eventDayID {
+				continue
+			}
+			if strict && !isToday(&ticket.Days[i]) {
+				return nil, fmt.Errorf("%s is not today. This ticket covers: %s", ticket.Days[i].Title, describeDays(ticket.Days))
+			}
+			return &ticket.Days[i], nil
+		}
+		return nil, fmt.Errorf("this ticket is not valid for that match day. It covers: %s", describeDays(ticket.Days))
+	}
+
+	for i := range ticket.Days {
+		if isToday(&ticket.Days[i]) {
+			return &ticket.Days[i], nil
+		}
+	}
+	if strict {
+		return nil, fmt.Errorf("this ticket is not valid today. It covers: %s", describeDays(ticket.Days))
+	}
+	for i := range ticket.Days {
+		if ticket.Days[i].CheckedInAt == nil {
+			return &ticket.Days[i], nil
+		}
+	}
+	return nil, fmt.Errorf("ticket already checked in for every day")
+}
+
+// Checkin admits a ticket for one match day: the one given, or today's.
+func (s *TicketService) Checkin(ctx context.Context, id string, checkedInBy string, eventDayID string) error {
+	ticket, err := s.ticketRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("ticket not found: %w", err)
+	}
+	if ticket.Status != domain.TicketStatusPaid && ticket.Status != domain.TicketStatusUsed {
+		return fmt.Errorf("ticket is %s, not PAID", ticket.Status)
+	}
+	day, err := dayForCheckin(ticket, eventDayID, true, time.Now())
+	if err != nil {
+		return err
+	}
+	if day.CheckedInAt != nil {
+		return fmt.Errorf("ticket already checked in for %s", day.Title)
+	}
+	return s.ticketRepo.CheckinDay(ctx, ticket.ID, day.EventDayID, checkedInBy)
+}
+
+// AdminCheckin is the override path: it will first try to confirm an unpaid ticket
+// with Paystack, and does not insist the day is today.
+func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy string, eventDayID string) error {
+	ticket, err := s.ticketRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("ticket not found: %w", err)
+	}
+
+	switch ticket.Status {
+	case domain.TicketStatusPaid, domain.TicketStatusUsed:
+		// go straight to check-in
+	case domain.TicketStatusPending:
+		// If pending, try to verify payment first
+		if ticket.PaystackReference == nil {
+			return fmt.Errorf("could not verify that this ticket has been paid for")
+		}
+		verifyResp, verifyErr := s.paystack.VerifyTransaction(*ticket.PaystackReference)
+		if verifyErr != nil || verifyTicketPayment(verifyResp, ticket) != nil {
+			return fmt.Errorf("could not verify that this ticket has been paid for")
+		}
+		_ = s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid)
+		ticket.Status = domain.TicketStatusPaid
+		s.OnTicketPaid(ctx, ticket)
+	default:
+		return fmt.Errorf("ticket is %s and payment could not be verified", ticket.Status)
+	}
+
+	day, err := dayForCheckin(ticket, eventDayID, false, time.Now())
+	if err != nil {
+		return err
+	}
+	if day.CheckedInAt != nil {
+		return fmt.Errorf("ticket already checked in for %s", day.Title)
+	}
+	return s.ticketRepo.CheckinDay(ctx, ticket.ID, day.EventDayID, checkedInBy)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════════
 
+func formatDay(d domain.TicketDay) email.TicketEmailDay {
+	date := ""
+	if !d.Date.IsZero() {
+		date = d.Date.Format("Mon, Jan 02 2006")
+	}
+	return email.TicketEmailDay{Title: d.Title, Date: date, Venue: d.Venue}
+}
+
 func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
-	if s.email == nil || ticket.EventDay == nil || ticket.Tier == nil {
+	if s.email == nil || len(ticket.Days) == 0 {
 		return
 	}
-	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Ticket for %s", ticket.EventDay.Title)
-	body := email.PurchaseEmailHTML(
-		ticket.Name,
-		ticket.EventDay.Title,
-		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
-		ticket.EventDay.Venue,
-		ticket.Tier.Name,
-		ticket.Phone,
-		ticket.Quantity,
-		ticket.TotalAmount,
-		ticket.TicketCode,
-	)
+	days := make([]email.TicketEmailDay, len(ticket.Days))
+	for i, d := range ticket.Days {
+		days[i] = formatDay(d)
+	}
 
+	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Ticket for %s", days[0].Title)
+	if ticket.PurchaseType == domain.PurchaseTypeGamePass {
+		subject = fmt.Sprintf("IT'S SHOWTIME 🏈, Your Game Pass (%d match days)", len(days))
+	}
+	body := email.PurchaseEmailHTML(email.PurchaseEmailData{
+		BuyerName:   ticket.Name,
+		ProductName: ticket.ProductName,
+		Phone:       ticket.Phone,
+		TicketCode:  ticket.TicketCode,
+		Quantity:    ticket.Quantity,
+		TotalAmount: ticket.TotalAmount,
+		IsGamePass:  ticket.PurchaseType == domain.PurchaseTypeGamePass,
+		Days:        days,
+	})
+
+	to := ticket.Email
 	_ = SubmitJob(func() {
-		if err := s.email.SendEmail(ticket.Email, subject, body); err != nil {
-			fmt.Printf("Failed to send purchase email to %s: %v\n", ticket.Email, err)
+		if err := s.email.SendEmail(to, subject, body); err != nil {
+			fmt.Printf("Failed to send purchase email to %s: %v\n", to, err)
 		}
 	})
 }
 
-func (s *TicketService) sendCheckinEmail(ticket *domain.Ticket) {
-	if s.email == nil || ticket.EventDay == nil {
-		return
-	}
-	subject := fmt.Sprintf("IT'S SHOWTIME ✅ Checked In — %s", ticket.EventDay.Title)
-	body := email.CheckinEmailHTML(
-		ticket.EventDay.Title,
-		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
-		ticket.EventDay.Venue,
-		ticket.TicketCode,
-	)
-
-	_ = SubmitJob(func() {
-		if err := s.email.SendEmail(ticket.Email, subject, body); err != nil {
-			fmt.Printf("Failed to send checkin email to %s: %v\n", ticket.Email, err)
-		}
-	})
-}
-
-func eventDayToResponse(ed *domain.EventDay, tiers []domain.TicketTier, matches []domain.Match) *dto.EventDayResponse {
+func eventDayToResponse(ed *domain.EventDay, matches []domain.Match) *dto.EventDayResponse {
 	res := &dto.EventDayResponse{
 		ID:        ed.ID,
 		Title:     ed.Title,
@@ -879,10 +900,6 @@ func eventDayToResponse(ed *domain.EventDay, tiers []domain.TicketTier, matches 
 		Venue:     ed.Venue,
 		IsActive:  ed.IsActive,
 		CreatedAt: ed.CreatedAt.Format("2006-01-02T15:04:05Z"),
-	}
-
-	for i := range tiers {
-		res.Tiers = append(res.Tiers, *tierToResponse(&tiers[i]))
 	}
 
 	for i := range matches {
@@ -905,67 +922,57 @@ func eventDayToResponse(ed *domain.EventDay, tiers []domain.TicketTier, matches 
 	return res
 }
 
-func tierToResponse(t *domain.TicketTier) *dto.TicketTierResponse {
-	available := 0
-	if t.Capacity > 0 {
-		available = t.Capacity - t.SoldCount
-		if available < 0 {
-			available = 0
-		}
-	}
-	return &dto.TicketTierResponse{
-		ID:          t.ID,
-		EventDayID:  t.EventDayID,
-		Name:        t.Name,
-		Price:       t.Price,
-		Capacity:    t.Capacity,
-		SoldCount:   t.SoldCount,
-		Available:   available,
-		Description: t.Description,
-		IsHidden:    t.IsHidden,
-		AccessCode:  t.AccessCode,
-	}
-}
-
 func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 	res := &dto.TicketResponse{
-		ID:          t.ID,
-		EventDayID:  t.EventDayID,
-		TierID:      t.TierID,
-		Email:       t.Email,
-		Phone:       t.Phone,
-		Name:        t.Name,
-		Quantity:    t.Quantity,
-		UnitPrice:   t.UnitPrice,
-		TotalAmount: t.TotalAmount,
-		Status:      string(t.Status),
-		TicketCode:  t.TicketCode,
-		CreatedAt:   t.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:                      t.ID,
+		ProductName:             t.ProductName,
+		PurchaseType:            string(t.PurchaseType),
+		Email:                   t.Email,
+		Phone:                   t.Phone,
+		Name:                    t.Name,
+		Quantity:                t.Quantity,
+		UnitPrice:               t.UnitPrice,
+		Subtotal:                t.Subtotal,
+		GamePassDiscountPercent: t.GamePassDiscountPercent,
+		GamePassDiscountAmount:  t.GamePassDiscountAmount,
+		DiscountAmount:          t.DiscountAmount,
+		TotalAmount:             t.TotalAmount,
+		Status:                  string(t.Status),
+		TicketCode:              t.TicketCode,
+		CreatedAt:               t.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		Days:                    []dto.TicketDayResponse{},
 	}
 
+	if t.ProductID != nil {
+		res.ProductID = *t.ProductID
+	}
+	if t.DiscountCode != nil {
+		res.DiscountCode = *t.DiscountCode
+	}
 	if t.ReferralCode != nil {
 		res.ReferralCode = *t.ReferralCode
 	}
-
-
 	if t.PaystackReference != nil {
 		res.PaystackReference = *t.PaystackReference
 	}
 
-	if t.CheckedInAt != nil {
-		formatted := t.CheckedInAt.Format("2006-01-02T15:04:05Z")
-		res.CheckedInAt = &formatted
-	}
-	res.CheckedInBy = t.CheckedInBy
-
-	if t.EventDay != nil {
-		res.EventTitle = t.EventDay.Title
-		res.EventDate = t.EventDay.Date.Format("2006-01-02")
-		res.EventVenue = t.EventDay.Venue
-	}
-
-	if t.Tier != nil {
-		res.TierName = t.Tier.Name
+	for _, d := range t.Days {
+		dr := dto.TicketDayResponse{
+			ID:         d.ID,
+			EventDayID: d.EventDayID,
+			Title:      d.Title,
+			Venue:      d.Venue,
+			UnitPrice:  d.UnitPrice,
+		}
+		if !d.Date.IsZero() {
+			dr.Date = d.Date.Format("2006-01-02")
+		}
+		if d.CheckedInAt != nil {
+			formatted := d.CheckedInAt.Format("2006-01-02T15:04:05Z")
+			dr.CheckedInAt = &formatted
+		}
+		dr.CheckedInBy = d.CheckedInBy
+		res.Days = append(res.Days, dr)
 	}
 
 	return res
@@ -1081,4 +1088,3 @@ func (s *TicketService) ListReferralStats(ctx context.Context, search string, pa
 	}
 	return responses, total, nil
 }
-

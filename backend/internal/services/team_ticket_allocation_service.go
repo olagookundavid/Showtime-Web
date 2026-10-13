@@ -8,7 +8,6 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
-	"showtime-backend/pkg/email"
 )
 
 type ITeamTicketAllocationService interface {
@@ -26,9 +25,15 @@ type ITeamTicketAllocationService interface {
 type TeamTicketAllocationService struct {
 	allocationRepo ports.TeamTicketAllocationRepository
 	ticketRepo     ports.TicketRepository
-	tierRepo       ports.TicketTierRepository
-	eventDayRepo   ports.EventDayRepository
-	emailService   ports.EmailService
+	productRepo    ports.TicketProductRepository
+	fulfiller      ticketFulfiller
+}
+
+// ticketFulfiller does what follows a ticket becoming paid: the confirmation
+// email and the reminders. It is the ticket service, passed in so a team ticket
+// is treated exactly like any other.
+type ticketFulfiller interface {
+	OnTicketPaid(ctx context.Context, ticket *domain.Ticket)
 }
 
 type CreateOrUpdateAllocationReq struct {
@@ -40,16 +45,14 @@ type CreateOrUpdateAllocationReq struct {
 func NewTeamTicketAllocationService(
 	allocationRepo ports.TeamTicketAllocationRepository,
 	ticketRepo ports.TicketRepository,
-	tierRepo ports.TicketTierRepository,
-	eventDayRepo ports.EventDayRepository,
-	emailService ports.EmailService,
+	productRepo ports.TicketProductRepository,
+	fulfiller ticketFulfiller,
 ) *TeamTicketAllocationService {
 	return &TeamTicketAllocationService{
 		allocationRepo: allocationRepo,
 		ticketRepo:     ticketRepo,
-		tierRepo:       tierRepo,
-		eventDayRepo:   eventDayRepo,
-		emailService:   emailService,
+		productRepo:    productRepo,
+		fulfiller:      fulfiller,
 	}
 }
 
@@ -97,20 +100,29 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 		return nil, fmt.Errorf("allocation exhausted or zero: %d allocated, %d issued", allocated, issued)
 	}
 
-	tiers, err := s.tierRepo.ListByEventDay(ctx, req.EventDayID)
-	if err != nil || len(tiers) == 0 {
-		return nil, fmt.Errorf("no ticket tiers found for this event day")
+	// Team tickets are free, so they are issued from a free ticket product that is
+	// on sale for the match day.
+	products, err := s.productRepo.ListProducts(ctx, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load tickets: %w", err)
 	}
-
-	var selectedTier *domain.TicketTier
-	for i := range tiers {
-		if tiers[i].Price == 0 {
-			selectedTier = &tiers[i]
+	var product *domain.TicketProduct
+	var productDay *domain.TicketProductDay
+	for i := range products {
+		for j := range products[i].Days {
+			d := products[i].Days[j]
+			if d.EventDayID == req.EventDayID && d.IsActive && d.Price == 0 {
+				product = &products[i]
+				productDay = &d
+				break
+			}
+		}
+		if product != nil {
 			break
 		}
 	}
-	if selectedTier == nil {
-		return nil, fmt.Errorf("no free tier is configured to issue these allocated tickets from")
+	if product == nil {
+		return nil, fmt.Errorf("no free ticket is configured to issue these allocated tickets from")
 	}
 
 	// Create ticket with collision protection
@@ -119,17 +131,22 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 	var lastErr error
 
 	for i := 0; i < maxRetries; i++ {
+		productID := product.ID
 		ticket = &domain.Ticket{
-			EventDayID:  req.EventDayID,
-			TierID:      selectedTier.ID,
-			Email:       req.Email,
-			Quantity:    1,
-			UnitPrice:   0,
-			TotalAmount: 0,
-			Status:      domain.TicketStatusPaid,
-			TicketCode:  GenerateTicketCode(),
-			TeamID:      &teamID,
-			Name:        req.Name,
+			ProductID:    &productID,
+			ProductName:  product.Name,
+			PurchaseType: domain.PurchaseTypeSingle,
+			Email:        req.Email,
+			Quantity:     1,
+			Status:       domain.TicketStatusPaid,
+			TicketCode:   GenerateTicketCode(),
+			TeamID:       &teamID,
+			Name:         req.Name,
+			Days: []domain.TicketDay{{
+				EventDayID:   req.EventDayID,
+				ProductDayID: productDay.ID,
+				UnitPrice:    0,
+			}},
 		}
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
@@ -150,51 +167,8 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 		return nil, fmt.Errorf("failed to generate unique ticket code after %d attempts: %w", maxRetries, lastErr)
 	}
 
-	_ = s.tierRepo.IncrementSoldCount(ctx, selectedTier.ID, 1)
-
-	// Populate nested entities for email dispatch
-	ticket.Tier = selectedTier
-	if ed, err := s.eventDayRepo.GetByID(ctx, ticket.EventDayID); err == nil {
-		ticket.EventDay = ed
-	}
-	s.sendTeamTicketEmail(ticket)
+	s.fulfiller.OnTicketPaid(ctx, ticket)
 
 	// Returning the generated ticket
-	return &dto.TicketResponse{
-		ID:          ticket.ID,
-		EventDayID:  ticket.EventDayID,
-		TierID:      ticket.TierID,
-		Email:       ticket.Email,
-		Quantity:    ticket.Quantity,
-		UnitPrice:   ticket.UnitPrice,
-		TotalAmount: ticket.TotalAmount,
-		Status:      string(ticket.Status),
-		TicketCode:  ticket.TicketCode,
-		TierName:    selectedTier.Name,
-		CreatedAt:   ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
-	}, nil
-}
-
-func (s *TeamTicketAllocationService) sendTeamTicketEmail(ticket *domain.Ticket) {
-	if s.emailService == nil || ticket.EventDay == nil || ticket.Tier == nil {
-		return
-	}
-	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Ticket for %s", ticket.EventDay.Title)
-	body := email.PurchaseEmailHTML(
-		ticket.Name,
-		ticket.EventDay.Title,
-		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
-		ticket.EventDay.Venue,
-		ticket.Tier.Name,
-		"N/A", // Phone number (not stored for team allocations)
-		ticket.Quantity,
-		ticket.TotalAmount,
-		ticket.TicketCode,
-	)
-
-	_ = SubmitJob(func() {
-		if err := s.emailService.SendEmail(ticket.Email, subject, body); err != nil {
-			fmt.Printf("Failed to send team ticket email to %s: %v\n", ticket.Email, err)
-		}
-	})
+	return ticketToResponse(ticket), nil
 }

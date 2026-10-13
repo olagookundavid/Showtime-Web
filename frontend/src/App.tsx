@@ -22,6 +22,7 @@ import {
   Standings,
   Stats,
   Tickets,
+  GamePass,
   TicketConfirmation,
   ReferralGenerator,
   Login,
@@ -187,6 +188,11 @@ const AdminStandings = lazy(() =>
 const AdminTickets = lazy(() =>
   import("./pages/admin/AdminTickets").then((m) => ({
     default: m.AdminTickets,
+  })),
+);
+const AdminTicketProducts = lazy(() =>
+  import("./pages/admin/AdminTicketProducts").then((m) => ({
+    default: m.AdminTicketProducts,
   })),
 );
 const AdminEventDays = lazy(() =>
@@ -415,6 +421,7 @@ function App() {
                       {/* Store */}
                       <Route element={<StoreLayout />}>
                         <Route path="/tickets" element={<Tickets />} />
+                        <Route path="/game-pass" element={<GamePass />} />
                         <Route path="/store" element={<Store />} />
                         <Route
                           path="/store/products/:id"
@@ -709,6 +716,14 @@ function App() {
                         element={
                           <FeatureGuard feature="tickets">
                             <AdminTickets />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="ticket-products"
+                        element={
+                          <FeatureGuard feature="tickets">
+                            <AdminTicketProducts />
                           </FeatureGuard>
                         }
                       />

@@ -88,7 +88,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
   const leagueActive = ["/matches", "/standings", "/teams"].some(isActive);
   const statsActive = isActive("/stats");
   const awardsActive = ["/totw", "/potw"].some(isActive);
-  const storeActive = ["/tickets", "/store"].some(isActive);
+  const storeActive = ["/tickets", "/game-pass", "/store"].some(isActive);
 
   const openOnHover = (menu: Menu) => {
     if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
