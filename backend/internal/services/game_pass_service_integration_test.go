@@ -56,12 +56,13 @@ func (f *fakePaystack) handler(w http.ResponseWriter, r *http.Request) {
 }
 
 type gamePassServiceFixture struct {
-	svc      IGamePassService
-	pool     *pgxpool.Pool
-	paystack *fakePaystack
-	tierID   string // season tier
-	dayIDs   []string
-	tag      string
+	svc       IGamePassService
+	pool      *pgxpool.Pool
+	paystack  *fakePaystack
+	tierID    string // season tier; what checkout requests carry as TierID
+	productID string // the ticket product it's matched to by name
+	dayIDs    []string
+	tag       string
 }
 
 func setupGamePassService(t *testing.T, seasonPrice int) *gamePassServiceFixture {
@@ -92,24 +93,26 @@ func setupGamePassService(t *testing.T, seasonPrice int) *gamePassServiceFixture
 		}
 		return id
 	}
+	f.productID = exec(`INSERT INTO ticket_products (name, base_price, allow_game_pass) VALUES ($1, $2, true) RETURNING id`, tierName, seasonPrice)
+	f.tierID = exec(`INSERT INTO season_admission_tiers (name, price) VALUES ($1, $2) RETURNING id`, tierName, seasonPrice)
+
 	base := 30000 + int(seed%20000)*3
 	for i := 0; i < 3; i++ {
 		day := exec(`INSERT INTO event_days (title, date) VALUES ($1, CURRENT_DATE + $2::int) RETURNING id`,
 			fmt.Sprintf("%s Day %d", f.tag, i+1), base+i)
 		f.dayIDs = append(f.dayIDs, day)
-		// The third gameday doesn't sell this tier.
+		// The third gameday doesn't sell this product.
 		if i < 2 {
-			exec(`INSERT INTO ticket_tiers (event_day_id, name, price, capacity) VALUES ($1, $2, 2500, 0) RETURNING id`, day, tierName)
+			exec(`INSERT INTO ticket_product_days (product_id, event_day_id, capacity) VALUES ($1, $2, 0) RETURNING id`, f.productID, day)
 		}
 	}
-	f.tierID = exec(`INSERT INTO season_admission_tiers (name, price) VALUES ($1, $2) RETURNING id`, tierName, seasonPrice)
 
 	f.svc = NewGamePassService(
 		ports.NewSeasonAdmissionTierRepository(pool),
 		ports.NewGamePassDiscountBandRepository(pool),
 		ports.NewGamePassLeadRepository(pool),
 		ports.NewEventDayRepository(pool),
-		ports.NewTicketTierRepository(pool),
+		ports.NewTicketProductRepository(pool),
 		ports.NewGamePassOrderRepository(pool),
 		client,
 		nil, // no email in tests
@@ -118,10 +121,12 @@ func setupGamePassService(t *testing.T, seasonPrice int) *gamePassServiceFixture
 	t.Cleanup(func() {
 		srv.Close()
 		bg := context.Background()
-		_, _ = pool.Exec(bg, `DELETE FROM tickets WHERE event_day_id = ANY($1::uuid[])`, f.dayIDs)
-		_, _ = pool.Exec(bg, `DELETE FROM game_pass_orders WHERE season_tier_id = $1`, f.tierID)
-		_, _ = pool.Exec(bg, `DELETE FROM ticket_tiers WHERE event_day_id = ANY($1::uuid[])`, f.dayIDs)
+		_, _ = pool.Exec(bg, `DELETE FROM ticket_days WHERE event_day_id = ANY($1::uuid[])`, f.dayIDs)
+		_, _ = pool.Exec(bg, `DELETE FROM tickets WHERE product_id = $1`, f.productID)
+		_, _ = pool.Exec(bg, `DELETE FROM game_pass_orders WHERE product_id = $1`, f.productID)
+		_, _ = pool.Exec(bg, `DELETE FROM ticket_product_days WHERE product_id = $1`, f.productID)
 		_, _ = pool.Exec(bg, `DELETE FROM event_days WHERE id = ANY($1::uuid[])`, f.dayIDs)
+		_, _ = pool.Exec(bg, `DELETE FROM ticket_products WHERE id = $1`, f.productID)
 		_, _ = pool.Exec(bg, `DELETE FROM season_admission_tiers WHERE id = $1`, f.tierID)
 		pool.Close()
 	})
@@ -164,8 +169,10 @@ func TestGamePassCheckoutAndWebhook(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	if paid.PaymentStatus != "paid" || len(paid.Tickets) != 4 {
-		t.Fatalf("got status=%s tickets=%d, want paid/4", paid.PaymentStatus, len(paid.Tickets))
+	// One ticket (quantity 2, for the 2 holders) covering 2 gamedays flattens
+	// to 2 day rows in the response.
+	if paid.PaymentStatus != "paid" || len(paid.Tickets) != 2 {
+		t.Fatalf("got status=%s tickets=%d, want paid/2", paid.PaymentStatus, len(paid.Tickets))
 	}
 	for _, tk := range paid.Tickets {
 		if tk.Status != string(domain.TicketStatusPaid) {

@@ -57,16 +57,13 @@ export { fitTeamName } from './fitTeamName';
 export type { FittedName } from './fitTeamName';
 export {
   parseTierPerks,
-  getRepresentativeTierRates,
   seasonTiersToRates,
-  gamePassMatchForTier,
   getGamedaySelectionStatus,
   getBundleDiscountBand,
   calculateGamePassTotals,
 } from './gamedayStore';
 export type {
   RepresentativeTierRate,
-  GamePassTierMatch,
   GamedaySelectionStatus,
   GamedaySelectionResult,
   GamePassTotals,

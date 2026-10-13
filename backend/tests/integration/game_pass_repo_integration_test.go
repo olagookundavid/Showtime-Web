@@ -25,12 +25,12 @@ import (
 )
 
 type gamePassFixture struct {
-	pool      *pgxpool.Pool
-	tag       string
-	dayIDs    []string
-	tierIDs   []string // ticket tier per day, same order as dayIDs
-	seasonID  string
-	orderRepo ports.GamePassOrderRepository
+	pool          *pgxpool.Pool
+	tag           string
+	dayIDs        []string
+	productID     string
+	productDayIDs []string // one per dayIDs, same order
+	orderRepo     ports.GamePassOrderRepository
 }
 
 func setupGamePassFixture(t *testing.T, capacity int) *gamePassFixture {
@@ -48,29 +48,31 @@ func setupGamePassFixture(t *testing.T, capacity int) *gamePassFixture {
 	seed := time.Now().UnixNano() % 1000000
 	f := &gamePassFixture{pool: pool, tag: fmt.Sprintf("GPTest%d", seed), orderRepo: ports.NewGamePassOrderRepository(pool)}
 
+	f.productID = mustScan(t, pool,
+		`INSERT INTO ticket_products (name, base_price, allow_game_pass) VALUES ($1, 2500, true) RETURNING id`, f.tag+" Regular")
+
 	// event_days.date is UNIQUE: spread this run's days out by the seed.
 	base := 5000 + int(seed%20000)*3
 	for i := 0; i < 2; i++ {
 		dayID := mustScan(t, pool,
 			`INSERT INTO event_days (title, date) VALUES ($1, CURRENT_DATE + $2::int) RETURNING id`,
 			fmt.Sprintf("%s Day %d", f.tag, i+1), base+i)
-		tierID := mustScan(t, pool,
-			`INSERT INTO ticket_tiers (event_day_id, name, price, capacity) VALUES ($1, 'Regular', 2500, $2) RETURNING id`,
-			dayID, capacity)
+		productDayID := mustScan(t, pool,
+			`INSERT INTO ticket_product_days (product_id, event_day_id, capacity) VALUES ($1, $2, $3) RETURNING id`,
+			f.productID, dayID, capacity)
 		f.dayIDs = append(f.dayIDs, dayID)
-		f.tierIDs = append(f.tierIDs, tierID)
+		f.productDayIDs = append(f.productDayIDs, productDayID)
 	}
-	f.seasonID = mustScan(t, pool,
-		`INSERT INTO season_admission_tiers (name, price) VALUES ($1, 2000) RETURNING id`, f.tag+" Regular")
 
 	t.Cleanup(func() {
-		// Tickets reference both the order and the tiers; clear them first.
-		mustExec(t, pool, `DELETE FROM tickets WHERE event_day_id = ANY($1::uuid[])`, f.dayIDs)
+		// Tickets reference both the order and the product days; clear them first.
+		mustExec(t, pool, `DELETE FROM ticket_days WHERE event_day_id = ANY($1::uuid[])`, f.dayIDs)
+		mustExec(t, pool, `DELETE FROM tickets WHERE product_id = $1`, f.productID)
 		mustExec(t, pool, `DELETE FROM game_pass_orders WHERE name LIKE $1`, f.tag+"%")
 		mustExec(t, pool, `DELETE FROM game_pass_leads WHERE name LIKE $1`, f.tag+"%")
-		mustExec(t, pool, `DELETE FROM ticket_tiers WHERE event_day_id = ANY($1::uuid[])`, f.dayIDs)
+		mustExec(t, pool, `DELETE FROM ticket_product_days WHERE product_id = $1`, f.productID)
 		mustExec(t, pool, `DELETE FROM event_days WHERE id = ANY($1::uuid[])`, f.dayIDs)
-		mustExec(t, pool, `DELETE FROM season_admission_tiers WHERE id = $1`, f.seasonID)
+		mustExec(t, pool, `DELETE FROM ticket_products WHERE id = $1`, f.productID)
 		pool.Close()
 	})
 	return f
@@ -78,33 +80,29 @@ func setupGamePassFixture(t *testing.T, capacity int) *gamePassFixture {
 
 func (f *gamePassFixture) newOrder(holders int) (*domain.GamePassOrder, []domain.GamePassOrderLine) {
 	ref := domain.GamePassReferencePrefix + strings.ToUpper(fmt.Sprintf("%d", time.Now().UnixNano()))
-	price := domain.PriceGamePass(2000, len(f.dayIDs), holders, []domain.GamePassDiscountBand{
+	price := domain.PriceGamePass(2500, len(f.dayIDs), holders, []domain.GamePassDiscountBand{
 		{MinGamedays: 2, MaxGamedays: nil, DiscountPercent: 5, IsActive: true},
 	})
-	seasonID := f.seasonID
+	productID := f.productID
 	o := &domain.GamePassOrder{
 		Name: f.tag + " Buyer", Email: "buyer@example.invalid", Phone: "080",
-		SeasonTierID: &seasonID, TierName: "Regular", Price: price, PaystackReference: &ref,
+		ProductID: &productID, TierName: "Regular", Price: price, PaystackReference: &ref,
 	}
 	lines := make([]domain.GamePassOrderLine, len(f.dayIDs))
 	for i := range f.dayIDs {
-		lines[i] = domain.GamePassOrderLine{EventDayID: f.dayIDs[i], TicketTierID: f.tierIDs[i]}
+		lines[i] = domain.GamePassOrderLine{EventDayID: f.dayIDs[i], ProductDayID: f.productDayIDs[i], UnitPrice: 2500}
 	}
 	return o, lines
 }
 
-func codes(n int) []string {
-	out := make([]string, n)
-	for i := range out {
-		out[i] = services.GenerateTicketCode()
-	}
-	return out
-}
-
-func soldCount(t *testing.T, pool *pgxpool.Pool, tierID string) int {
+// productDaySold is the seats currently committed on a product day, the same
+// way ticket_repo.go derives it: no stored counter to drift.
+func productDaySold(t *testing.T, pool *pgxpool.Pool, productDayID string) int {
 	t.Helper()
 	var n int
-	if err := pool.QueryRow(context.Background(), `SELECT sold_count FROM ticket_tiers WHERE id = $1`, tierID).Scan(&n); err != nil {
+	if err := pool.QueryRow(context.Background(), `
+		SELECT COALESCE(SUM(t.quantity), 0) FROM ticket_days td JOIN tickets t ON t.id = td.ticket_id
+		WHERE td.product_day_id = $1 AND t.status IN ('PAID', 'USED')`, productDayID).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -114,45 +112,47 @@ func TestGamePassOrderLifecycle(t *testing.T) {
 	f := setupGamePassFixture(t, 3)
 	ctx := context.Background()
 
-	// 2 holders x 2 gamedays: 4 pending tickets, each one seat.
+	// 2 holders x 2 gamedays: one pending ticket, quantity 2, covering both days.
 	order, lines := f.newOrder(2)
-	if err := f.orderRepo.Create(ctx, order, lines, codes(4)); err != nil {
+	if err := f.orderRepo.Create(ctx, order, lines, services.GenerateTicketCode()); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	got, err := f.orderRepo.GetByReference(ctx, *order.PaystackReference)
 	if err != nil {
 		t.Fatalf("get by reference: %v", err)
 	}
-	if got.PaymentStatus != domain.GamePassOrderPending || len(got.Gamedays) != 2 || len(got.Tickets) != 4 {
-		t.Fatalf("got status=%s gamedays=%d tickets=%d, want pending/2/4", got.PaymentStatus, len(got.Gamedays), len(got.Tickets))
+	if got.PaymentStatus != domain.GamePassOrderPending || len(got.Gamedays) != 2 || len(got.Tickets) != 1 {
+		t.Fatalf("got status=%s gamedays=%d tickets=%d, want pending/2/1", got.PaymentStatus, len(got.Gamedays), len(got.Tickets))
 	}
-	sum := 0
-	for _, tk := range got.Tickets {
-		if tk.Status != domain.TicketStatusPending || tk.Quantity != 1 {
-			t.Fatalf("ticket %s: status=%s quantity=%d", tk.TicketCode, tk.Status, tk.Quantity)
-		}
-		sum += tk.TotalAmount
+	ticket := got.Tickets[0]
+	if ticket.Status != domain.TicketStatusPending || ticket.Quantity != 2 || len(ticket.Days) != 2 {
+		t.Fatalf("ticket %s: status=%s quantity=%d days=%d", ticket.TicketCode, ticket.Status, ticket.Quantity, len(ticket.Days))
 	}
-	if sum != order.Price.Total {
-		t.Fatalf("ticket totals sum to %d, order total is %d", sum, order.Price.Total)
+	if ticket.TotalAmount != order.Price.Total {
+		t.Fatalf("ticket total is %d, order total is %d", ticket.TotalAmount, order.Price.Total)
 	}
 
 	// Capacity 3, 2 pending held: a second bundle for 2 holders must not fit.
 	second, lines2 := f.newOrder(2)
-	err = f.orderRepo.Create(ctx, second, lines2, codes(4))
+	err = f.orderRepo.Create(ctx, second, lines2, services.GenerateTicketCode())
 	if !errors.Is(err, appErrors.ErrInvalidGamePassConfig) || !strings.Contains(err.Error(), "only 1") {
 		t.Fatalf("expected a capacity error naming 1 place left, got %v", err)
 	}
 
 	// A single-ticket purchase sees the bundle's pending seats too.
 	ticketRepo := ports.NewTicketRepository(f.pool)
-	single := &domain.Ticket{EventDayID: f.dayIDs[0], TierID: f.tierIDs[0], Email: "x@example.invalid",
-		Quantity: 2, UnitPrice: 2500, TotalAmount: 5000, Status: domain.TicketStatusPending, TicketCode: services.GenerateTicketCode()}
+	single := &domain.Ticket{
+		ProductID: &f.productID, PurchaseType: domain.PurchaseTypeSingle, Email: "x@example.invalid",
+		Quantity: 2, UnitPrice: 2500, Subtotal: 5000, TotalAmount: 5000,
+		Status: domain.TicketStatusPending, TicketCode: services.GenerateTicketCode(),
+		Days: []domain.TicketDay{{EventDayID: f.dayIDs[0], ProductDayID: f.productDayIDs[0], UnitPrice: 2500}},
+	}
 	if err := ticketRepo.Create(ctx, single); err == nil || !strings.Contains(err.Error(), "only 1 remaining") {
 		t.Fatalf("expected single purchase to be refused, got %v", err)
 	}
 
-	// Paying settles once: tickets paid, sold counts up by the holders.
+	// Paying settles once: the ticket is paid, and seats sold (derived) go up
+	// by the holders on both days.
 	changed, err := f.orderRepo.MarkPaid(ctx, order.ID)
 	if err != nil || !changed {
 		t.Fatalf("first MarkPaid: changed=%v err=%v", changed, err)
@@ -161,16 +161,14 @@ func TestGamePassOrderLifecycle(t *testing.T) {
 	if err != nil || changed {
 		t.Fatalf("repeat MarkPaid should be a no-op: changed=%v err=%v", changed, err)
 	}
-	for _, tierID := range f.tierIDs {
-		if n := soldCount(t, f.pool, tierID); n != 2 {
-			t.Fatalf("sold_count = %d, want 2", n)
+	for _, productDayID := range f.productDayIDs {
+		if n := productDaySold(t, f.pool, productDayID); n != 2 {
+			t.Fatalf("sold = %d, want 2", n)
 		}
 	}
 	got, _ = f.orderRepo.GetByID(ctx, order.ID)
-	for _, tk := range got.Tickets {
-		if tk.Status != domain.TicketStatusPaid {
-			t.Fatalf("ticket %s still %s after payment", tk.TicketCode, tk.Status)
-		}
+	if got.Tickets[0].Status != domain.TicketStatusPaid {
+		t.Fatalf("ticket %s still %s after payment", got.Tickets[0].TicketCode, got.Tickets[0].Status)
 	}
 
 	// A paid order can't be failed afterwards.
@@ -187,7 +185,7 @@ func TestGamePassOrderFailureReleasesSeats(t *testing.T) {
 	ctx := context.Background()
 
 	order, lines := f.newOrder(2)
-	if err := f.orderRepo.Create(ctx, order, lines, codes(4)); err != nil {
+	if err := f.orderRepo.Create(ctx, order, lines, services.GenerateTicketCode()); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	if err := f.orderRepo.MarkFailed(ctx, order.ID); err != nil {
@@ -200,7 +198,7 @@ func TestGamePassOrderFailureReleasesSeats(t *testing.T) {
 
 	// The failed order no longer holds the seats.
 	again, lines2 := f.newOrder(2)
-	if err := f.orderRepo.Create(ctx, again, lines2, codes(4)); err != nil {
+	if err := f.orderRepo.Create(ctx, again, lines2, services.GenerateTicketCode()); err != nil {
 		t.Fatalf("seats should be free again after a failed order: %v", err)
 	}
 }
@@ -210,12 +208,12 @@ func TestGamePassOrderTicketCodeCollision(t *testing.T) {
 	ctx := context.Background()
 
 	first, lines := f.newOrder(1)
-	c := codes(2)
-	if err := f.orderRepo.Create(ctx, first, lines, c); err != nil {
+	code := services.GenerateTicketCode()
+	if err := f.orderRepo.Create(ctx, first, lines, code); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	second, lines2 := f.newOrder(1)
-	if err := f.orderRepo.Create(ctx, second, lines2, []string{c[0], services.GenerateTicketCode()}); !errors.Is(err, ports.ErrTicketCodeTaken) {
+	if err := f.orderRepo.Create(ctx, second, lines2, code); !errors.Is(err, ports.ErrTicketCodeTaken) {
 		t.Fatalf("expected ErrTicketCodeTaken, got %v", err)
 	}
 	if _, err := f.orderRepo.GetByReference(ctx, *second.PaystackReference); !errors.Is(err, appErrors.ErrNotFound) {

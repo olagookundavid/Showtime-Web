@@ -22,7 +22,6 @@ import {
   Standings,
   Stats,
   Tickets,
-  GamePass,
   TicketConfirmation,
   GamePassConfirmation,
   ReferralGenerator,

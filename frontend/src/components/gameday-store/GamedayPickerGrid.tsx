@@ -1,11 +1,12 @@
 import { CalendarDaysIcon, CheckIcon, MapPinIcon } from "@heroicons/react/24/outline";
-import type { EventDayResponse } from "../../types";
+import type { EventDayResponse, TicketProductDayResponse } from "../../types";
 import { getGamedaySelectionStatus } from "../../utils";
 
 type Props = {
   eventDays: EventDayResponse[];
-  tierName: string;
   representativeRate: number;
+  /** The matched ticket product's per-day rows (price, capacity, availability). */
+  productDays: TicketProductDayResponse[];
   /** Visual only — selection semantics (replace vs. toggle) are the caller's. */
   mode: "single" | "multi";
   selectedIds: string[];
@@ -21,8 +22,8 @@ const STATUS_COPY: Record<string, string> = {
  *  the currently chosen tier isn't available on it at the representative rate. */
 export const GamedayPickerGrid = ({
   eventDays,
-  tierName,
   representativeRate,
+  productDays,
   mode,
   selectedIds,
   onToggle,
@@ -38,12 +39,12 @@ export const GamedayPickerGrid = ({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {eventDays.map((eventDay) => {
-        const { status, tier } = getGamedaySelectionStatus(eventDay, tierName, representativeRate);
+        const { status, day } = getGamedaySelectionStatus(eventDay, representativeRate, productDays);
         const isSelectable = status === "match";
         const isSelected = selectedIds.includes(eventDay.id);
         const reason =
-          status === "price-mismatch" && tier
-            ? `Priced differently on this date (₦${tier.price.toLocaleString()})`
+          status === "price-mismatch" && day
+            ? `Priced differently on this date (₦${day.price.toLocaleString()})`
             : status !== "match"
               ? STATUS_COPY[status]
               : undefined;

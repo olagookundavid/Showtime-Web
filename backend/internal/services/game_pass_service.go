@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -54,7 +55,7 @@ type GamePassService struct {
 	bandRepo       ports.GamePassDiscountBandRepository
 	leadRepo       ports.GamePassLeadRepository
 	eventDayRepo   ports.EventDayRepository
-	ticketTierRepo ports.TicketTierRepository
+	productRepo    ports.TicketProductRepository
 	orderRepo      ports.GamePassOrderRepository
 	paystack       *PaystackClient
 	email          ports.EmailService
@@ -65,7 +66,7 @@ func NewGamePassService(
 	bandRepo ports.GamePassDiscountBandRepository,
 	leadRepo ports.GamePassLeadRepository,
 	eventDayRepo ports.EventDayRepository,
-	ticketTierRepo ports.TicketTierRepository,
+	productRepo ports.TicketProductRepository,
 	orderRepo ports.GamePassOrderRepository,
 	paystack *PaystackClient,
 	emailService ports.EmailService,
@@ -75,7 +76,7 @@ func NewGamePassService(
 		bandRepo:       bandRepo,
 		leadRepo:       leadRepo,
 		eventDayRepo:   eventDayRepo,
-		ticketTierRepo: ticketTierRepo,
+		productRepo:    productRepo,
 		orderRepo:      orderRepo,
 		paystack:       paystack,
 		email:          emailService,
@@ -313,17 +314,26 @@ func discountBandToResponse(b *domain.GamePassDiscountBand) dto.GamePassDiscount
 // Quote
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// GamePassQuote is a bundle priced server side from the stored season rate and
-// active bands. Anything the buyer saw before this is only a preview.
+// GamePassQuote is a bundle priced server side from the chosen product's
+// per-day prices and the active Game Pass ladder. Anything the buyer saw
+// before this is only a preview.
 type GamePassQuote struct {
-	Tier     domain.SeasonAdmissionTier
-	Gamedays []domain.EventDay
-	Price    domain.GamePassPrice
+	// Tier is the season admission tier the buyer picked — still the
+	// public-facing concept (name, season-wide positioning). Product is the
+	// ticket_products row it's matched to by name, which actually prices and
+	// reserves the pass.
+	Tier    domain.SeasonAdmissionTier
+	Product domain.TicketProduct
+	// Gamedays is in the buyer's selection order; ProductDays is keyed by
+	// EventDayID so Checkout can line each one up without re-querying.
+	Gamedays    []domain.EventDay
+	ProductDays map[string]domain.TicketProductDay
+	Price       domain.GamePassPrice
 }
 
 // quote validates a bundle selection and prices it. The caller sends only the
-// tier, gamedays and holders; every figure comes from the database. Repeated
-// gameday IDs are counted once.
+// season tier, gamedays and holders; every figure comes from the database.
+// Repeated gameday IDs are counted once.
 func (s *GamePassService) quote(ctx context.Context, tierID string, gamedayIDs []string, holders int) (*GamePassQuote, error) {
 	if holders < 1 || holders > domain.MaxGamePassHolders {
 		return nil, appErrors.InvalidGamePassConfig("a Game Pass covers 1 to %d pass holders", domain.MaxGamePassHolders)
@@ -353,6 +363,25 @@ func (s *GamePassService) quote(ctx context.Context, tierID string, gamedayIDs [
 		return nil, appErrors.InvalidGamePassConfig("the %s tier isn't available for Game Pass", tier.Name)
 	}
 
+	// The season tier is matched by name to the ticket product that actually
+	// carries per-day pricing and capacity — the same rule checkout used to
+	// apply per gameday against ticket_tiers, one level up now that products
+	// aren't per-gameday rows.
+	products, err := s.productRepo.ListProducts(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	var product *domain.TicketProduct
+	for i := range products {
+		if products[i].AllowGamePass && strings.EqualFold(strings.TrimSpace(products[i].Name), strings.TrimSpace(tier.Name)) {
+			product = &products[i]
+			break
+		}
+	}
+	if product == nil {
+		return nil, appErrors.InvalidGamePassConfig("the %s tier isn't available for Game Pass", tier.Name)
+	}
+
 	// Same "not in the past" rule single ticket purchases use.
 	today := time.Now().Truncate(24 * time.Hour)
 	gamedays := make([]domain.EventDay, 0, len(ids))
@@ -373,15 +402,49 @@ func (s *GamePassService) quote(ctx context.Context, tierID string, gamedayIDs [
 		gamedays = append(gamedays, *ed)
 	}
 
-	bands, err := s.bandRepo.List(ctx, true)
+	days, err := s.productRepo.GetProductDays(ctx, product.ID, ids)
 	if err != nil {
 		return nil, err
 	}
+	byDay := make(map[string]domain.TicketProductDay, len(days))
+	for _, d := range days {
+		byDay[d.EventDayID] = d
+	}
+
+	dayPrices := make([]int, 0, len(gamedays))
+	for _, ed := range gamedays {
+		d, ok := byDay[ed.ID]
+		if !ok || !d.IsActive {
+			return nil, appErrors.InvalidGamePassConfig("%s doesn't offer %s admission", ed.Title, tier.Name)
+		}
+		dayPrices = append(dayPrices, d.Price)
+	}
+
+	rules, err := s.productRepo.ListGamePassRules(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pricing := PriceTicket(dayPrices, holders, domain.PurchaseTypeGamePass, rules)
+
+	price := domain.GamePassPrice{
+		// Per-day prices can differ (a day's price override); this is an
+		// average for display, the same way the buyer preview rounds it. The
+		// amounts charged (StandardTotal/Total) are always exact.
+		UnitPrice:       pricing.UnitPrice / len(dayPrices),
+		Gamedays:        len(gamedays),
+		Holders:         holders,
+		StandardTotal:   pricing.Subtotal,
+		DiscountPercent: int(math.Round(pricing.GamePassPercent)),
+		DiscountAmount:  pricing.GamePassAmount,
+		Total:           pricing.Total,
+	}
 
 	return &GamePassQuote{
-		Tier:     *tier,
-		Gamedays: gamedays,
-		Price:    domain.PriceGamePass(tier.Price, len(gamedays), holders, bands),
+		Tier:        *tier,
+		Product:     *product,
+		Gamedays:    gamedays,
+		ProductDays: byDay,
+		Price:       price,
 	}, nil
 }
 
@@ -499,49 +562,35 @@ func (s *GamePassService) Checkout(ctx context.Context, req dto.GamePassCheckout
 		return nil, err
 	}
 
-	// Each gameday must sell the chosen tier, matched by name, as a visible
-	// ticket tier: that tier carries the capacity and check-in for the tickets.
+	// Each gameday the pass covers is reserved against the product day the
+	// quote already matched it to.
 	lines := make([]domain.GamePassOrderLine, 0, len(q.Gamedays))
 	for _, ed := range q.Gamedays {
-		tiers, err := s.ticketTierRepo.ListByEventDay(ctx, ed.ID)
-		if err != nil {
-			return nil, err
-		}
-		var match *domain.TicketTier
-		for i := range tiers {
-			if !tiers[i].IsHidden && strings.EqualFold(strings.TrimSpace(tiers[i].Name), strings.TrimSpace(q.Tier.Name)) {
-				match = &tiers[i]
-				break
-			}
-		}
-		if match == nil {
-			return nil, appErrors.InvalidGamePassConfig("%s doesn't offer %s admission", ed.Title, q.Tier.Name)
-		}
-		lines = append(lines, domain.GamePassOrderLine{EventDayID: ed.ID, TicketTierID: match.ID})
+		pd := q.ProductDays[ed.ID]
+		lines = append(lines, domain.GamePassOrderLine{EventDayID: ed.ID, ProductDayID: pd.ID, UnitPrice: pd.Price})
 	}
 
 	reference := domain.GamePassReferencePrefix + strings.ToUpper(uuid.New().String()[:12])
-	tierID := q.Tier.ID
+	productID := q.Product.ID
 	order := &domain.GamePassOrder{
 		Name:              name,
 		Email:             strings.TrimSpace(req.Email),
 		Phone:             phone,
 		UserID:            userID,
-		SeasonTierID:      &tierID,
+		ProductID:         &productID,
 		TierName:          q.Tier.Name,
 		Price:             q.Price,
 		PaystackReference: &reference,
 	}
 
 	// Reserve before talking to Paystack, so a sold-out gameday fails fast and
-	// never leaves an orphan Paystack transaction behind.
+	// never leaves an orphan Paystack transaction behind. One ticket code
+	// covers every holder and every gameday in the pass.
 	const maxAttempts = 5
+	var code string
 	for attempt := 1; ; attempt++ {
-		codes := make([]string, len(lines)*q.Price.Holders)
-		for i := range codes {
-			codes[i] = GenerateTicketCode()
-		}
-		err = s.orderRepo.Create(ctx, order, lines, codes)
+		code = GenerateTicketCode()
+		err = s.orderRepo.Create(ctx, order, lines, code)
 		if !errors.Is(err, ports.ErrTicketCodeTaken) || attempt == maxAttempts {
 			break
 		}
@@ -644,33 +693,22 @@ func (s *GamePassService) settlePaid(ctx context.Context, orderID string) error 
 }
 
 func (s *GamePassService) sendConfirmationEmail(order *domain.GamePassOrder) {
-	if s.email == nil {
+	if s.email == nil || len(order.Tickets) == 0 {
+		return
+	}
+	ticket := order.Tickets[0]
+	if ticket.Status != domain.TicketStatusPaid {
 		return
 	}
 
-	// Group the codes by gameday, in date order.
+	// One code covers every day in the pass.
 	var days []email.GamePassEmailDay
-	index := map[string]int{}
-	for _, t := range order.Tickets {
-		if t.Status != domain.TicketStatusPaid {
-			continue
+	for _, d := range ticket.Days {
+		day := email.GamePassEmailDay{Title: d.Title, Venue: d.Venue, Codes: []string{ticket.TicketCode}}
+		if !d.Date.IsZero() {
+			day.Date = d.Date.Format("Mon, Jan 02 2006")
 		}
-		key := t.EventDayID
-		i, ok := index[key]
-		if !ok {
-			d := email.GamePassEmailDay{}
-			if t.EventDay != nil {
-				d.Title = t.EventDay.Title
-				d.Venue = t.EventDay.Venue
-				if !t.EventDay.Date.IsZero() {
-					d.Date = t.EventDay.Date.Format("Mon, Jan 02 2006")
-				}
-			}
-			days = append(days, d)
-			i = len(days) - 1
-			index[key] = i
-		}
-		days[i].Codes = append(days[i].Codes, t.TicketCode)
+		days = append(days, day)
 	}
 	if len(days) == 0 {
 		return
@@ -756,28 +794,31 @@ func orderToResponse(o *domain.GamePassOrder, withTickets bool) dto.GamePassOrde
 			Venue: ed.Venue,
 		})
 	}
-	if withTickets {
-		for _, t := range o.Tickets {
-			ticket := dto.GamePassOrderTicket{
+	if withTickets && len(o.Tickets) > 0 {
+		// One ticket now covers every day in the pass; flatten its days back
+		// into one row per gameday so admins still see per-day check-in state.
+		t := o.Tickets[0]
+		for _, d := range t.Days {
+			res.Tickets = append(res.Tickets, dto.GamePassOrderTicket{
 				ID:          t.ID,
 				TicketCode:  t.TicketCode,
-				EventDayID:  t.EventDayID,
+				EventDayID:  d.EventDayID,
+				EventTitle:  d.Title,
+				EventDate:   formatDateIfSet(d.Date),
+				EventVenue:  d.Venue,
+				TierName:    o.TierName,
 				Status:      string(t.Status),
 				TotalAmount: t.TotalAmount,
-				CheckedInAt: t.CheckedInAt,
-			}
-			if t.EventDay != nil {
-				ticket.EventTitle = t.EventDay.Title
-				ticket.EventVenue = t.EventDay.Venue
-				if !t.EventDay.Date.IsZero() {
-					ticket.EventDate = t.EventDay.Date.Format("2006-01-02")
-				}
-			}
-			if t.Tier != nil {
-				ticket.TierName = t.Tier.Name
-			}
-			res.Tickets = append(res.Tickets, ticket)
+				CheckedInAt: d.CheckedInAt,
+			})
 		}
 	}
 	return res
+}
+
+func formatDateIfSet(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format("2006-01-02")
 }

@@ -2,7 +2,7 @@ import type {
     EventDayResponse,
     GamePassDiscountBandResponse,
     SeasonAdmissionTierResponse,
-    TicketTierResponse,
+    TicketProductDayResponse,
 } from '../types';
 
 /** One perk per line. Blank lines are dropped. Shared by every tier card. */
@@ -53,100 +53,30 @@ export const seasonTiersToRates = (
     }));
 };
 
-export type GamePassTierMatch = 'match' | 'price-mismatch' | 'none';
-
-/**
- * Whether a gameday's own ticket tier lines up with an active season tier —
- * the same name+price rule GamePassService.Checkout and the public Game Pass
- * picker (getGamedaySelectionStatus below) already apply, mirrored here so
- * the admin Event Days page can show it instead of leaving it invisible.
- */
-export const gamePassMatchForTier = (
-    tier: { name: string; price: number },
-    seasonTiers: SeasonAdmissionTierResponse[],
-): { status: GamePassTierMatch; seasonTier: SeasonAdmissionTierResponse | null } => {
-    const key = tier.name.trim().toLowerCase();
-    const season = seasonTiers.find((s) => s.is_active && s.name.trim().toLowerCase() === key);
-    if (!season) return { status: 'none', seasonTier: null };
-    return { status: season.price === tier.price ? 'match' : 'price-mismatch', seasonTier: season };
-};
-
-export const getRepresentativeTierRates = (
-    eventDays: EventDayResponse[],
-): RepresentativeTierRate[] => {
-    type PriceStat = { price: number; count: number; description: string };
-    const groups = new Map<
-        string,
-        { names: Map<string, number>; prices: Map<number, PriceStat> }
-    >();
-
-    eventDays
-        .filter((day) => day.is_active)
-        .forEach((day) => {
-            (day.tiers ?? []).forEach((tier) => {
-                const key = tier.name.trim().toLowerCase();
-                if (!key) return;
-                const group = groups.get(key) ?? {
-                    names: new Map<string, number>(),
-                    prices: new Map<number, PriceStat>(),
-                };
-                group.names.set(tier.name, (group.names.get(tier.name) ?? 0) + 1);
-                const existing = group.prices.get(tier.price);
-                if (existing) {
-                    existing.count += 1;
-                } else {
-                    group.prices.set(tier.price, {
-                        price: tier.price,
-                        count: 1,
-                        description: tier.description,
-                    });
-                }
-                groups.set(key, group);
-            });
-        });
-
-    const rates: Omit<RepresentativeTierRate, 'isTop'>[] = [];
-
-    groups.forEach((group) => {
-        const bestName = [...group.names.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
-        const bestPrice = [...group.prices.values()].sort(
-            (a, b) => b.count - a.count || a.price - b.price,
-        )[0];
-
-        rates.push({
-            name: bestName,
-            rate: bestPrice?.price ?? 0,
-            description: bestPrice?.description ?? '',
-        });
-    });
-
-    rates.sort((a, b) => a.rate - b.rate);
-    const topRate = rates.length > 1 ? Math.max(...rates.map((r) => r.rate)) : null;
-
-    return rates.map((r) => ({ ...r, isTop: topRate !== null && r.rate === topRate }));
-};
-
-/** Why a given gameday can or can't be picked for the currently selected tier. */
+/** Why a given gameday can or can't be picked for the currently selected tier.
+ *  A Game Pass prices off the season-wide admission tier, matched by name to
+ *  the ticket product that actually carries per-day price and capacity (the
+ *  same match GamePassService.Checkout applies server side) — so this reads
+ *  that product's days, not the gameday itself. */
 export type GamedaySelectionStatus = 'match' | 'price-mismatch' | 'not-offered' | 'sold-out';
 
 export interface GamedaySelectionResult {
     status: GamedaySelectionStatus;
-    /** The real tier row for this gameday, when one exists by that name. */
-    tier: TicketTierResponse | null;
+    /** The matched product's row for this gameday, when one exists. */
+    day: TicketProductDayResponse | null;
 }
 
 export const getGamedaySelectionStatus = (
     eventDay: EventDayResponse,
-    tierName: string,
     representativeRate: number,
+    productDays: TicketProductDayResponse[],
 ): GamedaySelectionResult => {
-    const key = tierName.trim().toLowerCase();
-    const tier = (eventDay.tiers ?? []).find((t) => t.name.trim().toLowerCase() === key) ?? null;
+    const day = productDays.find((d) => d.event_day_id === eventDay.id) ?? null;
 
-    if (!tier) return { status: 'not-offered', tier: null };
-    if (tier.price !== representativeRate) return { status: 'price-mismatch', tier };
-    if (tier.capacity > 0 && tier.available <= 0) return { status: 'sold-out', tier };
-    return { status: 'match', tier };
+    if (!day) return { status: 'not-offered', day: null };
+    if (day.price !== representativeRate) return { status: 'price-mismatch', day };
+    if (day.capacity > 0 && day.available <= 0) return { status: 'sold-out', day };
+    return { status: 'match', day };
 };
 
 /** Active discount bands, sorted by their starting gameday count. */

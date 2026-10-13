@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useOutletContext } from "react-router-dom";
 import {
   getActiveGamePassDiscountBands,
   getActiveSeasonAdmissionTiers,
   getEventDays,
+  getTicketProducts,
 } from "../../services/api";
-import type { EventDayResponse } from "../../types";
+import type { EventDayResponse, TicketProductDayResponse } from "../../types";
 import {
   AdmissionTierPicker,
   DiscountBandTiles,
@@ -16,7 +16,6 @@ import {
   OrderSummarySidebar,
   Spinner,
   StepSectionHeader,
-  type GamedayStoreContext,
 } from "../../components";
 import { MinusIcon, PlusIcon, TicketIcon } from "@heroicons/react/24/outline";
 import { calculateGamePassTotals, seasonTiersToRates } from "../../utils";
@@ -25,13 +24,13 @@ import { GamePassReviewModal } from "./GamePassReviewModal";
 const MIN_GAMEDAYS_FOR_PASS = 2;
 
 export const GamePass = () => {
-  const { appliedCode } = useOutletContext<GamedayStoreContext>();
-
   // A Game Pass bundles multiple gamedays, so it always works off the full
-  // schedule — unlike Tickets, it has no use for `?date=` scoping.
+  // schedule — unlike Tickets, it has no use for `?date=` scoping. Pricing
+  // comes from the season-wide admission tier, not any access-coded product,
+  // so it has no use for an access code either.
   const { data: eventDaysData, isLoading } = useQuery({
-    queryKey: ["publicEventDays", appliedCode],
-    queryFn: () => getEventDays(appliedCode),
+    queryKey: ["publicEventDays"],
+    queryFn: () => getEventDays(),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
@@ -52,6 +51,17 @@ export const GamePass = () => {
   });
   const discountBands = discountBandsData ?? [];
 
+  // The season tier is matched by name to the ticket product that actually
+  // carries per-day price and capacity — the same match checkout applies
+  // server side — so the gameday picker can grey out a day that's sold out
+  // or priced differently instead of only finding out at checkout.
+  const { data: productsData } = useQuery({
+    queryKey: ["publicTicketProducts"],
+    queryFn: () => getTicketProducts(),
+    staleTime: 30_000,
+  });
+  const products = productsData ?? [];
+
   const [selectedTierName, setSelectedTierName] = useState<string | null>(null);
   const [selectedGamedayIds, setSelectedGamedayIds] = useState<string[]>([]);
   const [holders, setHolders] = useState(1);
@@ -63,6 +73,15 @@ export const GamePass = () => {
   );
   const selectedRate =
     representativeRates.find((r) => r.name === selectedTierName) ?? null;
+
+  const matchedProductDays: TicketProductDayResponse[] = useMemo(() => {
+    if (!selectedRate) return [];
+    const key = selectedRate.name.trim().toLowerCase();
+    const product = products.find(
+      (p) => p.allow_game_pass && p.name.trim().toLowerCase() === key,
+    );
+    return product?.days ?? [];
+  }, [products, selectedRate]);
 
   const handleSelectTier = (tierName: string) => {
     setSelectedTierName(tierName);
@@ -130,8 +149,8 @@ export const GamePass = () => {
                 />
                 <GamedayPickerGrid
                   eventDays={eventDays}
-                  tierName={selectedRate.name}
                   representativeRate={selectedRate.rate}
+                  productDays={matchedProductDays}
                   mode="multi"
                   selectedIds={selectedGamedayIds}
                   onToggle={toggleGameday}

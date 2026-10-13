@@ -197,12 +197,18 @@ const GamePassReferencePrefix = "SFFL-GP-"
 
 // GamePassOrder is a bundle purchase. Price is the snapshot taken at checkout.
 type GamePassOrder struct {
-	ID                 string              `json:"id"`
-	Name               string              `json:"name"`
-	Email              string              `json:"email"`
-	Phone              string              `json:"phone"`
-	UserID             *string             `json:"user_id,omitempty"`
-	SeasonTierID       *string             `json:"season_tier_id,omitempty"`
+	ID     string  `json:"id"`
+	Name   string  `json:"name"`
+	Email  string  `json:"email"`
+	Phone  string  `json:"phone"`
+	UserID *string `json:"user_id,omitempty"`
+	// SeasonTierID is legacy: checkout matched a season_admission_tiers row by
+	// name against a ticket_tiers row. Kept for orders placed before the
+	// ticket_products model, no longer written by new checkouts.
+	SeasonTierID *string `json:"season_tier_id,omitempty"`
+	// ProductID is the ticket_products row checkout now matches and reserves
+	// against.
+	ProductID          *string             `json:"product_id,omitempty"`
 	TierName           string              `json:"tier_name"`
 	Price              GamePassPrice       `json:"price"`
 	PaymentStatus      GamePassOrderStatus `json:"payment_status"`
@@ -217,11 +223,12 @@ type GamePassOrder struct {
 	Tickets  []Ticket   `json:"tickets,omitempty"`
 }
 
-// GamePassOrderLine is one gameday in a bundle and the ticket tier on that
-// gameday the order's tickets are issued against (for capacity and check-in).
+// GamePassOrderLine is one gameday in a bundle and the product day on that
+// gameday the order's ticket is reserved and priced against.
 type GamePassOrderLine struct {
 	EventDayID   string
-	TicketTierID string
+	ProductDayID string
+	UnitPrice    int
 }
 
 // SplitGamePassTotal spreads an order total across its n tickets so the
