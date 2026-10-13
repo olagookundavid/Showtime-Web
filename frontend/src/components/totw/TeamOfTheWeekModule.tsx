@@ -105,6 +105,8 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
   }
 
   const players: TOTWPlayer[] = totw.players;
+  // The format's fixed Team of the Week layout, if it has one (5v5 does).
+  const pitchLayout = gameFormatOf(totw.competition).totw.pitch;
   const activePlayer: TOTWPlayer = players[selectedIndex] || players[0];
   const isDefensive = activePlayer.unit === "Defence";
   const isActivePOTW = isPlayerOfTheWeek(totw, activePlayer);
@@ -251,14 +253,20 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               const isPlayerDef = p.unit === "Defence";
               const hasImage = Boolean(p.player?.image);
               const isPOTW = isPlayerOfTheWeek(totw, p);
-              // Ensure symmetrical equal spacing (32% and 68%) for backfield positions matching S1/S2
-              let posX = p.coord_x || "50%";
+              // A format with a fixed layout (5v5) places every player by slot, so
+              // editions saved before a layout change still line up.
+              const spot = pitchLayout?.[p.slot_code || ""];
+              // 7v7: ensure symmetrical equal spacing (32% and 68%) for backfield
+              // positions matching S1/S2.
+              let posX = spot?.x || p.coord_x || "50%";
               if (
+                !spot &&
                 (p.slot_code === "QB" || p.slot_code === "OFF2") &&
                 (posX === "50%" || !p.coord_x)
               ) {
                 posX = "68%";
               } else if (
+                !spot &&
                 (p.slot_code === "FQB" || p.slot_code === "OFF1") &&
                 !p.coord_x
               ) {
@@ -272,7 +280,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   onClick={() => setSelectedIndex(idx)}
                   style={{
                     left: posX,
-                    top: p.coord_y || "50%",
+                    top: spot?.y || p.coord_y || "50%",
                   }}
                   className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 w-12 sm:w-16 md:w-24 p-1 rounded-xl text-center transition-all duration-200 focus:outline-none group cursor-pointer ${
                     isSelected

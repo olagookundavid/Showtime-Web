@@ -265,41 +265,31 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
 const SLOT_OVERRIDES_5V5: Record<string, Partial<TOTWSlotDef>> = {
   QB: {
     label: "Quarterback",
-    coord_x: "50%",
-    coord_y: "86%",
     unit_x: "50%",
     unit_y: "78%",
   },
   // The center and the three receivers line up evenly in one row just behind the
   // line of scrimmage (WR1, center, WR3, WR2), the quarterback centred behind them.
-  C: { coord_x: "38%", coord_y: "58%", unit_x: "38%" },
-  WR1: { coord_y: "58%", unit_x: "14%" },
-  WR2: { coord_y: "58%", unit_x: "86%" },
+  C: { unit_x: "38%" },
+  WR1: { unit_x: "14%" },
+  WR2: { unit_x: "86%" },
   WR3: {
     label: "Wide Receiver 3 (Slot)",
-    coord_x: "62%",
-    coord_y: "58%",
     unit_x: "62%",
     unit_y: "50%",
   },
   DEF1: {
     label: "Cornerback 1",
-    coord_x: "22%",
-    coord_y: "40%",
     unit_x: "22%",
     unit_y: "50%",
   },
   DEF2: {
     label: "Cornerback 2",
-    coord_x: "78%",
-    coord_y: "40%",
     unit_x: "78%",
     unit_y: "50%",
   },
   DEF3: {
     label: "Free Safety",
-    coord_x: "34%",
-    coord_y: "20%",
     unit_x: "34%",
     unit_y: "22%",
     default_stat1_label: "Int",
@@ -308,8 +298,6 @@ const SLOT_OVERRIDES_5V5: Record<string, Partial<TOTWSlotDef>> = {
   },
   DEF4: {
     label: "Strong Safety",
-    coord_x: "66%",
-    coord_y: "20%",
     unit_x: "66%",
     unit_y: "22%",
     default_stat1_label: "Int",
@@ -321,7 +309,10 @@ const SLOT_OVERRIDES_5V5: Record<string, Partial<TOTWSlotDef>> = {
 const SLOT_DEFS_5V5: TOTWSlotDef[] = GAME_FORMATS["5V5"].totw.slotCodes.flatMap(
   (code) => {
     const base = DEFAULT_TOTW_SLOTS.find((s) => s.slot_code === code);
-    return base ? [{ ...base, ...SLOT_OVERRIDES_5V5[code] }] : [];
+    const spot = GAME_FORMATS["5V5"].totw.pitch?.[code];
+    return base
+      ? [{ ...base, ...SLOT_OVERRIDES_5V5[code], ...(spot && { coord_x: spot.x, coord_y: spot.y }) }]
+      : [];
   },
 );
 

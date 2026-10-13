@@ -69,6 +69,13 @@ export interface GameFormatSpec {
     title: string;
     /** Slot codes a Team of the Week edition uses (see AdminTOTW). */
     slotCodes: string[];
+    /**
+     * Where each slot stands on the full Team of the Week pitch, by slot code. When
+     * set, the public pitch and the admin editor both use it instead of the spot
+     * saved with each player, so every edition of the format looks the same, old
+     * ones included. 7v7 keeps the saved spots.
+     */
+    pitch?: Record<string, { x: string; y: string }>;
   };
 }
 
@@ -377,6 +384,21 @@ const SPEC_5V5: GameFormatSpec = {
   totw: {
     title: "Starting X",
     slotCodes: ["QB", "C", "WR1", "WR2", "WR3", "R", "DEF1", "DEF2", "DEF3", "DEF4"],
+    // Attack: WR1, center, WR3, WR2 evenly in one row just behind the line of
+    // scrimmage, the quarterback centred behind them. Defence: rusher on the line,
+    // two corners, two safeties.
+    pitch: {
+      WR1: { x: "14%", y: "58%" },
+      C: { x: "38%", y: "58%" },
+      WR3: { x: "62%", y: "58%" },
+      WR2: { x: "86%", y: "58%" },
+      QB: { x: "50%", y: "86%" },
+      R: { x: "50%", y: "44%" },
+      DEF1: { x: "22%", y: "40%" },
+      DEF2: { x: "78%", y: "40%" },
+      DEF3: { x: "34%", y: "20%" },
+      DEF4: { x: "66%", y: "20%" },
+    },
   },
 };
 
