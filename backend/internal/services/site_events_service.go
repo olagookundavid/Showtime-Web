@@ -254,7 +254,7 @@ func fillDailyGaps(points []dto.SiteDailyPoint, from, to time.Time) []dto.SiteDa
 	for _, p := range points {
 		byDate[p.Date] = p
 	}
-	var out []dto.SiteDailyPoint
+	out := []dto.SiteDailyPoint{}
 	for d := from; d.Before(to); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
 		if p, ok := byDate[key]; ok {

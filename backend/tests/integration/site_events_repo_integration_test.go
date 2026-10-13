@@ -13,6 +13,7 @@ package tests_integration
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -295,5 +296,40 @@ func TestSiteEvents_InsertBatchCopiesEveryColumn(t *testing.T) {
 		WHERE created_at = $1 AND path IS NULL AND ip IS NULL AND country IS NULL AND properties = '{}'::jsonb`,
 		bare.CreatedAt).Scan(&nulls); err != nil || nulls != 1 {
 		t.Errorf("empty strings should be stored as NULL and nil properties as {}: got %d (err %v)", nulls, err)
+	}
+}
+
+// TestSiteEvents_EmptyPeriodListsAreArrays guards the contract the dashboard
+// relies on: a period with no data must return [] for every list, not null.
+// A nil Go slice encodes as null, which crashed the Content & sources tab in
+// production the first time a list (campaigns) had no rows.
+func TestSiteEvents_EmptyPeriodListsAreArrays(t *testing.T) {
+	pool := siteEventsPool(t)
+	svc := services.NewSiteEventsService(ports.NewSiteEventsRepository(pool))
+
+	from, to, err := services.ResolveRange("1999-03-01", "1999-03-07", time.Date(1999, 4, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := svc.Summary(context.Background(), from, to, true)
+	if err != nil {
+		t.Fatalf("Summary: %v", err)
+	}
+	raw, err := json.Marshal(sum)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{
+		"daily", "monthly", "heatmap", "sections", "top_pages", "sources",
+		"campaigns", "countries", "devices", "browsers", "oses", "actions",
+	} {
+		if v := string(fields[key]); v == "" || v == "null" {
+			t.Errorf("%s = %q, want a JSON array", key, v)
+		}
 	}
 }

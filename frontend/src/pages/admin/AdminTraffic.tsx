@@ -28,7 +28,7 @@ import {
 } from '../../components';
 import { downloadSiteTrafficExport, getSiteEvents, getSiteTrafficSummary } from '../../services/api';
 import { getApiErrorMessage, lagosToday } from '../../utils';
-import type { SiteDailyPoint, SiteEvent, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
+import type { SiteBreakdownRow, SiteDailyPoint, SiteEvent, SiteHeatCell, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
 
 type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 type TrafficTab = 'overview' | 'audience' | 'content' | 'events';
@@ -65,6 +65,8 @@ const EVENTS_PAGE_SIZE = 25;
 const NO_EVENTS: SiteEvent[] = [];
 const NO_DAYS: SiteDailyPoint[] = [];
 const NO_MONTHS: SiteMonthlyPoint[] = [];
+const NO_ROWS: SiteBreakdownRow[] = [];
+const NO_CELLS: SiteHeatCell[] = [];
 
 const fullNumber = new Intl.NumberFormat('en-NG');
 const oneDecimal = new Intl.NumberFormat('en-NG', { maximumFractionDigits: 1 });
@@ -521,26 +523,26 @@ export const AdminTraffic = () => {
                             </Panel>
                             <div className="min-w-0 lg:col-span-2">
                                 <Panel title="When people visit" description="Page views by day and hour, Lagos time. Useful for timing posts and sponsor activations.">
-                                    <TrafficHeatmap cells={summary.heatmap ?? []} />
+                                    <TrafficHeatmap cells={summary.heatmap ?? NO_CELLS} />
                                 </Panel>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
-                            <RankedBarList title="Countries" countLabel="views" rows={summary.countries} formatName={countryLabel} />
-                            <RankedBarList title="Devices" countLabel="views" rows={summary.devices} formatName={(n) => n.charAt(0).toUpperCase() + n.slice(1)} />
-                            <RankedBarList title="Browsers" countLabel="views" rows={summary.browsers} />
-                            <RankedBarList title="Operating systems" countLabel="views" rows={summary.oses} />
+                            <RankedBarList title="Countries" countLabel="views" rows={summary.countries ?? NO_ROWS} formatName={countryLabel} />
+                            <RankedBarList title="Devices" countLabel="views" rows={summary.devices ?? NO_ROWS} formatName={(n) => n.charAt(0).toUpperCase() + n.slice(1)} />
+                            <RankedBarList title="Browsers" countLabel="views" rows={summary.browsers ?? NO_ROWS} />
+                            <RankedBarList title="Operating systems" countLabel="views" rows={summary.oses ?? NO_ROWS} />
                         </div>
                     </div>
                 )}
 
                 {summary && tab === 'content' && (
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
-                        <RankedBarList title="Site sections" countLabel="views" rows={summary.sections} />
-                        <RankedBarList title="Top pages" countLabel="views" rows={summary.top_pages} />
-                        <RankedBarList title="Where visits come from" countLabel="visits" rows={summary.sources} emptyMessage="No visits with a known source yet." />
-                        <RankedBarList title="Campaigns" countLabel="visits" rows={summary.campaigns} emptyMessage="No campaign links used yet. Add ?utm_campaign=name to a shared link to see it here." />
-                        <RankedBarList title="Actions taken" countLabel="times" rows={summary.actions} formatName={eventLabel} emptyMessage="No logins, sign-ups or checkouts recorded yet." />
+                        <RankedBarList title="Site sections" countLabel="views" rows={summary.sections ?? NO_ROWS} />
+                        <RankedBarList title="Top pages" countLabel="views" rows={summary.top_pages ?? NO_ROWS} />
+                        <RankedBarList title="Where visits come from" countLabel="visits" rows={summary.sources ?? NO_ROWS} emptyMessage="No visits with a known source yet." />
+                        <RankedBarList title="Campaigns" countLabel="visits" rows={summary.campaigns ?? NO_ROWS} emptyMessage="No campaign links used yet. Add ?utm_campaign=name to a shared link to see it here." />
+                        <RankedBarList title="Actions taken" countLabel="times" rows={summary.actions ?? NO_ROWS} formatName={eventLabel} emptyMessage="No logins, sign-ups or checkouts recorded yet." />
                     </div>
                 )}
             </div>

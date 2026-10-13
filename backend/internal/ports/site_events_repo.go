@@ -173,7 +173,7 @@ func (r *PostgresSiteEventsRepository) Monthly(ctx context.Context, from, to tim
 	}
 	defer rows.Close()
 
-	var out []dto.SiteMonthlyPoint
+	out := []dto.SiteMonthlyPoint{}
 	for rows.Next() {
 		var p dto.SiteMonthlyPoint
 		if err := rows.Scan(&p.Month, &p.PageViews, &p.Visitors, &p.Sessions); err != nil {
@@ -199,7 +199,7 @@ func (r *PostgresSiteEventsRepository) Heatmap(ctx context.Context, from, to tim
 	}
 	defer rows.Close()
 
-	var out []dto.SiteHeatCell
+	out := []dto.SiteHeatCell{}
 	for rows.Next() {
 		var c dto.SiteHeatCell
 		if err := rows.Scan(&c.Weekday, &c.Hour, &c.PageViews); err != nil {
@@ -317,7 +317,7 @@ func (r *PostgresSiteEventsRepository) Daily(ctx context.Context, from, to time.
 	}
 	defer rows.Close()
 
-	var out []dto.SiteDailyPoint
+	out := []dto.SiteDailyPoint{}
 	for rows.Next() {
 		var p dto.SiteDailyPoint
 		if err := rows.Scan(&p.Date, &p.PageViews, &p.Visitors); err != nil {
@@ -345,7 +345,7 @@ func (r *PostgresSiteEventsRepository) Breakdown(ctx context.Context, dim string
 	}
 	defer rows.Close()
 
-	var out []dto.SiteBreakdownRow
+	out := []dto.SiteBreakdownRow{}
 	for rows.Next() {
 		var b dto.SiteBreakdownRow
 		if err := rows.Scan(&b.Name, &b.Count, &b.Visitors); err != nil {
