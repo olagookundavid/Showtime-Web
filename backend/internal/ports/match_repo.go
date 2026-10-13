@@ -24,6 +24,7 @@ type MatchRepository interface {
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
 	DeleteCompetition(ctx context.Context, id string) error
 	AdvanceCupStage(ctx context.Context, competitionID string, from *string, to string, matches []*domain.Match) error
+	AdoptCupMatches(ctx context.Context, competitionID string, round string, matchIDs []string) error
 
 	// Teams
 	GetTeams(ctx context.Context, page, limit int, search string, status string) ([]domain.Team, int64, error)
@@ -258,6 +259,42 @@ func (r *PostgresMatchRepository) AdvanceCupStage(ctx context.Context, competiti
 		`UPDATE competitions SET cup_round = $1, status = CASE WHEN $2 THEN 'completed' ELSE status END, updated_at = NOW() WHERE id = $3`,
 		to, to == domain.CupRoundCompleted, competitionID,
 	); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// AdoptCupMatches starts a cup from matches that were entered by hand rather
+// than drawn: in one transaction it checks the cup hasn't started, tags those
+// matches with `round` and records `round` as the cup's stage. The matches
+// keep their IDs, so their results, play-by-play and stats are untouched.
+func (r *PostgresMatchRepository) AdoptCupMatches(ctx context.Context, competitionID string, round string, matchIDs []string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var current *string
+	if err := tx.QueryRow(ctx, `SELECT cup_round FROM competitions WHERE id = $1 FOR UPDATE`, competitionID).Scan(&current); err != nil {
+		return err
+	}
+	if current != nil && *current != "" {
+		return fmt.Errorf("the cup has already started (now %s); reload and try again", *current)
+	}
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE matches SET round = $1, updated_at = NOW() WHERE competition_id = $2 AND id = ANY($3::uuid[])`,
+		round, competitionID, matchIDs,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != int64(len(matchIDs)) {
+		return fmt.Errorf("expected to tag %d matches as %s, tagged %d; reload and try again", len(matchIDs), round, tag.RowsAffected())
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE competitions SET cup_round = $1, updated_at = NOW() WHERE id = $2`, round, competitionID); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

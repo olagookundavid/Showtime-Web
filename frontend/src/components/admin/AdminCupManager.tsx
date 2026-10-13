@@ -54,7 +54,10 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
 
   const currentRound = cupState?.current_round || 'UNINITIALIZED';
   const isInitialize = currentRound === 'UNINITIALIZED';
-  const needsSchedule = CREATES_FIXTURES.has(currentRound);
+  // Matches entered by hand before the cup started that form a full Round 1:
+  // starting adopts them (dates included), so there's nothing to schedule.
+  const adopting = isInitialize && !!cupState?.adopts_existing_matches;
+  const needsSchedule = CREATES_FIXTURES.has(currentRound) && !adopting;
 
   const onDone = (message: string) => {
     toast.success(message);
@@ -118,7 +121,9 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
     : isFinishing
       ? 'Complete the Cup?'
       : `Advance to ${nextLabel}?`;
-  const confirmDescription = isInitialize
+  const confirmDescription = adopting
+    ? 'The 5 matches already entered become Round 1. Their dates, results, play-by-play and stats stay as they are.'
+    : isInitialize
     ? 'Five Round 1 fixtures will be drawn at random between the 10 teams.'
     : currentRound === 'ROUND_3'
       ? 'The Swiss table is locked. Ranks 9 and 10 are eliminated, and the quarterfinals (1v5, 2v6, 3v7, 4v8), semifinals and Final are created.'
@@ -145,9 +150,9 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
         </div>
 
         <div className="shrink-0">
-          {isInitialize && !isCupCompleted && (
+          {isInitialize && !isCupCompleted && cupState?.can_advance && (
             <Button variant="primary" tone="dark" icon={PlayIcon} onClick={startAction}>
-              Start Cup (Round 1)
+              {adopting ? 'Start Cup from these matches' : 'Start Cup (Round 1)'}
             </Button>
           )}
 
@@ -231,17 +236,15 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
             </span>
           </div>
           <p className="text-sm font-bold text-gray-900 dark:text-white wrap-break-word">
-            {isInitialize
-              ? 'Not started. Enrol exactly 10 active teams, then start the Cup to draw Round 1.'
-              : cupState?.status_message || 'Tournament ready.'}
+            {cupState?.status_message || 'Tournament ready.'}
           </p>
         </div>
 
-        {!isInitialize && !isCupCompleted && (
+        {(!isInitialize || adopting) && !isCupCompleted && (
           <div className="flex items-center gap-4 bg-gray-100 dark:bg-gray-700/60 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 shrink-0">
             <div>
               <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                {roundLabel(currentRound)} matches
+                {adopting ? 'Matches already entered' : `${roundLabel(currentRound)} matches`}
               </div>
               <div className="text-base font-bold text-sffl-navy dark:text-white">
                 {cupState?.matches_finished || 0} / {cupState?.matches_total || 0} finished
@@ -345,6 +348,14 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
             rows={[
               ['Stage', isInitialize ? 'Not started' : roundLabel(currentRound)],
               ['Moves to', nextLabel],
+              ...(adopting
+                ? ([
+                    [
+                      'Matches',
+                      `${cupState?.matches_total ?? 5} already entered, ${cupState?.matches_finished ?? 0} finished`,
+                    ],
+                  ] as [string, string][])
+                : []),
               ...(needsSchedule
                 ? ([
                     ['Date', scheduleDate],
