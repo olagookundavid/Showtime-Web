@@ -15,6 +15,7 @@ import {
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { formatStatNumber, gameFormatOf } from "../../utils";
 import { Button, ButtonLink, Select } from "../ui";
+import { TeamLink } from "../domain";
 
 const isPlayerOfTheWeek = (totw: TeamOfTheWeek, player: TOTWPlayer): boolean =>
   Boolean(
@@ -478,7 +479,16 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 </h3>
 
                 <div className="text-xs md:text-sm font-semibold text-gray-300 wrap-break-word">
-                  {activePlayer.player?.team?.name || "Showtime League"}
+                  {activePlayer.player?.team?.name ? (
+                    <TeamLink
+                      id={activePlayer.player.team.id}
+                      className="hover:text-yellow-300 transition-colors"
+                    >
+                      {activePlayer.player.team.name}
+                    </TeamLink>
+                  ) : (
+                    "Showtime League"
+                  )}
                 </div>
 
                 {/* 3 Key Stats */}

@@ -70,6 +70,7 @@ type POTWNominee struct {
 	Image        string
 	JerseyNumber int
 	Position     string
+	TeamID       string
 	TeamName     string
 	TeamLogo     string
 
@@ -82,6 +83,21 @@ type POTWNominee struct {
 	Stat2Label   string
 	Stat3Value   string
 	Stat3Label   string
+}
+
+// POTWWinner is one Player of the Week award for the public honours list: the
+// edition it was won on, how it was decided and the player's card for that week.
+type POTWWinner struct {
+	TOTWID            string
+	WeekTitle         string
+	CompetitionName   string
+	CompetitionFormat string
+	PollID            *string   // the fan vote, if the edition had one
+	ByFanVote         bool      // chosen by fans; otherwise named by the league office
+	AwardedAt         time.Time // when the vote closed, or when the edition was published
+	TotalVotes        int
+	WinnerVotes       int
+	Player            POTWNominee // Votes and DisplayOrder are unused
 }
 
 // POTWDayCount is how many votes were cast on one day, for the results breakdown.

@@ -1,14 +1,17 @@
-import { useEffect } from 'react';
+import { Fragment, useEffect, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMatchPlays } from '../../services/api';
 import { API_URL } from '../../constants';
-import type { GamePlay } from '../../types';
+import type { GamePlay, PlayPlayer } from '../../types';
 import { Spinner } from '../ui';
+import { PlayerLink } from '../domain';
 import { ClockIcon, FlagIcon } from '@heroicons/react/24/outline';
 import { FootballIcon } from '../icons/FootballIcon';
 import { isScore, isPickSix, isReturnTD, isTurnover, isOneMinWarning, isInjury } from '../../utils';
 
-const who = (p?: { name: string; jersey_number: number }) => (p ? (p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name) : '');
+// A player named in a play, as a link to their profile: "#7 Jane Doe".
+const Who = ({ p }: { p?: PlayPlayer }) =>
+    p ? <PlayerLink id={p.id}>{p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name}</PlayerLink> : null;
 
 // Friendly labels for the codes that matter to a reader. Screen / Hail Mary /
 // Sweep / Reverse are retired play types — no longer enterable — so they're not
@@ -26,31 +29,62 @@ const RESULT_LABEL: Record<string, string> = {
     INC: 'Incomplete', OMW: '1-MINUTE WARNING', '1MW': '1-MINUTE WARNING',
 };
 
-function describe(p: GamePlay): string {
+function describe(p: GamePlay): ReactNode {
     if (p.penalty && !p.play_type) {
-        return `Penalty — ${p.penalty}${p.penalty_player ? ' on ' + who(p.penalty_player) : ''}${p.penalty_yards != null ? ` (${p.penalty_yards} yd)` : ''}`;
+        return (
+            <>
+                Penalty — {p.penalty}
+                {p.penalty_player && (
+                    <>
+                        {' on '}
+                        <Who p={p.penalty_player} />
+                    </>
+                )}
+                {p.penalty_yards != null ? ` (${p.penalty_yards} yd)` : ''}
+            </>
+        );
     }
     // Injury event: the affected player is stored in off_qb. Show their name so
     // the timeline reads e.g. "#7 Jane Doe · [Injury]" instead of a bare label.
     if (p.result === 'IH' && !p.play_type) {
-        return p.off_qb ? who(p.off_qb) : '';
+        return <Who p={p.off_qb} />;
     }
-    const parts: string[] = [];
-    if (p.off_qb) parts.push(who(p.off_qb));
+    const parts: ReactNode[] = [];
+    if (p.off_qb) parts.push(<Who p={p.off_qb} />);
     if (p.target) {
-        if (isReturnTD(p)) {
-            parts.push(`Return TD: ${who(p.target)}`);
-        } else {
-            parts.push(`to ${who(p.target)}`);
-        }
+        parts.push(
+            <>
+                {isReturnTD(p) ? 'Return TD: ' : 'to '}
+                <Who p={p.target} />
+            </>,
+        );
     }
     if (p.batted_down) {
         const batter = p.rusher || p.defender;
-        parts.push(`— batted down${batter ? ` by ${who(batter)}` : ''}`);
+        parts.push(
+            <>
+                — batted down
+                {batter && (
+                    <>
+                        {' by '}
+                        <Who p={batter} />
+                    </>
+                )}
+            </>,
+        );
     } else if (p.defender) {
-        parts.push(`(${who(p.defender)})`);
+        parts.push(
+            <>
+                (<Who p={p.defender} />)
+            </>,
+        );
     }
-    return parts.join(' ');
+    return parts.map((part, i) => (
+        <Fragment key={i}>
+            {i > 0 && ' '}
+            {part}
+        </Fragment>
+    ));
 }
 
 const formatDown = (p: GamePlay): string => {
@@ -202,7 +236,18 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                                     : 'text-gray-400'
                                                 }`}>
                                                     · [{
-                                                        p.play_type === 'BADSNAP' ? `Bad Snap${p.center ? ` - ${who(p.center)}` : ''}${p.result === 'SAF' ? ' · SAFETY' : p.result === 'TO' ? ' · Turnover on downs' : ''}`
+                                                        p.play_type === 'BADSNAP' ? (
+                                                            <>
+                                                                Bad Snap
+                                                                {p.center && (
+                                                                    <>
+                                                                        {' - '}
+                                                                        <Who p={p.center} />
+                                                                    </>
+                                                                )}
+                                                                {p.result === 'SAF' ? ' · SAFETY' : p.result === 'TO' ? ' · Turnover on downs' : ''}
+                                                            </>
+                                                        )
                                                             : isPickSix(p) ? 'Defensive Touchdown'
                                                             : isReturnTD(p) ? 'Return Touchdown'
                                                             : (p.result === 'XPF' && p.returned_for_td) ? 'Defensive Extra Point'

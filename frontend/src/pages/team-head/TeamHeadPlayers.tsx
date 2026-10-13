@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { isDeletedPlayer, deletedRowClass, DeletedPlayerName, Button, Field, Input, LightboxImage, ImageUploadField, Select, RichTextEditor, PlayerPriceHistoryModal, DashboardPageHeader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, useTeamHeadTeam } from '../../components';
+import { isDeletedPlayer, deletedRowClass, DeletedPlayerName, Button, Field, Input, LightboxImage, ImageUploadField, Select, RichTextEditor, PlayerPriceHistoryModal, DashboardPageHeader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, useTeamHeadTeam, PlayerLink } from '../../components';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api, { moveToReserve, graduatePlayer, getTeamRosterSummary } from '../../services/api';
@@ -198,7 +198,9 @@ const TeamHeadPlayers = () => {
                             {deleted ? (
                                 <DeletedPlayerName name={p.name} deleted showLabel className="font-semibold text-sm" />
                             ) : (
-                                <span className="font-semibold text-sm text-gray-900 dark:text-white wrap-break-word">{p.name}</span>
+                                <PlayerLink id={p.id} className="font-semibold text-sm text-gray-900 dark:text-white wrap-break-word">
+                                    {p.name}
+                                </PlayerLink>
                             )}
                             {p.email && <span className="text-xs text-gray-400 truncate max-w-45">{p.email}</span>}
                         </div>

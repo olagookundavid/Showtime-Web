@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ChevronRightIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { LightboxImage, DashboardPageHeader, TEAM_HEAD_NAV_SECTIONS, useTeamHeadTeam } from '../../components';
+import { LightboxImage, DashboardPageHeader, TEAM_HEAD_NAV_SECTIONS, useTeamHeadTeam, TeamLink } from '../../components';
 
 // Every page but this one, straight from the sidebar, so the two never disagree.
 const QUICK_ACTIONS = TEAM_HEAD_NAV_SECTIONS.flatMap(s => s.links).filter(l => !l.end);
@@ -39,7 +39,9 @@ const TeamHeadOverview = () => {
                             </div>
                         )}
                         <div className="min-w-0">
-                            <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white wrap-break-word">{team.name}</h2>
+                            <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white wrap-break-word">
+                        <TeamLink id={team.id}>{team.name}</TeamLink>
+                    </h2>
                             <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{team.short_name}</span>
                         </div>
                     </div>

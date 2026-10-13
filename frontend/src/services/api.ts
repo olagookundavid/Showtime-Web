@@ -93,6 +93,7 @@ import type {
   SaveTOTWPayload,
   POTWPoll,
   POTWPollSummary,
+  POTWWinner,
   SavePOTWPollPayload,
   TeamManager,
   ManagerCandidate,
@@ -3440,6 +3441,12 @@ export const getPOTWPoll = async (pollId: string): Promise<POTWPoll> => {
 export const getPOTWPolls = async (): Promise<POTWPollSummary[]> => {
   const res = await api.get<{ data: POTWPollSummary[] }>("/potw");
   return res.data.data || [];
+};
+
+/** Every Player of the Week, newest first: fan-vote winners and league office picks. */
+export const getPOTWWinners = async (): Promise<POTWWinner[]> => {
+  const res = await api.get<{ data: POTWWinner[] }>("/potw/winners");
+  return res.data.data ?? [];
 };
 
 export const voteForPOTW = async (

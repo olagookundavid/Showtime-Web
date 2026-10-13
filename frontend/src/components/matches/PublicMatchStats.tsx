@@ -1,9 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicMatchStats } from '../../services/api';
-import type { TeamStat } from '../../types';
+import type { PlayerStat, TeamStat } from '../../types';
 import { StatsTable } from '../stats/StatsTable';
 import { Button, Select, Spinner } from '../ui';
+
+// A stable empty list, so memos keyed on the stats don't rerun every render.
+const NO_STATS: PlayerStat[] = [];
 
 export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
@@ -17,7 +20,7 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
         enabled: !!matchId,
     });
 
-    const derived = useMemo(() => data?.derived || data?.current || [], [data?.derived, data?.current]);
+    const derived = data?.derived || data?.current || NO_STATS;
 
     // Extract unique teams involved in this match from derived player stats
     const teamsList = useMemo(() => {

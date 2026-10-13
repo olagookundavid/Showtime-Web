@@ -22,7 +22,7 @@ import type {
   CreateBadgePayload,
   EventDayResponse,
 } from "../../types";
-import { Loader, Spinner, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Modal, Select, RichTextEditor, BadgeImage, DashboardPageHeader } from "../../components";
+import { Loader, Spinner, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Modal, Select, RichTextEditor, BadgeImage, DashboardPageHeader, PlayerLink } from "../../components";
 import { getApiErrorMessage, htmlToPlainText } from "../../utils";
 import {
   CheckIcon,
@@ -1103,7 +1103,7 @@ export const AdminBadges = () => {
                     </div>
                     <div className="min-w-0">
                       <div className="font-black text-sm text-sffl-navy dark:text-white truncate">
-                        {selectedPlayer.name}
+                        <PlayerLink id={selectedPlayer.id}>{selectedPlayer.name}</PlayerLink>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {selectedPlayer.position} •{" "}

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { AdminPOTWPanel, potwPollQueryKey, Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, FemaleIcon, MaleIcon, ImageUploadField, Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea, RichTextEditor, DashboardPageHeader } from "../../components";
+import { AdminPOTWPanel, potwPollQueryKey, Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, FemaleIcon, MaleIcon, ImageUploadField, Button, Checkbox, Field, IconButton, Input, Modal, Select, Textarea, RichTextEditor, DashboardPageHeader, PlayerLink } from "../../components";
 import {
   getAdminTOTWs,
   getAdminTOTWById,
@@ -438,6 +438,7 @@ const STAT_LABEL_KEYS: Record<string, string> = {
   catches: "catches",
   "rec yds": "rec_yards",
   "rec td": "rec_td",
+  drops: "drops",
   sacks: "sacks",
   "flag pulls": "flag_pulls",
   tackles: "flag_pulls",
@@ -2217,9 +2218,9 @@ export const AdminTOTW = () => {
                         </div>
                         <div className="min-w-0">
                           <div className="text-lg font-black text-sffl-navy dark:text-white flex flex-wrap items-center gap-2">
-                            <span className="wrap-break-word">
+                            <PlayerLink id={activeSlot.player_id} className="wrap-break-word">
                               {activeSlot.player_name}
-                            </span>
+                            </PlayerLink>
                             {activeSlot.is_player_of_the_week && (
                               <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-400 to-yellow-300 text-sffl-navy border border-amber-200 shadow-sm flex items-center gap-1">
                                 <StarIcon

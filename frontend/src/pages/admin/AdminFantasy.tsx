@@ -48,7 +48,7 @@ import type {
     PayoutStatus,
     PrizeAward,
 } from '../../types';
-import { Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Pagination, DashboardPageHeader, Button, Field, IconButton, Input, Modal, Select } from '../../components';
+import { Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Pagination, DashboardPageHeader, Button, Field, IconButton, Input, Modal, Select, PlayerLink } from '../../components';
 import { getApiErrorMessage } from '../../utils';
 import { usePermissions } from '../../hooks';
 
@@ -2386,9 +2386,9 @@ function PricingTab({ seasonId }: { seasonId: string }) {
                         </div>
                     )}
                     <div className="min-w-0">
-                        <span className="font-bold text-gray-900 dark:text-white block truncate">
+                        <PlayerLink id={p.player_id} className="font-bold text-gray-900 dark:text-white block truncate">
                             {p.player_name}
-                        </span>
+                        </PlayerLink>
                         <span className="text-[10px] text-gray-400 dark:text-gray-500">
                             Rating: {p.rating ? p.rating.toFixed(1) : '5.0'}
                         </span>

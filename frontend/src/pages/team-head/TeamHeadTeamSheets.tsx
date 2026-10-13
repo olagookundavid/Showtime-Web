@@ -25,7 +25,7 @@ import {
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
-import { DashboardPageHeader, Button, Input, Select, ConfirmDialog, ConfirmSummary, Modal, Spinner, useTeamHeadTeam } from "../../components";
+import { DashboardPageHeader, Button, Input, Select, ConfirmDialog, ConfirmSummary, Modal, Spinner, useTeamHeadTeam, TeamLink } from "../../components";
 import { getApiErrorMessage, formatMatchDate, formatMatchTime, isMatchLocked, getMatchLockCountdown, gameFormatOfCompetitionFormat, schemeFor, validCoverage, buildAutoFillLineup } from "../../utils";
 
 interface ClubPlayer {
@@ -1075,7 +1075,7 @@ export const TeamHeadTeamSheets = () => {
         title="Team Sheets"
         subtitle={
           <>
-            Set <span className="font-bold">{team.name}</span>'s starting units
+            Set <TeamLink id={team.id} className="font-bold">{team.name}</TeamLink>'s starting units
             ({format.offenseSize} attack, {format.defenseSize} defence), coverage scheme and substitutes for each
             match.
           </>

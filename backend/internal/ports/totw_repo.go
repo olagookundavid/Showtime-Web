@@ -476,6 +476,15 @@ func (r *PostgresTOTWRepository) PublishTOTW(ctx context.Context, id string, isP
 
 // GetPlayerDayStats auto-aggregates key box-score stats for a player on an event day
 func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID string, eventDayID string) (map[string]string, error) {
+	return playerDayStats(ctx, r.db, playerID, eventDayID, nil)
+}
+
+// playerDayStats sums a player's box score over the matches of an event day (or,
+// with no event day, of the given date) and returns it keyed for the Team of the
+// Week stat lines (see domain.LiveStatLines), plus a computed "rating" and
+// suggested stat lines (stat1_lbl/stat1_val ...). It returns an empty map when the
+// player has no stats recorded that day.
+func playerDayStats(ctx context.Context, q potwQuerier, playerID string, eventDayID string, day *time.Time) (map[string]string, error) {
 	result := make(map[string]string)
 
 	query := `
@@ -509,13 +518,14 @@ func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID
 			COALESCE(SUM(ps.xp_good), 0)
 		FROM player_stats ps
 		JOIN matches m ON ps.match_id = m.id
-		WHERE ps.player_id = $1::uuid 
-		  AND (m.event_day_id = $2::uuid OR m.date::date = (SELECT ed.date::date FROM event_days ed WHERE ed.id = $2::uuid))
+		WHERE ps.player_id = $1::uuid
+		  AND (m.event_day_id = NULLIF($2, '')::uuid
+		       OR m.date::date = COALESCE((SELECT ed.date::date FROM event_days ed WHERE ed.id = NULLIF($2, '')::uuid), $3::date))
 	`
 	var line domain.RatingStatLine
 	var recYards, statRows int
 
-	err := r.db.QueryRow(ctx, query, playerID, eventDayID).Scan(
+	err := q.QueryRow(ctx, query, playerID, eventDayID, day).Scan(
 		&statRows,
 		&line.CompletedPasses,
 		&line.PassingAttempts,
@@ -568,6 +578,7 @@ func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID
 	result["rec_yards"] = strconv.Itoa(recYards)
 	result["rec_td"] = strconv.Itoa(line.ReceivingTDs)
 	result["flag_pulls"] = strconv.Itoa(line.FlagPulls)
+	result["drops"] = strconv.Itoa(line.Drops)
 	if line.PassingAttempts > 0 {
 		result["cmp_pct"] = fmt.Sprintf("%d%%", line.CompletedPasses*100/line.PassingAttempts)
 	} else {
@@ -579,7 +590,7 @@ func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID
 
 	// Fetch player position to calculate accurate rating
 	var position string
-	_ = r.db.QueryRow(ctx, `SELECT COALESCE(position, '-') FROM players WHERE id = $1::uuid`, playerID).Scan(&position)
+	_ = q.QueryRow(ctx, `SELECT COALESCE(position, '-') FROM players WHERE id = $1::uuid`, playerID).Scan(&position)
 
 	if res := domain.RateByPosition(position, line); res != nil && res.Status != domain.RatingStatusUnrated {
 		result["rating"] = fmt.Sprintf("%.1f", res.FinalRating)

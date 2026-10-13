@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getPublicMatchStats } from "../../services/api";
 import type { Match, MatchTeamSheet, TeamSheetPlayer, PitchStarterNode } from "../../types";
-import { isDeletedPlayer, DELETED_TITLE } from "../domain/DeletedPlayer";
+import { isDeletedPlayer, DELETED_TITLE, TeamLink } from "../domain";
 import {
   ArrowDownIcon,
   ArrowPathIcon,
@@ -855,7 +855,7 @@ export const MatchTeamSheetTab = ({
           <div className="p-4 md:p-5 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
               <h3 className="min-w-0 wrap-break-word text-base font-black text-sffl-navy dark:text-white uppercase tracking-tight">
-                {activeTeam?.name} Team Sheet Roster
+                <TeamLink id={activeTeam?.id}>{activeTeam?.name}</TeamLink> Team Sheet Roster
               </h3>
               <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full">
                 {displayedList.length} Players
@@ -996,10 +996,16 @@ export const MatchTeamSheetTab = ({
               </div>
               <div className="min-w-0">
                 <h4 className="text-base font-black text-sffl-navy dark:text-white truncate">
-                  {modalPlayer.player.name}
+                  <Link
+                    to={getPlayerProfileLink(modalPlayer.player.player_id)}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {modalPlayer.player.name}
+                  </Link>
                 </h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold truncate">
-                  {activeTeam?.name} · #{modalPlayer.player.jersey_number}
+                  <TeamLink id={activeTeam?.id}>{activeTeam?.name}</TeamLink> · #
+                  {modalPlayer.player.jersey_number}
                 </p>
                 <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                   {modalPlayer.assignedRole}

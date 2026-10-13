@@ -6,6 +6,7 @@ export interface POTWNominee {
     image?: string;
     jersey_number: number;
     position: string;
+    team_id?: string;
     team_name?: string;
     team_logo?: string;
     display_order: number;
@@ -58,6 +59,23 @@ export interface POTWPollSummary {
     winner_player_id?: string;
     winner_name?: string;
     winner_source?: 'VOTE' | 'ADMIN';
+}
+
+/** One award on the public Player of the Week honours list. */
+export interface POTWWinner {
+    totw_id: string;
+    /** The fan vote, when the edition had one. */
+    poll_id?: string;
+    week_title: string;
+    competition_name?: string;
+    competition_format?: string;
+    /** VOTE: chosen by fans. ADMIN: named by the league office. */
+    source: 'VOTE' | 'ADMIN';
+    /** When the vote closed, or when the edition was published. */
+    awarded_at: string;
+    /** The winner's share of the fan vote, when chosen by fans. */
+    share_percent?: number;
+    player: POTWNominee;
 }
 
 export interface SavePOTWPollPayload {

@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMatches } from "../../services/api";
 import type { Match, BracketColumn } from "../../types";
 import { Spinner } from "../ui";
+import { TeamLink } from "../domain";
 
 /**
  * Knockout bracket for a KNOCKOUT-format competition.
@@ -354,9 +355,9 @@ export const ChampionCard = ({
           <div className="text-[9px] font-black uppercase tracking-widest opacity-70">
             Champion
           </div>
-          <div className="font-black text-sm uppercase truncate">
+          <TeamLink id={team.id} className="block font-black text-sm uppercase truncate">
             {team.name}
-          </div>
+          </TeamLink>
         </div>
       </div>
     );
@@ -383,9 +384,12 @@ export const ChampionCard = ({
             {(team.short_name || team.name.substring(0, 3)).toUpperCase()}
           </div>
         )}
-        <div className="font-black text-base md:text-lg uppercase tracking-tight text-amber-900 dark:text-amber-200 leading-tight">
+        <TeamLink
+          id={team.id}
+          className="block font-black text-base md:text-lg uppercase tracking-tight text-amber-900 dark:text-amber-200 leading-tight"
+        >
           {team.name}
-        </div>
+        </TeamLink>
         <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-400">
           <TrophyIcon className="w-4 h-4" aria-hidden="true" />
           Winner

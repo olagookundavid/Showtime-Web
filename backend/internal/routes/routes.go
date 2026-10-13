@@ -1023,6 +1023,7 @@ func SetupTOTWRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		optional := commonAuth.OptionalTokenMiddleware(app.TokenMaker)
 		potwRoutes.GET("", app.Handlers.POTWHandler.ListPolls)
+		potwRoutes.GET("/winners", app.Handlers.POTWHandler.ListWinners)
 		potwRoutes.GET("/current", optional, app.Handlers.POTWHandler.GetCurrentPoll)
 		potwRoutes.GET("/:id", optional, app.Handlers.POTWHandler.GetPoll)
 		// One vote per account is enforced in the database; these caps stop a
