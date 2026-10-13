@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -207,6 +207,11 @@ const AdminCompetitionTeams = lazy(() =>
     default: m.AdminCompetitionTeams,
   })),
 );
+const AdminTraffic = lazy(() =>
+  import("./pages/admin/AdminTraffic").then((m) => ({
+    default: m.AdminTraffic,
+  })),
+);
 const AdminAnalytics = lazy(() =>
   import("./pages/admin/AdminAnalytics").then((m) => ({
     default: m.AdminAnalytics,
@@ -338,10 +343,12 @@ function App() {
             <BrowserRouter>
               <ScrollToTop />
               <AdSenseScript />
-              {/* Visitor analytics. Both render null; see config/analytics.ts for
-                  why there are two and what each one is actually good for. */}
+              {/* Visitor analytics. All render null. Vercel and Brevo are third-party
+                  (see config/analytics.ts); PageViewTracker feeds our own database
+                  and the admin Traffic page (see docs/analytics/README.md). */}
               <Analytics />
               <BrevoTracker />
+              <PageViewTracker />
               <ErrorBoundary>
                 <Suspense fallback={<Loader />}>
                   <Routes>
@@ -581,6 +588,14 @@ function App() {
                         element={
                           <FeatureGuard feature="dashboard">
                             <AdminAnalytics />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="traffic"
+                        element={
+                          <FeatureGuard feature="dashboard">
+                            <AdminTraffic />
                           </FeatureGuard>
                         }
                       />

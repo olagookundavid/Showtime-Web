@@ -403,7 +403,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub, services.ISiteEventsService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -416,6 +416,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	ticketRepo := ports.NewTicketRepository(pool)
 	tmRepo := ports.NewTeamManagerRepository(pool)
 	analyticsRepo := ports.NewAnalyticsRepository(pool)
+	siteEventsRepo := ports.NewSiteEventsRepository(pool)
 	tmAllocRepo := ports.NewTeamTicketAllocationRepository(pool)
 	statsRepo := ports.NewStatsRepository(pool)
 	inventoryRepo := ports.NewInventoryRepository(pool)
@@ -471,6 +472,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService, discountService, discountRepo)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
+	siteEventsService := services.NewSiteEventsService(siteEventsRepo)
 	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, tierRepo, eventDayRepo, emailService)
 	statsService := services.NewStatsService(statsRepo, matchRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo)
@@ -506,6 +508,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	ticketHandler := transport.NewTicketHandler(ticketService, paystackClient)
 	tmHandler := transport.NewTeamManagerHandler(tmService, matchService)
 	analyticsHandler := transport.NewAnalyticsHandler(analyticsService)
+	siteEventsHandler := transport.NewSiteEventsHandler(siteEventsService)
 	tmAllocHandler := transport.NewTeamTicketAllocationHandler(tmAllocService)
 	statsHandler := transport.NewStatsHandler(statsService)
 	inventoryHandler := transport.NewInventoryHandler(inventoryService)
@@ -561,7 +564,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 
 	h := handlers.NewHandlers(
 		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
-		ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler,
+		ticketHandler, tmHandler, analyticsHandler, siteEventsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, storeHandler, importHandler,
 		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
@@ -569,5 +572,5 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
 		badgeHandler, totwHandler, potwHandler, broadcastHandler,
 	)
-	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub
+	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService
 }

@@ -23,6 +23,7 @@ type Application struct {
 	Wg                 sync.WaitGroup
 	TokenMaker         token.Maker
 	AuditService       services.IAuditService
+	SiteEventsService  services.ISiteEventsService
 	AuthService        services.IAuthService
 	TeamManagerService services.ITeamManagerService
 	TicketService         *services.TicketService

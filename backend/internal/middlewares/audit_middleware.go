@@ -30,6 +30,13 @@ func AuditLoggerMiddleware(auditService services.IAuditService) gin.HandlerFunc 
 			return
 		}
 
+		// The analytics beacon fires on every page view; auditing it would bury
+		// the real audit trail and duplicate what site_events already stores.
+		if c.FullPath() == "/api/v1/events" {
+			c.Next()
+			return
+		}
+
 		// Read request body non-destructively
 		var bodyBytes []byte
 		if c.Request.Body != nil {

@@ -72,6 +72,7 @@ func Routes(app *api.Application) *gin.Engine {
 	// Register all subroutes
 	SetupAuthRoutes(v1_api, app)
 	SetupAdminRoutes(v1_api, app)
+	SetupSiteEventRoutes(v1_api, app)
 	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
 	// SetupGalleryRoutes(v1_api, app) // Disabled gallery
@@ -215,6 +216,16 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	analyticsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "dashboard"))
 	{
 		analyticsGroup.GET("", app.Handlers.AnalyticsHandler.GetAnalytics)
+	}
+
+	// Visitor traffic. Same "dashboard" feature as the sales analytics above,
+	// which is admin/app_admin only — other team members get CSV exports.
+	siteAnalyticsGroup := adminRoutes.Group("/site-analytics")
+	siteAnalyticsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "dashboard"))
+	{
+		siteAnalyticsGroup.GET("/summary", app.Handlers.SiteEventsHandler.GetSummary)
+		siteAnalyticsGroup.GET("/events", app.Handlers.SiteEventsHandler.ListEvents)
+		siteAnalyticsGroup.GET("/export", app.Handlers.SiteEventsHandler.Export)
 	}
 
 	newsGroup := adminRoutes.Group("/news")
@@ -591,8 +602,8 @@ func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 			// Sign-ups are also capped per IP per hour: each extra account is a way
 			// to vote again in fan polls. 10/hour leaves room for a family or a
 			// venue's wifi sharing one address.
-			limitedAuth.POST("/register", middlewares.WindowLimit("sign-up", 10, time.Hour, middlewares.ByIP), app.Handlers.AuthHandler.Register)
-			limitedAuth.POST("/login", app.Handlers.AuthHandler.Login)
+			limitedAuth.POST("/register", middlewares.WindowLimit("sign-up", 10, time.Hour, middlewares.ByIP), app.Handlers.SiteEventsHandler.TrackOnSuccess("signup"), app.Handlers.AuthHandler.Register)
+			limitedAuth.POST("/login", app.Handlers.SiteEventsHandler.TrackOnSuccess("login"), app.Handlers.AuthHandler.Login)
 			limitedAuth.POST("/forgot-password", app.Handlers.AuthHandler.SendPasswordResetOTP)
 			// reset-password MUST be rate-limited — it's the OTP brute-force surface.
 			limitedAuth.POST("/reset-password", app.Handlers.AuthHandler.ResetPassword)
@@ -733,7 +744,7 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 			// Optional auth: guests still buy tickets, but a signed-in buyer is
 			// recognised so members-only discount codes work and the ticket is
 			// linked to their account.
-			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.TicketHandler.Purchase)
+			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
 		}
 
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
@@ -773,7 +784,7 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 		// guest checkouts to go through unauthenticated.
 		limited := storeRoutes.Group("", commonAuth.RateLimit(rls), commonAuth.OptionalTokenMiddleware(app.TokenMaker))
 		{
-			limited.POST("/checkout", app.Handlers.StoreHandler.Checkout)
+			limited.POST("/checkout", app.Handlers.SiteEventsHandler.TrackOnSuccess("store_checkout_started"), app.Handlers.StoreHandler.Checkout)
 			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
 		}
 
@@ -1032,4 +1043,11 @@ func SetupBadgeRoutes(r *gin.RouterGroup, app *api.Application) {
 		badgeRoutes.GET("/:id", app.Handlers.BadgeHandler.GetBadgeByID)
 		badgeRoutes.GET("/players/:id", app.Handlers.BadgeHandler.GetPlayerBadges)
 	}
+}
+
+// SetupSiteEventRoutes registers the public analytics beacon. It is capped per
+// IP so one noisy client can't flood the table, and it is the only analytics
+// route that needs no login — everything that reads the data is under /admin.
+func SetupSiteEventRoutes(r *gin.RouterGroup, app *api.Application) {
+	r.POST("/events", middlewares.WindowLimit("site-events", 120, time.Minute, middlewares.ByIP), app.Handlers.SiteEventsHandler.Track)
 }

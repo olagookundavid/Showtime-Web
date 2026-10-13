@@ -27,6 +27,7 @@ import {
   Cog6ToothIcon,
   GiftIcon,
   VideoCameraIcon,
+  GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import {
   Squares2X2Icon as SquaresSolid,
@@ -73,6 +74,7 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
         path: "/admin/analytics",
         icon: PresentationChartLineIcon,
       },
+      { name: "Traffic", path: "/admin/traffic", icon: GlobeAltIcon },
     ],
   },
   {
