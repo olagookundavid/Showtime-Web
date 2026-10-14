@@ -1,44 +1,26 @@
-import { useNavigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
 import { useAuth } from "../../contexts";
 import { DashboardShell, adminBottomNavFor, adminSectionsFor, adminBrandLabelFor } from "../../components";
 
 export const AdminLayout = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
 
-  const sections = adminSectionsFor(user?.role);
+  // Everything here follows the signed-in role's permissions. A role that can't
+  // open the Dashboard lands on the first page it can (FeatureGuard handles the
+  // redirect), so no role needs a case written for it.
+  const sections = adminSectionsFor(user);
   const homePath = sections[0]?.links[0]?.path ?? "/admin";
-
-  // Redirect users away from Dashboard if they lack permission
-  useEffect(() => {
-    if (!user) return;
-    const isDashboard =
-      location.pathname === "/admin" || location.pathname === "/admin/";
-
-    if (isDashboard) {
-      if (user.role === "ticketer") {
-        navigate("/admin/tickets");
-      } else if (user.role === "referee" || user.role === "stats") {
-        navigate("/admin/matches");
-      } else if (user.role === "broadcast") {
-        navigate("/admin/broadcast");
-      }
-    }
-  }, [user, location.pathname, navigate]);
 
   return (
     <DashboardShell
       sections={sections}
       homePath={homePath}
-      brandLabel={adminBrandLabelFor(user?.role)}
+      brandLabel={adminBrandLabelFor(user)}
       navLabel="Admin"
       drawerLabel="Admin menu"
       bottomNavLabel="Admin shortcuts"
       moreLabel="More admin pages"
       collapsedStorageKey="sffl_admin_sidebar_collapsed"
-      bottomNavItems={adminBottomNavFor(user?.role)}
+      bottomNavItems={adminBottomNavFor(user)}
       logoutDescription="You will need to sign in again to use the admin panel."
     />
   );

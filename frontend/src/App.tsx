@@ -201,6 +201,7 @@ const AdminEventDays = lazy(() =>
   })),
 );
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminRoles = lazy(() => import("./pages/admin/AdminRoles"));
 const AdminTeams = lazy(() => import("./pages/admin/AdminTeams"));
 const AdminTeamDetail = lazy(() =>
   import("./pages/admin/AdminTeamDetail").then((m) => ({
@@ -587,22 +588,7 @@ function App() {
                     <Route
                       path="/admin"
                       element={
-                        <ProtectedRoute
-                          requireRole={[
-                            "admin",
-                            "app_admin",
-                            "broadcast",
-                            "ticketer",
-                            "referee",
-                            "stats",
-                            "commissioner",
-                            "fantasy_commissioner",
-                            "head_referee",
-                            "news_head",
-                            "content_creator",
-                            "store_manager",
-                          ]}
-                        >
+                        <ProtectedRoute requireStaff>
                           <AdminLayout />
                         </ProtectedRoute>
                       }
@@ -785,6 +771,14 @@ function App() {
                         }
                       />
                       <Route
+                        path="roles"
+                        element={
+                          <FeatureGuard feature="roles">
+                            <AdminRoles />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
                         path="teams"
                         element={
                           <FeatureGuard feature="teams_standings">
@@ -894,7 +888,7 @@ function App() {
                     <Route
                       path="/team-head"
                       element={
-                        <ProtectedRoute requireRole={["team_head", "admin"]}>
+                        <ProtectedRoute requireRole="team_head" orFeature="team_portal">
                           <TeamHeadLayout />
                         </ProtectedRoute>
                       }
@@ -916,7 +910,7 @@ function App() {
                     <Route
                       path="/player-portal"
                       element={
-                        <ProtectedRoute requireRole={["player", "admin"]}>
+                        <ProtectedRoute requireRole="player">
                           <PlayerPortalLayout />
                         </ProtectedRoute>
                       }
@@ -936,7 +930,7 @@ function App() {
                     <Route
                       path="/seller"
                       element={
-                        <ProtectedRoute requireRole={["admin", "seller"]}>
+                        <ProtectedRoute requireRole="seller" orFeature="seller_tools">
                           <SellerLayout />
                         </ProtectedRoute>
                       }

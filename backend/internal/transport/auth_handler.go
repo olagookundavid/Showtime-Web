@@ -242,26 +242,20 @@ func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
 		return
 	}
 
-	// Privilege-escalation guard: only an app_admin may grant the elevated
-	// admin / app_admin roles. The route admits plain admins (for assigning
-	// lesser roles like ticketer/team_head), so without this an admin could
-	// self-promote to app_admin and unlock the superuser tier.
-	if req.Role == "admin" || req.Role == "app_admin" {
-		payload, perr := helpers.GetTokenPayloadFromContext(c)
-		if perr != nil || payload == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			return
-		}
-		caller, cerr := h.AuthService.ReturnUserProfile(c.Request.Context(), payload.UserId)
-		if cerr != nil || caller == nil || caller.UserType != "app_admin" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "only an app_admin can assign the admin or app_admin role"})
-			return
-		}
+	payload, perr := helpers.GetTokenPayloadFromContext(c)
+	if perr != nil || payload == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
 	}
 
-	err := h.AuthService.UpdateUserRole(c.Request.Context(), id, req.Role)
+	// The service refuses to hand out more access than the caller holds (so a
+	// plain admin can't promote anyone, themselves included, to app_admin or
+	// into a role with powers they lack) and checks the role exists.
+	err := h.AuthService.UpdateUserRole(c.Request.Context(), payload.UserId, id, req.Role)
 	if err != nil {
 		switch {
+		case errors.Is(err, appErrors.ErrRoleEscalation):
+			c.JSON(http.StatusForbidden, gin.H{"error": "you can only assign roles whose access you hold yourself; only an app_admin can assign or change app_admin"})
 		case errors.Is(err, appErrors.ErrNoUserRecordExist):
 			helpers.BadResponse(c, "User not found")
 		case strings.Contains(err.Error(), "invalid role"):

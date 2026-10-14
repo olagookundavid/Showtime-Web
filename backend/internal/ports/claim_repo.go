@@ -758,10 +758,13 @@ func checkAllrounderRoom(ctx context.Context, tx pgx.Tx, teamID, excludePlayerID
 // players row itself is never touched: a rejection is a statement about the claimant,
 // not about the player.
 // ListAdminUserIDs returns the accounts that decide NEW_PLAYER requests, so they can be
-// notified when one is ready. app_admin is included because it is the superuser and can
-// act on anything a plain admin can.
+// notified when one is ready: every role with full access to the claims feature, and
+// app_admin, the superuser, which can act on anything.
 func (r *PostgresClaimRepository) ListAdminUserIDs(ctx context.Context) ([]string, error) {
-	rows, err := r.db.Query(ctx, `SELECT id FROM users WHERE role IN ('admin', 'app_admin')`)
+	rows, err := r.db.Query(ctx, `
+		SELECT id FROM users
+		WHERE role = 'app_admin'
+		   OR role IN (SELECT role_key FROM role_permissions WHERE feature = 'claims' AND level = 'full')`)
 	if err != nil {
 		return nil, err
 	}

@@ -103,7 +103,8 @@ func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {
 // @Success      200  {object}  map[string]string
 // @Router       /api/v1/players [post]
 // scopedTeamID returns the team_id a team_head is restricted to, set by
-// TeamHeadOrAdminMiddleware. ok is false for admins (full, unscoped access).
+// TeamHeadOrFeatureMiddleware. ok is false for callers with team_portal access
+// (full, unscoped access).
 // Key mirrors middlewares.TeamIDContextKey ("team_manager_team_id"); kept as a
 // literal here to avoid a transport->middlewares import.
 func scopedTeamID(c *gin.Context) (string, bool) {

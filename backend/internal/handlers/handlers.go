@@ -7,6 +7,7 @@ import (
 
 type Handlers struct {
 	AuthHandler                 transport.IAuthHandler
+	RoleHandler                 transport.IRoleHandler
 	NewsHandler                 transport.INewsHandler
 	GalleryHandler              transport.IGalleryHandler
 	MatchHandler                transport.IMatchHandler
@@ -45,6 +46,7 @@ type Handlers struct {
 
 func NewHandlers(
 	authHandler transport.IAuthHandler,
+	roleHandler transport.IRoleHandler,
 	newsHandler transport.INewsHandler,
 	galleryHandler transport.IGalleryHandler,
 	matchHandler transport.IMatchHandler,
@@ -82,6 +84,7 @@ func NewHandlers(
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
+		RoleHandler:                 roleHandler,
 		NewsHandler:                 newsHandler,
 		GalleryHandler:              galleryHandler,
 		MatchHandler:                matchHandler,

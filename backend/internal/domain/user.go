@@ -9,23 +9,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Roles that keep their own portal or flow in code. Every other role (admin,
+// commissioner, content_creator...) is a row in the roles table whose access is
+// edited from the admin panel, so nothing here names them.
 const (
-	RoleAdmin               = "admin"
-	RoleAppAdmin            = "app_admin"
-	RoleBroadcast           = "broadcast"
-	RoleReferee             = "referee"
-	RoleStats               = "stats"
-	RoleTicketer            = "ticketer"
-	RoleTeamHead            = "team_head"
-	RolePlayer              = "player"
-	RoleSeller              = "seller"
-	RoleUser                = "user"
-	RoleCommissioner        = "commissioner"
-	RoleFantasyCommissioner = "fantasy_commissioner"
-	RoleHeadReferee         = "head_referee"
-	RoleNewsHead            = "news_head"
-	RoleContentCreator      = "content_creator"
-	RoleStoreManager        = "store_manager"
+	RoleAppAdmin = "app_admin"
+	RoleTeamHead = "team_head"
+	RolePlayer   = "player"
+	RoleSeller   = "seller"
+	RoleUser     = "user"
 )
 
 type User struct {

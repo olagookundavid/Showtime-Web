@@ -30,6 +30,12 @@ type LoginResponse struct {
 	Email    string `json:"email"`
 	Phone    string `json:"phone,omitempty"`
 	UserType string `json:"user_type"`
+	// RoleName is the role's display name; UserType is its permanent key.
+	RoleName string `json:"role_name"`
+	// Permissions is feature -> "view" | "full". A missing feature means no access.
+	Permissions map[string]string `json:"permissions"`
+	// IsStaff is true when the role can open the admin panel at all.
+	IsStaff bool `json:"is_staff"`
 	// EmailVerified is required to vote in fan polls (Player of the Week).
 	EmailVerified bool      `json:"email_verified"`
 	CreatedAt     time.Time `json:"created_at"`

@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts";
+import { usePermissions } from "../../hooks";
 import {
   getStoreProduct,
   getProductReviews,
@@ -22,9 +23,10 @@ import { StarRating, Loader, BackButton, Button, Field, Input, Select, Textarea,
 
 export const ProductReviews = () => {
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { canEdit } = usePermissions();
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = canEdit("store");
 
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<ReviewSort>("newest");

@@ -9,11 +9,22 @@ export interface User {
     phone?: string;
     /** Confirmed with a code; needed to vote in fan polls. */
     emailVerified: boolean;
-    // player_pending is an account claimant awaiting their team manager's approval. It
-    // grants no portal access — only the claim status screen — so route guards must
-    // treat it as distinct from 'player'.
-    role: 'admin' | 'app_admin' | 'broadcast' | 'user' | 'player' | 'player_pending' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller'
-        | 'commissioner' | 'fantasy_commissioner' | 'head_referee' | 'news_head' | 'content_creator' | 'store_manager';
+    /**
+     * The role's key. Fixed roles ('user', 'player', 'player_pending', 'team_head',
+     * 'seller', 'app_admin') have their own portal; every other role is created in
+     * the admin panel, so this is a plain string, not a union.
+     *
+     * player_pending is an account claimant awaiting their team manager's approval.
+     * It grants no portal access, only the claim status screen, so route guards must
+     * treat it as distinct from 'player'.
+     */
+    role: string;
+    /** The role's display name, as set in the Roles page. */
+    roleName: string;
+    /** What this role may do in the admin panel (see usePermissions). */
+    permissions: Record<string, 'view' | 'full'>;
+    /** Whether the role can open the admin panel at all. */
+    isStaff: boolean;
 }
 
 interface AuthContextType {
@@ -38,7 +49,10 @@ function mapAuthUser(authUser: AuthUser): User {
         email: authUser.email,
         phone: authUser.phone,
         emailVerified: Boolean(authUser.email_verified),
-        role: authUser.user_type as User['role'],
+        role: authUser.user_type,
+        roleName: authUser.role_name || authUser.user_type,
+        permissions: authUser.permissions ?? {},
+        isStaff: Boolean(authUser.is_staff),
     };
 }
 

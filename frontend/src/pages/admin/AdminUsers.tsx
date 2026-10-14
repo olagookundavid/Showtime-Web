@@ -1,29 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, Input, Modal, Select, DashboardPageHeader } from '../../components';
-import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
-import type { UserResponse } from '../../types';
+import { getAdminUsers, getAdminRoleOptions, updateUserRole, updateUserInfo } from '../../services/api';
+import type { RoleOption, UserResponse } from '../../types';
 import { getApiErrorMessage } from '../../utils';
 
 const PAGE_SIZE = 10;
 const NO_ROWS: UserResponse[] = [];
 
-const ROLE_LABELS: Record<string, string> = {
-    user: 'User',
-    player: 'Player — via claim approval only',
-    player_pending: 'Player (pending claim)',
-    team_head: 'Team Head',
-    ticketer: 'Ticketer',
-    referee: 'Referee',
-    stats: 'Stats Admin',
-    seller: 'Store Seller',
-    app_admin: 'App Admin',
-    admin: 'Admin',
-};
-
-const roleLabel = (role: string) => ROLE_LABELS[role] ?? role;
+// Player roles are display-only. They're granted solely by approving a claim, which also
+// links the account to its player record: assigning one here would leave the player portal
+// permanently empty. They stay in the list (disabled) so existing player accounts still render.
+const CLAIM_ONLY_ROLES = new Set(['player', 'player_pending']);
+const NO_ROLES: RoleOption[] = [];
 
 type PendingAction =
     | { kind: 'role'; user: UserResponse; role: string }
@@ -44,6 +35,14 @@ const AdminUsers = () => {
         queryFn: () => getAdminUsers({ page, limit: PAGE_SIZE, search: searchTerm, role: roleFilter || undefined }),
         placeholderData: (prev) => prev,
     });
+
+    // Which roles exist is data (the Roles page), so the dropdown is read from the server.
+    const { data: roleOptionsData } = useQuery({
+        queryKey: ['adminRoleOptions'],
+        queryFn: getAdminRoleOptions,
+    });
+    const roleOptions = roleOptionsData ?? NO_ROLES;
+    const roleLabel = useCallback((role: string) => roleOptions.find((r) => r.key === role)?.name ?? role, [roleOptions]);
 
     const users: UserResponse[] = usersData?.data ?? NO_ROWS;
     const totalPages = usersData?.total_pages || 1;
@@ -122,26 +121,13 @@ const AdminUsers = () => {
                     aria-label={`Role for ${u.fullname || u.email}`}
                     className="min-w-30"
                 >
-                    <option value="user">User</option>
-                    {/* Player roles are display-only. They're granted solely by approving a
-                        claim, which also links the account to its player record — assigning
-                        one here would leave the player portal permanently empty. Kept in the
-                        list (disabled) so existing player accounts still render their role. */}
-                    <option value="player" disabled>Player — via claim approval only</option>
-                    <option value="player_pending" disabled>Player (pending claim)</option>
-                    <option value="team_head">Team Head</option>
-                    <option value="ticketer">Ticketer</option>
-                    <option value="referee">Referee</option>
-                    <option value="stats">Stats Admin</option>
-                    <option value="seller">Store Seller</option>
-                    <option value="commissioner">Commissioner</option>
-                    <option value="fantasy_commissioner">Fantasy Commissioner</option>
-                    <option value="head_referee">Head Referee</option>
-                    <option value="news_head">News Head</option>
-                    <option value="content_creator">Content Creator</option>
-                    <option value="store_manager">Store Manager</option>
-                    <option value="app_admin">App Admin</option>
-                    <option value="admin">Admin</option>
+                    {/* The user's current role is always listed, even if the options haven't loaded. */}
+                    {!roleOptions.some((r) => r.key === u.role) && <option value={u.role}>{roleLabel(u.role)}</option>}
+                    {roleOptions.map((r) => (
+                        <option key={r.key} value={r.key} disabled={CLAIM_ONLY_ROLES.has(r.key)}>
+                            {r.key === 'player' ? 'Player — via claim approval only' : r.name}
+                        </option>
+                    ))}
                 </Select>
             ),
         },
@@ -170,7 +156,7 @@ const AdminUsers = () => {
                 />
             ),
         },
-    ], []);
+    ], [roleOptions, roleLabel]);
 
     const dialog = pendingAction?.kind === 'role'
         ? {
@@ -219,21 +205,9 @@ const AdminUsers = () => {
                             className="sm:w-56"
                         >
                             <option value="">All Roles</option>
-                            <option value="admin">Admin</option>
-                            <option value="app_admin">App Admin</option>
-                            <option value="team_head">Team Head</option>
-                            <option value="player">Player</option>
-                            <option value="referee">Referee</option>
-                            <option value="stats">Stats</option>
-                            <option value="ticketer">Ticketer</option>
-                            <option value="seller">Store Seller</option>
-                            <option value="commissioner">Commissioner</option>
-                            <option value="fantasy_commissioner">Fantasy Commissioner</option>
-                            <option value="head_referee">Head Referee</option>
-                            <option value="news_head">News Head</option>
-                            <option value="content_creator">Content Creator</option>
-                            <option value="store_manager">Store Manager</option>
-                            <option value="user">User</option>
+                            {roleOptions.map((r) => (
+                                <option key={r.key} value={r.key}>{r.name}</option>
+                            ))}
                         </Select>
                     </div>
                 }

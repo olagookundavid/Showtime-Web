@@ -13,6 +13,7 @@ import type {
   TeamOfTheWeek as TeamOfTheWeekData,
 } from "../../types";
 import { useAuth } from "../../contexts";
+import { usePermissions } from "../../hooks";
 import { gameFormatOfCompetitionFormat } from "../../utils";
 import {
   TeamOfTheWeekModule,
@@ -43,9 +44,8 @@ export const TeamOfTheWeek: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const isAdmin = Boolean(
-    user && (user.role === "admin" || user.role === "app_admin"),
-  );
+  const { canEdit } = usePermissions();
+  const isAdmin = canEdit("totw");
 
   const pitchRef = useRef<HTMLDivElement>(null);
 

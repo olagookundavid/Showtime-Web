@@ -409,10 +409,11 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub, services.ISiteEventsService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.IRoleService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub, services.ISiteEventsService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
+	roleRepo := ports.NewRoleRepository(pool)
 	newsRepo := ports.NewNewsRepository(pool)
 	galleryRepo := ports.NewGalleryRepository(pool)
 	matchRepo := ports.NewMatchRepository(pool)
@@ -463,7 +464,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	// Services
 	auditService := services.NewAuditService(auditRepo, authRepo)
 	emailService := email.NewResendService() // Move this up
-	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService)
+	roleService := services.NewRoleService(roleRepo, authRepo)
+	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService, roleService)
 	notifService := services.NewNotificationService(notifRepo)
 	windowService := services.NewTransferWindowService(windowRepo)
 	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo)
@@ -477,7 +479,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
 	ticketService := services.NewTicketService(eventDayRepo, productRepo, ticketRepo, scheduledEmailRepo, matchRepo, paystackClient, emailService, discountService, discountRepo)
-	tmService := services.NewTeamManagerService(tmRepo, authRepo)
+	tmService := services.NewTeamManagerService(tmRepo, authRepo, roleService)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 	siteEventsService := services.NewSiteEventsService(siteEventsRepo)
 	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, productRepo, ticketService)
@@ -508,6 +510,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
+	roleHandler := transport.NewRoleHandler(roleService)
 	newsHandler := transport.NewNewsHandler(newsService)
 	galleryHandler := transport.NewGalleryHandler(galleryService)
 	matchHandler := transport.NewMatchHandler(matchService)
@@ -530,7 +533,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	notifHandler := transport.NewNotificationHandler(notifService)
 	appSettingHandler := transport.NewAppSettingHandler(appSettingService)
 	claimHandler := transport.NewClaimHandler(claimService)
-	commentHandler := transport.NewCommentHandler(commentService, authRepo)
+	commentHandler := transport.NewCommentHandler(commentService, roleService)
 	discountHandler := transport.NewDiscountHandler(discountService, storeService, productRepo)
 
 	reliveService := services.NewReliveService()
@@ -570,7 +573,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService, broadcastRepo)
 
 	h := handlers.NewHandlers(
-		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
+		authHandler, roleHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, siteEventsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, storeHandler, importHandler,
 		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
@@ -579,5 +582,5 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
 		badgeHandler, totwHandler, potwHandler, broadcastHandler,
 	)
-	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService
+	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService
 }

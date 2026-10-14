@@ -33,23 +33,3 @@ export const isNavLinkActive = (
   link.end
     ? pathname === link.path || pathname === link.path + "/"
     : pathname === link.path || pathname.startsWith(link.path + "/");
-
-export const ROLE_LABELS: Record<string, string> = {
-  app_admin: "App Admin",
-  admin: "Admin",
-  broadcast: "Broadcast",
-  ticketer: "Ticketer",
-  referee: "Referee",
-  stats: "Stats",
-  team_head: "Team Head",
-  player: "Player",
-  player_pending: "Pending Player",
-  seller: "Store Seller",
-  user: "User",
-  commissioner: "Commissioner",
-  fantasy_commissioner: "Fantasy Commissioner",
-  head_referee: "Head Referee",
-  news_head: "News Head",
-  content_creator: "Content Creator",
-  store_manager: "Store Manager",
-};

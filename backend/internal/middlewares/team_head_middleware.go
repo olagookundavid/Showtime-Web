@@ -2,7 +2,7 @@ package middlewares
 
 import (
 	"net/http"
-	"pkg-common/helpers"
+	"showtime-backend/internal/domain"
 	"showtime-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -10,33 +10,26 @@ import (
 
 const TeamIDContextKey = "team_manager_team_id"
 
-// TeamHeadOrAdminMiddleware allows admins (full access) or team_heads (scoped to their team).
-// If the user is a team_head, their managed team_id is injected into the context.
-func TeamHeadOrAdminMiddleware(authService services.IAuthService, tmService services.ITeamManagerService) gin.HandlerFunc {
+// TeamHeadOrFeatureMiddleware allows a team_head, scoped to their own team, or
+// anyone with full access to the given feature (team_portal), who can act on
+// every team. If the caller is a team_head, their managed team_id is injected
+// into the context.
+func TeamHeadOrFeatureMiddleware(roleSvc services.IRoleService, tmService services.ITeamManagerService, featureKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		payload, err := helpers.GetTokenPayloadFromContext(c)
-		if err != nil || payload == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			c.Abort()
+		access, ok := resolveAccess(c, roleSvc)
+		if !ok {
 			return
 		}
 
-		userProfile, err := authService.ReturnUserProfile(c.Request.Context(), payload.UserId)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
-			c.Abort()
-			return
-		}
-
-		// Admins (and the app_admin superuser) get full access
-		if userProfile.UserType == "admin" || userProfile.UserType == "app_admin" {
+		// Full access to the feature (and the app_admin superuser) is unscoped.
+		if access.Level(featureKey) == domain.AccessFull {
 			c.Next()
 			return
 		}
 
 		// Team heads get scoped access
-		if userProfile.UserType == "team_head" {
-			tm, err := tmService.GetManagerByUserID(c.Request.Context(), payload.UserId)
+		if access.Role == domain.RoleTeamHead {
+			tm, err := tmService.GetManagerByUserID(c.Request.Context(), access.UserID)
 			if err != nil || tm == nil {
 				c.JSON(http.StatusForbidden, gin.H{"error": "you are not assigned to any team"})
 				c.Abort()
@@ -49,7 +42,7 @@ func TeamHeadOrAdminMiddleware(authService services.IAuthService, tmService serv
 			return
 		}
 
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: requires admin or team_head role"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: requires team_head role or team portal access"})
 		c.Abort()
 	}
 }

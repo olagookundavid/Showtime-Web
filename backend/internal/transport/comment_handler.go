@@ -3,8 +3,8 @@ package transport
 import (
 	"net/http"
 	"pkg-common/helpers"
+	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
-	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 	"strconv"
 
@@ -20,12 +20,12 @@ type ICommentHandler interface {
 }
 
 type CommentHandler struct {
-	service  services.ICommentService
-	authRepo ports.IAuthRepository
+	service services.ICommentService
+	roleSvc services.IRoleService
 }
 
-func NewCommentHandler(service services.ICommentService, authRepo ports.IAuthRepository) ICommentHandler {
-	return &CommentHandler{service: service, authRepo: authRepo}
+func NewCommentHandler(service services.ICommentService, roleSvc services.IRoleService) ICommentHandler {
+	return &CommentHandler{service: service, roleSvc: roleSvc}
 }
 
 func (h *CommentHandler) GetComments(c *gin.Context) {
@@ -81,11 +81,10 @@ func (h *CommentHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	// Check if user is admin
+	// Moderators may delete anyone's comment; everyone else only their own.
 	isAdmin := false
-	userProfile, err := h.authRepo.GetUserByID(c.Request.Context(), payload.UserId)
-	if err == nil && userProfile != nil && (userProfile.Role == "admin" || userProfile.Role == "app_admin") {
-		isAdmin = true
+	if access, err := h.roleSvc.ResolveUser(c.Request.Context(), payload.UserId); err == nil {
+		isAdmin = access.Level(domain.FeatureCommentModeration) == domain.AccessFull
 	}
 
 	if err := h.service.DeleteComment(c.Request.Context(), commentID, payload.UserId, isAdmin); err != nil {

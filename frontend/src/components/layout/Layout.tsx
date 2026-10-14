@@ -10,6 +10,7 @@ import {
 } from "./LatestMatchesCarousel";
 import { useHideOnScrollDown } from "../../hooks";
 import { NewsletterPopup } from "../newsletter/NewsletterPopup";
+import { portalLinkFor, type PortalKind } from "./portalLink";
 import { Button, IconButton } from "../ui";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import {
@@ -41,11 +42,29 @@ import {
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 
+/** How each kind of portal link looks in the mobile "More" menu. */
+const PORTAL_STYLE: Record<PortalKind, { card: string; icon: string; chevron: string }> = {
+  app_admin: { card: "bg-linear-to-r from-amber-500 to-yellow-600", icon: "text-white", chevron: "text-amber-100" },
+  staff: { card: "bg-sffl-navy", icon: "text-sffl-red", chevron: "text-gray-300" },
+  team_head: { card: "bg-emerald-700", icon: "text-emerald-200", chevron: "text-emerald-200" },
+  player: { card: "bg-sffl-red", icon: "text-white", chevron: "text-red-100" },
+  seller: { card: "bg-emerald-700", icon: "text-emerald-200", chevron: "text-emerald-200" },
+  account: { card: "bg-sffl-navy", icon: "text-white", chevron: "text-gray-300" },
+};
+
+const PortalIcon = ({ kind, className }: { kind: PortalKind; className: string }) => {
+  if (kind === "team_head") return <ShieldCheckIcon className={className} />;
+  if (kind === "player") return <UserCircleIcon className={className} />;
+  if (kind === "seller") return <ShoppingBagIcon className={className} />;
+  return <WrenchIcon className={className} />;
+};
+
 export const Layout = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [activeSubMenu, setActiveSubMenu] = useState<"main" | "about">("main");
   const [confirmLogout, setConfirmLogout] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
+  const portal = portalLinkFor(user);
   const { count: cartCount } = useCart();
   const location = useLocation();
   // Folds away while reading down the page. It also folds while a dialog is
@@ -247,108 +266,22 @@ export const Layout = () => {
                     </div>
 
                     {/* Role Specific Portals */}
-                    {user?.role === "admin" && (
+                    {portal && portal.kind !== "account" && (
                       <Link
-                        to="/admin"
+                        to={portal.to}
                         onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
+                        className={`mt-3 flex items-center justify-between p-3 text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all ${PORTAL_STYLE[portal.kind].card}`}
                       >
                         <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-sffl-red" />
-                          <span>Admin Control Panel</span>
+                          <PortalIcon
+                            kind={portal.kind}
+                            className={`w-4 h-4 ${PORTAL_STYLE[portal.kind].icon}`}
+                          />
+                          <span>{portal.label}</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
-                      </Link>
-                    )}
-                    {user?.role === "app_admin" && (
-                      <Link
-                        to="/admin"
-                        onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-linear-to-r from-amber-500 to-yellow-600 text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-white" />
-                          <span>App Admin Panel</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-amber-100" />
-                      </Link>
-                    )}
-                    {user?.role === "referee" && (
-                      <Link
-                        to="/admin/matches"
-                        onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-sffl-red" />
-                          <span>Referee Portal</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
-                      </Link>
-                    )}
-                    {user?.role === "stats" && (
-                      <Link
-                        to="/admin/matches"
-                        onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <WrenchIcon className="w-4 h-4 text-amber-400" />
-                          <span>Stats Portal</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
-                      </Link>
-                    )}
-                    {user?.role === "team_head" && (
-                      <Link
-                        to="/team-head"
-                        onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-emerald-700 text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <ShieldCheckIcon className="w-4 h-4 text-emerald-200" />
-                          <span>Team Manager Hub</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-emerald-200" />
-                      </Link>
-                    )}
-                    {user?.role === "player" && (
-                      <Link
-                        to="/player-portal"
-                        onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-sffl-red text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <UserCircleIcon className="w-4 h-4 text-white" />
-                          <span>Player Portal</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-red-100" />
-                      </Link>
-                    )}
-                    {user?.role === "ticketer" && (
-                      <Link
-                        to="/admin/tickets"
-                        onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-sffl-navy text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <TicketIcon className="w-4 h-4 text-sffl-red" />
-                          <span>Ticketing Desk</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
-                      </Link>
-                    )}
-                    {user?.role === "seller" && (
-                      <Link
-                        to="/seller"
-                        onClick={() => setIsMoreMenuOpen(false)}
-                        className="mt-3 flex items-center justify-between p-3 bg-emerald-700 text-white rounded-xl shadow-sm font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <ShoppingBagIcon className="w-4 h-4 text-emerald-200" />
-                          <span>Store Merchant Portal</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-emerald-200" />
+                        <ChevronRightIcon
+                          className={`w-4 h-4 ${PORTAL_STYLE[portal.kind].chevron}`}
+                        />
                       </Link>
                     )}
                   </>

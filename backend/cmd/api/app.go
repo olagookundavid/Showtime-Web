@@ -25,6 +25,7 @@ type Application struct {
 	AuditService       services.IAuditService
 	SiteEventsService  services.ISiteEventsService
 	AuthService        services.IAuthService
+	RoleService        services.IRoleService
 	TeamManagerService services.ITeamManagerService
 	TicketService         *services.TicketService
 	StorageService        ports.StorageService

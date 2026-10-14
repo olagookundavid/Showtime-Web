@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"net/http"
-	"pkg-common/helpers"
 	"showtime-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -12,48 +11,33 @@ import (
 // roles can narrow what each one is permitted to do without re-reading the profile.
 const UserRoleContextKey = "user_role"
 
-// RolesAllowedMiddleware checks if the user's role is in the list of allowed roles.
-func RolesAllowedMiddleware(authService services.IAuthService, allowedRoles ...string) gin.HandlerFunc {
+// RolesAllowedMiddleware checks the user's role is one of the listed fixed roles
+// (player, for the player portal). Admin-panel access is not decided here: it
+// goes through FeatureAccessMiddleware, where the roles table says who may.
+func RolesAllowedMiddleware(roleSvc services.IRoleService, allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		payload, err := helpers.GetTokenPayloadFromContext(c)
-		if err != nil || payload == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "details": err.Error()})
-			c.Abort()
+		access, ok := resolveAccess(c, roleSvc)
+		if !ok {
 			return
 		}
-
-		userProfile, err := authService.ReturnUserProfile(c.Request.Context(), payload.UserId)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found", "details": err.Error()})
-			c.Abort()
-			return
-		}
-
-		c.Set(UserRoleContextKey, userProfile.UserType)
 
 		// app_admin is the superuser and is allowed on every role-gated route
-		if userProfile.UserType == "app_admin" {
+		if access.Role == "app_admin" {
 			c.Next()
 			return
 		}
 
-		isAllowed := false
 		for _, role := range allowedRoles {
-			if userProfile.UserType == role {
-				isAllowed = true
-				break
+			if access.Role == role {
+				c.Next()
+				return
 			}
 		}
 
-		if !isAllowed {
-			c.JSON(http.StatusForbidden, gin.H{
-				"error":   "forbidden: insufficient privileges",
-				"details": "user does not have the required role to access this route",
-			})
-			c.Abort()
-			return
-		}
-
-		c.Next()
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":   "forbidden: insufficient privileges",
+			"details": "user does not have the required role to access this route",
+		})
+		c.Abort()
 	}
 }

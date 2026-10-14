@@ -59,7 +59,6 @@ import type {
   TeamStat,
 } from "../../types";
 import { isReturnTD, getPlayStatAccruals, formatMatchDate, formatMatchTime } from "../../utils";
-import { useAuth } from "../../contexts";
 import { usePermissions } from "../../hooks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -720,9 +719,9 @@ const ChipButton = ({
 
 export const AdminPlayByPlay = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  // Only admins may unlock/lock a match; referees/stats can log plays once open.
-  const canToggleLock = user?.role === "admin" || user?.role === "app_admin";
+  const { canEdit: canEditPermission } = usePermissions();
+  // Only roles granted play_by_play_lock may unlock/lock a match; referees/stats can log plays once open.
+  const canToggleLock = canEditPermission("play_by_play_lock");
   const [matchId, setMatchId] = useState("");
   const [selectedCompId, setSelectedCompId] = useState("");
   const [lockBusy, setLockBusy] = useState(false);
