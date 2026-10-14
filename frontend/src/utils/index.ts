@@ -55,3 +55,4 @@ export {
 } from './staleBuild';
 export { fitTeamName } from './fitTeamName';
 export type { FittedName } from './fitTeamName';
+export { isConfirmSkipped, setConfirmSkipped } from './confirmPreferences';

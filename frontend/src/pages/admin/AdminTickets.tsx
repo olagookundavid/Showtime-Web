@@ -72,6 +72,7 @@ const ACTIONS = {
     confirmLabel: "Check In",
     tone: "success",
     icon: CheckCircleIcon,
+    skipKey: "admin-tickets:checkin",
   },
   verify: {
     title: "Verify payment?",
@@ -80,6 +81,7 @@ const ACTIONS = {
     confirmLabel: "Verify Payment",
     tone: "info",
     icon: ShieldCheckIcon,
+    skipKey: "admin-tickets:verify",
   },
   force: {
     title: "Force check-in?",
@@ -88,6 +90,7 @@ const ACTIONS = {
     confirmLabel: "Force Check-in",
     tone: "warning",
     icon: BoltIcon,
+    skipKey: "admin-tickets:force",
   },
 } as const;
 
@@ -696,6 +699,7 @@ export const AdminTickets = () => {
         confirmLabel={action?.confirmLabel ?? ""}
         tone={action?.tone}
         icon={action?.icon}
+        dontAskAgainKey={action?.skipKey}
         pending={
           pendingAction !== null && actionLoading === pendingAction.ticket.id
         }

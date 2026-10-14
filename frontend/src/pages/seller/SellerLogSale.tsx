@@ -202,6 +202,7 @@ export const SellerLogSale = () => {
                 confirmLabel="Log Sale"
                 tone="info"
                 icon={ShoppingCartIcon}
+                dontAskAgainKey="seller-log-sale"
                 pending={busy}
                 onConfirm={logSale}
                 onCancel={() => setConfirmOpen(false)}
