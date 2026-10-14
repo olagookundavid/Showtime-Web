@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { getTicketProducts } from "../../services/api";
@@ -68,6 +68,14 @@ export const Tickets = () => {
   // The day picked on each ticket, by product id.
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [checkout, setCheckout] = useState<Checkout | null>(null);
+
+  // Choosing a tier reveals the day-picker panel below the grid; bring it
+  // into view instead of leaving the buyer to notice and scroll themselves.
+  const dayPanelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedProductId) return;
+    dayPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedProductId]);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["publicTicketProducts", appliedCode],
@@ -273,7 +281,10 @@ export const Tickets = () => {
             const allSoldOut = selectedProduct.days.every(isSoldOut);
 
             return (
-              <div className="mt-6 border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+              <div
+                ref={dayPanelRef}
+                className="mt-6 scroll-mt-[calc(var(--chrome-h)+var(--store-tabs-h)+var(--ticket-tabs-h)+1rem)] border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6"
+              >
                 <h3 className="mb-3 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
                   Pick your match day for {selectedProduct.name}
                 </h3>

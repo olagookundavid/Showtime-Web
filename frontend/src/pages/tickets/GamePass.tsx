@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getGamePassRules, getTicketProducts } from "../../services/api";
 import type {
@@ -19,7 +19,9 @@ import {
   naira,
 } from "../../components";
 import {
+  ArrowRightIcon,
   CalendarDaysIcon,
+  CheckIcon,
   ChevronDownIcon,
   TagIcon,
   TicketIcon,
@@ -51,9 +53,20 @@ interface Checkout {
 
 export const GamePass = () => {
   const [appliedCode, setAppliedCode] = useState<string | undefined>(undefined);
+  // Step 1: which ticket is picked. Step 2 (the match days for it) only shows
+  // once this is set.
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   // The days picked on each ticket, by product id.
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [checkout, setCheckout] = useState<Checkout | null>(null);
+
+  // Choosing a tier reveals the day-picker panel below the grid; bring it
+  // into view instead of leaving the buyer to notice and scroll themselves.
+  const dayPanelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedProductId) return;
+    dayPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedProductId]);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["publicTicketProducts", appliedCode],
@@ -197,20 +210,10 @@ export const GamePass = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((product, index) => {
               const cheapest = Math.min(...product.days.map((d) => d.price));
+              const isSelected = product.id === selectedProductId;
               const isHighlight = topPrice !== null && cheapest === topPrice;
               const isLowest = cheapestPrice !== null && cheapest === cheapestPrice;
               const variant = isHighlight ? "gold" : isLowest ? "outline" : "navy";
-              const selectedIds = picked[product.id] ?? [];
-              const selected = product.days.filter((d) =>
-                selectedIds.includes(d.event_day_id),
-              );
-              const openCount = product.days.filter((d) => !isSoldOut(d)).length;
-
-              // A preview of the saving while choosing. The server prices the
-              // purchase itself.
-              const perPerson = selected.reduce((sum, d) => sum + d.price, 0);
-              const percent = gamePassPercentFor(selected.length, rules ?? []);
-              const estimate = Math.round(perPerson * (1 - percent / 100));
 
               return (
                 <TicketProductCard
@@ -219,75 +222,96 @@ export const GamePass = () => {
                   position={index + 1}
                   highlight={isHighlight}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <h3
-                      className={`text-[11px] font-black uppercase tracking-widest ${
-                        isHighlight ? "text-white/60" : "text-gray-500 dark:text-gray-400"
-                      }`}
-                    >
-                      Pick your match days
-                    </h3>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      tone={isHighlight ? "dark" : "light"}
-                      onClick={() => toggleAll(product)}
-                    >
-                      {selectedIds.length === openCount
-                        ? "Clear all"
-                        : "Select all"}
-                    </Button>
-                  </div>
-                  <TicketDayPicker
-                    mode="multi"
-                    name={`${product.name} match days`}
-                    days={product.days}
-                    selected={selectedIds}
-                    tone={isHighlight ? "dark" : "light"}
-                    onChange={(ids) =>
-                      setPicked((prev) => ({ ...prev, [product.id]: ids }))
-                    }
-                  />
-
-                  {selected.length >= 2 && (
-                    <div
-                      className={`flex items-baseline justify-between gap-3 border-t pt-3 ${
-                        isHighlight ? "border-white/10" : "dark:border-gray-700"
-                      }`}
-                    >
-                      <span className={`text-sm ${isHighlight ? "text-white/80" : "text-gray-600 dark:text-gray-300"}`}>
-                        {selected.length} match days
-                        {percent > 0 && (
-                          <span
-                            className={`ml-1 font-bold ${
-                              isHighlight ? "text-emerald-300" : "text-emerald-600 dark:text-emerald-400"
-                            }`}
-                          >
-                            ({percent}% off)
-                          </span>
-                        )}
-                      </span>
-                      <span className={`text-lg font-black ${isHighlight ? "text-white" : "text-sffl-navy dark:text-white"}`}>
-                        {estimate === 0 ? "Free" : naira(estimate)}
-                      </span>
-                    </div>
-                  )}
-
                   <Button
                     fullWidth
                     shape="square"
                     variant={variant}
-                    disabled={selected.length < 2}
-                    onClick={() => setCheckout({ product, days: selected })}
+                    icon={isSelected ? CheckIcon : ArrowRightIcon}
+                    iconPosition="right"
+                    onClick={() => setSelectedProductId(product.id)}
                   >
-                    {selected.length < 2
-                      ? "Pick at least 2 match days"
-                      : "Get Game Pass"}
+                    {isSelected ? "Selected" : `Choose ${product.name}`}
                   </Button>
                 </TicketProductCard>
               );
             })}
           </div>
+
+          {(() => {
+            const selectedProduct = list.find((p) => p.id === selectedProductId);
+            if (!selectedProduct) return null;
+
+            const cheapest = Math.min(...selectedProduct.days.map((d) => d.price));
+            const isHighlight = topPrice !== null && cheapest === topPrice;
+            const isLowest = cheapestPrice !== null && cheapest === cheapestPrice;
+            const variant = isHighlight ? "gold" : isLowest ? "outline" : "navy";
+
+            const selectedIds = picked[selectedProduct.id] ?? [];
+            const selected = selectedProduct.days.filter((d) =>
+              selectedIds.includes(d.event_day_id),
+            );
+            const openCount = selectedProduct.days.filter((d) => !isSoldOut(d)).length;
+
+            // A preview of the saving while choosing. The server prices the
+            // purchase itself.
+            const perPerson = selected.reduce((sum, d) => sum + d.price, 0);
+            const percent = gamePassPercentFor(selected.length, rules ?? []);
+            const estimate = Math.round(perPerson * (1 - percent / 100));
+
+            return (
+              <div
+                ref={dayPanelRef}
+                className="mt-6 scroll-mt-[calc(var(--chrome-h)+var(--store-tabs-h)+var(--ticket-tabs-h)+1rem)] border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    Pick your match days for {selectedProduct.name}
+                  </h3>
+                  <Button variant="link" size="sm" onClick={() => toggleAll(selectedProduct)}>
+                    {selectedIds.length === openCount ? "Clear all" : "Select all"}
+                  </Button>
+                </div>
+                <div className="mt-3">
+                  <TicketDayPicker
+                    mode="multi"
+                    name={`${selectedProduct.name} match days`}
+                    days={selectedProduct.days}
+                    selected={selectedIds}
+                    onChange={(ids) =>
+                      setPicked((prev) => ({ ...prev, [selectedProduct.id]: ids }))
+                    }
+                  />
+                </div>
+
+                {selected.length >= 2 && (
+                  <div className="mt-3 flex items-baseline justify-between gap-3 border-t pt-3 dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-300">
+                      {selected.length} match days
+                      {percent > 0 && (
+                        <span className="ml-1 font-bold text-emerald-600 dark:text-emerald-400">
+                          ({percent}% off)
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-lg font-black text-sffl-navy dark:text-white">
+                      {estimate === 0 ? "Free" : naira(estimate)}
+                    </span>
+                  </div>
+                )}
+
+                <Button
+                  fullWidth
+                  shape="square"
+                  variant={variant}
+                  className="mt-4"
+                  disabled={selected.length < 2}
+                  onClick={() => setCheckout({ product: selectedProduct, days: selected })}
+                >
+                  {selected.length < 2 ? "Pick at least 2 match days" : "Get Game Pass"}
+                </Button>
+              </div>
+            );
+          })()}
         </section>
       )}
 

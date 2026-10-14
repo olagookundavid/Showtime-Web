@@ -17,7 +17,7 @@ interface TabsProps<T extends string> {
     className?: string;
     /** `dark` for a tab bar on a dark surface. */
     tone?: Tone;
-    /** Share the bar's width evenly between tabs from md up. Phones keep their natural widths. */
+    /** Share the bar's width evenly between tabs at every size, instead of each sizing to its own label. */
     fill?: boolean;
 }
 
@@ -55,7 +55,7 @@ export const Tabs = <T extends string>({ items, value, onChange, 'aria-label': a
                         tabIndex={active ? 0 : -1}
                         onClick={() => onChange(item.value)}
                         onKeyDown={(e) => onKeyDown(e, index)}
-                        className={`inline-flex items-center gap-2 min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 whitespace-nowrap ${fill ? 'md:flex-1 md:justify-center' : ''} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red ${
+                        className={`inline-flex items-center gap-2 min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 whitespace-nowrap ${fill ? 'flex-1 justify-center' : ''} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red ${
                             active
                                 ? 'border-sffl-red text-sffl-red'
                                 : dark

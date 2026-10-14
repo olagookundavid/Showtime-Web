@@ -7,6 +7,13 @@
        chrome resizes. Dialogs sit below it rather than under it. The 0px here
        is only the fallback for anything rendered outside Layout. */
   --chrome-h: 0px;
+  /* Height of the sticky "Showtime Store / Tickets" tab bar, published by
+       StoreLayout. The nested ticket-mode tabs stack below it using this var. */
+  --store-tabs-h: 0px;
+  /* Height of the sticky "Season Pass / Game Pass / Gameday Tickets" bar,
+       published by TicketsLayout. Lets a page below work out the full sticky
+       stack's height, e.g. to scroll a panel into view below all of it. */
+  --ticket-tabs-h: 0px;
 }
 
 /* While any dialog is on screen, the scores carousel folds away.

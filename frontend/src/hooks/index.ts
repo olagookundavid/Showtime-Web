@@ -1,5 +1,6 @@
 export { useDebounced } from './useDebounced';
 export { useHideOnScrollDown } from './useHideOnScrollDown';
+export { useIsScrolled } from './useIsScrolled';
 export { useNewsletterPrompt } from './useNewsletterPrompt';
 export { useReturnUrl, withReturnUrl } from './useReturnUrl';
 export { useLiveStream } from './useLiveStream';
