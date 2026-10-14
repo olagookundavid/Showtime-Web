@@ -183,7 +183,7 @@ export const PlayerDetail = () => {
       <div className="bg-linear-to-r from-sffl-navy to-sffl-red rounded-2xl overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 p-4 sm:p-6 md:p-8">
           {/* Player Image */}
-          <div className="relative w-full max-w-64 sm:max-w-72 md:max-w-96 mx-auto">
+          <div className="relative w-full max-w-64 sm:max-w-72 md:max-w-96 mx-auto md:mx-0">
             {player.image ? (
               <LightboxImage
                 src={player.image}
