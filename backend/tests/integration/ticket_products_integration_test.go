@@ -878,3 +878,113 @@ func TestSeasonPass_RepositoryRules(t *testing.T) {
 	}
 	_ = d1
 }
+
+// ─── Remembering a buyer's phone ──────────────────────────────────────────────
+
+func TestSetPhoneIfEmptyOnlyFillsABlank(t *testing.T) {
+	pool := ticketPool(t)
+	ctx := context.Background()
+	mustExec(t, pool, `DELETE FROM users WHERE email LIKE '%@ticketfixture.test'`)
+	t.Cleanup(func() { mustExec(t, pool, `DELETE FROM users WHERE email LIKE '%@ticketfixture.test'`) })
+
+	var blankID, setID, nullID string
+	if err := pool.QueryRow(ctx, `INSERT INTO users (full_name, email, phone) VALUES ('Blank', 'blank@ticketfixture.test', '') RETURNING id::text`).Scan(&blankID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `INSERT INTO users (full_name, email, phone) VALUES ('Has Phone', 'has@ticketfixture.test', '0800 111 1111') RETURNING id::text`).Scan(&setID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `INSERT INTO users (full_name, email, phone) VALUES ('Null Phone', 'null@ticketfixture.test', NULL) RETURNING id::text`).Scan(&nullID); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := ports.NewAuthRepository(pool)
+	phoneOf := func(id string) string {
+		var p *string
+		if err := pool.QueryRow(ctx, `SELECT phone FROM users WHERE id = $1`, id).Scan(&p); err != nil {
+			t.Fatal(err)
+		}
+		if p == nil {
+			return "<null>"
+		}
+		return *p
+	}
+
+	for _, id := range []string{blankID, nullID} {
+		if err := repo.SetPhoneIfEmpty(ctx, id, "0801 234 5678"); err != nil {
+			t.Fatal(err)
+		}
+		if got := phoneOf(id); got != "0801 234 5678" {
+			t.Errorf("a blank profile should take the number, got %q", got)
+		}
+	}
+	if err := repo.SetPhoneIfEmpty(ctx, setID, "0999 999 9999"); err != nil {
+		t.Fatal(err)
+	}
+	if got := phoneOf(setID); got != "0800 111 1111" {
+		t.Errorf("a number already on the profile must never be replaced, got %q", got)
+	}
+	// A second checkout with a different number leaves the first one alone.
+	if err := repo.SetPhoneIfEmpty(ctx, blankID, "0702 222 2222"); err != nil {
+		t.Fatal(err)
+	}
+	if got := phoneOf(blankID); got != "0801 234 5678" {
+		t.Errorf("the first number saved should stay, got %q", got)
+	}
+	// An unknown user is not an error: this follows a purchase and must not fail it.
+	if err := repo.SetPhoneIfEmpty(ctx, "00000000-0000-0000-0000-000000000000", "0801"); err != nil {
+		t.Errorf("an unknown user should be quietly ignored, got %v", err)
+	}
+}
+
+func TestPayingForATicketKeepsTheSignedInBuyersPhone(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	mustExec(t, f.pool, `DELETE FROM users WHERE email LIKE '%@ticketfixture.test'`)
+	t.Cleanup(func() { mustExec(t, f.pool, `DELETE FROM users WHERE email LIKE '%@ticketfixture.test'`) })
+
+	var blankID, setID string
+	if err := f.pool.QueryRow(ctx, `INSERT INTO users (full_name, email, phone) VALUES ('Blank', 'buyer-blank@ticketfixture.test', '') RETURNING id::text`).Scan(&blankID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(ctx, `INSERT INTO users (full_name, email, phone) VALUES ('Has', 'buyer-has@ticketfixture.test', '0800 111 1111') RETURNING id::text`).Scan(&setID); err != nil {
+		t.Fatal(err)
+	}
+
+	d1 := f.eventDay(t, "ph-1", "2092-03-01")
+	comp := f.competition(t, "ph", "2092-03-01")
+	free := f.product(t, "FREEPH", 0, 0, comp) // free, so no payment provider is needed
+	svc := f.seasonService().WithUserPhoneSaver(ports.NewAuthRepository(f.pool))
+
+	buy := func(email string, userID *string, phone string) {
+		t.Helper()
+		if _, err := svc.Purchase(ctx, dto.PurchaseTicketRequest{
+			ProductID: free.ID, EventDayIDs: []string{d1.ID}, Email: email, Name: "Buyer", Phone: phone, Quantity: 1,
+		}, "http://localhost/tickets/confirm", userID); err != nil {
+			t.Fatalf("purchase for %s: %v", email, err)
+		}
+	}
+	phoneOf := func(id string) string {
+		var p string
+		if err := f.pool.QueryRow(ctx, `SELECT COALESCE(phone, '') FROM users WHERE id = $1`, id).Scan(&p); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	buy("buyer-blank@ticketfixture.test", &blankID, "0803 000 0001")
+	if got := phoneOf(blankID); got != "0803 000 0001" {
+		t.Errorf("a signed-in buyer's phone should be kept on their profile, got %q", got)
+	}
+	buy("buyer-has@ticketfixture.test", &setID, "0900 999 9999")
+	if got := phoneOf(setID); got != "0800 111 1111" {
+		t.Errorf("a phone already on the profile must not be replaced, got %q", got)
+	}
+	// A guest has no profile to update, and buying still works.
+	buy("guest@ticketfixture.test", nil, "0805 555 5555")
+	var n int
+	_ = f.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE phone = '0805 555 5555'`).Scan(&n)
+	if n != 0 {
+		t.Errorf("a guest's phone must not appear on any profile, found %d", n)
+	}
+}

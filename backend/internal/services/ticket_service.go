@@ -68,6 +68,9 @@ type TicketService struct {
 	ticketRepo      ports.TicketRepository
 	scheduledRepo   ports.ScheduledEmailRepository
 	seasonRepo      ports.SeasonPassRepository
+	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
+	// profile after they pay.
+	userPhones UserPhoneSaver
 	matchRepo       ports.MatchRepository
 	paystack        *PaystackClient
 	email           ports.EmailService
@@ -600,6 +603,14 @@ func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketReques
 func (s *TicketService) OnTicketPaid(ctx context.Context, ticket *domain.Ticket) {
 	s.sendPurchaseEmail(ticket)
 	s.scheduleReminders(ctx, ticket)
+	rememberBuyerPhone(ctx, s.userPhones, ticket.UserID, ticket.Phone)
+}
+
+// WithUserPhoneSaver wires in where a signed-in buyer's phone is kept. Separate
+// from the constructor because environments that only read tickets do not need it.
+func (s *TicketService) WithUserPhoneSaver(saver UserPhoneSaver) *TicketService {
+	s.userPhones = saver
+	return s
 }
 
 // verifyTicketPayment is the authoritative money check before a ticket is
