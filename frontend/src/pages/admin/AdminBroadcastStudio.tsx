@@ -807,7 +807,7 @@ export function BroadcastControlPanel({
                       >
                         <div className="min-w-0">
                           <span className="font-black text-gray-900 dark:text-white truncate block">
-                            Q{p.quarter} · {playerName} ({teamName})
+                            H{p.quarter} · {playerName} ({teamName})
                           </span>
                           <span className="text-gray-500 dark:text-gray-400 block truncate">
                             {summary}

@@ -547,6 +547,14 @@ interface RederiveChange {
   newCtx: Ctx;
 }
 
+// Games are two halves now, so new plays only offer the 1st and 2nd. Plays
+// logged back when games had more periods keep their half 3 / 4, so those
+// values stay listed (and filterable) whenever such a play is in view.
+const HALF_LABELS = ["1st Half", "2nd Half", "3rd Half", "4th Half"];
+const halfLabel = (h: number) => HALF_LABELS[h - 1] ?? `Half ${h}`;
+const halfOptions = (...inUse: number[]) =>
+  Array.from(new Set([1, 2, ...inUse.filter((h) => h > 2)])).sort((a, b) => a - b);
+
 // toGo can be 'Goal' (first-and-goal) which has no integer value → null.
 const toGoToInt = (toGo: string): number | null => {
   const n = parseInt(toGo, 10);
@@ -2098,14 +2106,19 @@ export const AdminPlayByPlay = () => {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
               <Field label="Half" htmlFor="ctx-half">
-                <Input
+                <Select
                   id="ctx-half"
-                  type="number"
                   value={ctx.quarter}
                   onChange={(e) =>
                     setCtx({ ...ctx, quarter: parseInt(e.target.value) || 1 })
                   }
-                />
+                >
+                  {halfOptions(ctx.quarter).map((h) => (
+                    <option key={h} value={h}>
+                      {halfLabel(h)}
+                    </option>
+                  ))}
+                </Select>
               </Field>
               <Field label="Drive" htmlFor="ctx-drive">
                 <Input
@@ -2274,8 +2287,10 @@ export const AdminPlayByPlay = () => {
                           <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
                             Safety (+2 pts)
                           </span>
-                          <span className="text-xs font-black text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/40 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700">
-                            +2 pts → {teamName(ctx.offense === "home" ? "away" : "home")}
+                          <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/40 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700">
+                            +2 pts
+                            <ArrowRightIcon className="w-3 h-3" aria-hidden="true" />
+                            {teamName(ctx.offense === "home" ? "away" : "home")}
                           </span>
                         </div>
                         <div className="text-xs text-gray-600 dark:text-gray-300">
@@ -4738,7 +4753,7 @@ const FullStatAuditLog = ({
           >
             All
           </Button>
-          {[1, 2].map((q) => (
+          {halfOptions(...plays.map((p) => p.quarter)).map((q) => (
             <Button
               key={q}
               size="sm"
