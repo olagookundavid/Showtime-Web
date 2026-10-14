@@ -25,8 +25,6 @@ export type FeatureKey =
   | "tickets"
   | "referrals"
   | "event_days"
-  | "season_admission_tiers"
-  | "game_pass_discounts"
   | "store"
   | "inventory"
   | "news"
@@ -91,8 +89,6 @@ export const FEATURE_ACCESS: Record<FeatureKey, Partial<Record<Role, AccessLevel
     admin: "full", commissioner: "full", news_head: "full", content_creator: "full",
     referee: "full", stats: "full", store_manager: "full", fantasy_commissioner: "view",
   },
-  season_admission_tiers: { admin: "full", ticketer: "full" },
-  game_pass_discounts: { admin: "full", ticketer: "full" },
   store: { admin: "full", store_manager: "full" },
   inventory: { admin: "full", store_manager: "full" },
   news: { admin: "full", news_head: "full", content_creator: "full" },

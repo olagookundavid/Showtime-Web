@@ -55,16 +55,3 @@ export {
 } from './staleBuild';
 export { fitTeamName } from './fitTeamName';
 export type { FittedName } from './fitTeamName';
-export {
-  parseTierPerks,
-  seasonTiersToRates,
-  getGamedaySelectionStatus,
-  getBundleDiscountBand,
-  calculateGamePassTotals,
-} from './gamedayStore';
-export type {
-  RepresentativeTierRate,
-  GamedaySelectionStatus,
-  GamedaySelectionResult,
-  GamePassTotals,
-} from './gamedayStore';

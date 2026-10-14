@@ -34,7 +34,6 @@ export { Stats } from "./stats/Stats";
 export { Tickets } from "./tickets/Tickets";
 export { GamePass } from "./tickets/GamePass";
 export { TicketConfirmation } from "./tickets/TicketConfirmation";
-export { GamePassConfirmation } from "./tickets/GamePassConfirmation";
 export { ReferralGenerator } from "./tickets/ReferralGenerator";
 
 // Players

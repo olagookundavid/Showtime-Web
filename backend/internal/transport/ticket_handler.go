@@ -9,9 +9,7 @@ import (
 	"net/http"
 	"pkg-common/helpers"
 	"strconv"
-	"strings"
 
-	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
 
@@ -54,17 +52,10 @@ type ITicketHandler interface {
 type TicketHandler struct {
 	service  services.ITicketService
 	paystack *services.PaystackClient
-	gamePass services.IGamePassService
 }
 
 func NewTicketHandler(service services.ITicketService, paystack *services.PaystackClient) ITicketHandler {
 	return &TicketHandler{service: service, paystack: paystack}
-}
-
-// WithGamePass lets the ticket webhook hand Game Pass payments to their own
-// service, since Paystack sends every charge to this one URL.
-func (h *TicketHandler) WithGamePass(gamePass services.IGamePassService) {
-	h.gamePass = gamePass
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -449,13 +440,7 @@ func (h *TicketHandler) Webhook(c *gin.Context) {
 	}
 
 	if payload.Event == "charge.success" {
-		// This is the one URL set on the Paystack dashboard, so Game Pass
-		// payments arrive here too; their reference prefix routes them.
-		handle := h.service.HandleWebhook
-		if h.gamePass != nil && strings.HasPrefix(payload.Data.Reference, domain.GamePassReferencePrefix) {
-			handle = h.gamePass.HandleWebhook
-		}
-		if err := handle(c.Request.Context(), payload.Data.Reference); err != nil {
+		if err := h.service.HandleWebhook(c.Request.Context(), payload.Data.Reference); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

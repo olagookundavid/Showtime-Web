@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams, useOutletContext } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { getTicketProducts } from "../../services/api";
 import type {
   TicketProductDayResponse,
@@ -11,11 +11,11 @@ import {
   ButtonLink,
   Spinner,
   FootballIcon,
+  TicketAccessCodeBox,
   TicketCheckout,
   TicketDayPicker,
   TicketProductCard,
   isSoldOut,
-  type GamedayStoreContext,
 } from "../../components";
 import {
   CalendarDaysIcon,
@@ -56,8 +56,8 @@ export const Tickets = () => {
   const [searchParams] = useSearchParams();
   // A match card links here with ?date=, so that day starts picked.
   const dateParam = searchParams.get("date");
-  const { appliedCode } = useOutletContext<GamedayStoreContext>();
 
+  const [appliedCode, setAppliedCode] = useState<string | undefined>(undefined);
   // The day picked on each ticket, by product id.
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [checkout, setCheckout] = useState<Checkout | null>(null);
@@ -106,6 +106,28 @@ export const Tickets = () => {
 
   return (
     <div className="space-y-8 md:space-y-12">
+      {/* Hero: the headline, plus the access-code box that unlocks hidden tickets. */}
+      <section className="bg-sffl-navy text-white">
+        <div className="flex flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:py-16">
+          <div className="min-w-0 space-y-5">
+            <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
+              <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
+              Gameday tickets
+            </p>
+            <h1 className="text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl">
+              Don&apos;t just watch.
+              <span className="block text-sffl-red">Be there.</span>
+            </h1>
+            <p className="max-w-md text-sm text-white/85 sm:text-base">
+              Choose your ticket, pick your match day and get your ticket by
+              email.
+            </p>
+          </div>
+
+          <TicketAccessCodeBox onApply={setAppliedCode} />
+        </div>
+      </section>
+
       {linkedDayMissing && (
         <div className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
           <strong className="font-bold">No tickets on sale for {dateParam}.</strong>{" "}
@@ -152,7 +174,7 @@ export const Tickets = () => {
               </p>
             </div>
             <ButtonLink
-              to="/tickets/game-pass"
+              to="/game-pass"
               variant="navy"
               shape="square"
               className="shrink-0"

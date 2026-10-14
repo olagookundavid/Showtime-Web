@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, GamedayStoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -22,8 +22,8 @@ import {
   Standings,
   Stats,
   Tickets,
+  GamePass,
   TicketConfirmation,
-  GamePassConfirmation,
   ReferralGenerator,
   Login,
   Signup,
@@ -64,9 +64,6 @@ const ProductReviews = lazy(() =>
 );
 const Cart = lazy(() =>
   import("./pages/store/Cart").then((m) => ({ default: m.Cart })),
-);
-const GamePass = lazy(() =>
-  import("./pages/tickets/GamePass").then((m) => ({ default: m.GamePass })),
 );
 
 // Lazy load Fantasy Pages
@@ -201,16 +198,6 @@ const AdminTicketProducts = lazy(() =>
 const AdminEventDays = lazy(() =>
   import("./pages/admin/AdminEventDays").then((m) => ({
     default: m.AdminEventDays,
-  })),
-);
-const AdminSeasonTierRates = lazy(() =>
-  import("./pages/admin/AdminSeasonTierRates").then((m) => ({
-    default: m.AdminSeasonTierRates,
-  })),
-);
-const AdminGamePassDiscounts = lazy(() =>
-  import("./pages/admin/AdminGamePassDiscounts").then((m) => ({
-    default: m.AdminGamePassDiscounts,
   })),
 );
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
@@ -432,10 +419,6 @@ function App() {
                         element={<TicketConfirmation />}
                       />
                       <Route
-                        path="/tickets/game-pass/confirm"
-                        element={<GamePassConfirmation />}
-                      />
-                      <Route
                         path="/tickets/referrals"
                         element={<ReferralGenerator />}
                       />
@@ -450,10 +433,8 @@ function App() {
 
                       {/* Store */}
                       <Route element={<StoreLayout />}>
-                        <Route element={<GamedayStoreLayout />}>
-                          <Route path="/tickets" element={<Tickets />} />
-                          <Route path="/tickets/game-pass" element={<GamePass />} />
-                        </Route>
+                        <Route path="/tickets" element={<Tickets />} />
+                        <Route path="/game-pass" element={<GamePass />} />
                         <Route path="/store" element={<Store />} />
                         <Route
                           path="/store/products/:id"
@@ -772,22 +753,6 @@ function App() {
                         element={
                           <FeatureGuard feature="event_days">
                             <AdminEventDays />
-                          </FeatureGuard>
-                        }
-                      />
-                      <Route
-                        path="season-admission-tiers"
-                        element={
-                          <FeatureGuard feature="season_admission_tiers">
-                            <AdminSeasonTierRates />
-                          </FeatureGuard>
-                        }
-                      />
-                      <Route
-                        path="game-pass/discount-bands"
-                        element={
-                          <FeatureGuard feature="game_pass_discounts">
-                            <AdminGamePassDiscounts />
                           </FeatureGuard>
                         }
                       />
