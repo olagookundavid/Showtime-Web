@@ -11,8 +11,9 @@ import { Button, IconButton, Input } from "../ui";
 interface DiscountCodeInputProps {
   /** Storefront cart to price the code against. */
   items?: CheckoutItemPayload[];
-  /** Ticket purchase to price the code against. */
-  tierId?: string;
+  /** Ticket purchase to price the code against: a ticket on one match day. */
+  productId?: string;
+  eventDayId?: string;
   quantity?: number;
   /**
    * Fires whenever the applied code changes — with the preview when one is
@@ -25,7 +26,8 @@ interface DiscountCodeInputProps {
 
 export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
   items,
-  tierId,
+  productId,
+  eventDayId,
   quantity,
   onChange,
   disabled = false,
@@ -38,7 +40,7 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
   // The cart signature. When it changes, an already-applied code has to be
   // re-priced: adding or removing items changes what the code is worth, and a
   // stale saving on screen is a saving the buyer won't actually get.
-  const signature = JSON.stringify({ items, tierId, quantity });
+  const signature = JSON.stringify({ items, productId, eventDayId, quantity });
   const lastSignature = useRef(signature);
 
   const onChangeRef = useRef(onChange);
@@ -50,7 +52,8 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
     return discountsApi.preview({
       code: trimmed,
       items,
-      tier_id: tierId,
+      product_id: productId,
+      event_day_id: eventDayId,
       quantity,
     });
   };

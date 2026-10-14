@@ -162,7 +162,7 @@ export const ColorPanel = ({ editor, onClose, mode }: PanelProps & { mode: 'colo
             </div>
             {isText && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Readers can use light or dark mode, so very dark or very light text may be hard to read for some of them.
+                    Readers on dark mode see dark colours automatically lightened, so they stay readable.
                 </p>
             )}
         </div>

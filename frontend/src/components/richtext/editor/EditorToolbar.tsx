@@ -43,6 +43,8 @@ interface EditorToolbarProps {
     togglePanel: (panel: Panel) => void;
     onPickImage: () => void;
     uploadLabel: string | null;
+    expanded: boolean;
+    onToggleExpand: () => void;
 }
 
 type BlockType = 'p' | 'h2' | 'h3' | 'h4';
@@ -77,7 +79,7 @@ const Tool = ({ icon, label, active = false, disabled = false, onClick }: {
 
 const Divider = () => <span className="mx-1 h-6 w-px shrink-0 bg-gray-200 dark:bg-gray-600" aria-hidden="true" />;
 
-export const EditorToolbar = ({ editor, isArticle, panel, togglePanel, onPickImage, uploadLabel }: EditorToolbarProps) => {
+export const EditorToolbar = ({ editor, isArticle, panel, togglePanel, onPickImage, uploadLabel, expanded, onToggleExpand }: EditorToolbarProps) => {
     const s = useEditorState({
         editor,
         selector: ({ editor: e }) => ({
@@ -188,6 +190,13 @@ export const EditorToolbar = ({ editor, isArticle, panel, togglePanel, onPickIma
                         <Tool icon={AtSymbolIcon} label="Tag a team or player" onClick={() => run().startMention().run()} />
                     </>
                 )}
+                <span className="ml-auto pl-1 shrink-0">
+                    <Tool
+                        icon={expanded ? ArrowsPointingInIcon : ArrowsPointingOutIcon}
+                        label={expanded ? 'Exit full screen' : 'Full screen'}
+                        onClick={onToggleExpand}
+                    />
+                </span>
             </div>
 
             {isArticle && s.inTable && (

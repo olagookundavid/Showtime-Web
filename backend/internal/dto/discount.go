@@ -5,7 +5,7 @@ import "time"
 // ─── Admin management ─────────────────────────────────────────────────────────
 
 type DiscountCodeItemRequest struct {
-	EntityType string  `json:"entity_type" binding:"required,oneof=product ticket_tier"`
+	EntityType string  `json:"entity_type" binding:"required,oneof=product ticket_product"`
 	EntityID   string  `json:"entity_id" binding:"required"`
 	AmountOff  float64 `json:"amount_off" binding:"required,gt=0"`
 }
@@ -58,20 +58,22 @@ type DiscountTargetOption struct {
 	EntityID   string  `json:"entity_id"`
 	Name       string  `json:"name"`
 	Price      float64 `json:"price"`
-	// For ticket tiers: which event day the tier belongs to, for disambiguation.
+	// For ticket products: kept for the admin picker's grouping label.
 	GroupLabel string `json:"group_label,omitempty"`
 }
 
 // ─── Buyer-facing preview ─────────────────────────────────────────────────────
 
 // PreviewDiscountRequest asks "what would this code do to my cart?" without
-// committing to anything. Exactly one of Items or TierID is expected.
+// committing to anything. Exactly one of Items or ProductID is expected.
 type PreviewDiscountRequest struct {
 	Code  string             `json:"code" binding:"required"`
 	Items []OrderItemRequest `json:"items" binding:"omitempty,max=50,dive"`
-	// Ticket purchase preview.
-	TierID   string `json:"tier_id"`
-	Quantity int    `json:"quantity"`
+	// Ticket purchase preview: a product on one match day. Codes apply to single
+	// tickets only, so there is exactly one day.
+	ProductID  string `json:"product_id"`
+	EventDayID string `json:"event_day_id"`
+	Quantity   int    `json:"quantity"`
 }
 
 type DiscountLineResponse struct {

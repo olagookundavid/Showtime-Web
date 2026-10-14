@@ -40,8 +40,8 @@ const QUICK_ACTIONS = [
     },
     {
         to: '/admin/event-days',
-        title: 'Event Day',
-        subtitle: 'Create event',
+        title: 'Match Day',
+        subtitle: 'Create match day',
         icon: CalendarDaysIcon,
         iconClass: 'bg-green-50 dark:bg-green-900/30 text-green-600',
         hoverClass: 'hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50',

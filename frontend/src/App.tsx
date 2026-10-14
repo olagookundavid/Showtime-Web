@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, TicketsLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -22,6 +22,7 @@ import {
   Standings,
   Stats,
   Tickets,
+  GamePass,
   TicketConfirmation,
   ReferralGenerator,
   Login,
@@ -189,6 +190,11 @@ const AdminTickets = lazy(() =>
     default: m.AdminTickets,
   })),
 );
+const AdminTicketProducts = lazy(() =>
+  import("./pages/admin/AdminTicketProducts").then((m) => ({
+    default: m.AdminTicketProducts,
+  })),
+);
 const AdminEventDays = lazy(() =>
   import("./pages/admin/AdminEventDays").then((m) => ({
     default: m.AdminEventDays,
@@ -339,7 +345,27 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <CartProvider>
-            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                // Colours and the red bottom border live in index.css
+                // (.showtime-toast) alongside the rest of the component CSS.
+                className: "showtime-toast",
+                style: {
+                  borderRadius: 0,
+                  fontWeight: 600,
+                  padding: "12px 16px",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+                },
+                success: {
+                  iconTheme: { primary: "#10b981", secondary: "#ffffff" },
+                },
+                error: {
+                  iconTheme: { primary: "#c62828", secondary: "#ffffff" }, // sffl-red
+                },
+              }}
+            />
             <BrowserRouter>
               <ScrollToTop />
               <AdSenseScript />
@@ -414,7 +440,13 @@ function App() {
 
                       {/* Store */}
                       <Route element={<StoreLayout />}>
-                        <Route path="/tickets" element={<Tickets />} />
+                        <Route element={<TicketsLayout />}>
+                          <Route path="/tickets" element={<Tickets />} />
+                          <Route
+                            path="/tickets/game-pass"
+                            element={<GamePass />}
+                          />
+                        </Route>
                         <Route path="/store" element={<Store />} />
                         <Route
                           path="/store/products/:id"
@@ -709,6 +741,14 @@ function App() {
                         element={
                           <FeatureGuard feature="tickets">
                             <AdminTickets />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="ticket-products"
+                        element={
+                          <FeatureGuard feature="tickets">
+                            <AdminTicketProducts />
                           </FeatureGuard>
                         }
                       />

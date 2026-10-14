@@ -304,6 +304,7 @@ export const DashboardShell = ({
         confirmLabel="Log out"
         tone="info"
         icon={ArrowRightOnRectangleIcon}
+        dontAskAgainKey="logout"
         onConfirm={handleLogout}
         onCancel={() => setConfirmLogout(false)}
       />

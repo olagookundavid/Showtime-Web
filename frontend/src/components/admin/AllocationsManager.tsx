@@ -54,7 +54,7 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
     const confirmPendingAction = async () => {
         if (!pendingAction) return;
         if (!canManage) {
-            toast.error('View-only access: your role can view Event Days but not make changes.');
+            toast.error('View-only access: your role can view Match Days but not make changes.');
             setPendingAction(null);
             return;
         }
@@ -137,7 +137,7 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
                                         label={`Revoke allocation for ${a.team_name || 'this team'}`}
                                         className="shrink-0"
                                         disabled={!canManage}
-                                        title={canManage ? undefined : 'View-only access to Event Days'}
+                                        title={canManage ? undefined : 'View-only access to Match Days'}
                                         onClick={() => setPendingAction({ kind: 'delete', allocation: a })}
                                     />
                                 </div>
@@ -173,7 +173,7 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
                             variant="navy"
                             className="shrink-0"
                             disabled={busy || !teamId || !allocatedCount || !canManage}
-                            title={canManage ? undefined : 'View-only access to Event Days'}
+                            title={canManage ? undefined : 'View-only access to Match Days'}
                             onClick={requestSave}
                         >
                             Set Allocation

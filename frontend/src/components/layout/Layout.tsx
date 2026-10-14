@@ -914,6 +914,7 @@ export const Layout = () => {
         confirmLabel="Log out"
         tone="info"
         icon={ArrowRightOnRectangleIcon}
+        dontAskAgainKey="logout"
         onConfirm={() => {
           setConfirmLogout(false);
           setIsMoreMenuOpen(false);

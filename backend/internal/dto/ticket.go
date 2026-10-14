@@ -1,6 +1,6 @@
 package dto
 
-// ─── Event Day DTOs ───────────────────────────────────────────────────────────
+// ─── Match Day (event day) DTOs ───────────────────────────────────────────────
 
 type CreateEventDayRequest struct {
 	Title    string `json:"title" binding:"required"`
@@ -17,14 +17,13 @@ type UpdateEventDayRequest struct {
 }
 
 type EventDayResponse struct {
-	ID        string               `json:"id"`
-	Title     string               `json:"title"`
-	Date      string               `json:"date"`
-	Venue     string               `json:"venue"`
-	IsActive  bool                 `json:"is_active"`
-	Tiers     []TicketTierResponse `json:"tiers,omitempty"`
-	Matches   []EventDayMatch      `json:"matches,omitempty"`
-	CreatedAt string               `json:"created_at"`
+	ID        string          `json:"id"`
+	Title     string          `json:"title"`
+	Date      string          `json:"date"`
+	Venue     string          `json:"venue"`
+	IsActive  bool            `json:"is_active"`
+	Matches   []EventDayMatch `json:"matches,omitempty"`
+	CreatedAt string          `json:"created_at"`
 }
 
 type EventDayMatch struct {
@@ -36,92 +35,180 @@ type EventDayMatch struct {
 	Venue     string `json:"venue"`
 }
 
-// ─── Ticket Tier DTOs ─────────────────────────────────────────────────────────
+// ─── Ticket Product DTOs ──────────────────────────────────────────────────────
 
-type CreateTicketTierRequest struct {
-	Name        string  `json:"name" binding:"required"`
-	Price       int     `json:"price" binding:"min=0"`
-	Capacity    int     `json:"capacity"`
-	Description string  `json:"description"`
-	IsHidden    bool    `json:"is_hidden"`
-	AccessCode  *string `json:"access_code,omitempty"`
+type CreateTicketProductRequest struct {
+	Name          string  `json:"name" binding:"required"`
+	Description   string  `json:"description"`
+	BasePrice     int     `json:"base_price" binding:"min=0"`
+	IsHidden      bool    `json:"is_hidden"`
+	AccessCode    *string `json:"access_code,omitempty"`
+	IsActive      *bool   `json:"is_active"`
+	AllowGamePass *bool   `json:"allow_game_pass"`
+	SortOrder     int     `json:"sort_order"`
 }
 
-type UpdateTicketTierRequest struct {
-	Name        *string `json:"name"`
-	Price       *int    `json:"price" binding:"omitempty,min=0"`
-	Capacity    *int    `json:"capacity" binding:"omitempty,min=0"`
-	Description *string `json:"description"`
-	IsHidden    *bool   `json:"is_hidden"`
-	AccessCode  *string `json:"access_code"`
+type UpdateTicketProductRequest struct {
+	Name          *string `json:"name"`
+	Description   *string `json:"description"`
+	BasePrice     *int    `json:"base_price" binding:"omitempty,min=0"`
+	IsHidden      *bool   `json:"is_hidden"`
+	AccessCode    *string `json:"access_code"`
+	IsActive      *bool   `json:"is_active"`
+	AllowGamePass *bool   `json:"allow_game_pass"`
+	SortOrder     *int    `json:"sort_order"`
 }
 
-type TicketTierResponse struct {
-	ID          string  `json:"id"`
-	EventDayID  string  `json:"event_day_id"`
-	Name        string  `json:"name"`
-	Price       int     `json:"price"`
-	Capacity    int     `json:"capacity"`
-	SoldCount   int     `json:"sold_count"`
-	Available   int     `json:"available"` // computed: capacity - sold_count (0 if unlimited)
-	Description string  `json:"description"`
-	IsHidden    bool    `json:"is_hidden"`
-	AccessCode  *string `json:"access_code,omitempty"`
+// SaveProductDayRequest sets a product's price and capacity on one match day,
+// creating the row if the product was not yet on sale that day.
+type SaveProductDayRequest struct {
+	EventDayID string `json:"event_day_id" binding:"required"`
+	// nil clears the override, falling back to the product's base price.
+	PriceOverride *int  `json:"price_override" binding:"omitempty,min=0"`
+	Capacity      int   `json:"capacity" binding:"min=0"`
+	IsActive      *bool `json:"is_active"`
+}
+
+type TicketProductDayResponse struct {
+	ID            string `json:"id"`
+	ProductID     string `json:"product_id"`
+	EventDayID    string `json:"event_day_id"`
+	EventTitle    string `json:"event_title"`
+	EventDate     string `json:"event_date"`
+	EventVenue    string `json:"event_venue"`
+	Price         int    `json:"price"`
+	PriceOverride *int   `json:"price_override,omitempty"`
+	Capacity      int    `json:"capacity"`
+	SoldCount     int    `json:"sold_count"`
+	HeldCount     int    `json:"held_count"`
+	// Available is seats left; -1 means unlimited.
+	Available int  `json:"available"`
+	IsActive  bool `json:"is_active"`
+}
+
+type TicketProductResponse struct {
+	ID            string                     `json:"id"`
+	Name          string                     `json:"name"`
+	Slug          string                     `json:"slug"`
+	Description   string                     `json:"description"`
+	BasePrice     int                        `json:"base_price"`
+	IsHidden      bool                       `json:"is_hidden"`
+	AccessCode    *string                    `json:"access_code,omitempty"`
+	IsActive      bool                       `json:"is_active"`
+	AllowGamePass bool                       `json:"allow_game_pass"`
+	SortOrder     int                        `json:"sort_order"`
+	Days          []TicketProductDayResponse `json:"days"`
+}
+
+// ─── Game Pass DTOs ───────────────────────────────────────────────────────────
+
+type GamePassRuleDTO struct {
+	MinDays    int     `json:"min_days" binding:"required,min=2"`
+	PercentOff float64 `json:"percent_off" binding:"min=0,max=100"`
+	IsActive   *bool   `json:"is_active"`
+}
+
+type SaveGamePassRulesRequest struct {
+	Rules []GamePassRuleDTO `json:"rules" binding:"required,max=50,dive"`
+}
+
+type GamePassRuleResponse struct {
+	MinDays    int     `json:"min_days"`
+	PercentOff float64 `json:"percent_off"`
+	IsActive   bool    `json:"is_active"`
+}
+
+// PriceQuoteRequest asks what a selection would cost, using the same pricing code
+// the real purchase uses.
+type PriceQuoteRequest struct {
+	ProductID    string   `json:"product_id" binding:"required"`
+	EventDayIDs  []string `json:"event_day_ids" binding:"required,min=1,max=30"`
+	PurchaseType string   `json:"purchase_type" binding:"required,oneof=SINGLE GAME_PASS"`
+	Quantity     int      `json:"quantity" binding:"required,min=1,max=10"`
+}
+
+type PriceQuoteResponse struct {
+	UnitPrice               int     `json:"unit_price"`
+	Subtotal                int     `json:"subtotal"`
+	GamePassDiscountPercent float64 `json:"game_pass_discount_percent"`
+	GamePassDiscountAmount  int     `json:"game_pass_discount_amount"`
+	Total                   int     `json:"total"`
+	Days                    int     `json:"days"`
 }
 
 // ─── Ticket DTOs ──────────────────────────────────────────────────────────────
 
 type PurchaseTicketRequest struct {
-	EventDayID   string  `json:"event_day_id" binding:"required"`
-	TierID       string  `json:"tier_id" binding:"required"`
-	Email        string  `json:"email" binding:"required,email"`
-	Name         string  `json:"name" binding:"required"`
-	Phone        string  `json:"phone" binding:"required"`
-	Quantity     int     `json:"quantity" binding:"required,min=1,max=10"`
-	ReferralCode *string `json:"referral_code,omitempty"`
+	ProductID string `json:"product_id" binding:"required"`
+	// SINGLE takes exactly one day; GAME_PASS takes two or more.
+	PurchaseType string   `json:"purchase_type" binding:"required,oneof=SINGLE GAME_PASS"`
+	EventDayIDs  []string `json:"event_day_ids" binding:"required,min=1,max=30"`
+	Email        string   `json:"email" binding:"required,email"`
+	Name         string   `json:"name" binding:"required"`
+	Phone        string   `json:"phone" binding:"required"`
+	Quantity     int      `json:"quantity" binding:"required,min=1,max=10"`
+	ReferralCode *string  `json:"referral_code,omitempty"`
+	// Unlocks a hidden product. Required when the product is hidden.
+	AccessCode string `json:"access_code"`
 	// Optional discount code. Distinct from ReferralCode (attribution only) and
-	// from a tier's access_code (unlocks a hidden tier) — this one changes price.
+	// from a product's access_code (unlocks a hidden product) — this one changes
+	// price. Single tickets only.
 	DiscountCode string `json:"discount_code"`
 }
 
 // GiftTicketRequest is used by an App Admin to issue a complimentary ticket
 // (no payment) that still triggers the full confirmation email.
 type GiftTicketRequest struct {
-	EventDayID string `json:"event_day_id" binding:"required"`
-	TierID     string `json:"tier_id" binding:"required"`
-	Email      string `json:"email" binding:"required,email"`
-	Name       string `json:"name" binding:"required"`
-	Phone      string `json:"phone"`
-	Quantity   int    `json:"quantity" binding:"required,min=1,max=10"`
+	ProductID   string   `json:"product_id" binding:"required"`
+	EventDayIDs []string `json:"event_day_ids" binding:"required,min=1,max=30"`
+	Email       string   `json:"email" binding:"required,email"`
+	Name        string   `json:"name" binding:"required"`
+	Phone       string   `json:"phone"`
+	Quantity    int      `json:"quantity" binding:"required,min=1,max=10"`
+}
+
+type TicketDayResponse struct {
+	ID          string  `json:"id"`
+	EventDayID  string  `json:"event_day_id"`
+	Title       string  `json:"title"`
+	Date        string  `json:"date"`
+	Venue       string  `json:"venue"`
+	UnitPrice   int     `json:"unit_price"`
+	CheckedInAt *string `json:"checked_in_at,omitempty"`
+	CheckedInBy *string `json:"checked_in_by,omitempty"`
 }
 
 type TicketResponse struct {
-	ID                string  `json:"id"`
-	EventDayID        string  `json:"event_day_id"`
-	TierID            string  `json:"tier_id"`
-	Email             string  `json:"email"`
-	Name              string  `json:"name,omitempty"`
-	Phone             string  `json:"phone,omitempty"`
-	Quantity          int     `json:"quantity"`
-	UnitPrice         int     `json:"unit_price"`
-	TotalAmount       int     `json:"total_amount"`
-	Status            string  `json:"status"`
-	PaystackReference string  `json:"paystack_reference,omitempty"`
-	TicketCode        string  `json:"ticket_code,omitempty"`
-	CheckedInAt       *string `json:"checked_in_at,omitempty"`
-	CheckedInBy       *string `json:"checked_in_by,omitempty"`
-	AuthorizationURL  string  `json:"authorization_url,omitempty"`
-	ReferralCode      string  `json:"referral_code,omitempty"`
-	// Joined fields
-	TierName   string `json:"tier_name,omitempty"`
-	EventTitle string `json:"event_title,omitempty"`
-	EventDate  string `json:"event_date,omitempty"`
-	EventVenue string `json:"event_venue,omitempty"`
-	CreatedAt  string `json:"created_at"`
+	ID                      string  `json:"id"`
+	ProductID               string  `json:"product_id,omitempty"`
+	ProductName             string  `json:"product_name,omitempty"`
+	PurchaseType            string  `json:"purchase_type"`
+	Email                   string  `json:"email"`
+	Name                    string  `json:"name,omitempty"`
+	Phone                   string  `json:"phone,omitempty"`
+	Quantity                int     `json:"quantity"`
+	UnitPrice               int     `json:"unit_price"`
+	Subtotal                int     `json:"subtotal"`
+	GamePassDiscountPercent float64 `json:"game_pass_discount_percent"`
+	GamePassDiscountAmount  int     `json:"game_pass_discount_amount"`
+	DiscountCode            string  `json:"discount_code,omitempty"`
+	DiscountAmount          int     `json:"discount_amount"`
+	TotalAmount             int     `json:"total_amount"`
+	Status                  string  `json:"status"`
+	PaystackReference       string  `json:"paystack_reference,omitempty"`
+	TicketCode              string  `json:"ticket_code,omitempty"`
+	AuthorizationURL        string  `json:"authorization_url,omitempty"`
+	ReferralCode            string  `json:"referral_code,omitempty"`
+	// One entry per match day the ticket covers, each with its own check-in.
+	Days      []TicketDayResponse `json:"days"`
+	CreatedAt string              `json:"created_at"`
 }
 
+// CheckinRequest checks a ticket in for one match day. EventDayID is optional:
+// left out, the scanner's day is today's.
 type CheckinRequest struct {
 	CheckedInBy string `json:"checked_in_by" binding:"required"`
+	EventDayID  string `json:"event_day_id"`
 }
 
 // ─── Ticket Referral Code DTOs ──────────────────────────────────────────────────
@@ -148,4 +235,3 @@ type ReferralStatsResponse struct {
 	TotalRevenue int     `json:"total_revenue"`
 	CreatedAt    string  `json:"created_at"`
 }
-

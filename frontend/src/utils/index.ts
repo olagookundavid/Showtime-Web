@@ -74,3 +74,4 @@ export type {
   LineupBoard,
   AutoFillResult,
 } from './autoFillLineup';
+export { isConfirmSkipped, setConfirmSkipped } from './confirmPreferences';

@@ -285,6 +285,12 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return app.TicketService.ExpirePastTickets(ctx)
 	})
 
+	// Send match-day reminders that have come due. Rows are claimed with
+	// SKIP LOCKED, so overlapping ticks or a second instance cannot double-send.
+	add("*/5 * * * *", "Ticket reminders", func(ctx context.Context) error {
+		return app.TicketService.ProcessDueReminders(ctx)
+	})
+
 	// Run daily at 01:00 AM to cleanup OTPs
 	add("0 1 * * *", "OTP cleanup", func(ctx context.Context) error {
 		return app.AuthService.CleanupExpiredOTPs(ctx)
@@ -412,7 +418,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	matchRepo := ports.NewMatchRepository(pool)
 	playerRepo := ports.NewPlayerRepository(pool)
 	eventDayRepo := ports.NewEventDayRepository(pool)
-	tierRepo := ports.NewTicketTierRepository(pool)
+	productRepo := ports.NewTicketProductRepository(pool)
+	scheduledEmailRepo := ports.NewScheduledEmailRepository(pool)
 	ticketRepo := ports.NewTicketRepository(pool)
 	tmRepo := ports.NewTeamManagerRepository(pool)
 	analyticsRepo := ports.NewAnalyticsRepository(pool)
@@ -469,11 +476,11 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	galleryService := services.NewGalleryService(galleryRepo)
 	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
-	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService, discountService, discountRepo)
+	ticketService := services.NewTicketService(eventDayRepo, productRepo, ticketRepo, scheduledEmailRepo, matchRepo, paystackClient, emailService, discountService, discountRepo)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 	siteEventsService := services.NewSiteEventsService(siteEventsRepo)
-	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, tierRepo, eventDayRepo, emailService)
+	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, productRepo, ticketService)
 	statsService := services.NewStatsService(statsRepo, matchRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo)
 	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService, discountService, discountRepo)
@@ -524,7 +531,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	appSettingHandler := transport.NewAppSettingHandler(appSettingService)
 	claimHandler := transport.NewClaimHandler(claimService)
 	commentHandler := transport.NewCommentHandler(commentService, authRepo)
-	discountHandler := transport.NewDiscountHandler(discountService, storeService, tierRepo)
+	discountHandler := transport.NewDiscountHandler(discountService, storeService, productRepo)
 
 	reliveService := services.NewReliveService()
 	reliveHandler := transport.NewReliveHandler(reliveService)

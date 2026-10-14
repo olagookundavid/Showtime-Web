@@ -67,11 +67,48 @@ body:has([role="dialog"]) nav.fixed.bottom-0 {
   }
 }
 
+/* Entrance for Modal: a quick backdrop fade plus a subtle pop on the card. */
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-modal-backdrop-in {
+  animation: modal-backdrop-in 180ms ease-out both;
+}
+
+.animate-modal-in {
+  animation: modal-pop-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-modal-backdrop-in,
+  .animate-modal-in {
+    animation: none;
+  }
+}
+
 @theme {
   --color-sffl-red: #c62828;
   --color-sffl-navy: #001f3f;
   --color-sffl-white: #ffffff;
   --color-sffl-gray: #f5f5f5;
+  --color-sffl-gold: #cfac70;
 
   --font-sans: var(--app-font-family);
 
@@ -138,6 +175,14 @@ select option {
 .dark select option {
   background-color: #1f2937;
   color: #ffffff;
+}
+
+/* react-hot-toast: the navy Showtime surface in both themes, with a red
+   bottom border as the one accent that's always there. */
+.showtime-toast {
+  background: var(--color-sffl-navy);
+  color: #ffffff;
+  border-bottom: 4px solid var(--color-sffl-red);
 }
 
 /* Root container must also prevent overscroll on iOS */
@@ -307,4 +352,23 @@ html.dark {
 }
 .rich-editor .tableWrapper {
   overflow-x: auto;
+}
+
+/* Author-picked text colours stay readable in both themes. Each coloured run
+ * carries its colour in --rc (text) or --hl (highlight); the editor adds them
+ * with decorations (colorContrast.ts) and RichContent adds them when rendering.
+ * Dark mode lifts a too-dark text colour to at least 74% lightness, keeping its
+ * hue. Highlighted text is black or white, whichever contrasts with the
+ * highlight, in either theme. A browser without relative colours ignores both
+ * rules and shows the colour as picked. */
+.rich-content .rc-color {
+  color: var(--rc);
+}
+.dark .rich-editor .rc-color,
+.dark .rich-content .rc-color {
+  color: oklch(from var(--rc) max(l, 0.74) c h);
+}
+.rich-editor .rc-hl,
+.rich-content .rc-hl {
+  color: oklch(from var(--hl) calc((l - 0.6) * -1000) 0 0);
 }
