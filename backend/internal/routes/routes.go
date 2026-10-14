@@ -297,6 +297,11 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		badgesAdminGroup.GET("", app.Handlers.BadgeHandler.ListBadges)
 		badgesAdminGroup.GET("/awards", app.Handlers.BadgeHandler.ListAwards)
+		// The artwork library badges pick their image from.
+		badgesAdminGroup.GET("/icons", app.Handlers.BadgeHandler.ListBadgeIcons)
+		badgesAdminGroup.POST("/icons", app.Handlers.BadgeHandler.CreateBadgeIcon)
+		badgesAdminGroup.PUT("/icons/:iconId", app.Handlers.BadgeHandler.UpdateBadgeIcon)
+		badgesAdminGroup.DELETE("/icons/:iconId", app.Handlers.BadgeHandler.DeleteBadgeIcon)
 		badgesAdminGroup.GET("/:id", app.Handlers.BadgeHandler.GetBadgeByID)
 		badgesAdminGroup.POST("", app.Handlers.BadgeHandler.CreateBadge)
 		badgesAdminGroup.PUT("/:id", app.Handlers.BadgeHandler.UpdateBadge)

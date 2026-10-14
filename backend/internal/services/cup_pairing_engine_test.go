@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"showtime-backend/internal/domain"
 	"testing"
@@ -316,5 +317,27 @@ func TestExistingRound1(t *testing.T) {
 		if _, err := existingRound1(mutate(round()), teams); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
+	}
+}
+
+// An admin edit of a Swiss cup match runs validateKnockoutMatch; the round tag
+// must survive it, or the match drops out of its round.
+func TestValidateKnockoutMatchKeepsCupSwissRound(t *testing.T) {
+	s := &MatchService{}
+	for _, round := range []string{domain.CupRound1, domain.CupRound2, domain.CupRound3} {
+		m := &domain.Match{HomeTeamID: "a", AwayTeamID: "b", Round: round}
+		if err := s.validateKnockoutMatch(context.Background(), m, false); err != nil {
+			t.Fatalf("%s: unexpected error: %v", round, err)
+		}
+		if m.Round != round {
+			t.Errorf("%s: round tag was cleared to %q", round, m.Round)
+		}
+	}
+	m := &domain.Match{HomeTeamID: "a", AwayTeamID: "b", Round: "Week 1"}
+	if err := s.validateKnockoutMatch(context.Background(), m, false); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if m.Round != "" {
+		t.Errorf("a non-cup round label on a non-bracket match should still be cleared, got %q", m.Round)
 	}
 }

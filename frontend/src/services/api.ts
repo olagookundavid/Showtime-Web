@@ -25,6 +25,9 @@ import type {
   RosterSummary,
   CreatePlayerPayload,
   Badge,
+  BadgeIcon,
+  SaveBadgeIconPayload,
+  UpdateBadgeIconResult,
   PlayerBadgeAward,
   PlayerBadge,
   CreateBadgePayload,
@@ -3373,6 +3376,30 @@ export const updateAdminBadge = async (
 
 export const deleteAdminBadge = async (id: string): Promise<void> => {
   await api.delete(`/admin/badges/${id}`);
+};
+
+// ── Badge artwork library ────────────────────────────────────────────────
+export const getBadgeIcons = async (): Promise<BadgeIcon[]> => {
+  const res = await api.get<{ data: BadgeIcon[] }>("/admin/badges/icons");
+  return res.data.data ?? [];
+};
+
+export const createBadgeIcon = async (payload: SaveBadgeIconPayload): Promise<BadgeIcon> => {
+  const res = await api.post<{ data: BadgeIcon }>("/admin/badges/icons", payload);
+  return res.data.data;
+};
+
+/** Rename artwork or replace its image; badges showing the old image move to the new one. */
+export const updateBadgeIcon = async (
+  id: string,
+  payload: SaveBadgeIconPayload,
+): Promise<UpdateBadgeIconResult> => {
+  const res = await api.put<{ data: UpdateBadgeIconResult }>(`/admin/badges/icons/${id}`, payload);
+  return res.data.data;
+};
+
+export const deleteBadgeIcon = async (id: string): Promise<void> => {
+  await api.delete(`/admin/badges/icons/${id}`);
 };
 
 export const awardAdminBadge = async (

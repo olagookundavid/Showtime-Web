@@ -21,6 +21,12 @@ type IBadgeHandler interface {
 	DeleteAward(c *gin.Context)
 	BackfillMVPBadges(c *gin.Context)
 	ListAwards(c *gin.Context)
+
+	// The badge artwork library (badge_icon_handler.go).
+	ListBadgeIcons(c *gin.Context)
+	CreateBadgeIcon(c *gin.Context)
+	UpdateBadgeIcon(c *gin.Context)
+	DeleteBadgeIcon(c *gin.Context)
 }
 
 type BadgeHandler struct {

@@ -563,10 +563,15 @@ func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.
 		if match.HomeTeamID == "" || match.AwayTeamID == "" {
 			return fmt.Errorf("home and away teams are required for non-bracket matches")
 		}
-		// Non-bracket matches don't carry bracket linkage.
+		// Non-bracket matches don't carry bracket linkage. A cup's Swiss
+		// rounds aren't in a bracket either, but the cup flow finds each
+		// round's matches by that tag, so it is kept: clearing it on an admin
+		// edit dropped the match out of its round.
 		match.FeedsMatchID = nil
 		match.FeedsSlot = ""
-		match.Round = ""
+		if !isCupSwissRound(match.Round) {
+			match.Round = ""
+		}
 		match.BracketPos = nil
 		return nil
 	}
@@ -1014,6 +1019,10 @@ var nextCupRound = map[string]string{
 	domain.CupRoundQF:    domain.CupRoundSF,
 	domain.CupRoundSF:    domain.CupRoundFinal,
 	domain.CupRoundFinal: domain.CupRoundCompleted,
+}
+
+func isCupSwissRound(round string) bool {
+	return round == domain.CupRound1 || round == domain.CupRound2 || round == domain.CupRound3
 }
 
 func (s *MatchService) cupMatches(ctx context.Context, competitionID string) ([]domain.Match, error) {

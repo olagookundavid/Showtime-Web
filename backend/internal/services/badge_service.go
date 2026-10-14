@@ -25,6 +25,12 @@ type IBadgeService interface {
 	SyncTOTWBadges(ctx context.Context, totw *domain.TeamOfTheWeek) error
 	HandleTOTWDeleted(ctx context.Context, totwID string) error
 	ListAwards(ctx context.Context, badgeID, playerID string, page, limit int) ([]dto.PlayerBadgeAwardResponse, int64, error)
+
+	// The badge artwork library (badge_icon_service.go).
+	ListBadgeIcons(ctx context.Context) ([]dto.BadgeIconResponse, error)
+	CreateBadgeIcon(ctx context.Context, req dto.SaveBadgeIconRequest) (*dto.BadgeIconResponse, error)
+	UpdateBadgeIcon(ctx context.Context, id string, req dto.SaveBadgeIconRequest) (*dto.UpdateBadgeIconResponse, error)
+	DeleteBadgeIcon(ctx context.Context, id string) error
 }
 
 type BadgeService struct {
