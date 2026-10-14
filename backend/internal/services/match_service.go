@@ -26,6 +26,9 @@ type IMatchService interface {
 	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error)
 	GetStandings(ctx context.Context, competitionID string, page, limit int) ([]dto.StandingResponse, int, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
+	// OtherTournamentMatches lists matches that other tournaments already have on a
+	// date that has not passed, so adding one beside them can be confirmed first.
+	OtherTournamentMatches(ctx context.Context, date time.Time, competitionID, excludeMatchID string) ([]dto.SharedDayMatch, error)
 	UpdateMatch(ctx context.Context, match *domain.Match) error
 	DeleteMatch(ctx context.Context, id string) error
 	RecalculateStandings(ctx context.Context, competitionID string) error
@@ -576,6 +579,28 @@ func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.
 		return nil
 	}
 	return s.validateBracketLink(ctx, match)
+}
+
+// OtherTournamentMatches is the "are you aware?" check behind adding or moving a
+// match: it returns what other tournaments have on the same date. A date that has
+// already passed is never flagged, because entering past results is routine and
+// nothing is "about to be played" that day.
+func (s *MatchService) OtherTournamentMatches(ctx context.Context, date time.Time, competitionID, excludeMatchID string) ([]dto.SharedDayMatch, error) {
+	if date.IsZero() || competitionID == "" {
+		return []dto.SharedDayMatch{}, nil
+	}
+	// Matches are played in Lagos, and the date is a plain calendar day.
+	loc, err := time.LoadLocation("Africa/Lagos")
+	if err != nil {
+		loc = time.FixedZone("WAT", 3600)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	day := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	if day.Before(today) {
+		return []dto.SharedDayMatch{}, nil
+	}
+	return s.repo.FindMatchesInOtherCompetitions(ctx, day.Format("2006-01-02"), competitionID, excludeMatchID)
 }
 
 func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) error {

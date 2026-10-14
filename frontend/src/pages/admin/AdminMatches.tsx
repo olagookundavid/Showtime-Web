@@ -5,6 +5,7 @@ import {
   BoltIcon,
   CheckCircleIcon,
   ChevronDownIcon,
+  ExclamationTriangleIcon,
   ClipboardDocumentListIcon,
   LockClosedIcon,
   PencilSquareIcon,
@@ -29,6 +30,7 @@ import type {
   Team,
   CreateMatchPayload,
   MatchWithTeamIds,
+  SharedDayMatch,
 } from "../../types";
 import {
   Loader,
@@ -229,6 +231,9 @@ export const AdminMatches = () => {
     null,
   );
   const [teamSheetMatch, setTeamSheetMatch] = useState<Match | null>(null);
+  // Matches another tournament already has on the day being saved. Set when the
+  // server asks for confirmation; cleared once the person decides.
+  const [sharedDay, setSharedDay] = useState<SharedDayMatch[] | null>(null);
 
   // Filters
   const [filterComp, setFilterComp] = useState("");
@@ -476,7 +481,7 @@ export const AdminMatches = () => {
     if (validateForm()) setPendingAction({ kind: "save" });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (confirmSharedDay = false) => {
     setSaving(true);
     try {
       const saveAwayId = form.away_team_id === "BYE" ? "" : form.away_team_id;
@@ -522,6 +527,7 @@ export const AdminMatches = () => {
         // '' clears the MVP; the API treats an omitted/null field as "keep".
         mvp_player_id: form.mvp_player_id || "",
         mvp_overridden: form.mvp_overridden,
+        confirm_shared_day: confirmSharedDay || undefined,
       };
       if (editingId) {
         await updateMatch(editingId, payload);
@@ -533,17 +539,37 @@ export const AdminMatches = () => {
       queryClient.invalidateQueries({ queryKey: ["adminMatches"] });
       setShowModal(false);
     } catch (err: unknown) {
-      console.error(err);
       const errorData =
         typeof err === "object" && err !== null && "response" in err
           ? (
               err as {
-                response?: { data?: { message?: string; error?: string } };
+                response?: {
+                  status?: number;
+                  data?: {
+                    message?: string;
+                    error?: string;
+                    code?: string;
+                    conflicts?: SharedDayMatch[];
+                  };
+                };
               }
-            ).response?.data
+            ).response
           : undefined;
+      // Another tournament plays that day: not a failure, a question. The form
+      // stays open behind it, and confirming sends the same save again.
+      if (
+        errorData?.status === 409 &&
+        errorData.data?.code === "SHARED_MATCH_DAY" &&
+        errorData.data.conflicts?.length
+      ) {
+        setSharedDay(errorData.data.conflicts);
+        return;
+      }
+      console.error(err);
       toast.error(
-        errorData?.message || errorData?.error || "Failed to save match",
+        errorData?.data?.message ||
+          errorData?.data?.error ||
+          "Failed to save match",
       );
     } finally {
       setSaving(false);
@@ -1329,6 +1355,50 @@ export const AdminMatches = () => {
               }
             />
           ) : null
+        }
+      />
+
+      {/* Another tournament already plays on this day. Also outside the form
+          overlay, for the same reason as the dialog above. */}
+      <ConfirmDialog
+        open={sharedDay !== null}
+        title="Another tournament plays that day"
+        description={
+          sharedDay
+            ? `${[...new Set(sharedDay.map((m) => m.competition_name))].join(" and ")} ${
+                new Set(sharedDay.map((m) => m.competition_name)).size === 1
+                  ? "already has"
+                  : "already have"
+              } ${sharedDay.length === 1 ? "a match" : `${sharedDay.length} matches`} on ${formatSummaryDate(form.date)}. Teams, venue and ticket sales for that day are shared, so check the other fixtures before you ${editingId ? "move" : "add"} this one.`
+            : undefined
+        }
+        confirmLabel={editingId ? "Move it anyway" : "Add it anyway"}
+        tone="warning"
+        icon={ExclamationTriangleIcon}
+        pending={saving}
+        maxWidth="lg"
+        onConfirm={async () => {
+          setSharedDay(null);
+          await handleSave(true);
+        }}
+        onCancel={() => setSharedDay(null)}
+        body={
+          sharedDay && (
+            <ul className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+              {sharedDay.map((m) => (
+                <li key={m.match_id} className="min-w-0 text-sm">
+                  <span className="block font-bold text-gray-900 dark:text-white">
+                    {m.competition_name}
+                  </span>
+                  <span className="block wrap-break-word text-gray-600 dark:text-gray-300">
+                    {m.home_team} vs {m.away_team}
+                    {m.start_time && ` at ${m.start_time}`}
+                    {m.venue && `, ${m.venue}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )
         }
       />
 

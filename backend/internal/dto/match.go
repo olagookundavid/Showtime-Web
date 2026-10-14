@@ -76,6 +76,9 @@ type CreateMatchRequest struct {
 	SecondLegMatchID *string `json:"second_leg_match_id"`
 	MVPPlayerID      *string `json:"mvp_player_id"`
 	MVPOverridden    *bool   `json:"mvp_overridden,omitempty"`
+	// ConfirmSharedDay is sent once the person has seen that another tournament
+	// already plays on this date and chosen to go ahead.
+	ConfirmSharedDay bool `json:"confirm_shared_day"`
 }
 
 type UpdateMatchRequest struct {
@@ -97,6 +100,27 @@ type UpdateMatchRequest struct {
 	SecondLegMatchID *string `json:"second_leg_match_id"`
 	MVPPlayerID      *string `json:"mvp_player_id"`
 	MVPOverridden    *bool   `json:"mvp_overridden,omitempty"`
+	// ConfirmSharedDay is sent once the person has seen that another tournament
+	// already plays on the new date and chosen to go ahead.
+	ConfirmSharedDay bool `json:"confirm_shared_day"`
+}
+
+// SharedDayCode marks the 409 a create or reschedule gets back when another
+// tournament already has a match that day and the request did not confirm it.
+const SharedDayCode = "SHARED_MATCH_DAY"
+
+// SharedDayMatch is a match in another tournament on the same date, shown to
+// whoever is about to add one beside it.
+type SharedDayMatch struct {
+	MatchID         string `json:"match_id"`
+	CompetitionID   string `json:"competition_id"`
+	CompetitionName string `json:"competition_name"`
+	HomeTeam        string `json:"home_team"`
+	AwayTeam        string `json:"away_team"`
+	// StartTime is HH:MM, empty when no kickoff has been set.
+	StartTime string `json:"start_time"`
+	Venue     string `json:"venue"`
+	Status    string `json:"status"`
 }
 
 type OverrideMVPRequest struct {

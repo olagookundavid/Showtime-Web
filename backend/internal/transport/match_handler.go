@@ -164,6 +164,28 @@ func (h *MatchHandler) GetAllTeams(c *gin.Context) {
 	pagedJSON(c, teams, total, page, limit)
 }
 
+// respondIfSharedDay answers 409 with the other tournaments' matches when there
+// are any on that date, and reports whether it did. The body carries a stable
+// code so the admin page can show a confirmation and resend with
+// confirm_shared_day set.
+func (h *MatchHandler) respondIfSharedDay(c *gin.Context, date time.Time, competitionID, excludeMatchID string) bool {
+	conflicts, err := h.service.OtherTournamentMatches(c.Request.Context(), date, competitionID, excludeMatchID)
+	if err != nil {
+		// The check is a safety net; if it cannot run, do not block the save.
+		return false
+	}
+	if len(conflicts) == 0 {
+		return false
+	}
+	c.JSON(http.StatusConflict, gin.H{
+		"status":    false,
+		"code":      dto.SharedDayCode,
+		"message":   "Another tournament already has a match on this day",
+		"conflicts": conflicts,
+	})
+	return true
+}
+
 // CreateMatch godoc
 // @Summary      Create a match
 // @Tags         match-hub
@@ -250,6 +272,12 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		}
 	}
 
+	// Another tournament already has a match that day: make sure the person knows
+	// before a second one is added beside it.
+	if !req.ConfirmSharedDay && h.respondIfSharedDay(c, match.Date, match.CompetitionID, "") {
+		return
+	}
+
 	if err := h.service.CreateMatch(c.Request.Context(), match); err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
@@ -327,6 +355,25 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		if !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 			helpers.BadResponse(c, "Home and Away scores must be provided when finishing a match")
 			return
+		}
+	}
+
+	// Moving a match onto a day another tournament plays on needs the same
+	// confirmation as creating one there. Saving a score or a venue leaves the
+	// date and tournament alone and is never held up by it.
+	if !req.ConfirmSharedDay {
+		if existing, err := h.service.GetMatchByID(c.Request.Context(), id); err == nil && existing != nil {
+			newDate, newComp := existing.Date, existing.CompetitionID
+			if !match.Date.IsZero() {
+				newDate = match.Date
+			}
+			if match.CompetitionID != "" {
+				newComp = match.CompetitionID
+			}
+			moved := !newDate.Equal(existing.Date) || newComp != existing.CompetitionID
+			if moved && h.respondIfSharedDay(c, newDate, newComp, id) {
+				return
+			}
 		}
 	}
 
