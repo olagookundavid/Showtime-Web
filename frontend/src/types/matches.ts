@@ -130,6 +130,21 @@ export interface CreateMatchPayload {
     second_leg_match_id?: string | null;
     mvp_player_id?: string | null;
     mvp_overridden?: boolean;
+    /** Sent once the person has seen that another tournament plays that day and chose to go ahead. */
+    confirm_shared_day?: boolean;
+}
+
+/** A match another tournament already has on the day a match is being added or moved to. */
+export interface SharedDayMatch {
+    match_id: string;
+    competition_id: string;
+    competition_name: string;
+    home_team: string;
+    away_team: string;
+    /** HH:MM, empty when no kickoff is set. */
+    start_time: string;
+    venue: string;
+    status: string;
 }
 
 export interface TeamSheetSlotPayload {
