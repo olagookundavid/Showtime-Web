@@ -5,14 +5,16 @@ interface TicketFeatureStripProps {
     className?: string;
 }
 
-/** Three short feature callouts under a ticket/Game Pass page's hero, specific to that page. */
+/** Three short feature callouts under a ticket/Game Pass page's hero, styled to match the Store's trust strip. */
 export const TicketFeatureStrip = ({ items, className = "" }: TicketFeatureStripProps) => (
-    <div className={`flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6 dark:border-gray-700 ${className}`}>
+    <ul
+        className={`grid grid-cols-1 divide-y divide-gray-200 border-b border-gray-200 text-xs font-bold text-sffl-navy sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-gray-700 dark:border-gray-700 dark:text-white ${className}`}
+    >
         {items.map(({ icon: Icon, label }) => (
-            <p key={label} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <Icon className="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-                <span className="min-w-0">{label}</span>
-            </p>
+            <li key={label} className="flex items-center justify-center gap-2 px-4 py-4 sm:px-6">
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                {label}
+            </li>
         ))}
-    </div>
+    </ul>
 );
