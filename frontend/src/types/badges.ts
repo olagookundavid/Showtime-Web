@@ -47,6 +47,28 @@ export interface PlayerBadge {
     awards?: PlayerBadgeAward[];
 }
 
+/** One piece of artwork in the badge library. Badges pick their image from here. */
+export interface BadgeIcon {
+    id: string;
+    name: string;
+    image_url: string;
+    /** Names of the badges currently showing this artwork. */
+    used_by: string[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface SaveBadgeIconPayload {
+    name: string;
+    image_url: string;
+}
+
+/** Saving artwork; a replaced image also moves the badges that used the old one. */
+export interface UpdateBadgeIconResult {
+    icon: BadgeIcon;
+    badges_updated: number;
+}
+
 export interface CreateBadgePayload {
     code: string;
     name: string;
