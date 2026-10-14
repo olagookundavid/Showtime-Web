@@ -22,7 +22,7 @@ import {
     UserPlusIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { DashboardPageHeader, Button, Field, Input, Select, Tabs, Textarea, DataTable, type Column, RowActions, type RowAction, ConfirmDialog, ConfirmSummary, Modal, Spinner } from '../../components';
+import { DashboardPageHeader, Button, Field, Input, Select, Tabs, Textarea, DataTable, type Column, RowActions, type RowAction, ConfirmDialog, ConfirmSummary, Modal, Spinner, PlayerLink, TeamLink } from '../../components';
 import { getApiErrorMessage } from '../../utils';
 
 type Tab = 'market' | 'my-listings' | 'incoming' | 'outgoing';
@@ -598,8 +598,12 @@ export const TeamHeadTransfers: React.FC = () => {
                                             </div>
                                         )}
                                         <div className="min-w-0">
-                                            <h3 className="font-bold text-gray-900 dark:text-white text-lg wrap-break-word">{t.player?.name}</h3>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{t.from_team?.name} · {t.player?.position}</p>
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-lg wrap-break-word">
+                                                <PlayerLink id={t.player?.id}>{t.player?.name}</PlayerLink>
+                                            </h3>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                <TeamLink id={t.from_team?.id}>{t.from_team?.name}</TeamLink> · {t.player?.position}
+                                            </p>
                                         </div>
                                     </div>
 
@@ -656,7 +660,9 @@ export const TeamHeadTransfers: React.FC = () => {
                                             </div>
                                         )}
                                         <div className="min-w-0">
-                                            <h3 className="font-bold text-gray-900 dark:text-white wrap-break-word">{t.player?.name}</h3>
+                                            <h3 className="font-bold text-gray-900 dark:text-white wrap-break-word">
+                                            <PlayerLink id={t.player?.id}>{t.player?.name}</PlayerLink>
+                                        </h3>
                                             <span className="text-xs text-gray-400">Listed Asking Price: {t.asking_price?.toLocaleString()} pts</span>
                                         </div>
                                     </div>
@@ -674,7 +680,9 @@ export const TeamHeadTransfers: React.FC = () => {
                                             {t.bids.map(b => (
                                                 <div key={b.id} className="py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
                                                     <div className="min-w-0">
-                                                        <span className="font-bold text-gray-900 dark:text-white">{b.bidder_team?.name}</span>
+                                                        <TeamLink id={b.bidder_team?.id} className="font-bold text-gray-900 dark:text-white">
+                                                            {b.bidder_team?.name}
+                                                        </TeamLink>
                                                         <span className="ml-3 font-mono font-bold text-sffl-red">{b.bid_value.toLocaleString()} pts</span>
                                                     </div>
                                                     {b.status === 'PENDING' ? (
@@ -756,8 +764,10 @@ export const TeamHeadTransfers: React.FC = () => {
                         <div>
                             <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Target Player</p>
                             <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5 wrap-break-word">
-                                {selectedListing.player?.name}{' '}
-                                <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedListing.from_team?.name})</span>
+                                <PlayerLink id={selectedListing.player?.id}>{selectedListing.player?.name}</PlayerLink>{' '}
+                                <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                                    (<TeamLink id={selectedListing.from_team?.id}>{selectedListing.from_team?.name}</TeamLink>)
+                                </span>
                             </p>
                         </div>
 

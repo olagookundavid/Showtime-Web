@@ -10,7 +10,7 @@ import {
   dropdownCompetitionsFor,
 } from "../../services/api";
 import type { PlayerBadge } from "../../types";
-import { Loader, Spinner, SeasonStageTabs, BackButton, BadgeImage, CrownIcon, SproutIcon, Button, Field, Select, Modal, RichContent } from "../../components";
+import { Loader, Spinner, SeasonStageTabs, BackButton, BadgeImage, CrownIcon, SproutIcon, Button, Field, Select, Modal, RichContent, LightboxImage } from "../../components";
 import { useSearchParams } from "react-router-dom";
 import { getStatsForPosition, formatStatNumber } from "../../utils";
 import {
@@ -183,15 +183,16 @@ export const PlayerDetail = () => {
       <div className="bg-linear-to-r from-sffl-navy to-sffl-red rounded-2xl overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 p-4 sm:p-6 md:p-8">
           {/* Player Image */}
-          <div className="relative group">
+          <div className="relative w-full max-w-64 sm:max-w-72 md:max-w-96 mx-auto md:mx-0">
             {player.image ? (
-              <img
+              <LightboxImage
                 src={player.image}
                 alt={player.name}
-                className="w-full h-64 sm:h-72 md:h-96 object-cover rounded-xl shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                thumbnailClassName="w-full aspect-square rounded-xl shadow-2xl"
+                imgClassName="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-64 sm:h-72 md:h-96 bg-gray-200 dark:bg-gray-700/50 rounded-xl flex items-center justify-center">
+              <div className="w-full aspect-square bg-gray-200 dark:bg-gray-700/50 rounded-xl flex items-center justify-center">
                 <div className="text-7xl md:text-9xl font-black text-gray-300 dark:text-gray-600">
                   #{player.jersey_number}
                 </div>

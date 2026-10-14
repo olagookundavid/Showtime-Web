@@ -22,7 +22,7 @@ type IAuthService interface {
 	ResetPassword(ctx context.Context, req dto.ResetPasswordRequest) error
 	ReturnUserProfile(ctx context.Context, id string) (*dto.LoginResponse, error)
 	ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]dto.UserResponse, int, error)
-	UpdateUserRole(ctx context.Context, userID, newRole string) error
+	UpdateUserRole(ctx context.Context, actorID, userID, newRole string) error
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
 	SendPasswordResetOTP(ctx context.Context, email string) error
 	CleanupExpiredOTPs(ctx context.Context) error
@@ -35,14 +35,16 @@ type AuthService struct {
 	PlayerRepo     ports.PlayerRepository
 	TokenMaker     token.Maker
 	EmailService   ports.EmailService
+	RoleService    IRoleService
 }
 
-func NewAuthService(repo ports.IAuthRepository, playerRepo ports.PlayerRepository, tokenMaker token.Maker, emailService ports.EmailService) *AuthService {
+func NewAuthService(repo ports.IAuthRepository, playerRepo ports.PlayerRepository, tokenMaker token.Maker, emailService ports.EmailService, roleService IRoleService) *AuthService {
 	return &AuthService{
 		AuthRepository: repo,
 		PlayerRepo:     playerRepo,
 		TokenMaker:     tokenMaker,
 		EmailService:   emailService,
+		RoleService:    roleService,
 	}
 }
 
@@ -273,6 +275,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 		return nil, err
 	}
 	resp.EmailVerified, _ = s.AuthRepository.IsEmailVerified(ctx, user.ID)
+	s.attachAccess(ctx, resp)
 	return resp, nil
 }
 
@@ -288,7 +291,7 @@ func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.Lo
 		return nil, err
 	}
 
-	return &dto.LoginResponse{
+	resp := &dto.LoginResponse{
 		ID:            user.ID,
 		FullName:      user.FullName,
 		Email:         user.Email,
@@ -297,7 +300,28 @@ func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.Lo
 		EmailVerified: verified,
 		CreatedAt:     user.CreatedAt,
 		UpdatedAt:     user.UpdatedAt,
-	}, nil
+	}
+	s.attachAccess(ctx, resp)
+	return resp, nil
+}
+
+// attachAccess adds the role's display name and what it may do, so the frontend
+// can show and hide admin screens from the same data the backend enforces with.
+// A failure leaves the fields empty (no access shown) rather than failing a
+// login: the backend still checks every request itself.
+func (s *AuthService) attachAccess(ctx context.Context, resp *dto.LoginResponse) {
+	resp.RoleName = resp.UserType
+	resp.Permissions = map[string]string{}
+
+	access, err := s.RoleService.ResolveUser(ctx, resp.ID)
+	if err != nil {
+		return
+	}
+	for feature, level := range access.Permissions() {
+		resp.Permissions[feature] = string(level)
+	}
+	resp.IsStaff = access.IsStaff()
+	resp.RoleName = access.RoleName
 }
 
 func loginUserWithTokens(s *AuthService, user *domain.User) (*dto.LoginResponse, error) {
@@ -371,25 +395,34 @@ func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilt
 	return responses, total, nil
 }
 
-var assignableRoles = []string{
-	domain.RoleAdmin, domain.RoleAppAdmin, domain.RoleUser, domain.RolePlayer,
-	domain.RoleTeamHead, domain.RoleTicketer, domain.RoleReferee, domain.RoleStats,
-	domain.RoleSeller, domain.RoleBroadcast,
-	domain.RoleCommissioner, domain.RoleFantasyCommissioner, domain.RoleHeadReferee,
-	domain.RoleNewsHead, domain.RoleContentCreator, domain.RoleStoreManager,
-}
-
-func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string) error {
-	isValid := false
-	for _, role := range assignableRoles {
-		if newRole == role {
-			isValid = true
-			break
-		}
+// UpdateUserRole moves a user into a role. Which roles exist is whatever is in
+// the roles table, and the actor may only hand out access they hold themselves,
+// so a plain admin can't promote anyone (themselves included) past their own
+// level. Changing an app_admin's role takes an app_admin.
+func (s *AuthService) UpdateUserRole(ctx context.Context, actorID, userID, newRole string) error {
+	exists, err := s.RoleService.RoleExists(ctx, newRole)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("invalid role: %s", newRole)
 	}
 
-	if !isValid {
-		return fmt.Errorf("invalid role: %s. Allowed roles are %s", newRole, strings.Join(assignableRoles, ", "))
+	actor, err := s.RoleService.ResolveUser(ctx, actorID)
+	if err != nil {
+		return err
+	}
+	if err := s.RoleService.CheckCanAssign(ctx, actor, newRole); err != nil {
+		return err
+	}
+
+	// Demoting or reassigning an app_admin is as sensitive as creating one.
+	current, err := s.AuthRepository.GetUserRole(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if current == domain.RoleAppAdmin && actor.Role != domain.RoleAppAdmin {
+		return appErrors.ErrRoleEscalation
 	}
 
 	return s.AuthRepository.UpdateUserRole(ctx, userID, newRole)

@@ -5,6 +5,8 @@ type BroadcastState struct {
 	MatchID      string        `json:"match_id"`
 	Home         string        `json:"home"`
 	Away         string        `json:"away"`
+	HomeShort    string        `json:"home_short"`
+	AwayShort    string        `json:"away_short"`
 	HomeLogo     string        `json:"home_logo"`
 	AwayLogo     string        `json:"away_logo"`
 	ManualHome   int           `json:"manual_home"`

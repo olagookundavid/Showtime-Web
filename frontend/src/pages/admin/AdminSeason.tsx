@@ -21,7 +21,7 @@ import {
   getPlayers,
 } from "../../services/api";
 import type { SeasonMVP, Player } from "../../types";
-import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, ImageUploadField, Input, DashboardPageHeader } from "../../components";
+import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, ImageUploadField, Input, DashboardPageHeader, PlayerLink } from "../../components";
 
 type Cat = "offense" | "defense";
 type GraphicState = { image_url: string; mobile_image_url: string };
@@ -445,7 +445,7 @@ export const AdminSeason = () => {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-sffl-navy dark:text-white truncate">
-                    {mvp.player_name}
+                    <PlayerLink id={mvp.player_id}>{mvp.player_name}</PlayerLink>
                   </p>
                   <p className="inline-flex items-center gap-1 text-xs text-sffl-red font-bold uppercase tracking-wide">
                     <StarIcon className="w-3 h-3" aria-hidden="true" />

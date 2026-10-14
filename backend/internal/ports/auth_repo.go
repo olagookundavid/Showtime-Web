@@ -18,6 +18,9 @@ type IAuthRepository interface {
 	Register(ctx context.Context, user domain.User) (*string, error)
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id string) (*domain.User, error)
+	// GetUserRole is the one-column lookup access checks use on every
+	// request, instead of loading the whole profile.
+	GetUserRole(ctx context.Context, id string) (string, error)
 	ResetPassword(ctx context.Context, user domain.User) error
 	ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]domain.User, int, error)
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
@@ -96,6 +99,21 @@ func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*doma
 	}
 
 	return &user, nil
+}
+
+func (m AuthRepository) GetUserRole(ctx context.Context, id string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var role string
+	err := m.Db.QueryRow(ctx, `SELECT role FROM users WHERE id = $1`, id).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", appErrors.ErrNoUserRecordExist
+		}
+		return "", appErrors.ErrServerError
+	}
+	return role, nil
 }
 
 func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.User, error) {

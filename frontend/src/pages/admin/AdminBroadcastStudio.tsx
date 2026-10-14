@@ -11,6 +11,7 @@ import {
   overlayTargetUrl,
   OVERLAY_LAYERS,
   type BroadcastState,
+  type BroadcastPlayer,
   type GraphicEvent,
   type OverlayLayer,
   type OverlayTarget,
@@ -22,6 +23,7 @@ import {
   Field,
   Input,
   Select,
+  Modal,
   DashboardPageHeader,
 } from "../../components";
 import {
@@ -37,15 +39,6 @@ import {
 
 const CALL_BUTTONS = [
   { label: "Touchdown", call: "TOUCHDOWN", red: true },
-  { label: "First down", call: "FIRST DOWN" },
-  { label: "Second down", call: "SECOND DOWN" },
-  { label: "Third down", call: "THIRD DOWN" },
-  { label: "Fourth down", call: "FOURTH DOWN" },
-  { label: "1st & Goal", call: "1ST & GOAL" },
-  { label: "2nd & Goal", call: "2ND & GOAL" },
-  { label: "3rd & Goal", call: "3RD & GOAL" },
-  { label: "4th & Goal", call: "4TH & GOAL" },
-  { label: "1 min warning", call: "1 MINUTE WARNING" },
   { label: "Safety", call: "SAFETY" },
   { label: "Penalty", call: "PENALTY" },
   { label: "Interception", call: "INTERCEPTION" },
@@ -53,6 +46,23 @@ const CALL_BUTTONS = [
   { label: "XP good", call: "EXTRA POINT GOOD" },
   { label: "XP bad", call: "EXTRA POINT NO GOOD" },
   { label: "Sack", call: "SACK" },
+];
+
+const DOWN_OPTIONS = [
+  { value: "1", label: "1st Down" },
+  { value: "2", label: "2nd Down" },
+  { value: "3", label: "3rd Down" },
+  { value: "4", label: "4th Down" },
+  { value: "1G", label: "1st & Goal" },
+  { value: "2G", label: "2nd & Goal" },
+  { value: "3G", label: "3rd & Goal" },
+  { value: "4G", label: "4th & Goal" },
+];
+
+// One-shot lower-third events that don't map to a persistent down state, kept
+// next to the Down & Distance buttons so operators find them in one place.
+const DOWN_EVENT_BUTTONS = [
+  { label: "1 min warning", call: "1 MINUTE WARNING" },
   { label: "Bat down", call: "BAT DOWN" },
   { label: "Flag pull", call: "FLAG PULL" },
 ];
@@ -120,7 +130,11 @@ interface BroadcastControlPanelProps {
  * and vMix links. Used by the match studio and by the event-day studio, which
  * swaps the match it controls without reloading the page.
  */
-export function BroadcastControlPanel({ matchId, overlayTarget, header }: BroadcastControlPanelProps) {
+export function BroadcastControlPanel({
+  matchId,
+  overlayTarget,
+  header,
+}: BroadcastControlPanelProps) {
   const id = matchId;
 
   const {
@@ -142,7 +156,6 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
   const [now, setNow] = useState(() => Date.now());
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
-  const [statInput, setStatInput] = useState("TOUCHDOWN RECEPTION");
   const [selectedPenalty, setSelectedPenalty] = useState(PENALTIES[0]);
   const [recentPlays, setRecentPlays] = useState<PlayLogItem[]>([]);
   // Score after the latest scored play; null until a play carries a score.
@@ -152,6 +165,7 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
   } | null>(null);
   const [copiedLayer, setCopiedLayer] = useState<OverlayLayer | null>(null);
   const [manualOnly, setManualOnly] = useState(readManualOnly);
+  const [touchdownModalOpen, setTouchdownModalOpen] = useState(false);
 
   const handleManualOnlyChange = (value: boolean) => {
     setManualOnly(value);
@@ -211,10 +225,22 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
   const matchOverlayUrl = overlayUrl(id);
   const clockInput = clockDraft ?? formatClock(calculateClockNow(state, now));
   const team = selectedTeam || state.home || "Home Team";
+  const teamPlayers = players.filter((p) => p.team_name === team);
 
   const handleToggleClock = () => {
     setClockDraft(null);
     toggleClock();
+  };
+
+  // "Select player" is scoped to the active team, so switching teams must
+  // drop a previously selected player from the other team instead of
+  // silently keeping it selected underneath a now-blank dropdown.
+  const handleSelectTeam = (teamName: string) => {
+    setSelectedTeam(teamName);
+    const current = players.find((p) => p.player_id === selectedPlayerId);
+    if (current && current.team_name !== teamName) {
+      setSelectedPlayerId("");
+    }
   };
 
   const copyUrl = (layer: OverlayLayer) => {
@@ -247,7 +273,7 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
         callType,
       );
 
-    let statText = statInput;
+    let statText = "";
     if (callType === "PENALTY") {
       statText = selectedPenalty;
     } else if (callType === "1 MINUTE WARNING") {
@@ -270,6 +296,26 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
     fireGraphic(graphic);
   };
 
+  // Touchdown fires through its own player-picker modal (scoped to the
+  // selected team's roster) instead of the generic "Select player" dropdown,
+  // so the banner always shows the player's photo alongside their kit
+  // number: this forces `compact: false` so the photo isn't hidden (the
+  // compact regex in handleTriggerCall wrongly matches "DOWN" inside
+  // "TOUCHDOWN").
+  const handleTouchdownSelect = (player: BroadcastPlayer | null) => {
+    const graphic: GraphicEvent = {
+      type: "TOUCHDOWN",
+      number: player ? String(player.jersey_number) : "",
+      player: player ? player.name : "",
+      team,
+      photo: player?.image || "",
+      compact: false,
+      duration: 5500,
+    };
+    fireGraphic(graphic);
+    setTouchdownModalOpen(false);
+  };
+
   // Prepare a play from the queue into the form (manual workflow)
   const handlePreparePlay = (p: PlayLogItem) => {
     const name = p.target?.name || p.off_qb?.name || p.defender?.name || "";
@@ -283,11 +329,6 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
     }
     if (p.offense_team?.name) {
       setSelectedTeam(p.offense_team.name);
-    }
-    const playDesc =
-      p.notes || `${p.play_type || "PLAY"} ${p.result || ""}`.trim();
-    if (playDesc) {
-      setStatInput(playDesc);
     }
   };
 
@@ -311,12 +352,15 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
         <span
           className={`self-start sm:self-auto mb-3 sm:mb-0 shrink-0 px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5 ${
             isConnected
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-              : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+              : "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
           }`}
         >
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} aria-hidden="true" />
-          {isConnected ? 'Live sync active' : 'Connecting...'}
+          <span
+            className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}
+            aria-hidden="true"
+          />
+          {isConnected ? "Live sync active" : "Connecting..."}
         </span>
       </div>
 
@@ -433,6 +477,41 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
               </div>
             </div>
 
+            {/* Quick Score Buttons */}
+            <div className="grid grid-cols-5 items-start gap-3">
+              <div className="col-span-2 flex flex-wrap justify-center gap-2">
+                {[2, 3, 6, 7, 8, 9].map((points) => (
+                  <Button
+                    key={points}
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateScore(state.manual_home + points, state.manual_away)
+                    }
+                    aria-label={`Add ${points} to ${state.home} score`}
+                  >
+                    +{points}
+                  </Button>
+                ))}
+              </div>
+              <div className="col-span-1" aria-hidden="true" />
+              <div className="col-span-2 flex flex-wrap justify-center gap-2">
+                {[2, 3, 6, 7, 8, 9].map((points) => (
+                  <Button
+                    key={points}
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateScore(state.manual_home, state.manual_away + points)
+                    }
+                    aria-label={`Add ${points} to ${state.away} score`}
+                  >
+                    +{points}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             {/* Score Alignment Notice (Staff Only) */}
             {!manualOnly && (
               <div
@@ -523,32 +602,64 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
 
             {/* Down & Possession */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-              <Field label="Down & distance" htmlFor="broadcast-down">
-                <Select
-                  id="broadcast-down"
-                  value={state.down}
-                  onChange={(e) => updateField("down", e.target.value)}
-                >
-                  <option value="1">1st Down</option>
-                  <option value="2">2nd Down</option>
-                  <option value="3">3rd Down</option>
-                  <option value="4">4th Down</option>
-                  <option value="1G">1st & Goal</option>
-                  <option value="2G">2nd & Goal</option>
-                  <option value="3G">3rd & Goal</option>
-                  <option value="4G">4th & Goal</option>
-                </Select>
+              <Field label="Down & distance">
+                <div className="flex flex-wrap gap-2">
+                  {DOWN_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      variant={state.down === opt.value ? "navy" : "secondary"}
+                      size="sm"
+                      onClick={() => updateField("down", opt.value)}
+                      aria-pressed={state.down === opt.value}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Quick events
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {DOWN_EVENT_BUTTONS.map((btn) => (
+                      <Button
+                        key={btn.call}
+                        variant="navy"
+                        size="sm"
+                        onClick={() => handleTriggerCall(btn.call)}
+                      >
+                        {btn.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </Field>
 
-              <Field label="Ball possession" htmlFor="broadcast-possession">
-                <Select
-                  id="broadcast-possession"
-                  value={state.possession}
-                  onChange={(e) => updateField("possession", e.target.value)}
-                >
-                  <option value={state.home}>{state.home} (Home)</option>
-                  <option value={state.away}>{state.away} (Away)</option>
-                </Select>
+              <Field label="Ball possession">
+                <div className="flex gap-2">
+                  <Button
+                    variant={
+                      state.possession === state.home ? "navy" : "secondary"
+                    }
+                    size="sm"
+                    fullWidth
+                    onClick={() => updateField("possession", state.home)}
+                    aria-pressed={state.possession === state.home}
+                  >
+                    {state.home_short || state.home} (Home)
+                  </Button>
+                  <Button
+                    variant={
+                      state.possession === state.away ? "navy" : "secondary"
+                    }
+                    size="sm"
+                    fullWidth
+                    onClick={() => updateField("possession", state.away)}
+                    aria-pressed={state.possession === state.away}
+                  >
+                    {state.away_short || state.away} (Away)
+                  </Button>
+                </div>
               </Field>
             </div>
           </div>
@@ -579,62 +690,57 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
                 <Select
                   id="broadcast-player"
                   value={selectedPlayerId}
-                  onChange={(e) => {
-                    const pid = e.target.value;
-                    setSelectedPlayerId(pid);
-                    const p = players.find((pl) => pl.player_id === pid);
-                    if (p) {
-                      setSelectedTeam(p.team_name);
-                    }
-                  }}
+                  onChange={(e) => setSelectedPlayerId(e.target.value)}
                 >
                   <option value="">-- No specific player --</option>
-                  {players.map((p) => (
+                  {teamPlayers.map((p) => (
                     <option key={p.player_id} value={p.player_id}>
-                      #{p.jersey_number} {p.name} · {p.position} ({p.team_name})
+                      #{p.jersey_number} {p.name} · {p.position}
                     </option>
                   ))}
                 </Select>
               </Field>
 
-              <Field label="Team" htmlFor="broadcast-team">
-                <Select
-                  id="broadcast-team"
-                  value={team}
-                  onChange={(e) => setSelectedTeam(e.target.value)}
-                >
-                  <option value={state.home}>{state.home}</option>
-                  <option value={state.away}>{state.away}</option>
-                </Select>
+              <Field label="Team">
+                <div className="flex gap-2">
+                  <Button
+                    variant={team === state.home ? "navy" : "secondary"}
+                    size="sm"
+                    fullWidth
+                    onClick={() => handleSelectTeam(state.home)}
+                    aria-pressed={team === state.home}
+                  >
+                    {state.home_short || state.home} (Home)
+                  </Button>
+                  <Button
+                    variant={team === state.away ? "navy" : "secondary"}
+                    size="sm"
+                    fullWidth
+                    onClick={() => handleSelectTeam(state.away)}
+                    aria-pressed={team === state.away}
+                  >
+                    {state.away_short || state.away} (Away)
+                  </Button>
+                </div>
               </Field>
             </div>
 
-            {/* Custom Stat Line & Penalty selector */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Stat line / subtitle" htmlFor="broadcast-stat">
-                <Input
-                  id="broadcast-stat"
-                  type="text"
-                  value={statInput}
-                  onChange={(e) => setStatInput(e.target.value)}
-                  placeholder="e.g. 42 YD TOUCHDOWN · 2 TD TODAY"
-                />
-              </Field>
-
-              <Field label="Penalty call type" htmlFor="broadcast-penalty">
-                <Select
-                  id="broadcast-penalty"
-                  value={selectedPenalty}
-                  onChange={(e) => setSelectedPenalty(e.target.value)}
-                >
-                  {PENALTIES.map((pen) => (
-                    <option key={pen} value={pen}>
-                      {pen}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
+            {/* Penalty selector */}
+            <Field label="Penalty call type">
+              <div className="flex flex-wrap gap-2">
+                {PENALTIES.map((pen) => (
+                  <Button
+                    key={pen}
+                    variant={selectedPenalty === pen ? "navy" : "secondary"}
+                    size="sm"
+                    onClick={() => setSelectedPenalty(pen)}
+                    aria-pressed={selectedPenalty === pen}
+                  >
+                    {pen}
+                  </Button>
+                ))}
+              </div>
+            </Field>
 
             {/* Event Button Grid */}
             <div>
@@ -646,7 +752,11 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
                   <Button
                     key={btn.call}
                     variant={btn.red ? "danger" : "navy"}
-                    onClick={() => handleTriggerCall(btn.call)}
+                    onClick={() =>
+                      btn.call === "TOUCHDOWN"
+                        ? setTouchdownModalOpen(true)
+                        : handleTriggerCall(btn.call)
+                    }
                     fullWidth
                     className={`uppercase tracking-wider ${btn.red ? "col-span-2 sm:col-span-3 md:col-span-4 py-3 text-sm" : ""}`}
                   >
@@ -697,7 +807,7 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
                       >
                         <div className="min-w-0">
                           <span className="font-black text-gray-900 dark:text-white truncate block">
-                            Q{p.quarter} · {playerName} ({teamName})
+                            H{p.quarter} · {playerName} ({teamName})
                           </span>
                           <span className="text-gray-500 dark:text-gray-400 block truncate">
                             {summary}
@@ -788,9 +898,9 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
                 by itself. For a single input, use <b>Everything</b>.
               </p>
               <p className="font-semibold text-gray-700 dark:text-gray-200">
-                {overlayTarget.kind === 'day'
-                  ? 'These links follow whichever match is on air today, so vMix keeps the same inputs all day.'
-                  : 'These links show this match only. To stream a whole match day, use the event day studio.'}
+                {overlayTarget.kind === "day"
+                  ? "These links follow whichever match is on air today, so vMix keeps the same inputs all day."
+                  : "These links show this match only. To stream a whole match day, use the event day studio."}
               </p>
             </div>
 
@@ -834,6 +944,63 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
           </div>
         </div>
       </div>
+
+      <Modal
+        open={touchdownModalOpen}
+        onClose={() => setTouchdownModalOpen(false)}
+        title={`Touchdown — ${team}`}
+        subtitle="Pick the player to show their photo on air"
+        maxWidth="md"
+      >
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={() => handleTouchdownSelect(null)}
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer text-left"
+          >
+            <span className="flex-1 min-w-0 font-semibold text-sm text-gray-800 dark:text-gray-200">
+              No specific player
+            </span>
+          </button>
+
+          {teamPlayers.map((p) => (
+            <button
+              key={p.player_id}
+              type="button"
+              onClick={() => handleTouchdownSelect(p)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer text-left"
+            >
+              <span className="shrink-0 w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-sffl-navy/30 overflow-hidden flex items-center justify-center text-xs font-black text-sffl-navy dark:text-white">
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  p.name
+                    .split(" ")
+                    .map((x) => x[0])
+                    .slice(0, 2)
+                    .join("")
+                )}
+              </span>
+              <span className="flex-1 min-w-0 font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">
+                {p.name}
+              </span>
+              <span className="shrink-0 text-xs text-gray-400 font-semibold">
+                #{p.jersey_number} · {p.position}
+              </span>
+            </button>
+          ))}
+
+          {teamPlayers.length === 0 && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+              No roster players found for {team}.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -841,15 +1008,18 @@ export function BroadcastControlPanel({ matchId, overlayTarget, header }: Broadc
 /** On-air control for a single match, with vMix links that follow that match. */
 export function AdminBroadcastStudio() {
   const { matchId } = useParams<{ matchId: string }>();
-  const id = matchId || '';
+  const id = matchId || "";
 
   return (
     <BroadcastControlPanel
       matchId={id}
-      overlayTarget={{ kind: 'match', matchId: id }}
+      overlayTarget={{ kind: "match", matchId: id }}
       header={(state) => (
         <DashboardPageHeader
-          back={{ to: '/admin/broadcast?view=matches', label: 'Back to matches' }}
+          back={{
+            to: "/admin/broadcast?view=matches",
+            label: "Back to matches",
+          }}
           title={`${state.home} vs ${state.away}`}
           subtitle="On-air graphics control for vMix. For a full match day on one stream, use the event day studio instead."
         />

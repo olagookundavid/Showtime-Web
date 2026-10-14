@@ -38,7 +38,7 @@
   width: 122px;
   display: grid;
   place-items: center;
-  border-left: 9px solid #e63931;
+  border-top: 9px solid #e63931;
 }
 
 .bug-logo img {
@@ -48,28 +48,30 @@
 }
 
 .bug-team {
-  width: 204px;
+  width: 180px;
   background: #0b254e;
   padding: 14px 15px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 
 .bug-team.away {
   background: #143968;
+  justify-content: flex-end;
 }
 
-.bug-team small {
-  font: 800 15px Arial, sans-serif;
-  letter-spacing: 1px;
-  color: #b6c7dc;
+.bug-team-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  flex: none;
 }
 
 /* font-size is set inline by fitTeamName so the full club name fits. */
 .bug-team strong {
   display: block;
-  margin-top: 5px;
+  min-width: 0;
   font: 900 24px Arial, sans-serif;
   line-height: 1.15;
   color: #ffffff;
@@ -83,7 +85,6 @@
 }
 
 .bug-team strong.two-line {
-  margin-top: 3px;
   line-height: 1.05;
 }
 
@@ -121,50 +122,79 @@
   border-color: #e63c34;
 }
 
-.bug-middle {
-  background: #e63c34;
-  width: 128px;
-  text-align: center;
-  padding-top: 17px;
-}
-
-.bug-middle b {
-  display: block;
-  font: 900 28px Arial, sans-serif;
-  color: #ffffff;
-}
-
-.bug-middle small {
-  display: block;
-  font: 800 17px Arial, sans-serif;
-  margin-top: 10px;
-  color: #ffffff;
-}
-
-/* Detail pill below scorebug (Down & Possession) */
-.bug-detail-pill {
+/* Small box under the centered Showtime logo: period + countdown clock */
+.bug-clock-box {
   position: absolute;
-  left: 122px;
   top: 112px;
+  left: 288px;
+  width: 122px;
+  height: 56px;
+  background: #e63c34;
+  text-align: center;
+  padding-top: 6px;
+  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.4);
+}
+
+.bug-clock-box b {
+  display: block;
+  font: 900 20px Arial, sans-serif;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.bug-clock-box small {
+  display: block;
+  font: 800 14px Arial, sans-serif;
+  margin-top: 4px;
+  color: #ffffff;
+}
+
+/* Down & ball pills: float under whichever side (home/away) has possession */
+.bug-down-pill,
+.bug-ball-pill {
+  position: absolute;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Sits below the score box, flush with the bottom of the main bar. */
+.bug-down-pill {
+  top: 112px;
+  height: 40px;
+  width: 108px;
   background: #f4f7fc;
   color: #102a4f;
-  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.4);
-  height: 47px;
-  font: 900 20px Arial, sans-serif;
-  align-items: center;
+  font: 900 13px Arial, sans-serif;
 }
 
-.bug-detail-pill span {
-  padding: 0 22px;
-  border-right: 1px solid #c4d0e1;
-  white-space: nowrap;
+.bug-down-pill.side-home {
+  left: 180px;
 }
 
-.bug-detail-pill span:last-child {
-  border: 0;
+.bug-down-pill.side-away {
+  left: 410px;
+}
+
+/* Sits above the score box, flush with the top of the main bar. */
+.bug-ball-pill {
+  top: -40px;
+  height: 40px;
+  width: 108px;
   background: #e63c34;
   color: #ffffff;
+  font: 900 11px Arial, sans-serif;
+  letter-spacing: 1px;
+}
+
+.bug-ball-pill.side-home {
+  left: 180px;
+}
+
+.bug-ball-pill.side-away {
+  left: 410px;
 }
 
 /* ── 2. LOWER-THIRD GRAPHIC BANNER ── */

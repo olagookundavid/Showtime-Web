@@ -5,7 +5,7 @@ import { UserCircleIcon, KeyIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts';
 import { updateOwnProfile } from '../../services/api';
 import { getApiErrorMessage } from '../../utils';
-import { ROLE_LABELS, ConfirmDialog, ConfirmSummary, Button, Field, Input } from '../../components';
+import { ConfirmDialog, ConfirmSummary, Button, Field, Input } from '../../components';
 
 export const MyProfile = () => {
     const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
@@ -44,7 +44,7 @@ export const MyProfile = () => {
                         My Profile
                     </h1>
                     <p className="text-xs text-gray-500 uppercase font-black tracking-widest mt-1.5">
-                        {user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Account'}
+                        {user?.roleName ?? 'Account'}
                     </p>
                 </div>
             </div>

@@ -8,7 +8,7 @@ type Props = {
   open: boolean;
   /** Omit to make a gate that can't be dismissed: no close button, Escape or backdrop click. */
   onClose?: () => void;
-  title?: string;
+  title?: React.ReactNode;
   subtitle?: string;
   children: React.ReactNode;
   /** Action buttons pinned below the body. Put Cancel first and the primary action last. */
@@ -74,7 +74,7 @@ export const Modal = ({
 
   const node = (
     <div
-      className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn"
+      className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-modal-backdrop-in"
       data-dialog
       onClick={onClose}
       role="dialog"
@@ -83,7 +83,7 @@ export const Modal = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white dark:bg-gray-800 ${shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl ${maxWidth === "full" ? "h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)]" : "max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh]"} flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
+        className={`bg-white dark:bg-gray-800 ${shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl ${maxWidth === "full" ? "h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)]" : "max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh]"} flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700 animate-modal-in`}
       >
         {(title || subtitle || onClose) && (
           <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">

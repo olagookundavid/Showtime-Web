@@ -43,8 +43,9 @@ type IMatchService interface {
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
-	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
+	FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error)
 	OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error
+	SetMatchScore(ctx context.Context, matchID string, home, away int) error
 	InitializeCup(ctx context.Context, competitionID string, req dto.InitializeCupRequest) error
 	AdvanceCupRound(ctx context.Context, competitionID string, req dto.AdvanceCupRequest) error
 	GetCupState(ctx context.Context, competitionID string) (*dto.CupStateResponse, error)
@@ -562,10 +563,15 @@ func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.
 		if match.HomeTeamID == "" || match.AwayTeamID == "" {
 			return fmt.Errorf("home and away teams are required for non-bracket matches")
 		}
-		// Non-bracket matches don't carry bracket linkage.
+		// Non-bracket matches don't carry bracket linkage. A cup's Swiss
+		// rounds aren't in a bracket either, but the cup flow finds each
+		// round's matches by that tag, so it is kept: clearing it on an admin
+		// edit dropped the match out of its round.
 		match.FeedsMatchID = nil
 		match.FeedsSlot = ""
-		match.Round = ""
+		if !isCupSwissRound(match.Round) {
+			match.Round = ""
+		}
 		match.BracketPos = nil
 		return nil
 	}
@@ -987,12 +993,19 @@ func (s *MatchService) GetMatchByID(ctx context.Context, id string) (*domain.Mat
 	return s.repo.GetMatchByID(ctx, id)
 }
 
-func (s *MatchService) CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error) {
-	return s.repo.CountFemalePlayers(ctx, playerIDs)
+func (s *MatchService) FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error) {
+	return s.repo.FemalePlayerIDs(ctx, playerIDs)
 }
 
 func (s *MatchService) OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error {
 	return s.repo.OverrideMatchMVP(ctx, matchID, playerID, override)
+}
+
+// SetMatchScore directly updates a match's score columns — used by the
+// broadcast studio's on-air scoreboard, which writes on every producer tap
+// and should not pay for UpdateMatch's competition/standings validation.
+func (s *MatchService) SetMatchScore(ctx context.Context, matchID string, home, away int) error {
+	return s.repo.SetMatchScore(ctx, matchID, home, away)
 }
 
 // cupMatchLimit is well above the 22 matches a 10-team cup ever has.
@@ -1006,6 +1019,10 @@ var nextCupRound = map[string]string{
 	domain.CupRoundQF:    domain.CupRoundSF,
 	domain.CupRoundSF:    domain.CupRoundFinal,
 	domain.CupRoundFinal: domain.CupRoundCompleted,
+}
+
+func isCupSwissRound(round string) bool {
+	return round == domain.CupRound1 || round == domain.CupRound2 || round == domain.CupRound3
 }
 
 func (s *MatchService) cupMatches(ctx context.Context, competitionID string) ([]domain.Match, error) {
@@ -1128,6 +1145,56 @@ func (s *MatchService) cupStandings(ctx context.Context, competitionID string) (
 	return standings, nil
 }
 
+// cupTeamIDs returns the cup's enrolled active teams, which must be exactly 10.
+func (s *MatchService) cupTeamIDs(ctx context.Context, competitionID string) ([]string, error) {
+	teams, total, err := s.repo.GetTeamsByCompetition(ctx, competitionID, "active", 1, 100)
+	if err != nil {
+		return nil, err
+	}
+	if total != 10 || len(teams) != 10 {
+		return nil, fmt.Errorf("cup tournament requires exactly 10 teams (found %d)", total)
+	}
+	teamIDs := make([]string, len(teams))
+	for i, t := range teams {
+		teamIDs[i] = t.ID
+	}
+	return teamIDs, nil
+}
+
+// existingRound1 checks whether matches entered by hand form a complete Round 1
+// the cup can adopt: exactly 5 matches, none placed in a bracket, between them
+// using each of the 10 enrolled teams exactly once. It returns their IDs, or
+// why they don't qualify.
+func existingRound1(matches []domain.Match, teamIDs []string) ([]string, error) {
+	if len(matches) != 5 {
+		return nil, fmt.Errorf("a Round 1 is exactly 5 matches, found %d", len(matches))
+	}
+	enrolled := make(map[string]bool, len(teamIDs))
+	for _, id := range teamIDs {
+		enrolled[id] = true
+	}
+	used := make(map[string]bool, len(teamIDs))
+	ids := make([]string, 0, len(matches))
+	for _, m := range matches {
+		if m.BracketPos != nil || m.FeedsMatchID != nil {
+			return nil, fmt.Errorf("a match is already placed in a knockout bracket")
+		}
+		for _, team := range []string{m.HomeTeamID, m.AwayTeamID} {
+			switch {
+			case team == "":
+				return nil, fmt.Errorf("a match is missing a team")
+			case !enrolled[team]:
+				return nil, fmt.Errorf("a match includes a team that isn't enrolled in this cup")
+			case used[team]:
+				return nil, fmt.Errorf("a team plays more than once")
+			}
+			used[team] = true
+		}
+		ids = append(ids, m.ID)
+	}
+	return ids, nil
+}
+
 func (s *MatchService) InitializeCup(ctx context.Context, competitionID string, req dto.InitializeCupRequest) error {
 	comp, err := s.repo.GetCompetitionByID(ctx, competitionID)
 	if err != nil || comp == nil {
@@ -1140,24 +1207,30 @@ func (s *MatchService) InitializeCup(ctx context.Context, competitionID string, 
 		return fmt.Errorf("only cup competitions can be initialized as a cup")
 	}
 
-	existingCount, err := s.repo.CountMatchesByCompetition(ctx, competitionID)
+	teamIDs, err := s.cupTeamIDs(ctx, competitionID)
 	if err != nil {
 		return err
-	}
-	if existingCount > 0 {
-		return fmt.Errorf("competition already has matches")
 	}
 
-	teams, total, err := s.repo.GetTeamsByCompetition(ctx, competitionID, "active", 1, 100)
+	// Matches entered by hand before the cup was started: adopt them as
+	// Round 1 if they form one, rather than drawing new fixtures.
+	existing, err := s.cupMatches(ctx, competitionID)
 	if err != nil {
 		return err
 	}
-	if total != 10 || len(teams) != 10 {
-		return fmt.Errorf("cup tournament requires exactly 10 teams (found %d)", total)
-	}
-	teamIDs := make([]string, len(teams))
-	for i, t := range teams {
-		teamIDs[i] = t.ID
+	if len(existing) > 0 {
+		ids, err := existingRound1(existing, teamIDs)
+		if err != nil {
+			return fmt.Errorf("can't start the cup from the %d matches already entered: %w", len(existing), err)
+		}
+		if err := s.repo.AdoptCupMatches(ctx, competitionID, domain.CupRound1, ids); err != nil {
+			return err
+		}
+		if err := s.repo.RecalculateStandings(ctx, competitionID); err != nil {
+			return err
+		}
+		s.triggerFantasyResync(competitionID)
+		return nil
 	}
 
 	day, start, err := cupSchedule(req.Date, req.Time)
@@ -1262,6 +1335,45 @@ func (s *MatchService) AdvanceCupRound(ctx context.Context, competitionID string
 	return nil
 }
 
+// unstartedCupState says whether a cup that hasn't started can be: it needs
+// 10 enrolled teams, and either no matches yet (Round 1 is drawn) or matches
+// entered by hand that form a complete Round 1 (they are adopted).
+func (s *MatchService) unstartedCupState(ctx context.Context, competitionID string) (*dto.CupStateResponse, error) {
+	state := &dto.CupStateResponse{
+		CompetitionID: competitionID,
+		CurrentRound:  "UNINITIALIZED",
+		NextRound:     domain.CupRound1,
+	}
+	teamIDs, err := s.cupTeamIDs(ctx, competitionID)
+	if err != nil {
+		state.StatusMessage = fmt.Sprintf("Can't start yet: %v.", err)
+		return state, nil
+	}
+	existing, err := s.cupMatches(ctx, competitionID)
+	if err != nil {
+		return nil, err
+	}
+	if len(existing) == 0 {
+		state.CanAdvance = true
+		state.StatusMessage = "Not started. Starting draws 5 random Round 1 fixtures between the 10 teams."
+		return state, nil
+	}
+	if _, err := existingRound1(existing, teamIDs); err != nil {
+		state.StatusMessage = fmt.Sprintf("Can't start from the %d matches already entered: %v. Fix or delete them, then start.", len(existing), err)
+		return state, nil
+	}
+	for _, m := range existing {
+		if m.Status == domain.MatchStatusFinished {
+			state.MatchesFinished++
+		}
+	}
+	state.MatchesTotal = len(existing)
+	state.CanAdvance = true
+	state.AdoptsExistingMatches = true
+	state.StatusMessage = "Not started. The 5 matches already entered form a full Round 1; starting makes them Round 1, results and play-by-play included."
+	return state, nil
+}
+
 func (s *MatchService) GetCupState(ctx context.Context, competitionID string) (*dto.CupStateResponse, error) {
 	comp, err := s.repo.GetCompetitionByID(ctx, competitionID)
 	if err != nil || comp == nil {
@@ -1281,15 +1393,7 @@ func (s *MatchService) GetCupState(ctx context.Context, competitionID string) (*
 	}
 
 	if comp.CupRound == nil || *comp.CupRound == "" {
-		return &dto.CupStateResponse{
-			CompetitionID:   competitionID,
-			CurrentRound:    "UNINITIALIZED",
-			MatchesTotal:    0,
-			MatchesFinished: 0,
-			CanAdvance:      true,
-			NextRound:       domain.CupRound1,
-			StatusMessage:   "Cup is ready to be initialized with Round 1.",
-		}, nil
+		return s.unstartedCupState(ctx, competitionID)
 	}
 
 	currentRound := *comp.CupRound

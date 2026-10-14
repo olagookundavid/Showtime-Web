@@ -13,8 +13,9 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-import { formatStatNumber } from "../../utils";
+import { formatStatNumber, gameFormatOf } from "../../utils";
 import { Button, ButtonLink, Select } from "../ui";
+import { TeamLink } from "../domain";
 
 const isPlayerOfTheWeek = (totw: TeamOfTheWeek, player: TOTWPlayer): boolean =>
   Boolean(
@@ -104,6 +105,8 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
   }
 
   const players: TOTWPlayer[] = totw.players;
+  // The format's fixed Team of the Week layout, if it has one (5v5 does).
+  const pitchLayout = gameFormatOf(totw.competition).totw.pitch;
   const activePlayer: TOTWPlayer = players[selectedIndex] || players[0];
   const isDefensive = activePlayer.unit === "Defence";
   const isActivePOTW = isPlayerOfTheWeek(totw, activePlayer);
@@ -184,7 +187,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 md:px-6 md:py-3.5 bg-[#091D36]/80 border-b border-white/5 text-xs">
           <div className="min-w-0">
             <div className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-[#91A7C1]">
-              Starting XIV
+              {gameFormatOf(totw.competition).totw.title}
             </div>
             <div className="text-xs md:text-sm font-bold text-white">
               {totw.sub_headline || "Offence & defence lineup"}
@@ -193,11 +196,11 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
           <div className="flex items-center gap-4 text-[11px] md:text-xs font-bold text-gray-300">
             <span className="flex items-center gap-1.5">
               <i className="w-2.5 h-2.5 rounded-full bg-sffl-red inline-block"></i>
-              Offence 7
+              Offence {totw.players.filter((p) => p.unit === "Offence").length}
             </span>
             <span className="flex items-center gap-1.5">
               <i className="w-2.5 h-2.5 rounded-full bg-[#76BAFF] inline-block"></i>
-              Defence 7
+              Defence {totw.players.filter((p) => p.unit === "Defence").length}
             </span>
           </div>
         </div>
@@ -244,20 +247,26 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               OFFENCE
             </span>
 
-            {/* 14 Player Pins */}
+            {/* Player pins */}
             {players.map((p, idx) => {
               const isSelected = idx === selectedIndex;
               const isPlayerDef = p.unit === "Defence";
               const hasImage = Boolean(p.player?.image);
               const isPOTW = isPlayerOfTheWeek(totw, p);
-              // Ensure symmetrical equal spacing (32% and 68%) for backfield positions matching S1/S2
-              let posX = p.coord_x || "50%";
+              // A format with a fixed layout (5v5) places every player by slot, so
+              // editions saved before a layout change still line up.
+              const spot = pitchLayout?.[p.slot_code || ""];
+              // 7v7: ensure symmetrical equal spacing (32% and 68%) for backfield
+              // positions matching S1/S2.
+              let posX = spot?.x || p.coord_x || "50%";
               if (
+                !spot &&
                 (p.slot_code === "QB" || p.slot_code === "OFF2") &&
                 (posX === "50%" || !p.coord_x)
               ) {
                 posX = "68%";
               } else if (
+                !spot &&
                 (p.slot_code === "FQB" || p.slot_code === "OFF1") &&
                 !p.coord_x
               ) {
@@ -271,7 +280,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   onClick={() => setSelectedIndex(idx)}
                   style={{
                     left: posX,
-                    top: p.coord_y || "50%",
+                    top: spot?.y || p.coord_y || "50%",
                   }}
                   className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 w-12 sm:w-16 md:w-24 p-1 rounded-xl text-center transition-all duration-200 focus:outline-none group cursor-pointer ${
                     isSelected
@@ -358,7 +367,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 Player spotlight
               </span>
               <div className="text-sm md:text-base font-black text-white">
-                Meet the Starting XIV
+                Meet the {gameFormatOf(totw.competition).totw.title}
               </div>
             </div>
             <div className="text-xs font-black text-[#91A7C0]">
@@ -478,7 +487,16 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 </h3>
 
                 <div className="text-xs md:text-sm font-semibold text-gray-300 wrap-break-word">
-                  {activePlayer.player?.team?.name || "Showtime League"}
+                  {activePlayer.player?.team?.name ? (
+                    <TeamLink
+                      id={activePlayer.player.team.id}
+                      className="hover:text-yellow-300 transition-colors"
+                    >
+                      {activePlayer.player.team.name}
+                    </TeamLink>
+                  ) : (
+                    "Showtime League"
+                  )}
                 </div>
 
                 {/* 3 Key Stats */}

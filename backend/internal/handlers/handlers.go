@@ -7,6 +7,7 @@ import (
 
 type Handlers struct {
 	AuthHandler                 transport.IAuthHandler
+	RoleHandler                 transport.IRoleHandler
 	NewsHandler                 transport.INewsHandler
 	GalleryHandler              transport.IGalleryHandler
 	MatchHandler                transport.IMatchHandler
@@ -14,6 +15,7 @@ type Handlers struct {
 	TicketHandler               transport.ITicketHandler
 	TeamManagerHandler          transport.ITeamManagerHandler
 	AnalyticsHandler            transport.IAnalyticsHandler
+	SiteEventsHandler           transport.ISiteEventsHandler
 	TeamTicketAllocationHandler transport.ITeamTicketAllocationHandler
 	StatsHandler                transport.IStatsHandler
 	InventoryHandler            transport.IInventoryHandler
@@ -44,6 +46,7 @@ type Handlers struct {
 
 func NewHandlers(
 	authHandler transport.IAuthHandler,
+	roleHandler transport.IRoleHandler,
 	newsHandler transport.INewsHandler,
 	galleryHandler transport.IGalleryHandler,
 	matchHandler transport.IMatchHandler,
@@ -51,6 +54,7 @@ func NewHandlers(
 	ticketHandler transport.ITicketHandler,
 	teamManagerHandler transport.ITeamManagerHandler,
 	analyticsHandler transport.IAnalyticsHandler,
+	siteEventsHandler transport.ISiteEventsHandler,
 	teamTicketAllocationHandler transport.ITeamTicketAllocationHandler,
 	statsHandler transport.IStatsHandler,
 	inventoryHandler transport.IInventoryHandler,
@@ -80,6 +84,7 @@ func NewHandlers(
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
+		RoleHandler:                 roleHandler,
 		NewsHandler:                 newsHandler,
 		GalleryHandler:              galleryHandler,
 		MatchHandler:                matchHandler,
@@ -87,6 +92,7 @@ func NewHandlers(
 		TicketHandler:               ticketHandler,
 		TeamManagerHandler:          teamManagerHandler,
 		AnalyticsHandler:            analyticsHandler,
+		SiteEventsHandler:           siteEventsHandler,
 		TeamTicketAllocationHandler: teamTicketAllocationHandler,
 		StatsHandler:                statsHandler,
 		InventoryHandler:            inventoryHandler,

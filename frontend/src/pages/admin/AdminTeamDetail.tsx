@@ -221,9 +221,9 @@ export const AdminTeamDetail = () => {
 
   // Only link to dashboard pages this role can open.
   const canOpen = useMemo(() => {
-    const paths = new Set(adminSectionsFor(user?.role).flatMap((s) => s.links.map((l) => l.path)));
+    const paths = new Set(adminSectionsFor(user).flatMap((s) => s.links.map((l) => l.path)));
     return (path: string) => paths.has(path);
-  }, [user?.role]);
+  }, [user]);
 
   // There is no single-team endpoint; the admin list includes inactive teams.
   const { data: teamsPage, isLoading: loadingTeam } = useQuery({

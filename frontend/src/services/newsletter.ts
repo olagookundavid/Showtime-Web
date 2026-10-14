@@ -6,6 +6,8 @@
  * public (it's the same one Brevo's own embed code posts to), not an API key.
  * The whole feature stays dormant while it's unset.
  */
+import { trackEvent } from './siteTracker';
+
 const BREVO_FORM_URL = import.meta.env.VITE_BREVO_FORM_URL as string | undefined;
 
 export const newsletterEnabled = !!BREVO_FORM_URL;
@@ -77,6 +79,7 @@ export async function subscribeToNewsletter(
         if (!response.ok) return false;
 
         markNewsletterSubscribed();
+        trackEvent('newsletter_signup');
         return true;
     } catch {
         return false;

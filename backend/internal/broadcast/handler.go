@@ -45,6 +45,52 @@ func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playServ
 // or bootstraps a fresh one from the match data.
 func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*BroadcastState, error) {
 	if state, ok := h.hub.LoadState(c.Request.Context(), matchID); ok {
+		// A team's name (or short name) can change after this match's broadcast
+		// state was first bootstrapped — the cached/persisted state otherwise
+		// never picks that up. Re-sync against current match data on every load
+		// so state.Home/Away stays the single source of truth that /players and
+		// the rest of the admin app compare against (a stale name here used to
+		// make team-scoped player lookups silently return nothing).
+		if detail, err := h.matchService.GetMatchDetail(c.Request.Context(), matchID); err == nil {
+			changed := false
+			if detail.Match.HomeTeam != nil {
+				if name := detail.Match.HomeTeam.Name; name != "" && name != state.Home {
+					if state.Possession == state.Home {
+						state.Possession = name
+					}
+					state.Home = name
+					changed = true
+				}
+				homeShort := detail.Match.HomeTeam.ShortName
+				if homeShort == "" {
+					homeShort = state.Home
+				}
+				if homeShort != state.HomeShort {
+					state.HomeShort = homeShort
+					changed = true
+				}
+			}
+			if detail.Match.AwayTeam != nil {
+				if name := detail.Match.AwayTeam.Name; name != "" && name != state.Away {
+					if state.Possession == state.Away {
+						state.Possession = name
+					}
+					state.Away = name
+					changed = true
+				}
+				awayShort := detail.Match.AwayTeam.ShortName
+				if awayShort == "" {
+					awayShort = state.Away
+				}
+				if awayShort != state.AwayShort {
+					state.AwayShort = awayShort
+					changed = true
+				}
+			}
+			if changed {
+				h.hub.SetState(state)
+			}
+		}
 		return state, nil
 	}
 
@@ -56,14 +102,24 @@ func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*Br
 
 	homeName := "HOME"
 	awayName := "AWAY"
+	homeShort := "HOME"
+	awayShort := "AWAY"
 	homeLogo := ""
 	awayLogo := ""
 	if matchDetail.Match.HomeTeam != nil {
 		homeName = matchDetail.Match.HomeTeam.Name
+		homeShort = matchDetail.Match.HomeTeam.ShortName
+		if homeShort == "" {
+			homeShort = homeName
+		}
 		homeLogo = matchDetail.Match.HomeTeam.Logo
 	}
 	if matchDetail.Match.AwayTeam != nil {
 		awayName = matchDetail.Match.AwayTeam.Name
+		awayShort = matchDetail.Match.AwayTeam.ShortName
+		if awayShort == "" {
+			awayShort = awayName
+		}
 		awayLogo = matchDetail.Match.AwayTeam.Logo
 	}
 
@@ -92,6 +148,8 @@ func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*Br
 		MatchID:      matchID,
 		Home:         homeName,
 		Away:         awayName,
+		HomeShort:    homeShort,
+		AwayShort:    awayShort,
 		HomeLogo:     homeLogo,
 		AwayLogo:     awayLogo,
 		ManualHome:   pbpHome,
@@ -146,7 +204,7 @@ func (h *BroadcastHandler) UpdateState(c *gin.Context) {
 	}
 
 	state.MatchID = matchID
-	h.hub.SetState(&state)
+	h.hub.ApplyProducerUpdate(&state)
 	c.JSON(http.StatusOK, state)
 }
 

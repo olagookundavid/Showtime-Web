@@ -12,7 +12,7 @@ import {
     UserMinusIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { DashboardPageHeader, Button, Field, Input, Tabs, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, Spinner } from '../../components';
+import { DashboardPageHeader, Button, Field, Input, Tabs, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, Spinner, PlayerLink } from '../../components';
 import { getApiErrorMessage } from '../../utils';
 
 const PAGE_SIZE = 20;
@@ -494,7 +494,9 @@ export const TeamHeadContracts: React.FC = () => {
                                                 </div>
                                             )}
                                             <div className="min-w-0">
-                                                <h3 className="font-bold text-gray-900 dark:text-white wrap-break-word">{p.name}</h3>
+                                                <h3 className="font-bold text-gray-900 dark:text-white wrap-break-word">
+                                                    <PlayerLink id={p.id}>{p.name}</PlayerLink>
+                                                </h3>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">{p.position || 'Unassigned'} · Free Agent</p>
                                             </div>
                                         </div>
@@ -564,7 +566,7 @@ export const TeamHeadContracts: React.FC = () => {
                         <div>
                             <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Player</p>
                             <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5 wrap-break-word">
-                                {selectedPlayer.name}{' '}
+                                <PlayerLink id={selectedPlayer.id}>{selectedPlayer.name}</PlayerLink>{' '}
                                 <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedPlayer.position || 'No Position'})</span>
                             </p>
                         </div>

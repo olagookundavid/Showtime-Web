@@ -24,6 +24,7 @@ type MatchRepository interface {
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
 	DeleteCompetition(ctx context.Context, id string) error
 	AdvanceCupStage(ctx context.Context, competitionID string, from *string, to string, matches []*domain.Match) error
+	AdoptCupMatches(ctx context.Context, competitionID string, round string, matchIDs []string) error
 
 	// Teams
 	GetTeams(ctx context.Context, page, limit int, search string, status string) ([]domain.Team, int64, error)
@@ -45,6 +46,7 @@ type MatchRepository interface {
 	DeleteMatch(ctx context.Context, id string) error
 	SetMatchSlot(ctx context.Context, matchID, slot string, teamID *string) error
 	SetMatchPBPLock(ctx context.Context, matchID string, locked bool) error
+	SetMatchScore(ctx context.Context, matchID string, home, away int) error
 	SetMatchMVP(ctx context.Context, matchID string, playerID *string) error
 	OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error
 	CountMatchesByCompetition(ctx context.Context, competitionID string) (int64, error)
@@ -65,7 +67,7 @@ type MatchRepository interface {
 	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
 	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
-	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
+	FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error)
 }
 
 type PostgresMatchRepository struct {
@@ -257,6 +259,42 @@ func (r *PostgresMatchRepository) AdvanceCupStage(ctx context.Context, competiti
 		`UPDATE competitions SET cup_round = $1, status = CASE WHEN $2 THEN 'completed' ELSE status END, updated_at = NOW() WHERE id = $3`,
 		to, to == domain.CupRoundCompleted, competitionID,
 	); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// AdoptCupMatches starts a cup from matches that were entered by hand rather
+// than drawn: in one transaction it checks the cup hasn't started, tags those
+// matches with `round` and records `round` as the cup's stage. The matches
+// keep their IDs, so their results, play-by-play and stats are untouched.
+func (r *PostgresMatchRepository) AdoptCupMatches(ctx context.Context, competitionID string, round string, matchIDs []string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var current *string
+	if err := tx.QueryRow(ctx, `SELECT cup_round FROM competitions WHERE id = $1 FOR UPDATE`, competitionID).Scan(&current); err != nil {
+		return err
+	}
+	if current != nil && *current != "" {
+		return fmt.Errorf("the cup has already started (now %s); reload and try again", *current)
+	}
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE matches SET round = $1, updated_at = NOW() WHERE competition_id = $2 AND id = ANY($3::uuid[])`,
+		round, competitionID, matchIDs,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != int64(len(matchIDs)) {
+		return fmt.Errorf("expected to tag %d matches as %s, tagged %d; reload and try again", len(matchIDs), round, tag.RowsAffected())
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE competitions SET cup_round = $1, updated_at = NOW() WHERE id = $2`, round, competitionID); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -823,6 +861,14 @@ func (r *PostgresMatchRepository) SetMatchSlot(ctx context.Context, matchID, slo
 
 func (r *PostgresMatchRepository) SetMatchPBPLock(ctx context.Context, matchID string, locked bool) error {
 	_, err := r.db.Exec(ctx, `UPDATE matches SET pbp_locked = $1, updated_at = NOW() WHERE id = $2`, locked, matchID)
+	return err
+}
+
+// SetMatchScore directly updates a match's score columns, bypassing UpdateMatch's
+// competition/standings validation — used by the broadcast studio's on-air
+// scoreboard, which writes on every producer tap.
+func (r *PostgresMatchRepository) SetMatchScore(ctx context.Context, matchID string, home, away int) error {
+	_, err := r.db.Exec(ctx, `UPDATE matches SET home_score = $1, away_score = $2, updated_at = NOW() WHERE id = $3`, home, away, matchID)
 	return err
 }
 
@@ -1518,12 +1564,25 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 	return players, total, nil
 }
 
-func (r *PostgresMatchRepository) CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error) {
+// FemalePlayerIDs returns which of the given players are women, so a lineup's
+// women's quota can be checked per unit rather than only in total.
+func (r *PostgresMatchRepository) FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error) {
+	females := make(map[string]bool)
 	if len(playerIDs) == 0 {
-		return 0, nil
+		return females, nil
 	}
-	var count int
-	query := `SELECT COUNT(*) FROM players WHERE id = ANY($1::uuid[]) AND UPPER(COALESCE(gender, '')) = 'F'`
-	err := r.db.QueryRow(ctx, query, playerIDs).Scan(&count)
-	return count, err
+	rows, err := r.db.Query(ctx,
+		`SELECT id::text FROM players WHERE id = ANY($1::uuid[]) AND UPPER(COALESCE(gender, '')) = 'F'`, playerIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		females[id] = true
+	}
+	return females, rows.Err()
 }

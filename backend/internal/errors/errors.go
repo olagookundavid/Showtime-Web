@@ -21,6 +21,17 @@ var ErrServerError = fmt.Errorf("something went wrong")
 
 var ErrNotFound = errors.New("not found")
 
+// Role-management errors, worded for the admin who hit them.
+var (
+	ErrRoleNotFound    = errors.New("that role doesn't exist")
+	ErrDuplicateRole   = errors.New("a role with that name already exists")
+	ErrRoleInUse       = errors.New("this role is still assigned to users; move them to another role first")
+	ErrSystemRole      = errors.New("this is a built-in role and can't be changed or deleted")
+	ErrRoleEscalation  = errors.New("you can't grant access you don't have yourself")
+	ErrInvalidFeature  = errors.New("unknown feature")
+	ErrInvalidRoleName = errors.New("a role needs a name")
+)
+
 // ErrPlayerNotLinked distinguishes "this account has no player record behind it"
 // from "this player simply has no contracts yet". Both used to surface as an
 // empty list, which left a player staring at a blank portal with nothing telling

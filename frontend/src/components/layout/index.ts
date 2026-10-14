@@ -6,3 +6,4 @@ export { Layout } from './Layout';
 export { Navbar } from './Navbar';
 export { NotificationBell } from './NotificationBell';
 export { ScrollToTop } from './ScrollToTop';
+export { portalLinkFor, type PortalKind, type PortalLink } from './portalLink';

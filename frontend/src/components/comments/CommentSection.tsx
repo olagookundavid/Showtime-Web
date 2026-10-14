@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts";
+import { usePermissions } from "../../hooks";
 import { commentsApi } from "../../services/api";
 import { COMMENTS_PAGE_SIZE } from "../../constants";
 import type { CommentData } from "../../types";
@@ -52,6 +53,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   commentsEnabled = true,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const { canEdit } = usePermissions();
   const location = useLocation();
 
   const [comments, setComments] = useState<CommentData[]>([]);
@@ -419,8 +421,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         <div className="space-y-4">
           {comments.map((c) => {
             const isOwner = user && user.id === c.user_id;
-            const isAdmin =
-              user && (user.role === "admin" || user.role === "app_admin");
+            const isAdmin = canEdit("comment_moderation");
             const canDelete = isOwner || isAdmin;
 
             return (

@@ -20,6 +20,7 @@ type POTWRepository interface {
 	GetPollByTOTWID(ctx context.Context, totwID string) (*domain.POTWPoll, error)
 	GetLatestPublicPoll(ctx context.Context) (*domain.POTWPoll, error)
 	ListPublicPolls(ctx context.Context) ([]domain.POTWPoll, error)
+	ListWinners(ctx context.Context) ([]domain.POTWWinner, error)
 	HasPoll(ctx context.Context, totwID string) (bool, error)
 
 	CreatePoll(ctx context.Context, poll *domain.POTWPoll, nomineeIDs []string) error
@@ -97,6 +98,10 @@ func loadPollDetail(ctx context.Context, q potwQuerier, p *domain.POTWPoll) erro
 	if err != nil {
 		return err
 	}
+	// Cards show what the match stats recorded that week, not just what was typed.
+	if err := applyWeekStats(ctx, q, p.TOTWID, nominees); err != nil {
+		return err
+	}
 	p.Nominees = nominees
 	p.TotalVotes = 0
 	for _, n := range nominees {
@@ -129,7 +134,7 @@ func loadNominees(ctx context.Context, q potwQuerier, pollID string) ([]domain.P
 	rows, err := q.Query(ctx, `
 		SELECT n.player_id::text, n.display_order, COALESCE(v.cnt, 0),
 		       p.name, COALESCE(p.image, ''), COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
-		       COALESCE(t.name, ''), COALESCE(t.logo, ''),
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.logo, ''),
 		       COALESCE(tp.position, ''), COALESCE(tp.rating, 0)::float8,
 		       COALESCE(tp.stat1_value, ''), COALESCE(tp.stat1_label, ''),
 		       COALESCE(tp.stat2_value, ''), COALESCE(tp.stat2_label, ''),
@@ -162,7 +167,7 @@ func loadNominees(ctx context.Context, q potwQuerier, pollID string) ([]domain.P
 		if err := rows.Scan(
 			&n.PlayerID, &n.DisplayOrder, &n.Votes,
 			&n.Name, &n.Image, &n.JerseyNumber, &n.Position,
-			&n.TeamName, &n.TeamLogo,
+			&n.TeamID, &n.TeamName, &n.TeamLogo,
 			&n.TOTWPosition, &n.Rating,
 			&n.Stat1Value, &n.Stat1Label, &n.Stat2Value, &n.Stat2Label, &n.Stat3Value, &n.Stat3Label,
 		); err != nil {

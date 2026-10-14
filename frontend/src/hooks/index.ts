@@ -1,5 +1,6 @@
 export { useDebounced } from './useDebounced';
 export { useHideOnScrollDown } from './useHideOnScrollDown';
+export { useIsScrolled } from './useIsScrolled';
 export { useNewsletterPrompt } from './useNewsletterPrompt';
 export { useReturnUrl, withReturnUrl } from './useReturnUrl';
 export { useLiveStream } from './useLiveStream';
@@ -10,3 +11,4 @@ export { useBroadcastViewer } from './useBroadcastViewer';
 export { LEADERBOARD_LIMIT, num, rankBadgeClass, useFantasyLeaderboard } from './useFantasyLeaderboard';
 export { useReserveDrag } from './useReserveDrag';
 export type { ReserveDragState } from './useReserveDrag';
+export { useLiveMatchScore } from './useLiveMatchScore';

@@ -138,7 +138,7 @@ func main() {
 	// examplePub := ExampleQueueProducer(log)
 	// defer examplePub.Close()
 
-	appHandlers, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub := wireDependencies(pool, tokenMaker, log)
+	appHandlers, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService := wireDependencies(pool, tokenMaker, log)
 
 	// Orphaned-image GC. Off + dry-run by default so it can't delete in-use
 	// images before its candidate logs have been reviewed (see image_gc_service).
@@ -156,7 +156,9 @@ func main() {
 		TokenMaker:            tokenMaker,
 		Handlers:              appHandlers,
 		AuditService:          auditService,
+		SiteEventsService:     siteEventsService,
 		AuthService:           authService,
+		RoleService:           roleService,
 		TeamManagerService:    tmService,
 		TicketService:         ticketService,
 		StorageService:        storageService,

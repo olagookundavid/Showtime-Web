@@ -8,6 +8,7 @@ import (
 	"pkg-common/commonAuth"
 
 	"showtime-backend/cmd/api"
+	"showtime-backend/internal/domain"
 	"showtime-backend/internal/middlewares"
 
 	"pkg-common/helpers"
@@ -54,7 +55,7 @@ func Routes(app *api.Application) *gin.Engine {
 	r.GET("/broadcast/day/:date/overlay/state", app.Handlers.BroadcastHandler.DayOverlayState)
 	// expvar exposes runtime internals (and can leak command-line flags such as
 	// the DB DSN / token key) — lock it behind admin auth instead of public.
-	debugGroup := r.Group("/debug", commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
+	debugGroup := r.Group("/debug", commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureAdministratorTools))
 	debugGroup.GET("/vars", commonAuth.WrapHTTPHandler(expvar.Handler()))
 
 	// Group: /api/v1/
@@ -72,6 +73,7 @@ func Routes(app *api.Application) *gin.Engine {
 	// Register all subroutes
 	SetupAuthRoutes(v1_api, app)
 	SetupAdminRoutes(v1_api, app)
+	SetupSiteEventRoutes(v1_api, app)
 	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
 	// SetupGalleryRoutes(v1_api, app) // Disabled gallery
@@ -146,17 +148,15 @@ func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
 	// attach the photo their manager identifies them by; PresignUpload pins their folder
 	// to claim-photos so the grant cannot reach the rest of the bucket.
 	//
-	// Every other staff role is allowed too: presigning alone doesn't let anyone attach
+	// Anyone who can open the admin panel (any role holding an admin feature) is allowed
+	// too: presigning alone doesn't let anyone attach
 	// the file anywhere — the feature it's used by (Hero Slides, News, Gallery, Store
 	// products, team logos, etc.) is separately gated by FeatureAccessMiddleware, so this
 	// is just "can this person reach the admin panel at all", not a per-feature check.
-	// Keeping this list narrower than that caused a real bug: a content_creator with
-	// full access to Hero Slides still got a 403 trying to upload the slide image,
-	// because this route never knew about the new roles.
-	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService,
-		"admin", "team_head", "player_pending",
-		"broadcast", "referee", "stats", "ticketer", "seller",
-		"commissioner", "fantasy_commissioner", "head_referee", "news_head", "content_creator", "store_manager",
+	// It is derived from the roles table rather than listed here, so a newly created role
+	// can upload from its first request.
+	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.StaffOrRolesMiddleware(app.RoleService,
+		domain.RoleTeamHead, domain.RolePlayerPending, domain.RoleSeller,
 	))
 	{
 		uploadRoutes.POST("/presign", app.Handlers.UploadHandler.PresignUpload)
@@ -170,15 +170,26 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	adminRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker))
 
 	usersGroup := adminRoutes.Group("/users")
-	usersGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "user_management"))
+	usersGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "user_management"))
 	{
 		usersGroup.GET("", app.Handlers.AuthHandler.GetUsers)
+		usersGroup.GET("/roles", app.Handlers.RoleHandler.ListRoleOptions)
 		usersGroup.PUT("/:id", app.Handlers.AuthHandler.UpdateUserInfo)
 		usersGroup.PUT("/:id/role", app.Handlers.AuthHandler.UpdateUserRole)
 	}
 
+	rolesGroup := adminRoutes.Group("/roles")
+	rolesGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureRoles))
+	{
+		rolesGroup.GET("", app.Handlers.RoleHandler.ListRoles)
+		rolesGroup.GET("/features", app.Handlers.RoleHandler.ListFeatures)
+		rolesGroup.POST("", app.Handlers.RoleHandler.CreateRole)
+		rolesGroup.PUT("/:key", app.Handlers.RoleHandler.UpdateRole)
+		rolesGroup.DELETE("/:key", app.Handlers.RoleHandler.DeleteRole)
+	}
+
 	teamsGroup := adminRoutes.Group("/teams")
-	teamsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "teams_standings"))
+	teamsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "teams_standings"))
 	{
 		teamsGroup.GET("", app.Handlers.MatchHandler.GetTeams)
 		teamsGroup.GET("/by-competition", app.Handlers.MatchHandler.GetTeamsByCompetition)
@@ -192,7 +203,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	compGroup := adminRoutes.Group("/competitions")
-	compGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "competitions"))
+	compGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "competitions"))
 	{
 		compGroup.GET("", app.Handlers.MatchHandler.GetCompetitions)
 		compGroup.POST("", app.Handlers.MatchHandler.CreateCompetition)
@@ -212,13 +223,23 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	analyticsGroup := adminRoutes.Group("/analytics")
-	analyticsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "dashboard"))
+	analyticsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "dashboard"))
 	{
 		analyticsGroup.GET("", app.Handlers.AnalyticsHandler.GetAnalytics)
 	}
 
+	// Visitor traffic. Same "dashboard" feature as the sales analytics above,
+	// which is admin/app_admin only — other team members get CSV exports.
+	siteAnalyticsGroup := adminRoutes.Group("/site-analytics")
+	siteAnalyticsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "dashboard"))
+	{
+		siteAnalyticsGroup.GET("/summary", app.Handlers.SiteEventsHandler.GetSummary)
+		siteAnalyticsGroup.GET("/events", app.Handlers.SiteEventsHandler.ListEvents)
+		siteAnalyticsGroup.GET("/export", app.Handlers.SiteEventsHandler.Export)
+	}
+
 	newsGroup := adminRoutes.Group("/news")
-	newsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "news"))
+	newsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "news"))
 	{
 		newsGroup.POST("", app.Handlers.NewsHandler.CreateNews)
 		newsGroup.PUT("/:id", app.Handlers.NewsHandler.UpdateNews)
@@ -228,7 +249,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	/*
 		galleryGroup := adminRoutes.Group("/gallery")
-		galleryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+		galleryGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureGallery))
 		{
 			galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
 			galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
@@ -239,7 +260,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	// Hero slides — open to admin and above. Only the Administrator (gift-ticket)
 	// section is reserved for app_admin; everything else an admin can manage.
 	heroSlideGroup := adminRoutes.Group("/hero-slides")
-	heroSlideGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "hero_slides"))
+	heroSlideGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "hero_slides"))
 	{
 		heroSlideGroup.GET("", app.Handlers.HeroSlideHandler.List)
 		heroSlideGroup.POST("", app.Handlers.HeroSlideHandler.Create)
@@ -249,7 +270,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Team of the Season graphics + MVPs — admin/app_admin managed content.
 	seasonGroup := adminRoutes.Group("/season")
-	seasonGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "season_mvps"))
+	seasonGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "season_mvps"))
 	{
 		seasonGroup.GET("/graphics", app.Handlers.SeasonHandler.ListGraphics)
 		seasonGroup.PUT("/graphics", app.Handlers.SeasonHandler.UpsertGraphic)
@@ -261,7 +282,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Team of the Week — admin/app_admin managed
 	totwAdminGroup := adminRoutes.Group("/totw")
-	totwAdminGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "totw"))
+	totwAdminGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "totw"))
 	{
 		totwAdminGroup.GET("", app.Handlers.TOTWHandler.ListAllAdminTOTW)
 		totwAdminGroup.GET("/player-stats", app.Handlers.TOTWHandler.GetPlayerDayStats)
@@ -282,10 +303,15 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Badges & Honors — admin/app_admin managed
 	badgesAdminGroup := adminRoutes.Group("/badges")
-	badgesAdminGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "badges"))
+	badgesAdminGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "badges"))
 	{
 		badgesAdminGroup.GET("", app.Handlers.BadgeHandler.ListBadges)
 		badgesAdminGroup.GET("/awards", app.Handlers.BadgeHandler.ListAwards)
+		// The artwork library badges pick their image from.
+		badgesAdminGroup.GET("/icons", app.Handlers.BadgeHandler.ListBadgeIcons)
+		badgesAdminGroup.POST("/icons", app.Handlers.BadgeHandler.CreateBadgeIcon)
+		badgesAdminGroup.PUT("/icons/:iconId", app.Handlers.BadgeHandler.UpdateBadgeIcon)
+		badgesAdminGroup.DELETE("/icons/:iconId", app.Handlers.BadgeHandler.DeleteBadgeIcon)
 		badgesAdminGroup.GET("/:id", app.Handlers.BadgeHandler.GetBadgeByID)
 		badgesAdminGroup.POST("", app.Handlers.BadgeHandler.CreateBadge)
 		badgesAdminGroup.PUT("/:id", app.Handlers.BadgeHandler.UpdateBadge)
@@ -296,7 +322,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	inventoryGroup := adminRoutes.Group("/inventory")
-	inventoryGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "inventory"))
+	inventoryGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "inventory"))
 	{
 		inventoryGroup.GET("/products", app.Handlers.InventoryHandler.ListProducts)
 		inventoryGroup.GET("/products/:id", app.Handlers.InventoryHandler.GetProduct)
@@ -313,7 +339,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	adminStoreGroup := adminRoutes.Group("/store")
-	adminStoreGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "store"))
+	adminStoreGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "store"))
 	{
 		adminStoreGroup.GET("/products", app.Handlers.StoreHandler.ListAllStoreProducts)
 		adminStoreGroup.GET("/products/:id", app.Handlers.StoreHandler.GetStoreProduct)
@@ -331,7 +357,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	matchesGroup := adminRoutes.Group("/matches")
-	matchesGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "matches"))
+	matchesGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "matches"))
 	{
 		matchesGroup.POST("", app.Handlers.MatchHandler.CreateMatch)
 		matchesGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
@@ -342,7 +368,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		// Play-by-play entry (Step 1) has its own, narrower feature role set than
 		// the rest of /matches (e.g. broadcast can manage matches but not log plays),
 		// so it gets an inline override on top of the group-level "matches" check.
-		pbpAccess := middlewares.FeatureAccessMiddleware(app.AuthService, "play_by_play")
+		pbpAccess := middlewares.FeatureAccessMiddleware(app.RoleService, "play_by_play")
 		matchesGroup.GET("/:id/plays", pbpAccess, app.Handlers.PlayHandler.ListPlays)
 		matchesGroup.POST("/:id/plays", pbpAccess, app.Handlers.PlayHandler.CreatePlay)
 		matchesGroup.PUT("/:id/plays/:playId", pbpAccess, app.Handlers.PlayHandler.UpdatePlay)
@@ -350,28 +376,28 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.POST("/:id/plays/rederive-situations", pbpAccess, app.Handlers.PlayHandler.ReDeriveSituations)
 		// Play-by-play is locked per match by default; only an admin (not
 		// referee/stats, who merely log plays) can unlock it. Audited globally.
-		matchesGroup.POST("/:id/pbp-lock", middlewares.AdminOnlyMiddleware(app.AuthService), app.Handlers.PlayHandler.LockPBP)
-		matchesGroup.POST("/:id/pbp-unlock", middlewares.AdminOnlyMiddleware(app.AuthService), app.Handlers.PlayHandler.UnlockPBP)
+		matchesGroup.POST("/:id/pbp-lock", middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeaturePlayByPlayLock), app.Handlers.PlayHandler.LockPBP)
+		matchesGroup.POST("/:id/pbp-unlock", middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeaturePlayByPlayLock), app.Handlers.PlayHandler.UnlockPBP)
 		// Step 2: derive box-score stats from the play log + commit them.
 		matchesGroup.GET("/:id/stats-compare", pbpAccess, app.Handlers.PlayHandler.CompareStats)
-		matchesGroup.POST("/:id/stats-commit", middlewares.FeatureAccessMiddleware(app.AuthService, "play_by_play_commit"), app.Handlers.PlayHandler.CommitStats)
+		matchesGroup.POST("/:id/stats-commit", middlewares.FeatureAccessMiddleware(app.RoleService, "play_by_play_commit"), app.Handlers.PlayHandler.CommitStats)
 		// Step 3: scoring rules for this match's competition + recompute score.
 		matchesGroup.GET("/:id/rules", pbpAccess, app.Handlers.PlayHandler.GetMatchRules)
 		matchesGroup.POST("/:id/recompute-score", pbpAccess, app.Handlers.PlayHandler.RecomputeScore)
-		matchesGroup.POST("/:id/commit-score", middlewares.FeatureAccessMiddleware(app.AuthService, "play_by_play_commit"), app.Handlers.PlayHandler.CommitScore)
+		matchesGroup.POST("/:id/commit-score", middlewares.FeatureAccessMiddleware(app.RoleService, "play_by_play_commit"), app.Handlers.PlayHandler.CommitScore)
 		matchesGroup.POST("/:id/import", app.Handlers.ImportHandler.ImportMatch)
 		// Standings live under /matches for routing convenience, but belong to the
 		// "Teams & Standings" feature in the chairman's matrix, not "Matches" — its
 		// role set differs (e.g. no broadcast/referee), so it gets its own override
 		// rather than inheriting the group-level "matches" check.
-		standingsAccess := middlewares.FeatureAccessMiddleware(app.AuthService, "teams_standings")
+		standingsAccess := middlewares.FeatureAccessMiddleware(app.RoleService, "teams_standings")
 		matchesGroup.POST("/standings", standingsAccess, app.Handlers.MatchHandler.CreateStanding)
 		matchesGroup.PUT("/standings/:id", standingsAccess, app.Handlers.MatchHandler.UpdateStanding)
 		matchesGroup.DELETE("/standings/:id", standingsAccess, app.Handlers.MatchHandler.DeleteStanding)
 	}
 
 	broadcastAdminGroup := adminRoutes.Group("/matches/:id/broadcast")
-	broadcastAdminGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "broadcast_studio"))
+	broadcastAdminGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "broadcast_studio"))
 	{
 		broadcastAdminGroup.GET("/state", app.Handlers.BroadcastHandler.GetState)
 		broadcastAdminGroup.PUT("/state", app.Handlers.BroadcastHandler.UpdateState)
@@ -381,7 +407,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Event days: pick which of a day's matches the day's overlay shows
 	broadcastDaysGroup := adminRoutes.Group("/broadcast/days")
-	broadcastDaysGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "broadcast_studio"))
+	broadcastDaysGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "broadcast_studio"))
 	{
 		broadcastDaysGroup.GET("", app.Handlers.BroadcastHandler.ListDays)
 		broadcastDaysGroup.GET("/:date", app.Handlers.BroadcastHandler.GetDay)
@@ -389,7 +415,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	playersGroup := adminRoutes.Group("/players")
-	playersGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "players"))
+	playersGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "players"))
 	{
 		playersGroup.POST("", app.Handlers.PlayerHandler.CreatePlayer)
 		playersGroup.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
@@ -404,7 +430,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Manual stat editing (play-by-play is the primary path).
 	statsGroup := adminRoutes.Group("/stats")
-	statsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "stats_edit"))
+	statsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "stats_edit"))
 	{
 		statsGroup.POST("/players", app.Handlers.StatsHandler.UpsertPlayerStat)
 		// Bulk re-derive of stats for every match that has a play log — the way a
@@ -415,7 +441,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	eventDaysGroup := adminRoutes.Group("/event-days")
-	eventDaysGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "event_days"))
+	eventDaysGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "event_days"))
 	{
 		eventDaysGroup.GET("/all", app.Handlers.TicketHandler.ListAllEventDays)
 		eventDaysGroup.POST("", app.Handlers.TicketHandler.CreateEventDay)
@@ -426,7 +452,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	// Ticket products (5K, VIP, VVIP...) and the days they are sold on. Managed by
 	// whoever manages tickets, not by everyone who can edit a match day.
 	ticketProductsGroup := adminRoutes.Group("/ticket-products")
-	ticketProductsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
+	ticketProductsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
 	{
 		ticketProductsGroup.GET("", app.Handlers.TicketHandler.ListProductsAdmin)
 		ticketProductsGroup.POST("", app.Handlers.TicketHandler.CreateProduct)
@@ -435,13 +461,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	gamePassGroup := adminRoutes.Group("/game-pass")
-	gamePassGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
+	gamePassGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
 	{
 		gamePassGroup.PUT("/rules", app.Handlers.TicketHandler.SaveGamePassRules)
 	}
 
 	allocationsGroup := adminRoutes.Group("/allocations")
-	allocationsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "event_days"))
+	allocationsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "event_days"))
 	{
 		allocationsGroup.POST("", app.Handlers.TeamTicketAllocationHandler.CreateOrUpdateAllocation)
 		allocationsGroup.GET("/event-day/:id", app.Handlers.TeamTicketAllocationHandler.GetAllocationsByEventDay)
@@ -449,7 +475,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	ticketsGroup := adminRoutes.Group("/tickets")
-	ticketsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "tickets"))
+	ticketsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
 	{
 		ticketsGroup.POST("/:id/admin-checkin", app.Handlers.TicketHandler.AdminCheckin)
 		ticketsGroup.POST("/:id/checkin", app.Handlers.TicketHandler.Checkin)
@@ -461,20 +487,20 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	// Referrals has a wider role set than Tickets itself (store_manager gets
 	// referrals but not ticket check-in/lookup), so it's its own group.
 	referralsGroup := adminRoutes.Group("/tickets")
-	referralsGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "referrals"))
+	referralsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "referrals"))
 	{
 		referralsGroup.GET("/referrals", app.Handlers.TicketHandler.ListReferralStats)
 	}
 
 	// Administrator section — only App Admins can issue complimentary tickets
 	administratorGroup := adminRoutes.Group("/administrator")
-	administratorGroup.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "administrator_tools"))
+	administratorGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "administrator_tools"))
 	{
 		administratorGroup.POST("/gift-ticket", app.Handlers.TicketHandler.GiftTicket)
 	}
 
 	adminContracts := adminRoutes.Group("/contracts")
-	adminContracts.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "contracts"))
+	adminContracts.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "contracts"))
 	{
 		adminContracts.GET("", app.Handlers.ContractHandler.GetTeamContracts)
 		adminContracts.GET("/:id", app.Handlers.ContractHandler.GetContractByID)
@@ -483,7 +509,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	adminTransfers := adminRoutes.Group("/transfers")
-	adminTransfers.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "transfers"))
+	adminTransfers.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "transfers"))
 	{
 		adminTransfers.GET("", app.Handlers.TransferHandler.GetTeamTransfers)
 		adminTransfers.GET("/:id", app.Handlers.TransferHandler.GetTransferByID)
@@ -491,7 +517,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	adminWindows := adminRoutes.Group("/transfer-windows")
-	adminWindows.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "transfer_windows"))
+	adminWindows.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "transfer_windows"))
 	{
 		adminWindows.GET("", app.Handlers.TransferHandler.GetAllWindows)
 		adminWindows.POST("", app.Handlers.TransferHandler.CreateWindow)
@@ -500,7 +526,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	adminSettings := adminRoutes.Group("/app-settings")
-	adminSettings.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "app_settings"))
+	adminSettings.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "app_settings"))
 	{
 		adminSettings.PUT("/font", app.Handlers.AppSettingHandler.UpdateAppFont)
 	}
@@ -508,14 +534,14 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	// Live stream control — read the current state (including what auto
 	// detection sees) and force the hero on or off.
 	adminLive := adminRoutes.Group("/live")
-	adminLive.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "live_stream"))
+	adminLive.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "live_stream"))
 	{
 		adminLive.GET("", app.Handlers.LiveHandler.GetAdminStatus)
 		adminLive.PUT("", app.Handlers.LiveHandler.UpdateOverride)
 	}
 
 	adminBudgets := adminRoutes.Group("/team-budgets")
-	adminBudgets.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "team_budgets"))
+	adminBudgets.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "team_budgets"))
 	{
 		adminBudgets.GET("", app.Handlers.TransferHandler.GetAllTeamBudgets)
 		adminBudgets.PUT("/:teamId", app.Handlers.TransferHandler.AdminAdjustBudget)
@@ -525,7 +551,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	// Cross-team oversight of the claim flow. Same approve/reject as a team head, plus
 	// revoke — the escape hatch for an approval that turns out to be the wrong person.
 	adminClaims := adminRoutes.Group("/claims")
-	adminClaims.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "claims"))
+	adminClaims.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "claims"))
 	{
 		adminClaims.GET("", app.Handlers.ClaimHandler.ListClaims)
 		adminClaims.POST("/:id/approve", app.Handlers.ClaimHandler.ApproveClaim)
@@ -534,7 +560,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	adminClaimCodes := adminRoutes.Group("/claim-codes")
-	adminClaimCodes.Use(middlewares.FeatureAccessMiddleware(app.AuthService, "claims"))
+	adminClaimCodes.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "claims"))
 	{
 		adminClaimCodes.GET("", app.Handlers.ClaimHandler.ListClaimCodes)
 		adminClaimCodes.POST("", app.Handlers.ClaimHandler.CreateClaimCode)
@@ -544,7 +570,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 
 func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes := r.Group("/team-head")
-	thRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrAdminMiddleware(app.AuthService, app.TeamManagerService))
+	thRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrFeatureMiddleware(app.RoleService, app.TeamManagerService, domain.FeatureTeamPortal))
 
 	// Get the team head's own team info
 	thRoutes.GET("/my-team", app.Handlers.TeamManagerHandler.GetMyTeam)
@@ -605,8 +631,8 @@ func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 			// Sign-ups are also capped per IP per hour: each extra account is a way
 			// to vote again in fan polls. 10/hour leaves room for a family or a
 			// venue's wifi sharing one address.
-			limitedAuth.POST("/register", middlewares.WindowLimit("sign-up", 10, time.Hour, middlewares.ByIP), app.Handlers.AuthHandler.Register)
-			limitedAuth.POST("/login", app.Handlers.AuthHandler.Login)
+			limitedAuth.POST("/register", middlewares.WindowLimit("sign-up", 10, time.Hour, middlewares.ByIP), app.Handlers.SiteEventsHandler.TrackOnSuccess("signup"), app.Handlers.AuthHandler.Register)
+			limitedAuth.POST("/login", app.Handlers.SiteEventsHandler.TrackOnSuccess("login"), app.Handlers.AuthHandler.Login)
 			limitedAuth.POST("/forgot-password", app.Handlers.AuthHandler.SendPasswordResetOTP)
 			// reset-password MUST be rate-limited — it's the OTP brute-force surface.
 			limitedAuth.POST("/reset-password", app.Handlers.AuthHandler.ResetPassword)
@@ -756,7 +782,7 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 			// Optional auth: guests still buy tickets, but a signed-in buyer is
 			// recognised so members-only discount codes work and the ticket is
 			// linked to their account.
-			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.TicketHandler.Purchase)
+			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
 		}
 
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
@@ -769,7 +795,7 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 
 func SetupSellerRoutes(r *gin.RouterGroup, app *api.Application) {
 	sellerRoutes := r.Group("/seller")
-	sellerRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "seller_tools"))
+	sellerRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.RoleService, "seller_tools"))
 	{
 		sellerRoutes.POST("/sales", app.Handlers.InventoryHandler.LogSale)
 		sellerRoutes.GET("/sales", app.Handlers.InventoryHandler.ListSales)
@@ -796,7 +822,7 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 		// guest checkouts to go through unauthenticated.
 		limited := storeRoutes.Group("", commonAuth.RateLimit(rls), commonAuth.OptionalTokenMiddleware(app.TokenMaker))
 		{
-			limited.POST("/checkout", app.Handlers.StoreHandler.Checkout)
+			limited.POST("/checkout", app.Handlers.SiteEventsHandler.TrackOnSuccess("store_checkout_started"), app.Handlers.StoreHandler.Checkout)
 			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
 		}
 
@@ -821,7 +847,7 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 
 func SetupContractRoutes(r *gin.RouterGroup, app *api.Application) {
 	contractGroup := r.Group("/contracts")
-	contractGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrAdminMiddleware(app.AuthService, app.TeamManagerService))
+	contractGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrFeatureMiddleware(app.RoleService, app.TeamManagerService, domain.FeatureTeamPortal))
 	{
 		contractGroup.POST("", app.Handlers.ContractHandler.IssueContract)
 		contractGroup.GET("/team", app.Handlers.ContractHandler.GetTeamContracts)
@@ -843,7 +869,7 @@ func SetupTransferRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Protected transfer operations
 	protectedTransfers := transferGroup.Group("")
-	protectedTransfers.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrAdminMiddleware(app.AuthService, app.TeamManagerService))
+	protectedTransfers.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrFeatureMiddleware(app.RoleService, app.TeamManagerService, domain.FeatureTeamPortal))
 	{
 		protectedTransfers.POST("/request", app.Handlers.TransferHandler.CreateTransferRequest)
 		protectedTransfers.POST("/listing", app.Handlers.TransferHandler.CreatePlayerListing)
@@ -860,7 +886,7 @@ func SetupTransferRoutes(r *gin.RouterGroup, app *api.Application) {
 
 func SetupPlayerPortalRoutes(r *gin.RouterGroup, app *api.Application) {
 	ppGroup := r.Group("/player-portal")
-	ppGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "player"))
+	ppGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.RoleService, domain.RolePlayer))
 	{
 		ppGroup.GET("/contracts", app.Handlers.ContractHandler.GetMyContracts)
 		ppGroup.GET("/contracts/:id", app.Handlers.ContractHandler.GetContractByID)
@@ -888,7 +914,7 @@ func SetupDiscountRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Admin management, alongside the rest of the store administration.
 	adminDiscounts := r.Group("/admin/discount-codes")
-	adminDiscounts.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "store"))
+	adminDiscounts.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.RoleService, "store"))
 	{
 		adminDiscounts.GET("", app.Handlers.DiscountHandler.List)
 		adminDiscounts.GET("/targets", app.Handlers.DiscountHandler.ListTargets)
@@ -984,7 +1010,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 
 	// Admin Fantasy Operations
 	adminFantasy := r.Group("/admin/fantasy")
-	adminFantasy.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.AuthService, "fantasy"))
+	adminFantasy.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.RoleService, "fantasy"))
 	{
 		adminFantasy.GET("/seasons", app.Handlers.FantasyHandler.AdminListSeasons)
 		adminFantasy.POST("/seasons", app.Handlers.FantasyHandler.AdminCreateSeason)
@@ -1035,6 +1061,7 @@ func SetupTOTWRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		optional := commonAuth.OptionalTokenMiddleware(app.TokenMaker)
 		potwRoutes.GET("", app.Handlers.POTWHandler.ListPolls)
+		potwRoutes.GET("/winners", app.Handlers.POTWHandler.ListWinners)
 		potwRoutes.GET("/current", optional, app.Handlers.POTWHandler.GetCurrentPoll)
 		potwRoutes.GET("/:id", optional, app.Handlers.POTWHandler.GetPoll)
 		// One vote per account is enforced in the database; these caps stop a
@@ -1055,4 +1082,11 @@ func SetupBadgeRoutes(r *gin.RouterGroup, app *api.Application) {
 		badgeRoutes.GET("/:id", app.Handlers.BadgeHandler.GetBadgeByID)
 		badgeRoutes.GET("/players/:id", app.Handlers.BadgeHandler.GetPlayerBadges)
 	}
+}
+
+// SetupSiteEventRoutes registers the public analytics beacon. It is capped per
+// IP so one noisy client can't flood the table, and it is the only analytics
+// route that needs no login — everything that reads the data is under /admin.
+func SetupSiteEventRoutes(r *gin.RouterGroup, app *api.Application) {
+	r.POST("/events", middlewares.WindowLimit("site-events", 120, time.Minute, middlewares.ByIP), app.Handlers.SiteEventsHandler.Track)
 }

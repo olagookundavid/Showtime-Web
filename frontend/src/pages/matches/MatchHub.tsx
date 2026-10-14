@@ -23,6 +23,7 @@ import {
   CompactMatchesWidget,
   SeasonStageTabs,
   FootballIcon,
+  TeamLink,
 } from "../../components";
 import { lagosToday, cupStageOf } from "../../utils";
 import {
@@ -356,7 +357,9 @@ export const MatchHub = () => {
         <div className="flex flex-wrap items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2 rounded-xl">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 text-xs md:text-sm font-bold uppercase tracking-wider">
             <span>Filtering matches for</span>
-            <span className="font-black">{filterTeam.name}</span>
+            <TeamLink id={filterTeam.id} className="font-black">
+              {filterTeam.name}
+            </TeamLink>
           </div>
           <Button
             variant="primary"

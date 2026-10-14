@@ -28,6 +28,8 @@ import {
   Cog6ToothIcon,
   GiftIcon,
   VideoCameraIcon,
+  GlobeAltIcon,
+  KeyIcon,
 } from "@heroicons/react/24/outline";
 import {
   Squares2X2Icon as SquaresSolid,
@@ -43,18 +45,17 @@ import type {
   DashboardBottomNavItem,
   DashboardNavSection,
 } from "../dashboard/dashboardNav";
-import { accessFor, type FeatureKey, type Role } from "../../config/featureAccess";
+import type { User } from "../../contexts";
+import { accessFor, type FeatureKey } from "../../config/featureAccess";
 
-const ADMIN_BRAND_LABELS: Record<string, string> = {
-  app_admin: "Super Admin Panel",
-  admin: "Admin Panel",
-  ticketer: "Ticketing Portal",
-  referee: "Referee Portal",
-  stats: "Stats Portal",
+type NavUser = Pick<User, "role" | "roleName" | "permissions"> | null | undefined;
+
+/** The panel's title: the signed-in role's own name, so a role created today is labelled today. */
+export const adminBrandLabelFor = (user: NavUser) => {
+  if (!user) return "Admin Panel";
+  if (user.role === "app_admin") return "Super Admin Panel";
+  return user.roleName ? `${user.roleName} Portal` : "Admin Panel";
 };
-
-export const adminBrandLabelFor = (role?: string) =>
-  (role && ADMIN_BRAND_LABELS[role]) || "Admin Panel";
 
 // Every link has its own icon: in the collapsed rail the icon is all there is.
 export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
@@ -67,6 +68,7 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
         path: "/admin/analytics",
         icon: PresentationChartLineIcon,
       },
+      { name: "Traffic", path: "/admin/traffic", icon: GlobeAltIcon },
     ],
   },
   {
@@ -151,6 +153,7 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     title: "System",
     links: [
       { name: "Users", path: "/admin/users", icon: UsersIcon },
+      { name: "Roles & Permissions", path: "/admin/roles", icon: KeyIcon },
       { name: "App Settings", path: "/admin/settings", icon: Cog6ToothIcon },
       { name: "Administrator", path: "/admin/administrator", icon: GiftIcon },
     ],
@@ -161,6 +164,7 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
 const NAV_FEATURE: Record<string, FeatureKey> = {
   Dashboard: "dashboard",
   Analytics: "dashboard",
+  Traffic: "dashboard",
   Matches: "matches",
   "Play by Play": "play_by_play",
   "Broadcast Studio": "broadcast_studio",
@@ -186,72 +190,62 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   "Hero Slides": "hero_slides",
   "Live Stream": "live_stream",
   Users: "user_management",
+  "Roles & Permissions": "roles",
   "App Settings": "app_settings",
   Administrator: "administrator_tools",
 };
 
-const allowLink = (role: Role | undefined, name: string) => {
+const allowLink = (user: NavUser, name: string) => {
   const feature = NAV_FEATURE[name];
   if (!feature) return false;
-  return accessFor(role, feature) !== "none";
+  return accessFor(user, feature) !== "none";
 };
 
-/** The sections a role may see, with their disallowed links and any empty sections removed. */
-export const adminSectionsFor = (role: Role | undefined): DashboardNavSection[] =>
+/** The sections a user may see, with their disallowed links and any empty sections removed. */
+export const adminSectionsFor = (user: NavUser): DashboardNavSection[] =>
   ADMIN_NAV_SECTIONS.map((s) => ({
     ...s,
-    links: s.links.filter((l) => allowLink(role, l.name)),
+    links: s.links.filter((l) => allowLink(user, l.name)),
   })).filter((s) => s.links.length > 0);
 
-const MATCH: DashboardBottomNavItem = {
-  name: "Match",
-  path: "/admin/matches",
-  icon: CalendarIcon,
-  solidIcon: CalendarSolid,
-};
-const STATS: DashboardBottomNavItem = {
-  name: "Stats",
-  path: "/admin/stats",
-  icon: ChartBarIcon,
-  solidIcon: ChartBarSolid,
-};
-const BROADCAST: DashboardBottomNavItem = {
-  name: "Broadcast",
-  path: "/admin/broadcast",
-  icon: VideoCameraIcon,
-  solidIcon: VideoCameraSolid,
+/** Short labels and solid icons for the pages most worth a thumb-reach shortcut. */
+const BOTTOM_NAV_PREFERENCE: Record<
+  string,
+  Pick<DashboardBottomNavItem, "name" | "solidIcon">
+> = {
+  "/admin": { name: "Dash", solidIcon: SquaresSolid },
+  "/admin/matches": { name: "Match", solidIcon: CalendarSolid },
+  "/admin/tickets": { name: "Ticket", solidIcon: TicketSolid },
+  "/admin/news": { name: "News", solidIcon: NewspaperSolid },
+  "/admin/broadcast": { name: "Broadcast", solidIcon: VideoCameraSolid },
+  "/admin/stats": { name: "Stats", solidIcon: ChartBarSolid },
+  "/admin/players": { name: "Players", solidIcon: UserGroupSolid },
+  "/admin/teams": { name: "Teams", solidIcon: ShieldCheckSolid },
 };
 
-/** The phone bottom-nav shortcuts for a role. Ticketers have no bottom nav. */
-export const adminBottomNavFor = (role: Role | undefined): DashboardBottomNavItem[] => {
-  if (role === "ticketer") return [];
-  if (role === "broadcast") return [BROADCAST, MATCH];
-  if (role === "referee")
-    return [
-      MATCH,
-      STATS,
-      {
-        name: "Players",
-        path: "/admin/players",
-        icon: UserGroupIcon,
-        solidIcon: UserGroupSolid,
-      },
-    ];
-  if (role === "stats")
-    return [MATCH, STATS, { name: "Teams", path: "/admin/teams", icon: ShieldCheckIcon, solidIcon: ShieldCheckSolid }];
-  if (role === "admin" || role === "app_admin") {
-    return [
-      { name: "Dash", path: "/admin", end: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },
-      MATCH,
-      { name: "Ticket", path: "/admin/tickets", icon: TicketIcon, solidIcon: TicketSolid },
-      { name: "News", path: "/admin/news", icon: NewspaperIcon, solidIcon: NewspaperSolid },
-    ];
-  }
-  // Every other role (team_head, seller, and the newer commissioner-family
-  // roles) gets a generic shortcut bar built from whatever it can see — the
-  // fixed lists above would otherwise point at pages those roles can't open.
-  return adminSectionsFor(role)
-    .flatMap((s) => s.links)
-    .slice(0, 4)
-    .map((l) => ({ name: l.name, path: l.path, end: l.end, icon: l.icon, solidIcon: l.icon }));
+/**
+ * The phone bottom-nav shortcuts: up to four of the pages the user can open,
+ * preferring the busiest ones and filling the rest from whatever else they can
+ * see. Derived from permissions rather than listed per role, so a role created
+ * today gets a sensible bar without a code change.
+ */
+export const adminBottomNavFor = (user: NavUser): DashboardBottomNavItem[] => {
+  const links = adminSectionsFor(user).flatMap((s) => s.links);
+  const byPath = new Map(links.map((l) => [l.path, l]));
+
+  const preferred = Object.keys(BOTTOM_NAV_PREFERENCE)
+    .filter((path) => byPath.has(path))
+    .map((path) => byPath.get(path)!);
+  const rest = links.filter((l) => !BOTTOM_NAV_PREFERENCE[l.path]);
+
+  return [...preferred, ...rest].slice(0, 4).map((l) => {
+    const pref = BOTTOM_NAV_PREFERENCE[l.path];
+    return {
+      name: pref?.name ?? l.name,
+      path: l.path,
+      end: l.end,
+      icon: l.icon,
+      solidIcon: pref?.solidIcon ?? l.icon,
+    };
+  });
 };

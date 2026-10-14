@@ -11,7 +11,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Button, Field, ImageUploadField, Input, LightboxImage, Modal, Select, RichTextEditor, isDeletedPlayer, DeletedPlayerName, deletedRowClass, DashboardPageHeader } from "../../components";
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Button, Field, ImageUploadField, Input, LightboxImage, Modal, Select, RichTextEditor, isDeletedPlayer, DeletedPlayerName, deletedRowClass, DashboardPageHeader, PlayerLink } from "../../components";
 import {
   getPlayers,
   getTeams,
@@ -344,9 +344,12 @@ export const AdminPlayers = () => {
                     className="font-semibold text-sm"
                   />
                 ) : (
-                  <span className="font-semibold text-sm text-gray-900 dark:text-white wrap-break-word">
+                  <PlayerLink
+                    id={p.id}
+                    className="font-semibold text-sm text-gray-900 dark:text-white wrap-break-word"
+                  >
                     {p.name}
-                  </span>
+                  </PlayerLink>
                 )}
                 {p.email && (
                   <span className="text-xs text-gray-400 truncate max-w-45">

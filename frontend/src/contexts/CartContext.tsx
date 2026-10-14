@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { trackEvent } from '../services/siteTracker';
 
 // Each cart line is a single (product, variant) pair with a quantity. All
 // snapshot fields (name, price, image, label) are stored so the cart drawer
@@ -64,6 +65,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }, [items]);
 
     const addItem = (incoming: CartItem) => {
+        trackEvent('add_to_cart', { product_id: incoming.product_id, quantity: incoming.quantity });
         setItems(prev => {
             const idx = prev.findIndex(line => sameLine(line, incoming));
             if (idx === -1) return [...prev, incoming];

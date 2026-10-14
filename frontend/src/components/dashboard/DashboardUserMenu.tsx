@@ -6,7 +6,6 @@ import {
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts";
-import { ROLE_LABELS } from "./dashboardNav";
 
 // Same item styling as RowActions' menu.
 const itemClass = (danger = false) =>
@@ -71,7 +70,7 @@ export const DashboardUserMenu = ({ onLogout }: { onLogout: () => void }) => {
   };
 
   if (!user) return null;
-  const roleLabel = ROLE_LABELS[user.role] ?? user.role;
+  const roleLabel = user.roleName;
 
   return (
     <div ref={wrapRef} className="relative shrink-0">

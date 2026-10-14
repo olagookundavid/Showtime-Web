@@ -18,6 +18,9 @@ export interface CupState {
     can_advance: boolean;
     next_round: string;
     status_message: string;
+    // Before the cup starts: the matches already entered form a complete
+    // Round 1, so starting adopts them instead of drawing new fixtures.
+    adopts_existing_matches?: boolean;
 }
 
 export interface Team {

@@ -13,6 +13,8 @@ export interface BroadcastState {
   match_id: string;
   home: string;
   away: string;
+  home_short?: string;
+  away_short?: string;
   home_logo?: string;
   away_logo?: string;
   manual_home: number;

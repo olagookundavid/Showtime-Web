@@ -12,7 +12,7 @@ import {
   PowerIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Spinner, Button, Checkbox, Field, Input, Modal, DashboardPageHeader } from "../../components";
+import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, Spinner, Button, Checkbox, Field, Input, Modal, DashboardPageHeader, PlayerLink } from "../../components";
 import { usePermissions } from "../../hooks";
 
 const FREE_AGENTS_PER_PAGE = 24;
@@ -523,7 +523,7 @@ export const AdminTransferWindows: React.FC = () => {
                   )}
                   <div className="min-w-0">
                     <div className="font-bold text-sm text-gray-900 dark:text-white truncate">
-                      {p.name}
+                      <PlayerLink id={p.id}>{p.name}</PlayerLink>
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                       {p.position || "Unassigned"} • Free Agent

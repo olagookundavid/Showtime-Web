@@ -1,4 +1,4 @@
 # Google AdSense authorized sellers file.
 # Authorizes Google to sell ad inventory for this domain; missing/incorrect
 # ads.txt throttles AdSense revenue.
-google.com, pub-1285523604278810, DIRECT, f08c47fec0942fa0
+google.com, pub-9532897572424396, DIRECT, f08c47fec0942fa0

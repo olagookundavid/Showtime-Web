@@ -81,6 +81,10 @@ func shutdown(app *api.Application, srv *http.Server, shutdownError chan error) 
 			if app.AuditService != nil {
 				app.AuditService.Close()
 			}
+			// Write analytics events still waiting in the 30-second batch.
+			if app.SiteEventsService != nil {
+				app.SiteEventsService.Close()
+			}
 
 			// Flush unsaved broadcast state before main's deferred pool.Close().
 			if app.BroadcastHub != nil {

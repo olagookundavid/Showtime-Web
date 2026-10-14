@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { TrophyIcon, UserCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { DataTable, type Column } from '../ui';
+import { PlayerLink, TeamLink } from '../domain';
 import type { POTWNominee, POTWPoll } from '../../types';
 import { formatShare } from './potwUtils';
 
@@ -60,7 +61,9 @@ const VoteShareBars = ({ nominees, showCounts }: { nominees: POTWNominee[]; show
                     >
                         <div className="flex items-center gap-2 mb-1.5 min-w-0">
                             <NomineeAvatar nominee={n} size="sm" />
-                            <span className="min-w-0 truncate text-sm font-bold text-gray-900 dark:text-white">{n.name}</span>
+                            <PlayerLink id={n.player_id} className="min-w-0 truncate text-sm font-bold text-gray-900 dark:text-white">
+                                {n.name}
+                            </PlayerLink>
                             {n.is_winner && (
                                 <span className="inline-flex items-center gap-1 shrink-0 text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
                                     <TrophyIcon className="w-4 h-4" aria-hidden="true" />
@@ -168,10 +171,12 @@ export const POTWResults = ({ poll, title = 'Share of the vote', detailed = fals
                         <NomineeAvatar nominee={n} size="sm" />
                         <div className="min-w-0">
                             <div className="flex items-center gap-1.5 font-bold text-gray-900 dark:text-white">
-                                <span className="truncate">{n.name}</span>
+                                <PlayerLink id={n.player_id} className="truncate">{n.name}</PlayerLink>
                                 {n.is_winner && <TrophyIcon className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-300" aria-label="Winner" />}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{n.team_name || '—'}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {n.team_name ? <TeamLink id={n.team_id}>{n.team_name}</TeamLink> : '—'}
+                            </div>
                         </div>
                     </div>
                 ),

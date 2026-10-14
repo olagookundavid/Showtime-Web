@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { POTWNominee } from '../../types';
 
 /** A vote share with one decimal place, so every share lines up: 24 -> "24.0", 29.2 -> "29.2". */
 export const formatShare = (percent: number | null | undefined): string => (percent ?? 0).toFixed(1);
@@ -72,3 +73,20 @@ export function describeRemaining(ms: number): string {
     if (minutes > 0) return plural(minutes, 'minute');
     return 'less than a minute';
 }
+
+/**
+ * A player card's stat lines worth showing. A line with no value, or a card whose
+ * numbers are all zero (nobody recorded the week), shows nothing rather than a
+ * row of zeros that reads like a bad game.
+ */
+export const visibleStatLines = (n: POTWNominee): [string, string][] => {
+    const lines = (
+        [
+            [n.stat1_label, n.stat1_value],
+            [n.stat2_label, n.stat2_value],
+            [n.stat3_label, n.stat3_value],
+        ] as [string | undefined, string | undefined][]
+    ).filter((line): line is [string, string] => Boolean(line[0] && line[1]));
+    const allZero = lines.every(([, value]) => /^0(%|\/0)?$/.test(value.trim()));
+    return allZero ? [] : lines;
+};

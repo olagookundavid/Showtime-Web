@@ -27,6 +27,8 @@ export * from './players';
 export * from './potw';
 export * from './relive';
 export * from './settings';
+export * from './roles';
+export * from './siteAnalytics';
 export * from './stats';
 export * from './store';
 export * from './teamHead';

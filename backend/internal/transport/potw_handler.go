@@ -13,6 +13,7 @@ import (
 type IPOTWHandler interface {
 	GetCurrentPoll(c *gin.Context)
 	ListPolls(c *gin.Context)
+	ListWinners(c *gin.Context)
 	GetPoll(c *gin.Context)
 	Vote(c *gin.Context)
 
@@ -74,6 +75,16 @@ func (h *POTWHandler) ListPolls(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": polls})
+}
+
+// ListWinners is the public honours list: every Player of the Week, newest first.
+func (h *POTWHandler) ListWinners(c *gin.Context) {
+	winners, err := h.service.ListWinners(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": winners})
 }
 
 func (h *POTWHandler) GetPoll(c *gin.Context) {

@@ -85,21 +85,9 @@ func (r *PostgresTOTWRepository) CreateTOTW(ctx context.Context, totw *domain.Te
 	}
 
 	if totw.IsPublished {
-		countQuery := `
-			SELECT tp.unit, COALESCE(p.gender, '')
-			FROM team_of_the_week_players tp
-			JOIN players p ON tp.player_id = p.id
-			WHERE tp.totw_id = $1
-		`
-		cRows, err := tx.Query(ctx, countQuery, totw.ID)
-		if err != nil {
+		if err := checkTOTWPublishable(ctx, tx, totw.ID); err != nil {
 			return nil, err
 		}
-		if err := checkFemaleQuota(cRows); err != nil {
-			cRows.Close()
-			return nil, err
-		}
-		cRows.Close()
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -179,21 +167,9 @@ func (r *PostgresTOTWRepository) UpdateTOTW(ctx context.Context, totw *domain.Te
 	}
 
 	if totw.IsPublished {
-		countQuery := `
-			SELECT tp.unit, COALESCE(p.gender, '')
-			FROM team_of_the_week_players tp
-			JOIN players p ON tp.player_id = p.id
-			WHERE tp.totw_id = $1
-		`
-		cRows, err := tx.Query(ctx, countQuery, totw.ID)
-		if err != nil {
+		if err := checkTOTWPublishable(ctx, tx, totw.ID); err != nil {
 			return nil, err
 		}
-		if err := checkFemaleQuota(cRows); err != nil {
-			cRows.Close()
-			return nil, err
-		}
-		cRows.Close()
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -213,7 +189,7 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.player_of_the_week_id::text, totw.week_title,
 		       totw.headline, totw.sub_headline, totw.is_published, totw.published_at,
 		       totw.created_by::text, totw.created_at, totw.updated_at,
-		       c.id, c.name, COALESCE(c.logo, ''),
+		       c.id, c.name, COALESCE(c.logo, ''), COALESCE(c.format, ''),
 		       totw.news_id::text,
 		       n.id::text, n.title, n.slug, n.excerpt, n.content, COALESCE(n.featured_image, ''),
 		       COALESCE(n.featured_media_type, 'image'), COALESCE(n.featured_youtube_url, ''),
@@ -236,7 +212,7 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 		&totw.ID, &totw.CompetitionID, &totw.EventDayID, &totw.PlayerOfTheWeekID, &totw.WeekTitle,
 		&totw.Headline, &totw.SubHeadline, &totw.IsPublished, &totw.PublishedAt,
 		&totw.CreatedBy, &totw.CreatedAt, &totw.UpdatedAt,
-		&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo,
+		&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo, &totw.Competition.Format,
 		&newsID,
 		&nID, &nTitle, &nSlug, &nExcerpt, &nContent, &nImage,
 		&nMediaType, &nYoutubeURL, &nAuthor, &nCategory,
@@ -380,7 +356,7 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.player_of_the_week_id::text, totw.week_title,
 		       totw.headline, totw.sub_headline, totw.is_published, totw.published_at,
 		       totw.created_at, totw.updated_at,
-		       c.id, c.name, COALESCE(c.logo, ''),
+		       c.id, c.name, COALESCE(c.logo, ''), COALESCE(c.format, ''),
 		       totw.news_id::text
 		FROM team_of_the_week totw
 		JOIN competitions c ON totw.competition_id = c.id
@@ -404,7 +380,7 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 			&totw.ID, &totw.CompetitionID, &totw.EventDayID, &totw.PlayerOfTheWeekID, &totw.WeekTitle,
 			&totw.Headline, &totw.SubHeadline, &totw.IsPublished, &totw.PublishedAt,
 			&totw.CreatedAt, &totw.UpdatedAt,
-			&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo,
+			&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo, &totw.Competition.Format,
 			&totw.NewsID,
 		)
 		if err != nil {
@@ -416,46 +392,65 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 	return list, nil
 }
 
-func checkFemaleQuota(rows pgx.Rows) error {
-	var offFemales, defFemales int
+// checkTOTWPublishable holds an edition about to be published to the game format
+// of its competition: a cup (5v5) edition needs exactly 5 attackers and 5
+// defenders with 2 women in each unit; every other competition (7v7) needs 7 and
+// 7 with 3 women in each. It reads inside the caller's transaction (q) so a
+// competition or lineup changed in the same save is what gets checked.
+func checkTOTWPublishable(ctx context.Context, q potwQuerier, totwID string) error {
+	var competitionFormat string
+	if err := q.QueryRow(ctx, `
+		SELECT COALESCE(c.format, '')
+		FROM team_of_the_week t
+		JOIN competitions c ON c.id = t.competition_id
+		WHERE t.id = $1
+	`, totwID).Scan(&competitionFormat); err != nil {
+		return fmt.Errorf("load the edition's competition: %w", err)
+	}
+
+	rows, err := q.Query(ctx, `
+		SELECT tp.unit, COALESCE(p.gender, '')
+		FROM team_of_the_week_players tp
+		JOIN players p ON tp.player_id = p.id
+		WHERE tp.totw_id = $1
+	`, totwID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var offence, defence, offenceWomen, defenceWomen int
 	for rows.Next() {
 		var unit, gender string
-		if err := rows.Scan(&unit, &gender); err == nil {
-			if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(gender)), "F") {
-				if strings.EqualFold(unit, "Offence") {
-					offFemales++
-				} else if strings.EqualFold(unit, "Defence") {
-					defFemales++
-				}
+		if err := rows.Scan(&unit, &gender); err != nil {
+			return err
+		}
+		isWoman := strings.HasPrefix(strings.ToUpper(strings.TrimSpace(gender)), "F")
+		switch {
+		case strings.EqualFold(unit, "Offence"):
+			offence++
+			if isWoman {
+				offenceWomen++
+			}
+		case strings.EqualFold(unit, "Defence"):
+			defence++
+			if isWoman {
+				defenceWomen++
 			}
 		}
 	}
-	if offFemales < 3 {
-		return fmt.Errorf("cannot publish: offence requires at least 3 female players (found %d of 3)", offFemales)
+	if err := rows.Err(); err != nil {
+		return err
 	}
-	if defFemales < 3 {
-		return fmt.Errorf("cannot publish: defence requires at least 3 female players (found %d of 3)", defFemales)
-	}
-	return nil
+
+	return domain.GameFormatForCompetition(competitionFormat).CheckTOTWPublishable(offence, defence, offenceWomen, defenceWomen)
 }
 
 func (r *PostgresTOTWRepository) PublishTOTW(ctx context.Context, id string, isPublished bool) (*domain.TeamOfTheWeek, error) {
 	if isPublished {
-		countQuery := `
-			SELECT tp.unit, COALESCE(p.gender, '')
-			FROM team_of_the_week_players tp
-			JOIN players p ON tp.player_id = p.id
-			WHERE tp.totw_id = $1
-		`
-		cRows, err := r.db.Query(ctx, countQuery, id)
-		if err != nil {
+		if err := checkTOTWPublishable(ctx, r.db, id); err != nil {
 			return nil, err
 		}
-		if err := checkFemaleQuota(cRows); err != nil {
-			cRows.Close()
-			return nil, err
-		}
-		cRows.Close()
 	}
 
 	var pubAt *time.Time
@@ -481,6 +476,15 @@ func (r *PostgresTOTWRepository) PublishTOTW(ctx context.Context, id string, isP
 
 // GetPlayerDayStats auto-aggregates key box-score stats for a player on an event day
 func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID string, eventDayID string) (map[string]string, error) {
+	return playerDayStats(ctx, r.db, playerID, eventDayID, nil)
+}
+
+// playerDayStats sums a player's box score over the matches of an event day (or,
+// with no event day, of the given date) and returns it keyed for the Team of the
+// Week stat lines (see domain.LiveStatLines), plus a computed "rating" and
+// suggested stat lines (stat1_lbl/stat1_val ...). It returns an empty map when the
+// player has no stats recorded that day.
+func playerDayStats(ctx context.Context, q potwQuerier, playerID string, eventDayID string, day *time.Time) (map[string]string, error) {
 	result := make(map[string]string)
 
 	query := `
@@ -514,13 +518,14 @@ func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID
 			COALESCE(SUM(ps.xp_good), 0)
 		FROM player_stats ps
 		JOIN matches m ON ps.match_id = m.id
-		WHERE ps.player_id = $1::uuid 
-		  AND (m.event_day_id = $2::uuid OR m.date::date = (SELECT ed.date::date FROM event_days ed WHERE ed.id = $2::uuid))
+		WHERE ps.player_id = $1::uuid
+		  AND (m.event_day_id = NULLIF($2, '')::uuid
+		       OR m.date::date = COALESCE((SELECT ed.date::date FROM event_days ed WHERE ed.id = NULLIF($2, '')::uuid), $3::date))
 	`
 	var line domain.RatingStatLine
 	var recYards, statRows int
 
-	err := r.db.QueryRow(ctx, query, playerID, eventDayID).Scan(
+	err := q.QueryRow(ctx, query, playerID, eventDayID, day).Scan(
 		&statRows,
 		&line.CompletedPasses,
 		&line.PassingAttempts,
@@ -573,6 +578,7 @@ func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID
 	result["rec_yards"] = strconv.Itoa(recYards)
 	result["rec_td"] = strconv.Itoa(line.ReceivingTDs)
 	result["flag_pulls"] = strconv.Itoa(line.FlagPulls)
+	result["drops"] = strconv.Itoa(line.Drops)
 	if line.PassingAttempts > 0 {
 		result["cmp_pct"] = fmt.Sprintf("%d%%", line.CompletedPasses*100/line.PassingAttempts)
 	} else {
@@ -584,7 +590,7 @@ func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID
 
 	// Fetch player position to calculate accurate rating
 	var position string
-	_ = r.db.QueryRow(ctx, `SELECT COALESCE(position, '-') FROM players WHERE id = $1::uuid`, playerID).Scan(&position)
+	_ = q.QueryRow(ctx, `SELECT COALESCE(position, '-') FROM players WHERE id = $1::uuid`, playerID).Scan(&position)
 
 	if res := domain.RateByPosition(position, line); res != nil && res.Status != domain.RatingStatusUnrated {
 		result["rating"] = fmt.Sprintf("%.1f", res.FinalRating)
@@ -630,4 +636,3 @@ func (r *PostgresTOTWRepository) AttachNewsToTOTW(ctx context.Context, totwID st
 	_, err := r.db.Exec(ctx, query, newsID, totwID)
 	return err
 }
-

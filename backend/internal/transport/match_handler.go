@@ -1,7 +1,9 @@
 package transport
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"pkg-common/helpers"
@@ -975,6 +977,24 @@ func (h *MatchHandler) SaveTeamSheet(c *gin.Context) {
 		return
 	}
 
+	// The admin roster picker sends only player_ids. When a lineup is included,
+	// hold it to the same rules as a manager's, so it can't break the format.
+	if len(req.Players) > 0 || req.Coverage != 0 {
+		detail, err := h.service.GetMatchDetail(c.Request.Context(), matchID)
+		if err != nil || detail == nil {
+			helpers.BadResponse(c, "Match not found")
+			return
+		}
+		format := domain.GameFormatForCompetition(competitionFormatOf(detail.Match))
+		if msg, err := h.checkLineup(c.Request.Context(), format, req); err != nil {
+			helpers.ServerErrorResponse(c, err)
+			return
+		} else if msg != "" {
+			helpers.BadResponse(c, msg)
+			return
+		}
+	}
+
 	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req); err != nil {
 		if errors.Is(err, domain.ErrPlayerOnReserveTeam) {
 			helpers.BadResponse(c, err.Error())
@@ -984,6 +1004,48 @@ func (h *MatchHandler) SaveTeamSheet(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Team sheet saved successfully"})
+}
+
+// competitionFormatOf is the competition format (SEASON, CUP, ...) of a match,
+// or "" when the match has no competition loaded.
+func competitionFormatOf(m domain.Match) string {
+	if m.Competition == nil {
+		return ""
+	}
+	return m.Competition.Format
+}
+
+// checkLineup holds a team sheet to its match's game format: the scheme must be
+// one the format offers, and if starters are named they must form a complete
+// lineup (see GameFormatSpec.ValidateLineup). It returns a message for the user
+// when the sheet is not acceptable, or an error when the check itself failed.
+func (h *MatchHandler) checkLineup(ctx context.Context, format domain.GameFormatSpec, req dto.SaveTeamSheetRequest) (string, error) {
+	if req.Coverage != 0 && !format.ValidCoverage(req.Coverage) {
+		return fmt.Sprintf("Cover %d isn't available in a %s match", req.Coverage, format.Label), nil
+	}
+
+	var starters []domain.LineupStarter
+	var ids []string
+	for _, p := range req.Players {
+		if !p.IsStarter {
+			continue
+		}
+		starters = append(starters, domain.LineupStarter{PlayerID: p.PlayerID, Unit: p.StarterUnit, Slot: p.PositionSlot})
+		ids = append(ids, p.PlayerID)
+	}
+	if len(starters) == 0 {
+		return "", nil
+	}
+
+	females, err := h.service.FemalePlayerIDs(ctx, ids)
+	if err != nil {
+		return "", err
+	}
+	if err := format.ValidateLineup(starters, females); err != nil {
+		msg := err.Error()
+		return strings.ToUpper(msg[:1]) + msg[1:], nil
+	}
+	return "", nil
 }
 
 // SaveTeamHeadTeamSheet allows team heads (or admins) to save team sheets scoped to their managed team
@@ -1069,57 +1131,26 @@ func (h *MatchHandler) SaveTeamHeadTeamSheet(c *gin.Context) {
 		}
 	}
 
-	// 4. Validate 25-player maximum squad cap
+	// 4. The match's format (cup = 5v5, otherwise 7v7) decides squad size, lineup
+	// shape, women's quota and schemes.
+	format := domain.GameFormatForCompetition(competitionFormatOf(match))
+
 	totalPlayers := len(req.Players)
 	if totalPlayers == 0 {
 		totalPlayers = len(req.PlayerIDs)
 	}
-	if totalPlayers > 25 {
-		helpers.BadResponse(c, "Match squad roster exceeds the maximum limit of 25 players")
+	if totalPlayers > format.SquadCap {
+		helpers.BadResponse(c, fmt.Sprintf("Match squad roster exceeds the maximum limit of %d players", format.SquadCap))
 		return
 	}
 
-	// 5. Validate unique starters, 14 total starters (7 off / 7 def), and minimum 2 female starters
-	if len(req.Players) > 0 {
-		starterIDs := make(map[string]bool)
-		offStarters := 0
-		defStarters := 0
-		for _, p := range req.Players {
-			if p.IsStarter {
-				if starterIDs[p.PlayerID] {
-					helpers.BadResponse(c, "Duplicate starter in lineup; all starters must be unique individuals")
-					return
-				}
-				starterIDs[p.PlayerID] = true
-				if p.StarterUnit == "OFFENSE" {
-					offStarters++
-				} else if p.StarterUnit == "DEFENSE" {
-					defStarters++
-				}
-			}
-		}
-
-		if len(starterIDs) > 0 {
-			if offStarters != 7 || defStarters != 7 {
-				helpers.BadResponse(c, "Starting lineup must have exactly 14 starters (7 offense and 7 defense)")
-				return
-			}
-
-			// Validate at least 2 female starters
-			starterIDsList := make([]string, 0, len(starterIDs))
-			for id := range starterIDs {
-				starterIDsList = append(starterIDsList, id)
-			}
-			femaleCount, err := h.service.CountFemalePlayers(c.Request.Context(), starterIDsList)
-			if err != nil {
-				helpers.ServerErrorResponse(c, err)
-				return
-			}
-			if femaleCount < 2 {
-				helpers.BadResponse(c, "Starting lineup must include at least 2 female starters")
-				return
-			}
-		}
+	// 5. Starters: right counts per unit, real unique positions, women per unit.
+	if msg, err := h.checkLineup(c.Request.Context(), format, req); err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	} else if msg != "" {
+		helpers.BadResponse(c, msg)
+		return
 	}
 
 	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req); err != nil {

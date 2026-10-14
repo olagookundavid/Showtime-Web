@@ -4,6 +4,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getMatchDetail, getPublicMatchStats } from '../../services/api';
 import { Loader, Button, LightboxImage, PlayByPlayTimeline, PublicMatchStats, MatchSummaryTab, getUnifiedMatchMvp, MatchTeamSheetTab, CommentSection, BackButton, FootballIcon } from '../../components';
 import { formatMatchTime, formatMatchDate } from '../../utils';
+import { useLiveMatchScore } from '../../hooks';
 import { MapPinIcon, PlayIcon, TicketIcon } from '@heroicons/react/24/outline';
 
 export const MatchDetail = () => {
@@ -43,6 +44,7 @@ export const MatchDetail = () => {
     const match = matchDetail?.match;
     const team_sheet = matchDetail?.team_sheet;
     const unifiedMvp = useMemo(() => (match && team_sheet ? getUnifiedMatchMvp(match, team_sheet, playerStatsList) : null), [match, team_sheet, playerStatsList]);
+    const { homeScore, awayScore } = useLiveMatchScore(match?.id, match?.home_score, match?.away_score, match?.status === 'LIVE');
 
     if (isLoading) return <Loader />;
 
@@ -161,9 +163,9 @@ export const MatchDetail = () => {
                                 </div>
                             ) : isFinishedOrLive ? (
                                 <div className="text-white font-black text-3xl md:text-7xl tracking-tighter leading-none tabular-nums flex items-center">
-                                    {match.home_score ?? 0}
+                                    {homeScore ?? 0}
                                     <span className="text-gray-500 mx-1 md:mx-2 font-light">-</span>
-                                    {match.away_score ?? 0}
+                                    {awayScore ?? 0}
                                 </div>
                             ) : (
                                 <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 rounded-xl md:rounded-2xl text-center border border-white/10">

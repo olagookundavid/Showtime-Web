@@ -25,6 +25,9 @@ import type {
   RosterSummary,
   CreatePlayerPayload,
   Badge,
+  BadgeIcon,
+  SaveBadgeIconPayload,
+  UpdateBadgeIconResult,
   PlayerBadgeAward,
   PlayerBadge,
   CreateBadgePayload,
@@ -49,6 +52,9 @@ import type {
   ReferralResponse,
   ReferralStatsResponse,
   AdminAnalyticsResponse,
+  SiteTrafficSummary,
+  SiteEventsPage,
+  SiteRange,
   PlayerStat,
   TeamStat,
   UpsertPlayerStatPayload,
@@ -95,6 +101,7 @@ import type {
   SaveTOTWPayload,
   POTWPoll,
   POTWPollSummary,
+  POTWWinner,
   SavePOTWPollPayload,
   TeamManager,
   ManagerCandidate,
@@ -144,6 +151,10 @@ import type {
   BracketEntryPayload,
   GameRules,
   GameRulesPayload,
+  RoleResponse,
+  RoleOption,
+  FeatureDef,
+  SaveRolePayload,
 } from "../types";
 
 const api = axios.create({
@@ -1072,6 +1083,46 @@ export const updateUserInfo = async (
   return response.data;
 };
 
+// -------- ROLES & PERMISSIONS API -------- //
+export const getAdminRoles = async (): Promise<RoleResponse[]> => {
+  const response = await api.get<{ data: RoleResponse[] }>("/admin/roles");
+  return response.data.data || [];
+};
+
+export const getAdminRoleFeatures = async (): Promise<FeatureDef[]> => {
+  const response = await api.get<{ data: FeatureDef[] }>("/admin/roles/features");
+  return response.data.data || [];
+};
+
+/** Roles for a dropdown. Needs only user-management access, not the Roles page. */
+export const getAdminRoleOptions = async (): Promise<RoleOption[]> => {
+  const response = await api.get<{ data: RoleOption[] }>("/admin/users/roles");
+  return response.data.data || [];
+};
+
+export const createAdminRole = async (
+  payload: SaveRolePayload,
+): Promise<RoleResponse> => {
+  const response = await api.post<{ data: RoleResponse }>("/admin/roles", payload);
+  return response.data.data;
+};
+
+export const updateAdminRole = async (
+  key: string,
+  payload: SaveRolePayload,
+): Promise<RoleResponse> => {
+  const response = await api.put<{ data: RoleResponse }>(
+    `/admin/roles/${key}`,
+    payload,
+  );
+  return response.data.data;
+};
+
+export const deleteAdminRole = async (key: string) => {
+  const response = await api.delete(`/admin/roles/${key}`);
+  return response.data;
+};
+
 // -------- ADMIN TEAM MANAGEMENT API -------- //
 // Every team, inactive ones included (the public list hides them).
 export const getAdminTeams = async (params?: {
@@ -1297,6 +1348,56 @@ export const getAdminAnalytics = async (): Promise<
       "/admin/analytics",
     );
   return response.data;
+};
+
+// ─── Site Traffic (first-party visitor analytics) ─────────────────────────────
+
+export const getSiteTrafficSummary = async (
+  range: SiteRange,
+): Promise<GenericApiResponse<SiteTrafficSummary>> => {
+  const response = await api.get<GenericApiResponse<SiteTrafficSummary>>(
+    "/admin/site-analytics/summary",
+    { params: range },
+  );
+  return response.data;
+};
+
+export const getSiteEvents = async (
+  params: SiteRange & {
+    page: number;
+    limit: number;
+    type?: string;
+    include_bots?: boolean;
+  },
+): Promise<GenericApiResponse<SiteEventsPage>> => {
+  const response = await api.get<GenericApiResponse<SiteEventsPage>>(
+    "/admin/site-analytics/events",
+    { params },
+  );
+  return response.data;
+};
+
+/** Downloads a CSV through the authenticated client, then hands it to the browser as a file. */
+export const downloadSiteTrafficExport = async (
+  kind: "summary" | "events",
+  range: SiteRange,
+): Promise<void> => {
+  const response = await api.get<Blob>("/admin/site-analytics/export", {
+    params: { ...range, kind },
+    responseType: "blob",
+  });
+  const disposition: string = response.headers["content-disposition"] ?? "";
+  const filename =
+    /filename="([^"]+)"/.exec(disposition)?.[1] ?? `showtime-traffic-${kind}.csv`;
+
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 };
 
 // ─── Team Allocations ─────────────────────────────────────────────────────────
@@ -3298,6 +3399,30 @@ export const deleteAdminBadge = async (id: string): Promise<void> => {
   await api.delete(`/admin/badges/${id}`);
 };
 
+// ── Badge artwork library ────────────────────────────────────────────────
+export const getBadgeIcons = async (): Promise<BadgeIcon[]> => {
+  const res = await api.get<{ data: BadgeIcon[] }>("/admin/badges/icons");
+  return res.data.data ?? [];
+};
+
+export const createBadgeIcon = async (payload: SaveBadgeIconPayload): Promise<BadgeIcon> => {
+  const res = await api.post<{ data: BadgeIcon }>("/admin/badges/icons", payload);
+  return res.data.data;
+};
+
+/** Rename artwork or replace its image; badges showing the old image move to the new one. */
+export const updateBadgeIcon = async (
+  id: string,
+  payload: SaveBadgeIconPayload,
+): Promise<UpdateBadgeIconResult> => {
+  const res = await api.put<{ data: UpdateBadgeIconResult }>(`/admin/badges/icons/${id}`, payload);
+  return res.data.data;
+};
+
+export const deleteBadgeIcon = async (id: string): Promise<void> => {
+  await api.delete(`/admin/badges/icons/${id}`);
+};
+
 export const awardAdminBadge = async (
   payload: AwardBadgePayload,
 ): Promise<PlayerBadge> => {
@@ -3428,6 +3553,12 @@ export const getPOTWPoll = async (pollId: string): Promise<POTWPoll> => {
 export const getPOTWPolls = async (): Promise<POTWPollSummary[]> => {
   const res = await api.get<{ data: POTWPollSummary[] }>("/potw");
   return res.data.data || [];
+};
+
+/** Every Player of the Week, newest first: fan-vote winners and league office picks. */
+export const getPOTWWinners = async (): Promise<POTWWinner[]> => {
+  const res = await api.get<{ data: POTWWinner[] }>("/potw/winners");
+  return res.data.data ?? [];
 };
 
 export const voteForPOTW = async (

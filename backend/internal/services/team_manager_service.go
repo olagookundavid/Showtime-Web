@@ -18,10 +18,11 @@ type ITeamManagerService interface {
 type TeamManagerService struct {
 	tmRepo   ports.ITeamManagerRepository
 	authRepo ports.IAuthRepository
+	roleSvc  IRoleService
 }
 
-func NewTeamManagerService(tmRepo ports.ITeamManagerRepository, authRepo ports.IAuthRepository) ITeamManagerService {
-	return &TeamManagerService{tmRepo: tmRepo, authRepo: authRepo}
+func NewTeamManagerService(tmRepo ports.ITeamManagerRepository, authRepo ports.IAuthRepository, roleSvc IRoleService) ITeamManagerService {
+	return &TeamManagerService{tmRepo: tmRepo, authRepo: authRepo, roleSvc: roleSvc}
 }
 
 func (s *TeamManagerService) AssignManager(ctx context.Context, userID, teamID string) error {
@@ -30,8 +31,13 @@ func (s *TeamManagerService) AssignManager(ctx context.Context, userID, teamID s
 	if err != nil {
 		return fmt.Errorf("user not found")
 	}
-	if user.Role != "team_head" && user.Role != "admin" {
-		return fmt.Errorf("user must have team_head or admin role to be a team manager")
+	// A team_head, or a role trusted to act for any team (team_portal), may manage one.
+	access, err := s.roleSvc.ResolveUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if user.Role != domain.RoleTeamHead && access.Level(domain.FeatureTeamPortal) != domain.AccessFull {
+		return fmt.Errorf("user must have the team_head role, or team portal access, to be a team manager")
 	}
 
 	// A team_head can only manage one team at a time (DB UNIQUE(user_id)); the

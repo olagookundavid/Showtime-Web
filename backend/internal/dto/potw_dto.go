@@ -23,6 +23,7 @@ type POTWNomineeResponse struct {
 	Image        string `json:"image,omitempty"`
 	JerseyNumber int    `json:"jersey_number"`
 	Position     string `json:"position"`
+	TeamID       string `json:"team_id,omitempty"`
 	TeamName     string `json:"team_name,omitempty"`
 	TeamLogo     string `json:"team_logo,omitempty"`
 	DisplayOrder int    `json:"display_order"`
@@ -83,4 +84,18 @@ type POTWPollSummary struct {
 	WinnerPlayerID  *string   `json:"winner_player_id,omitempty"`
 	WinnerName      string    `json:"winner_name,omitempty"`
 	WinnerSource    *string   `json:"winner_source,omitempty"`
+}
+
+// POTWWinnerResponse is one award on the public Player of the Week honours list.
+type POTWWinnerResponse struct {
+	TOTWID            string    `json:"totw_id"`
+	PollID            *string   `json:"poll_id,omitempty"`
+	WeekTitle         string    `json:"week_title"`
+	CompetitionName   string    `json:"competition_name,omitempty"`
+	CompetitionFormat string    `json:"competition_format,omitempty"`
+	Source            string    `json:"source"` // VOTE (chosen by fans) | ADMIN (named by the league office)
+	AwardedAt         time.Time `json:"awarded_at"`
+	// The winner's share of the fan vote, one decimal place; only when chosen by fans.
+	SharePercent *float64            `json:"share_percent,omitempty"`
+	Player       POTWNomineeResponse `json:"player"`
 }

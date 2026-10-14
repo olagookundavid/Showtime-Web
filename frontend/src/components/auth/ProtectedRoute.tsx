@@ -1,11 +1,16 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts';
+import { accessFor, type FeatureKey } from '../../config/featureAccess';
 import { AuthRequiredDialog } from './AuthRequiredDialog';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    requireAdmin?: boolean;
+    /** Anyone whose role can open the admin panel (holds at least one admin feature). */
+    requireStaff?: boolean;
+    /** A fixed role (or roles) with its own portal, e.g. 'team_head'. */
     requireRole?: string | string[];
+    /** Also let in anyone with full access to this feature, whatever their role. */
+    orFeature?: FeatureKey;
     /** Finishes "You need to be logged in to …" on the sign-in gate. Naming the
      *  feature is what turns a bounce into an explanation. */
     actionText?: string;
@@ -16,8 +21,9 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({
     children,
-    requireAdmin = false,
+    requireStaff = false,
     requireRole,
+    orFeature,
     actionText,
     fallbackPath = '/',
 }: ProtectedRouteProps) => {
@@ -56,8 +62,8 @@ export const ProtectedRoute = ({
         );
     }
 
-    // app_admin is the superuser: it can reach anything an admin can.
-    const isSuperUser = user?.role === 'admin' || user?.role === 'app_admin';
+    // app_admin is the superuser: it can reach anything.
+    const isSuperUser = user?.role === 'app_admin';
 
     // A player_pending user is an account claimant whose team manager has not approved
     // them yet. They have a real login but no privileges, so bounce them to the one
@@ -65,13 +71,18 @@ export const ProtectedRoute = ({
     // with no explanation of why they were turned away.
     const deniedRedirect = user?.role === 'player_pending' ? '/claim/status' : '/';
 
-    if (requireAdmin && !isSuperUser) {
+    // Admin-panel access is whatever the user's role has been given on the Roles
+    // page, not a list of role names kept here.
+    if (requireStaff && !isSuperUser && !user?.isStaff) {
         return <Navigate to={deniedRedirect} replace />;
     }
 
     if (requireRole) {
         const roles = Array.isArray(requireRole) ? requireRole : [requireRole];
-        const allowed = roles.includes(user?.role || '') || (isSuperUser && roles.includes('admin'));
+        const allowed =
+            isSuperUser ||
+            roles.includes(user?.role || '') ||
+            (orFeature !== undefined && accessFor(user, orFeature) === 'full');
         if (!allowed) {
             return <Navigate to={deniedRedirect} replace />;
         }

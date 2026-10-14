@@ -49,10 +49,17 @@
 
     <meta name="theme-color" content="#0a1f44" />
 
-    <!-- Google AdSense site verification. Verifies site ownership; independent of
-       whether ads are turned on (VITE_ADS_ENABLED), so verification can't be
-       blocked by an env mistake. -->
-    <meta name="google-adsense-account" content="ca-pub-1285523604278810" />
+    <!-- Google AdSense site verification + loader. Static in the HTML (not
+       injected by React) so Google's crawler sees it on the raw page, and
+       independent of VITE_ADS_ENABLED so verification can't be blocked by an
+       env mistake. The loader alone shows nothing until Auto ads are switched
+       on in the AdSense dashboard or a <GoogleAd /> unit is placed. -->
+    <meta name="google-adsense-account" content="ca-pub-9532897572424396" />
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9532897572424396"
+      crossorigin="anonymous"
+    ></script>
   </head>
 
   <body>

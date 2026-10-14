@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { CheckCircleIcon, ChevronRightIcon, EnvelopeIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { playerPortalApi } from '../../services/api';
 import type { ContractData, OfferResponse } from '../../types';
-import { DashboardPageHeader, RunnerIcon, Button, Spinner, NotLinkedNotice, OfferResponseDialog, PLAYER_PORTAL_CONTRACTS_PATH, apiError } from '../../components';
+import { DashboardPageHeader, RunnerIcon, Button, Spinner, NotLinkedNotice, OfferResponseDialog, PLAYER_PORTAL_CONTRACTS_PATH, apiError, TeamLink } from '../../components';
 
 const statLabelClass = 'text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase';
 const statValueClass = 'text-lg sm:text-xl font-black text-gray-900 dark:text-white';
@@ -75,7 +75,9 @@ export const PlayerPortalOverview: React.FC = () => {
                                             </div>
                                         )}
                                         <div className="min-w-0">
-                                            <h3 className="font-bold text-lg text-gray-900 dark:text-white wrap-break-word">{c.team?.name}</h3>
+                                            <h3 className="font-bold text-lg text-gray-900 dark:text-white wrap-break-word">
+                                                <TeamLink id={c.team?.id}>{c.team?.name}</TeamLink>
+                                            </h3>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">Offered on {new Date(c.offered_at).toLocaleDateString()}</p>
                                         </div>
                                     </div>

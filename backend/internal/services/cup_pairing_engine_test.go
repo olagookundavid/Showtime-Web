@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"showtime-backend/internal/domain"
 	"testing"
@@ -277,5 +278,66 @@ func TestCupKnockoutMatches(t *testing.T) {
 	}
 	if !qfs[0].Date.Equal(day) || !sfs[0].Date.Equal(day.AddDate(0, 0, 7)) || !final[0].Date.Equal(day.AddDate(0, 0, 14)) {
 		t.Errorf("knockout dates should be the QF day, +7 and +14 days")
+	}
+}
+
+func TestExistingRound1(t *testing.T) {
+	teams := make([]string, 10)
+	for i := range teams {
+		teams[i] = fmt.Sprintf("t%d", i+1)
+	}
+	round := func() []domain.Match {
+		ms := make([]domain.Match, 5)
+		for i := range ms {
+			ms[i] = domain.Match{ID: fmt.Sprintf("m%d", i+1), HomeTeamID: teams[i*2], AwayTeamID: teams[i*2+1]}
+		}
+		return ms
+	}
+
+	ids, err := existingRound1(round(), teams)
+	if err != nil {
+		t.Fatalf("a full round should be adopted: %v", err)
+	}
+	if len(ids) != 5 {
+		t.Fatalf("expected 5 match IDs, got %d", len(ids))
+	}
+
+	pos := 1
+	cases := map[string]func([]domain.Match) []domain.Match{
+		"too few matches": func(ms []domain.Match) []domain.Match { return ms[:4] },
+		"too many matches": func(ms []domain.Match) []domain.Match {
+			return append(ms, domain.Match{ID: "m6", HomeTeamID: "t1", AwayTeamID: "t3"})
+		},
+		"team twice":    func(ms []domain.Match) []domain.Match { ms[1].HomeTeamID = "t1"; return ms },
+		"missing team":  func(ms []domain.Match) []domain.Match { ms[0].AwayTeamID = ""; return ms },
+		"not enrolled":  func(ms []domain.Match) []domain.Match { ms[0].AwayTeamID = "outsider"; return ms },
+		"bracket match": func(ms []domain.Match) []domain.Match { ms[0].BracketPos = &pos; return ms },
+	}
+	for name, mutate := range cases {
+		if _, err := existingRound1(mutate(round()), teams); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
+
+// An admin edit of a Swiss cup match runs validateKnockoutMatch; the round tag
+// must survive it, or the match drops out of its round.
+func TestValidateKnockoutMatchKeepsCupSwissRound(t *testing.T) {
+	s := &MatchService{}
+	for _, round := range []string{domain.CupRound1, domain.CupRound2, domain.CupRound3} {
+		m := &domain.Match{HomeTeamID: "a", AwayTeamID: "b", Round: round}
+		if err := s.validateKnockoutMatch(context.Background(), m, false); err != nil {
+			t.Fatalf("%s: unexpected error: %v", round, err)
+		}
+		if m.Round != round {
+			t.Errorf("%s: round tag was cleared to %q", round, m.Round)
+		}
+	}
+	m := &domain.Match{HomeTeamID: "a", AwayTeamID: "b", Round: "Week 1"}
+	if err := s.validateKnockoutMatch(context.Background(), m, false); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if m.Round != "" {
+		t.Errorf("a non-cup round label on a non-bracket match should still be cleared, got %q", m.Round)
 	}
 }

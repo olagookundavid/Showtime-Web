@@ -164,6 +164,9 @@ type CupStateResponse struct {
 	MatchesTotal    int    `json:"matches_total"`
 	MatchesFinished int    `json:"matches_finished"`
 	CanAdvance      bool   `json:"can_advance"`
+	// Before the cup starts: the matches already entered form a complete
+	// Round 1, so starting adopts them instead of drawing new fixtures.
+	AdoptsExistingMatches bool `json:"adopts_existing_matches"`
 	NextRound       string `json:"next_round"`
 	StatusMessage   string `json:"status_message"`
 }

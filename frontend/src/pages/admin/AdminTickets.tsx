@@ -25,6 +25,7 @@ import {
 } from "../../services/api";
 import type { TicketResponse, TicketDayResponse, EventDayResponse } from "../../types";
 import { useAuth } from "../../contexts";
+import { usePermissions } from "../../hooks";
 import { formatMatchDate } from "../../utils";
 
 type ApiError = {
@@ -72,6 +73,7 @@ const ACTIONS = {
     confirmLabel: "Check In",
     tone: "success",
     icon: CheckCircleIcon,
+    skipKey: "admin-tickets:checkin",
   },
   verify: {
     title: "Verify payment?",
@@ -80,6 +82,7 @@ const ACTIONS = {
     confirmLabel: "Verify Payment",
     tone: "info",
     icon: ShieldCheckIcon,
+    skipKey: "admin-tickets:verify",
   },
   force: {
     title: "Force check-in?",
@@ -88,6 +91,7 @@ const ACTIONS = {
     confirmLabel: "Force Check-in",
     tone: "warning",
     icon: BoltIcon,
+    skipKey: "admin-tickets:force",
   },
 } as const;
 
@@ -271,10 +275,11 @@ const TicketActions = ({
 
 export const AdminTickets = () => {
   const { user } = useAuth();
+  const { canView } = usePermissions();
   const queryClient = useQueryClient();
-  // Only admins can list past game days; ticketers get the public list,
-  // which holds upcoming days only.
-  const isAdmin = user?.role === "admin" || user?.role === "app_admin";
+  // Past game days come from the admin event-days list, which needs the event_days
+  // feature; roles without it get the public list, which holds upcoming days only.
+  const isAdmin = canView("event_days");
   const [page, setPage] = useState(1);
   // null until the user picks one; "" means all game days (admins only).
   const [filterEventDay, setFilterEventDay] = useState<string | null>(null);
@@ -690,6 +695,7 @@ export const AdminTickets = () => {
         confirmLabel={action?.confirmLabel ?? ""}
         tone={action?.tone}
         icon={action?.icon}
+        dontAskAgainKey={action?.skipKey}
         pending={
           pendingAction !== null && actionLoading === pendingAction.ticket.id
         }

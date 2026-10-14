@@ -28,6 +28,12 @@ type BadgeRepository interface {
 	DeleteTOTWBadgesByID(ctx context.Context, totwID string, badgeID string, exceptPlayerIDs []string) ([]string, error)
 	EnsureTOTWAward(ctx context.Context, award *domain.PlayerBadgeAward) error
 	ListAwards(ctx context.Context, badgeID string, playerID string, limit, offset int) ([]domain.PlayerBadgeAward, int64, error)
+
+	// The badge artwork library (badge_icon_repo.go).
+	ListBadgeIcons(ctx context.Context) ([]domain.BadgeIcon, error)
+	CreateBadgeIcon(ctx context.Context, name, imageURL string) (*domain.BadgeIcon, error)
+	UpdateBadgeIcon(ctx context.Context, id, name, imageURL string) (*domain.BadgeIcon, int, error)
+	DeleteBadgeIcon(ctx context.Context, id string) error
 }
 
 type PostgresBadgeRepository struct {

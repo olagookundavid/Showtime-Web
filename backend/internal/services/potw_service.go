@@ -36,6 +36,7 @@ type IPOTWService interface {
 	GetCurrentPublicPoll(ctx context.Context, userID string) (*dto.POTWPollResponse, error)
 	GetPublicPoll(ctx context.Context, pollID, userID string) (*dto.POTWPollResponse, error)
 	ListPublicPolls(ctx context.Context) ([]dto.POTWPollSummary, error)
+	ListWinners(ctx context.Context) ([]dto.POTWWinnerResponse, error)
 	Vote(ctx context.Context, pollID, userID, playerID string) (*dto.POTWPollResponse, error)
 
 	GetAdminPoll(ctx context.Context, totwID string) (*dto.POTWPollResponse, error)
@@ -117,6 +118,62 @@ func (s *POTWService) ListPublicPolls(ctx context.Context) ([]dto.POTWPollSummar
 		}
 	}
 	return out, nil
+}
+
+// ListWinners is the public Player of the Week honours list, newest first. Like
+// the archive, it tallies anything past its deadline first so a just-closed vote
+// shows its winner.
+func (s *POTWService) ListWinners(ctx context.Context) ([]dto.POTWWinnerResponse, error) {
+	if _, err := s.FinalizeDuePolls(ctx); err != nil {
+		log.Printf("[ERROR] potw: finalize before listing winners: %v", err)
+	}
+	winners, err := s.repo.ListWinners(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dto.POTWWinnerResponse, len(winners))
+	for i, w := range winners {
+		out[i] = dto.POTWWinnerResponse{
+			TOTWID:            w.TOTWID,
+			PollID:            w.PollID,
+			WeekTitle:         w.WeekTitle,
+			CompetitionName:   w.CompetitionName,
+			CompetitionFormat: w.CompetitionFormat,
+			Source:            domain.POTWWinnerByAdmin,
+			AwardedAt:         w.AwardedAt,
+			Player:            nomineeResponse(w.Player),
+		}
+		// Fans only ever see shares, never counts (see mapPoll).
+		if w.ByFanVote && w.TotalVotes > 0 {
+			out[i].Source = domain.POTWWinnerByVote
+			pct := math.Round(float64(w.WinnerVotes)*1000/float64(w.TotalVotes)) / 10
+			out[i].SharePercent = &pct
+		}
+	}
+	return out, nil
+}
+
+// nomineeResponse is a player's card as the API shows it, without vote results.
+func nomineeResponse(n domain.POTWNominee) dto.POTWNomineeResponse {
+	return dto.POTWNomineeResponse{
+		PlayerID:     n.PlayerID,
+		Name:         n.Name,
+		Image:        n.Image,
+		JerseyNumber: n.JerseyNumber,
+		Position:     n.Position,
+		TeamID:       n.TeamID,
+		TeamName:     n.TeamName,
+		TeamLogo:     n.TeamLogo,
+		DisplayOrder: n.DisplayOrder,
+		TOTWPosition: n.TOTWPosition,
+		Rating:       n.Rating,
+		Stat1Value:   n.Stat1Value,
+		Stat1Label:   n.Stat1Label,
+		Stat2Value:   n.Stat2Value,
+		Stat2Label:   n.Stat2Label,
+		Stat3Value:   n.Stat3Value,
+		Stat3Label:   n.Stat3Label,
+	}
 }
 
 // Vote records or changes the user's vote. Only logged-in users reach this (the
@@ -495,24 +552,7 @@ func (s *POTWService) mapPoll(p *domain.POTWPoll, showResults, withCounts bool) 
 	}
 
 	for i, n := range p.Nominees {
-		nr := dto.POTWNomineeResponse{
-			PlayerID:     n.PlayerID,
-			Name:         n.Name,
-			Image:        n.Image,
-			JerseyNumber: n.JerseyNumber,
-			Position:     n.Position,
-			TeamName:     n.TeamName,
-			TeamLogo:     n.TeamLogo,
-			DisplayOrder: n.DisplayOrder,
-			TOTWPosition: n.TOTWPosition,
-			Rating:       n.Rating,
-			Stat1Value:   n.Stat1Value,
-			Stat1Label:   n.Stat1Label,
-			Stat2Value:   n.Stat2Value,
-			Stat2Label:   n.Stat2Label,
-			Stat3Value:   n.Stat3Value,
-			Stat3Label:   n.Stat3Label,
-		}
+		nr := nomineeResponse(n)
 		if showResults {
 			pct := 0.0
 			if p.TotalVotes > 0 {

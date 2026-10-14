@@ -10,7 +10,7 @@ import {
   dropdownCompetitionsFor,
 } from "../../services/api";
 import type { Competition } from "../../types";
-import { Button, Field, IconButton, Input, Select, Tabs, Loader, StatsTable, SeasonStageTabs, FootballIcon } from "../../components";
+import { Button, Field, IconButton, Input, Select, Tabs, Loader, StatsTable, SeasonStageTabs, FootballIcon, TeamLink } from "../../components";
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronDownIcon,
@@ -390,7 +390,9 @@ export const Stats = () => {
         <div className="flex flex-wrap items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2 rounded-xl">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 text-xs md:text-sm font-bold uppercase tracking-wider">
             <span>Filtering stats for</span>
-            <span className="font-black">{filterTeam.name}</span>
+            <TeamLink id={filterTeam.id} className="font-black">
+              {filterTeam.name}
+            </TeamLink>
           </div>
           <Button
             variant="secondary"

@@ -50,21 +50,18 @@ func NewClaimHandler(service services.IClaimService) IClaimHandler {
 	return &ClaimHandler{service: service}
 }
 
-// claimReviewer describes who is acting on a claim. IsAdmin is read from the resolved
-// role rather than inferred from "no scoped team": those coincide today, but routing
-// authority off a coincidence is how a privilege check quietly stops being one.
+// claimReviewer describes who is acting on a claim. IsAdmin means full access to the
+// claims feature, read from the access the gate resolved. It is never inferred from
+// "no scoped team": those coincide for some callers, but routing authority off a
+// coincidence is how a privilege check quietly stops being one. With no resolved
+// access the caller is treated as having none.
 func claimReviewer(c *gin.Context) domain.Reviewer {
 	r := domain.Reviewer{TeamID: claimScopedTeamID(c)}
 	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
 		r.UserID = payload.UserId
 	}
-	if role, ok := c.Get(middlewares.UserRoleContextKey); ok {
-		roleStr, _ := role.(string)
-		r.IsAdmin = roleStr == "admin" || roleStr == "app_admin"
-	} else {
-		// The admin claim routes sit behind AdminOnlyMiddleware, which does not publish
-		// a role; reaching them at all is the proof.
-		r.IsAdmin = r.TeamID == ""
+	if access := middlewares.AccessFrom(c); access != nil {
+		r.IsAdmin = access.Level(domain.FeatureClaims) == domain.AccessFull
 	}
 	return r
 }

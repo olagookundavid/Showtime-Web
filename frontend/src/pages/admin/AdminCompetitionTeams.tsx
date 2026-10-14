@@ -11,7 +11,7 @@ import {
     removeTeamFromCompetition,
 } from '../../services/api';
 import type { Team } from '../../types';
-import { Loader, ConfirmDialog, ConfirmSummary, Button, LightboxImage, Select, DashboardPageHeader } from '../../components';
+import { Loader, ConfirmDialog, ConfirmSummary, Button, LightboxImage, Select, DashboardPageHeader, TeamLink } from '../../components';
 
 // Adding and removing a team both go through the confirm dialog first.
 type PendingAction = { kind: 'add'; team: Team } | { kind: 'remove'; team: Team };
@@ -182,7 +182,9 @@ export const AdminCompetitionTeams = () => {
                                         </div>
                                     )}
                                     <div className="min-w-0">
-                                        <div className="font-bold text-sm text-gray-900 dark:text-gray-100 wrap-break-word">{team.name}</div>
+                                        <div className="font-bold text-sm text-gray-900 dark:text-gray-100 wrap-break-word">
+                                            <TeamLink admin id={team.id}>{team.name}</TeamLink>
+                                        </div>
                                         <div className="text-xs text-gray-400 font-semibold truncate">{team.short_name}</div>
                                     </div>
                                 </div>

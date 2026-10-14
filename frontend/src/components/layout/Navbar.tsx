@@ -18,27 +18,9 @@ import {
   STANDINGS_MENU,
   standingsStagePath,
 } from "../domain";
+import { portalLinkFor } from "./portalLink";
 
 type Menu = "league" | "stats" | "awards" | "user";
-
-const PORTAL_LINKS: Record<string, { to: string; label: string }> = {
-  admin: { to: "/admin", label: "Admin" },
-  app_admin: { to: "/admin", label: "App Admin" },
-  referee: { to: "/admin/matches", label: "Referee Portal" },
-  stats: { to: "/admin/matches", label: "Stats Portal" },
-  team_head: { to: "/team-head", label: "My Team" },
-  player: { to: "/player-portal", label: "Player Portal" },
-  ticketer: { to: "/admin/tickets", label: "Ticketing Portal" },
-  seller: { to: "/seller", label: "Store Portal" },
-  commissioner: { to: "/admin", label: "Commissioner Portal" },
-  fantasy_commissioner: { to: "/admin/fantasy", label: "Fantasy Portal" },
-  head_referee: { to: "/admin/matches", label: "Head Referee Portal" },
-  news_head: { to: "/admin/news", label: "News Portal" },
-  content_creator: { to: "/admin/news", label: "Content Portal" },
-  store_manager: { to: "/admin/store", label: "Store Portal" },
-  // `user` has no business-side portal — their only landing page is their own profile.
-  user: { to: "/account", label: "My Account" },
-};
 
 const menuItemClass =
   "flex items-center gap-3 px-3 py-2 min-h-11 rounded-xl font-bold hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors";
@@ -71,7 +53,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
   const { isAuthenticated, user, logout } = useAuth();
   const { count: cartCount } = useCart();
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const portalLink = user?.role ? PORTAL_LINKS[user.role] : undefined;
+  const portalLink = portalLinkFor(user);
   const initials = getInitials(user?.name);
   const navigate = useNavigate();
   const location = useLocation();
@@ -236,13 +218,6 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               {openMenu === "stats" && (
                 <div className="absolute top-full left-0 w-48 z-50 pt-2">
                   <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
-                    <Link
-                      to="/stats"
-                      aria-current={statsActive && !tab ? "page" : undefined}
-                      className={dropdownItem(statsActive && !tab)}
-                    >
-                      Stats Hub
-                    </Link>
                     <Link
                       to="/stats?tab=players"
                       aria-current={
