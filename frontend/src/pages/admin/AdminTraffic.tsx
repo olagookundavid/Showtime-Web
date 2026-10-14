@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -18,6 +18,7 @@ import {
     Field,
     Input,
     Loader,
+    MatchDayTable,
     MatchReachTable,
     MetricCard,
     RankedBarList,
@@ -30,7 +31,7 @@ import {
 } from '../../components';
 import { downloadSiteTrafficExport, getSiteEvents, getSiteTrafficSummary } from '../../services/api';
 import { getApiErrorMessage, lagosToday } from '../../utils';
-import type { SiteBreakdownRow, SiteDailyPoint, SiteEvent, SiteHeatCell, SiteMatchReach, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
+import type { SiteBreakdownRow, SiteDailyPoint, SiteDayFilter, SiteEvent, SiteHeatCell, SiteMatchDay, SiteMatchReach, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
 
 type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 type TrafficTab = 'overview' | 'audience' | 'content' | 'events';
@@ -41,6 +42,12 @@ const PRESETS: { value: RangePreset; label: string; comparison: string }[] = [
     { value: '90d', label: 'Last 90 days', comparison: 'vs previous 90 days' },
     { value: 'all', label: 'All time', comparison: '' },
     { value: 'custom', label: 'Custom range', comparison: 'vs previous period' },
+];
+
+const DAY_OPTIONS: { value: SiteDayFilter; label: string; comparison: string }[] = [
+    { value: 'all', label: 'Every day', comparison: '' },
+    { value: 'match', label: 'Match days only', comparison: ' (match days)' },
+    { value: 'other', label: 'Other days (no match)', comparison: ' (non-match days)' },
 ];
 
 const TABS = [
@@ -70,6 +77,7 @@ const NO_MONTHS: SiteMonthlyPoint[] = [];
 const NO_ROWS: SiteBreakdownRow[] = [];
 const NO_CELLS: SiteHeatCell[] = [];
 const NO_MATCHES: SiteMatchReach[] = [];
+const NO_MATCH_DAYS: SiteMatchDay[] = [];
 
 const fullNumber = new Intl.NumberFormat('en-NG');
 const oneDecimal = new Intl.NumberFormat('en-NG', { maximumFractionDigits: 1 });
@@ -254,6 +262,7 @@ const MatchDayCard = ({ summary }: MatchDayCardProps) => {
 
 export const AdminTraffic = () => {
     const [preset, setPreset] = useState<RangePreset>('30d');
+    const [days, setDays] = useState<SiteDayFilter>('all');
     const [customFrom, setCustomFrom] = useState(() => shiftDays(lagosToday(), -29));
     const [customTo, setCustomTo] = useState(() => lagosToday());
     const [tab, setTab] = useState<TrafficTab>('overview');
@@ -265,18 +274,22 @@ export const AdminTraffic = () => {
 
     const includesToday = preset !== 'custom' || customTo >= lagosToday();
     const customInvalid = preset === 'custom' && (!customFrom || !customTo || customFrom > customTo);
-    const comparisonLabel = PRESETS.find((p) => p.value === preset)?.comparison ?? '';
+    const dayOption = DAY_OPTIONS.find((o) => o.value === days) ?? DAY_OPTIONS[0];
+    const comparisonLabel = (PRESETS.find((p) => p.value === preset)?.comparison ?? '') + dayOption.comparison;
 
     const range = useMemo<SiteRange>(() => {
         const today = lagosToday();
-        switch (preset) {
-            case '7d': return { from: shiftDays(today, -6), to: today };
-            case '30d': return { from: shiftDays(today, -29), to: today };
-            case '90d': return { from: shiftDays(today, -89), to: today };
-            case 'all': return {};
-            case 'custom': return { from: customFrom, to: customTo };
-        }
-    }, [preset, customFrom, customTo]);
+        const dates = ((): SiteRange => {
+            switch (preset) {
+                case '7d': return { from: shiftDays(today, -6), to: today };
+                case '30d': return { from: shiftDays(today, -29), to: today };
+                case '90d': return { from: shiftDays(today, -89), to: today };
+                case 'all': return {};
+                case 'custom': return { from: customFrom, to: customTo };
+            }
+        })();
+        return { ...dates, days };
+    }, [preset, customFrom, customTo, days]);
 
     const summaryQuery = useQuery({
         queryKey: ['siteTraffic', range],
@@ -297,6 +310,17 @@ export const AdminTraffic = () => {
         setPreset(next);
         setEventsPage(1);
     };
+
+    // Drill into one match day: the whole page narrows to that date.
+    const showDay = useCallback((date: string) => {
+        setPreset('custom');
+        setCustomFrom(date);
+        setCustomTo(date);
+        setDays('all');
+        setEventsPage(1);
+        setTab('overview');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
 
     const handleExport = async (kind: 'summary' | 'events') => {
         setExporting(kind);
@@ -357,6 +381,13 @@ export const AdminTraffic = () => {
                         ))}
                     </Select>
                 </Field>
+                <Field label="Days" htmlFor="traffic-days" className="sm:w-56">
+                    <Select id="traffic-days" value={days} onChange={(e) => { setDays(e.target.value as SiteDayFilter); setEventsPage(1); }}>
+                        {DAY_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                    </Select>
+                </Field>
                 {preset === 'custom' && (
                     <>
                         <Field label="From" htmlFor="traffic-from" className="sm:w-44">
@@ -375,6 +406,8 @@ export const AdminTraffic = () => {
                 {summary && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 sm:pb-3">
                         Showing {summary.from} to {summary.to}
+                        {days !== 'all' && <> · {dayOption.label.toLowerCase()}</>}
+                        {' '}· {summary.match_day_list?.length ?? 0} match {summary.match_day_list?.length === 1 ? 'day' : 'days'} in range
                         {summary.previous && <> · compared with {summary.previous.from} to {summary.previous.to}</>}
                     </p>
                 )}
@@ -405,7 +438,7 @@ export const AdminTraffic = () => {
                             <SectionHeading title="Audience reach" description="How many people the site reaches. Visitors are counted by IP address." />
                             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                                 <MetricCard label="Unique visitors" value={fullNumber.format(totals.unique_visitors)} current={totals.unique_visitors} previous={prev?.unique_visitors} comparisonLabel={comparisonLabel} />
-                                <MetricCard label="Average daily visitors" value={fullNumber.format(Math.round(totals.avg_daily_visitors))} current={totals.avg_daily_visitors} previous={prev?.avg_daily_visitors} comparisonLabel={comparisonLabel} />
+                                <MetricCard label={days === 'match' ? 'Average visitors per match day' : 'Average daily visitors'} value={fullNumber.format(Math.round(totals.avg_daily_visitors))} current={totals.avg_daily_visitors} previous={prev?.avg_daily_visitors} comparisonLabel={comparisonLabel} />
                                 <MetricCard label="Page views" value={fullNumber.format(totals.page_views)} current={totals.page_views} previous={prev?.page_views} comparisonLabel={comparisonLabel} />
                                 <MetricCard label="Visits (sessions)" value={fullNumber.format(totals.sessions)} current={totals.sessions} previous={prev?.sessions} comparisonLabel={comparisonLabel} />
                             </div>
@@ -470,7 +503,20 @@ export const AdminTraffic = () => {
                             )}
                         </Panel>
 
-                        <MatchDayCard summary={summary} />
+                        {days === 'all' && <MatchDayCard summary={summary} />}
+
+                        {days !== 'other' && (
+                            <Panel
+                                title="Match days in this period"
+                                description="Every match day (from Match Days and fixtures), numbered as on the chart. Use the row menu to see one day on its own."
+                            >
+                                <MatchDayTable
+                                    days={summary.match_day_list ?? NO_MATCH_DAYS}
+                                    typicalVisitors={days === 'all' ? summary.match_days?.avg_visitors_other_day : undefined}
+                                    onSelectDay={showDay}
+                                />
+                            </Panel>
+                        )}
 
                         <section aria-label="Results" className="space-y-3">
                             <SectionHeading

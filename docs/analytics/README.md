@@ -104,7 +104,12 @@ Backend files: `domain/site_event.go`, `dto/site_analytics.go`, `ports/site_even
 
 ## The dashboard (Admin → Traffic)
 
-Admin and app admin only. One period picker (last 7/30/90 days, all time, custom) drives everything; every preset except "All time" is compared with the same-length period just before it.
+Admin and app admin only. Two filters at the top drive everything below them, including both CSV downloads:
+
+- **Period**: last 7/30/90 days, all time, or a custom range. Every preset except "All time" is compared with the same-length period just before it.
+- **Days**: every day, **match days only**, or other days (no match). The comparison period uses the same filter, so "match days only" compares this period's match days with the previous period's.
+
+A **match day** is any date with an event day (Admin → Match Days) **or** a fixture that wasn't cancelled or postponed; not every fixture date has an event day and not every event day has fixtures entered. Match days are marked with numbered dashed lines on the visits chart and listed under it ("Match days in this period") with their event-day title (or fixtures), traffic, and how many times a normal day's visitors they drew. Each row's menu narrows the whole page to that single day.
 
 - **Overview**: audience reach, engagement, visits over time (match days marked), match-day uplift, what visitors did (accounts, tickets, store orders), ticket funnel, month by month.
 - **Audience**: new vs returning, when people visit (heatmap), countries, devices, browsers, operating systems.
@@ -124,6 +129,7 @@ Give analysts and sponsors these definitions alongside any figure you quote.
 | Pages per visit | Page views / visits. |
 | Bounce rate | Share of visits that saw exactly one page. Lower is better. Changes are shown in percentage points. |
 | New / returning visitors | Returning = the IP also viewed a page **before** the period began. In the first weeks after launch almost everyone is "new" because there is no history yet. |
+| Days filter | Narrows every report by the Lagos date of each event: page views, actions, accounts, tickets and store orders all count only on the chosen days. |
 | Match-day uplift | Average daily visitors on days with a fixture (not cancelled/postponed) divided by the average on other days, within the period. |
 | Busiest times | Page views per weekday-hour slot, Lagos time. |
 | Site sections | Page views grouped by the first part of the path (`/news/...` is News, `/` is Home). |

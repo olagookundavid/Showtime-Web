@@ -1,4 +1,4 @@
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useTheme } from '../../contexts';
 import type { SiteDailyPoint } from '../../types';
 
@@ -37,10 +37,13 @@ const TrafficTooltip = ({ active, payload, label }: TrafficTooltipProps) => {
     if (!active || !payload?.length) return null;
     return (
         <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg dark:border-gray-600 dark:bg-gray-800">
-            <p className="mb-1 text-xs font-bold text-gray-500 dark:text-gray-400">
-                {longDay(String(label))}
-                {payload[0]?.payload?.match_day && <span className="ml-2 text-gray-700 dark:text-gray-200">Match day</span>}
-            </p>
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400">{longDay(String(label))}</p>
+            {payload[0]?.payload?.match_day && (
+                <p className="max-w-64 text-xs font-bold text-gray-800 dark:text-gray-100">
+                    Match day{payload[0].payload.match_day_name ? `: ${payload[0].payload.match_day_name}` : ''}
+                </p>
+            )}
+            <div className="mb-1" />
             {payload.map((row) => (
                 <p key={String(row.name)} className="flex items-center gap-2 text-sm">
                     <span aria-hidden="true" className="h-0.5 w-4 rounded-full" style={{ backgroundColor: row.color }} />
@@ -60,6 +63,12 @@ export const TrafficChart = ({ data }: TrafficChartProps) => {
     const { isDarkMode } = useTheme();
     const c = isDarkMode ? THEME.dark : THEME.light;
     const hasMatchDays = data.some((d) => d.match_day);
+    // A numbered marker on each match day, matching the numbers in the match-day
+    // list under the chart. Skipped when every point is a match day (the
+    // "match days only" filter), where it would mark everything.
+    const markers = data.filter((d) => d.match_day);
+    const showMarkers = markers.length > 0 && markers.length < data.length;
+    const numberMarkers = markers.length <= 15;
 
     // Match days get a ringed dot on the page-views line, so traffic spikes can
     // be read against the fixture calendar at a glance.
@@ -88,13 +97,13 @@ export const TrafficChart = ({ data }: TrafficChartProps) => {
                 {hasMatchDays && (
                     <li className="flex items-center gap-2">
                         <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-gray-800" style={{ backgroundColor: c.views }} />
-                        Match day
+                        Match day{showMarkers && numberMarkers ? ' (numbered as in the list below)' : ''}
                     </li>
                 )}
             </ul>
             <div className="h-72" role="img" aria-label="Line chart of daily page views and unique visitors">
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                    <LineChart data={data} margin={{ top: showMarkers ? 22 : 10, right: 12, left: 0, bottom: 0 }}>
                         <CartesianGrid vertical={false} stroke={c.grid} strokeWidth={1} />
                         <XAxis
                             dataKey="date"
@@ -112,6 +121,17 @@ export const TrafficChart = ({ data }: TrafficChartProps) => {
                             tickLine={false}
                             axisLine={false}
                         />
+                        {showMarkers &&
+                            markers.map((m, i) => (
+                                <ReferenceLine
+                                    key={m.date}
+                                    x={m.date}
+                                    stroke={c.axis}
+                                    strokeDasharray="3 4"
+                                    strokeOpacity={0.6}
+                                    label={numberMarkers ? { value: String(i + 1), position: 'top', fill: c.axis, fontSize: 11, fontWeight: 700 } : undefined}
+                                />
+                            ))}
                         <Tooltip content={<TrafficTooltip />} cursor={{ stroke: c.axis, strokeWidth: 1 }} />
                         <Line
                             type="monotone"

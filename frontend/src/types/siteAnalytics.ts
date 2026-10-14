@@ -17,7 +17,24 @@ export interface SiteDailyPoint {
   page_views: number;
   visitors: number;
   match_day: boolean;
+  /** The event day's title, or its fixtures when there is no event day. Only on match days. */
+  match_day_name?: string;
 }
+
+/** A match day in the period: a date with an event day or a fixture that wasn't called off. */
+export interface SiteMatchDay {
+  date: string;
+  /** Event-day title(s); empty when the day only has fixtures. */
+  title: string;
+  fixtures: number;
+  /** "Home vs Away, Home vs Away" for the day's fixtures. */
+  games: string;
+  page_views: number;
+  visitors: number;
+}
+
+/** Which days a report covers. */
+export type SiteDayFilter = "all" | "match" | "other";
 
 export interface SiteMonthlyPoint {
   month: string;
@@ -88,6 +105,9 @@ export interface SitePeriod {
 export interface SiteTrafficSummary {
   from: string;
   to: string;
+  days: SiteDayFilter;
+  /** Every match day in the range with its traffic, whatever the day filter. */
+  match_day_list: SiteMatchDay[];
   totals: SiteTotals;
   /** null for "All time", which has no earlier period. */
   previous: SitePeriod | null;
@@ -144,4 +164,5 @@ export interface SiteEventsPage {
 export interface SiteRange {
   from?: string;
   to?: string;
+  days?: SiteDayFilter;
 }

@@ -113,7 +113,7 @@ func TestSiteEvents_ReportsAgainstRealSchema(t *testing.T) {
 		t.Fatalf("ResolveRange: %v", err)
 	}
 
-	sum, err := svc.Summary(ctx, from, to, true)
+	sum, err := svc.Summary(ctx, from, to, "all", true)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
@@ -200,15 +200,15 @@ func TestSiteEvents_ReportsAgainstRealSchema(t *testing.T) {
 		t.Errorf("new users = %d, want 1", sum.Conversions.NewUsers)
 	}
 
-	page, err := svc.ListEvents(ctx, ports.SiteEventFilter{From: from, To: to}, 1, 50)
+	page, err := svc.ListEvents(ctx, ports.SiteEventFilter{SiteScope: ports.SiteScope{From: from, To: to}}, 1, 50)
 	if err != nil || page.Total != 5 {
 		t.Errorf("events without bots: total=%v err=%v, want 5", page, err)
 	}
-	page, err = svc.ListEvents(ctx, ports.SiteEventFilter{From: from, To: to, IncludeBots: true}, 1, 50)
+	page, err = svc.ListEvents(ctx, ports.SiteEventFilter{SiteScope: ports.SiteScope{From: from, To: to}, IncludeBots: true}, 1, 50)
 	if err != nil || page.Total != 6 {
 		t.Errorf("events with bots: total=%v err=%v, want 6", page, err)
 	}
-	page, err = svc.ListEvents(ctx, ports.SiteEventFilter{From: from, To: to, EventType: "login"}, 1, 50)
+	page, err = svc.ListEvents(ctx, ports.SiteEventFilter{SiteScope: ports.SiteScope{From: from, To: to}, EventType: "login"}, 1, 50)
 	if err != nil || page.Total != 1 {
 		t.Errorf("login filter: total=%v err=%v, want 1", page, err)
 	}
@@ -223,12 +223,12 @@ func TestSiteEvents_ReportsAgainstRealSchema(t *testing.T) {
 	if err != nil || len(labels) != 0 {
 		t.Errorf("PageLabels: labels=%v err=%v", labels, err)
 	}
-	if _, err := repo.MatchDates(ctx, from, to); err != nil {
-		t.Errorf("MatchDates: %v", err)
+	if _, err := repo.MatchDays(ctx, from, to); err != nil {
+		t.Errorf("MatchDays: %v", err)
 	}
 
 	var summaryCSV bytes.Buffer
-	if err := svc.ExportSummaryCSV(ctx, from, to, true, &summaryCSV); err != nil {
+	if err := svc.ExportSummaryCSV(ctx, from, to, "all", true, &summaryCSV); err != nil {
 		t.Fatalf("ExportSummaryCSV: %v", err)
 	}
 	out := summaryCSV.String()
@@ -243,7 +243,7 @@ func TestSiteEvents_ReportsAgainstRealSchema(t *testing.T) {
 	}
 
 	var eventsCSV bytes.Buffer
-	if err := svc.ExportEventsCSV(ctx, ports.SiteEventFilter{From: from, To: to}, &eventsCSV); err != nil {
+	if err := svc.ExportEventsCSV(ctx, ports.SiteEventFilter{SiteScope: ports.SiteScope{From: from, To: to}}, &eventsCSV); err != nil {
 		t.Fatalf("ExportEventsCSV: %v", err)
 	}
 	lines := strings.Split(strings.TrimSpace(eventsCSV.String()), "\n")
@@ -278,7 +278,7 @@ func TestSiteEvents_InsertBatchCopiesEveryColumn(t *testing.T) {
 		t.Fatalf("InsertBatch: %v", err)
 	}
 
-	page, _, err := repo.ListEvents(ctx, ports.SiteEventFilter{From: at.Add(-time.Hour), To: at.Add(time.Hour)}, 10, 0)
+	page, _, err := repo.ListEvents(ctx, ports.SiteEventFilter{SiteScope: ports.SiteScope{From: at.Add(-time.Hour), To: at.Add(time.Hour)}}, 10, 0)
 	if err != nil || len(page) != 2 {
 		t.Fatalf("expected 2 rows back, got %d (err %v)", len(page), err)
 	}
@@ -311,7 +311,7 @@ func TestSiteEvents_EmptyPeriodListsAreArrays(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := svc.Summary(context.Background(), from, to, true)
+	sum, err := svc.Summary(context.Background(), from, to, "all", true)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
@@ -407,7 +407,7 @@ func TestSiteEvents_ContentRankingsAndTicketFunnel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := svc.Summary(ctx, from, to, false)
+	sum, err := svc.Summary(ctx, from, to, "all", false)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
@@ -436,5 +436,130 @@ func TestSiteEvents_ContentRankingsAndTicketFunnel(t *testing.T) {
 	f := sum.TicketFunnel
 	if f.Visitors != 4 || f.TicketPageVisitors != 3 || f.CheckoutStarters != 1 || f.PaidOrders != 1 {
 		t.Errorf("ticket funnel wrong (want 4/3/1/1): %+v", f)
+	}
+}
+
+// TestSiteEvents_MatchDayFilter checks what counts as a match day and that the
+// day filter narrows every report. A match day is a date with an event day or
+// with a fixture that wasn't called off; dates follow the Lagos calendar.
+func TestSiteEvents_MatchDayFilter(t *testing.T) {
+	pool := siteEventsPool(t)
+	ctx := context.Background()
+
+	cleanup := func() {
+		mustExec(t, pool, `DELETE FROM site_events WHERE created_at < $1::timestamptz`, siteEventsFixtureCutoff)
+		mustExec(t, pool, `DELETE FROM users WHERE email = 'match-day-fixture@example.test'`)
+		mustExec(t, pool, `DELETE FROM matches WHERE home_team_id IN (SELECT id FROM teams WHERE name LIKE 'Fixture MD%')`)
+		mustExec(t, pool, `DELETE FROM teams WHERE name LIKE 'Fixture MD%'`)
+		mustExec(t, pool, `DELETE FROM event_days WHERE title LIKE 'Fixture Match Day%'`)
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	var home, away string
+	if err := pool.QueryRow(ctx, `INSERT INTO teams (name) VALUES ('Fixture MD Home') RETURNING id::text`).Scan(&home); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `INSERT INTO teams (name) VALUES ('Fixture MD Away') RETURNING id::text`).Scan(&away); err != nil {
+		t.Fatal(err)
+	}
+	// Aug 4: event day + fixture. Aug 11: fixture only. Aug 18: cancelled
+	// fixture (not a match day). Aug 25: event day only.
+	mustExec(t, pool, `INSERT INTO event_days (title, date) VALUES ('Fixture Match Day 1', '2001-08-04'), ('Fixture Match Day 4', '2001-08-25')`)
+	mustExec(t, pool, `INSERT INTO matches (home_team_id, away_team_id, date, time, status) VALUES
+		($1, $2, '2001-08-04', '16:00', 'FINISHED'),
+		($1, $2, '2001-08-11', '16:00', 'FINISHED'),
+		($1, $2, '2001-08-18', '16:00', 'CANCELLED')`, home, away)
+
+	views := []fixtureEvent{
+		{at: "2001-08-04T10:00:00Z", typ: "page_view", path: "/", ip: "20.0.0.1"},
+		{at: "2001-08-04T11:00:00Z", typ: "page_view", path: "/matches", ip: "20.0.0.2"},
+		{at: "2001-08-04T23:30:00Z", typ: "page_view", path: "/", ip: "20.0.0.3"}, // 00:30 Aug 5 in Lagos
+		{at: "2001-08-05T10:00:00Z", typ: "page_view", path: "/", ip: "20.0.0.4"},
+		{at: "2001-08-11T10:00:00Z", typ: "page_view", path: "/", ip: "20.0.0.1"},
+		{at: "2001-08-11T11:00:00Z", typ: "page_view", path: "/news", ip: "20.0.0.5"},
+		{at: "2001-08-11T12:00:00Z", typ: "page_view", path: "/stats", ip: "20.0.0.6"},
+		{at: "2001-08-18T10:00:00Z", typ: "page_view", path: "/", ip: "20.0.0.7"},
+		{at: "2001-08-25T10:00:00Z", typ: "page_view", path: "/", ip: "20.0.0.8"},
+	}
+	for _, v := range views {
+		insertFixtureEvent(t, pool, v)
+	}
+	mustExec(t, pool, `INSERT INTO users (full_name, email, created_at) VALUES ('Fixture', 'match-day-fixture@example.test', '2001-08-11T09:00:00Z')`)
+
+	svc := services.NewSiteEventsService(ports.NewSiteEventsRepository(pool))
+	from, to, err := services.ResolveRange("2001-08-01", "2001-08-31", time.Date(2001, 9, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	all, err := svc.Summary(ctx, from, to, "all", false)
+	if err != nil {
+		t.Fatalf("Summary(all): %v", err)
+	}
+	names := map[string]string{}
+	for _, d := range all.MatchDayList {
+		names[d.Date] = d.Name()
+	}
+	if len(all.MatchDayList) != 3 || names["2001-08-04"] != "Fixture Match Day 1" ||
+		names["2001-08-11"] != "Fixture MD Home vs Fixture MD Away" || names["2001-08-25"] != "Fixture Match Day 4" {
+		t.Fatalf("match days should be Aug 4 (event day), 11 (fixture) and 25 (event day), not the cancelled 18th: %+v", all.MatchDayList)
+	}
+	if all.Totals.PageViews != 9 {
+		t.Errorf("all days: page views = %d, want 9", all.Totals.PageViews)
+	}
+
+	match, err := svc.Summary(ctx, from, to, "match", false)
+	if err != nil {
+		t.Fatalf("Summary(match): %v", err)
+	}
+	if match.Totals.PageViews != 6 || match.Totals.UniqueVisitors != 5 {
+		t.Errorf("match days only: want 6 views from 5 visitors, got %+v", match.Totals)
+	}
+	if len(match.Daily) != 3 {
+		t.Errorf("match-day chart should have one point per match day, got %+v", match.Daily)
+	}
+	for _, p := range match.Daily {
+		if !p.MatchDay || p.MatchDayName == "" {
+			t.Errorf("every point should be a named match day, got %+v", p)
+		}
+	}
+	if match.Conversions.NewUsers != 1 {
+		t.Errorf("the account created on a match day should count, got %d", match.Conversions.NewUsers)
+	}
+
+	other, err := svc.Summary(ctx, from, to, "other", false)
+	if err != nil {
+		t.Fatalf("Summary(other): %v", err)
+	}
+	if other.Totals.PageViews != 3 || other.Conversions.NewUsers != 0 {
+		t.Errorf("other days: want 3 views (Aug 5 twice, cancelled Aug 18) and no new accounts, got %+v / %+v", other.Totals, other.Conversions)
+	}
+	for _, p := range other.Daily {
+		if p.MatchDay {
+			t.Errorf("other-days chart must not include match day %s", p.Date)
+		}
+	}
+	for _, d := range other.MatchDayList {
+		if d.Date == "2001-08-04" && d.PageViews != 2 {
+			t.Errorf("the match-day list keeps real numbers even when they are filtered out, got %+v", d)
+		}
+	}
+
+	scope, err := svc.Scope(ctx, from, to, "match")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := svc.ListEvents(ctx, ports.SiteEventFilter{SiteScope: scope}, 1, 50)
+	if err != nil || page.Total != 6 {
+		t.Errorf("raw events for match days: total=%v err=%v, want 6", page, err)
+	}
+
+	var report bytes.Buffer
+	if err := svc.ExportSummaryCSV(ctx, from, to, "match", false, &report); err != nil {
+		t.Fatalf("ExportSummaryCSV: %v", err)
+	}
+	if out := report.String(); !strings.Contains(out, "Days included,Match days only") || !strings.Contains(out, "Fixture Match Day 1,2001-08-04,") {
+		t.Errorf("match-day report should state its filter and list the days:\n%s", out)
 	}
 }

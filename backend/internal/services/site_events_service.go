@@ -39,10 +39,14 @@ type ISiteEventsService interface {
 	RecordServerEvent(eventType, path string, meta RequestMeta)
 	// Summary reports [from, to). With compare, it also reports the
 	// same-length period just before, for "vs previous period" figures.
-	Summary(ctx context.Context, from, to time.Time, compare bool) (*dto.SiteTrafficSummary, error)
+	// days is dto.SiteDaysAll, SiteDaysMatch or SiteDaysOther.
+	Summary(ctx context.Context, from, to time.Time, days string, compare bool) (*dto.SiteTrafficSummary, error)
+	// Scope turns a date range and day filter into the scope raw-event
+	// queries use, so the events list and export follow the same filter.
+	Scope(ctx context.Context, from, to time.Time, days string) (ports.SiteScope, error)
 	ListEvents(ctx context.Context, f ports.SiteEventFilter, page, limit int) (*dto.SiteEventsPage, error)
 	ExportEventsCSV(ctx context.Context, f ports.SiteEventFilter, w io.Writer) error
-	ExportSummaryCSV(ctx context.Context, from, to time.Time, compare bool, w io.Writer) error
+	ExportSummaryCSV(ctx context.Context, from, to time.Time, days string, compare bool, w io.Writer) error
 	// Close writes any events still waiting in the batch. Call on shutdown,
 	// before the database pool closes.
 	Close()
@@ -307,20 +311,86 @@ func dailyStats(daily []dto.SiteDailyPoint) (float64, dto.SiteMatchDayStats) {
 	return float64(all) / float64(len(daily)-first), md
 }
 
-func (s *SiteEventsService) dailySeries(ctx context.Context, from, to time.Time) ([]dto.SiteDailyPoint, error) {
-	raw, err := s.repo.Daily(ctx, from, to)
+// ValidDayFilter reports whether days is a day filter the reports understand.
+// Empty means every day.
+func ValidDayFilter(days string) bool {
+	switch days {
+	case "", dto.SiteDaysAll, dto.SiteDaysMatch, dto.SiteDaysOther:
+		return true
+	}
+	return false
+}
+
+// scope resolves a day filter into the query scope for [from, to), returning
+// the range's match days alongside so callers can name them.
+func (s *SiteEventsService) scope(ctx context.Context, from, to time.Time, days string) (ports.SiteScope, []dto.SiteMatchDay, error) {
+	matchDays, err := s.repo.MatchDays(ctx, from, to)
+	if err != nil {
+		return ports.SiteScope{}, nil, err
+	}
+	sc := ports.SiteScope{From: from, To: to}
+	if days == dto.SiteDaysMatch || days == dto.SiteDaysOther {
+		sc.DayMode = ports.DaysOnly
+		if days == dto.SiteDaysOther {
+			sc.DayMode = ports.DaysExcept
+		}
+		sc.Days = make([]string, len(matchDays))
+		for i, d := range matchDays {
+			sc.Days[i] = d.Date
+		}
+	}
+	return sc, matchDays, nil
+}
+
+func (s *SiteEventsService) Scope(ctx context.Context, from, to time.Time, days string) (ports.SiteScope, error) {
+	sc, _, err := s.scope(ctx, from, to, days)
+	return sc, err
+}
+
+// dailySeries is one point per day in the scope's range, match days marked
+// and named. With a day filter, only the days it keeps are returned.
+func (s *SiteEventsService) dailySeries(ctx context.Context, sc ports.SiteScope, matchDays []dto.SiteMatchDay) ([]dto.SiteDailyPoint, error) {
+	raw, err := s.repo.Daily(ctx, sc)
 	if err != nil {
 		return nil, err
 	}
-	matchDates, err := s.repo.MatchDates(ctx, from, to)
-	if err != nil {
-		return nil, err
+	names := make(map[string]string, len(matchDays))
+	for _, d := range matchDays {
+		names[d.Date] = d.Name()
 	}
-	daily := fillDailyGaps(raw, from, to)
-	for i := range daily {
-		daily[i].MatchDay = matchDates[daily[i].Date]
+
+	all := fillDailyGaps(raw, sc.From, sc.To)
+	daily := all[:0:0]
+	for _, p := range all {
+		name, isMatch := names[p.Date]
+		p.MatchDay, p.MatchDayName = isMatch, name
+		if (sc.DayMode == ports.DaysOnly && !isMatch) || (sc.DayMode == ports.DaysExcept && isMatch) {
+			continue
+		}
+		daily = append(daily, p)
 	}
 	return daily, nil
+}
+
+// matchDayList puts each match day's traffic next to its name. It always
+// reflects the real traffic on those days, even when the report excludes them.
+func (s *SiteEventsService) matchDayList(ctx context.Context, sc ports.SiteScope, matchDays []dto.SiteMatchDay, daily []dto.SiteDailyPoint) ([]dto.SiteMatchDay, error) {
+	if sc.DayMode == ports.DaysExcept {
+		var err error
+		if daily, err = s.repo.Daily(ctx, ports.SiteScope{From: sc.From, To: sc.To}); err != nil {
+			return nil, err
+		}
+	}
+	byDate := make(map[string]dto.SiteDailyPoint, len(daily))
+	for _, p := range daily {
+		byDate[p.Date] = p
+	}
+	out := make([]dto.SiteMatchDay, len(matchDays))
+	for i, d := range matchDays {
+		d.PageViews, d.Visitors = byDate[d.Date].PageViews, byDate[d.Date].Visitors
+		out[i] = d
+	}
+	return out, nil
 }
 
 // plainPageTitle names a top-level page from its path ("/" is Home,
@@ -342,7 +412,7 @@ func plainPageTitle(path string) string {
 
 // entityRankings fills the most-viewed news, players and teams, each named
 // from its record (headline, player or team name) with one label lookup.
-func (s *SiteEventsService) entityRankings(ctx context.Context, sum *dto.SiteTrafficSummary, from, to time.Time) error {
+func (s *SiteEventsService) entityRankings(ctx context.Context, sum *dto.SiteTrafficSummary, sc ports.SiteScope) error {
 	lists := []struct {
 		dst  *[]dto.SiteBreakdownRow
 		kind string
@@ -353,7 +423,7 @@ func (s *SiteEventsService) entityRankings(ctx context.Context, sum *dto.SiteTra
 	}
 	var paths []string
 	for _, l := range lists {
-		rows, err := s.repo.EntityRanking(ctx, l.kind, from, to, 10)
+		rows, err := s.repo.EntityRanking(ctx, l.kind, sc, 10)
 		if err != nil {
 			return err
 		}
@@ -376,22 +446,31 @@ func (s *SiteEventsService) entityRankings(ctx context.Context, sum *dto.SiteTra
 
 func siteDay(t time.Time) string { return t.In(siteLocation).Format("2006-01-02") }
 
-func (s *SiteEventsService) Summary(ctx context.Context, from, to time.Time, compare bool) (*dto.SiteTrafficSummary, error) {
-	sum := &dto.SiteTrafficSummary{From: siteDay(from), To: siteDay(to.AddDate(0, 0, -1))}
-
-	var err error
-	if sum.Totals, err = s.repo.Totals(ctx, from, to); err != nil {
+func (s *SiteEventsService) Summary(ctx context.Context, from, to time.Time, days string, compare bool) (*dto.SiteTrafficSummary, error) {
+	if days == "" {
+		days = dto.SiteDaysAll
+	}
+	sc, matchDays, err := s.scope(ctx, from, to, days)
+	if err != nil {
 		return nil, err
 	}
-	if sum.Daily, err = s.dailySeries(ctx, from, to); err != nil {
+	sum := &dto.SiteTrafficSummary{From: siteDay(from), To: siteDay(to.AddDate(0, 0, -1)), Days: days}
+
+	if sum.Totals, err = s.repo.Totals(ctx, sc); err != nil {
+		return nil, err
+	}
+	if sum.Daily, err = s.dailySeries(ctx, sc, matchDays); err != nil {
 		return nil, err
 	}
 	sum.Totals.AvgDailyVisitors, sum.MatchDays = dailyStats(sum.Daily)
-
-	if sum.Monthly, err = s.repo.Monthly(ctx, from, to); err != nil {
+	if sum.MatchDayList, err = s.matchDayList(ctx, sc, matchDays, sum.Daily); err != nil {
 		return nil, err
 	}
-	if sum.Heatmap, err = s.repo.Heatmap(ctx, from, to); err != nil {
+
+	if sum.Monthly, err = s.repo.Monthly(ctx, sc); err != nil {
+		return nil, err
+	}
+	if sum.Heatmap, err = s.repo.Heatmap(ctx, sc); err != nil {
 		return nil, err
 	}
 
@@ -411,7 +490,7 @@ func (s *SiteEventsService) Summary(ctx context.Context, from, to time.Time, com
 		{&sum.Actions, "action", 20},
 	}
 	for _, b := range breakdowns {
-		if *b.dst, err = s.repo.Breakdown(ctx, b.dim, from, to, b.limit); err != nil {
+		if *b.dst, err = s.repo.Breakdown(ctx, b.dim, sc, b.limit); err != nil {
 			return nil, err
 		}
 	}
@@ -432,32 +511,37 @@ func (s *SiteEventsService) Summary(ctx context.Context, from, to time.Time, com
 		}
 	}
 
-	if sum.TopMatches, err = s.repo.TopMatches(ctx, from, to, 10); err != nil {
+	if sum.TopMatches, err = s.repo.TopMatches(ctx, sc, 10); err != nil {
 		return nil, err
 	}
-	if err := s.entityRankings(ctx, sum, from, to); err != nil {
+	if err := s.entityRankings(ctx, sum, sc); err != nil {
 		return nil, err
 	}
-	if sum.TicketFunnel, err = s.repo.TicketFunnel(ctx, from, to); err != nil {
+	if sum.TicketFunnel, err = s.repo.TicketFunnel(ctx, sc); err != nil {
+		return nil, err
+	}
+	if sum.Conversions, err = s.repo.Conversions(ctx, sc); err != nil {
 		return nil, err
 	}
 
-	if sum.Conversions, err = s.repo.Conversions(ctx, from, to); err != nil {
-		return nil, err
-	}
-
+	// The comparison period uses the same day filter, so "match days only"
+	// compares this period's match days with the previous period's.
 	if compare {
 		prevFrom, prevTo := from.AddDate(0, 0, -spanDays(from, to)), from
-		prev := &dto.SitePeriod{From: siteDay(prevFrom), To: siteDay(prevTo.AddDate(0, 0, -1))}
-		if prev.Totals, err = s.repo.Totals(ctx, prevFrom, prevTo); err != nil {
+		prevScope, prevMatchDays, err := s.scope(ctx, prevFrom, prevTo, days)
+		if err != nil {
 			return nil, err
 		}
-		prevDaily, err := s.dailySeries(ctx, prevFrom, prevTo)
+		prev := &dto.SitePeriod{From: siteDay(prevFrom), To: siteDay(prevTo.AddDate(0, 0, -1))}
+		if prev.Totals, err = s.repo.Totals(ctx, prevScope); err != nil {
+			return nil, err
+		}
+		prevDaily, err := s.dailySeries(ctx, prevScope, prevMatchDays)
 		if err != nil {
 			return nil, err
 		}
 		prev.Totals.AvgDailyVisitors, _ = dailyStats(prevDaily)
-		if prev.Conversions, err = s.repo.Conversions(ctx, prevFrom, prevTo); err != nil {
+		if prev.Conversions, err = s.repo.Conversions(ctx, prevScope); err != nil {
 			return nil, err
 		}
 		sum.Previous = prev
@@ -558,8 +642,8 @@ func pctChange(cur, prev float64) string {
 // previous period when compare is set), match-day uplift, monthly and daily
 // series, busiest times and every ranked list. It is laid out to be pasted
 // into a sponsorship deck or opened by an analyst in a spreadsheet.
-func (s *SiteEventsService) ExportSummaryCSV(ctx context.Context, from, to time.Time, compare bool, w io.Writer) error {
-	sum, err := s.Summary(ctx, from, to, compare)
+func (s *SiteEventsService) ExportSummaryCSV(ctx context.Context, from, to time.Time, days string, compare bool, w io.Writer) error {
+	sum, err := s.Summary(ctx, from, to, days, compare)
 	if err != nil {
 		return err
 	}
@@ -576,6 +660,11 @@ func (s *SiteEventsService) ExportSummaryCSV(ctx context.Context, from, to time.
 
 	row("Showtime Flag Football League - website audience report")
 	row("Period", sum.From+" to "+sum.To)
+	row("Days included", map[string]string{
+		dto.SiteDaysAll:   "Every day",
+		dto.SiteDaysMatch: "Match days only",
+		dto.SiteDaysOther: "Every day except match days",
+	}[sum.Days])
 	row("Notes", "Times are Africa/Lagos. Automated traffic (bots) excluded. Unique visitors are distinct IP addresses.")
 	row()
 
@@ -617,11 +706,19 @@ func (s *SiteEventsService) ExportSummaryCSV(ctx context.Context, from, to time.
 	row()
 
 	md := sum.MatchDays
-	row("Match days", "Days", "Average daily visitors")
-	row("Days with a fixture", itoa(md.MatchDays), f1(md.AvgVisitorsMatchDay))
-	row("Days without a fixture", itoa(md.OtherDays), f1(md.AvgVisitorsOtherDay))
-	if md.MatchDays > 0 && md.AvgVisitorsOtherDay > 0 {
-		row("Match-day uplift", "", pctChange(md.AvgVisitorsMatchDay, md.AvgVisitorsOtherDay))
+	if sum.Days == dto.SiteDaysAll {
+		row("Match days", "Days", "Average daily visitors")
+		row("Match days (event day or fixture)", itoa(md.MatchDays), f1(md.AvgVisitorsMatchDay))
+		row("Other days", itoa(md.OtherDays), f1(md.AvgVisitorsOtherDay))
+		if md.MatchDays > 0 && md.AvgVisitorsOtherDay > 0 {
+			row("Match-day uplift", "", pctChange(md.AvgVisitorsMatchDay, md.AvgVisitorsOtherDay))
+		}
+		row()
+	}
+
+	row("Match day", "Date", "Fixtures", "Page views", "Unique visitors")
+	for _, d := range sum.MatchDayList {
+		row(csvCell(d.Name()), d.Date, csvCell(d.Games), itoa(d.PageViews), itoa(d.Visitors))
 	}
 	row()
 

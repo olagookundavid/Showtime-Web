@@ -90,13 +90,20 @@ func (h *SiteEventsHandler) TrackOnSuccess(eventType string) gin.HandlerFunc {
 // wantsComparison: "All time" (no start date) has no earlier period to compare with.
 func wantsComparison(c *gin.Context) bool { return c.Query("from") != "" }
 
-func parseRange(c *gin.Context) (time.Time, time.Time, bool) {
+// parseReport reads the inclusive from/to dates and the day filter
+// (days=all|match|other, default all) shared by every admin analytics route.
+func parseReport(c *gin.Context) (time.Time, time.Time, string, bool) {
 	from, to, err := services.ResolveRange(c.Query("from"), c.Query("to"), time.Now())
 	if err != nil {
 		helpers.BadResponse(c, err.Error())
-		return from, to, false
+		return from, to, "", false
 	}
-	return from, to, true
+	days := c.DefaultQuery("days", dto.SiteDaysAll)
+	if !services.ValidDayFilter(days) {
+		helpers.BadResponse(c, "days must be all, match or other")
+		return from, to, "", false
+	}
+	return from, to, days, true
 }
 
 // GetSummary godoc
@@ -105,14 +112,15 @@ func parseRange(c *gin.Context) (time.Time, time.Time, bool) {
 // @Produce      json
 // @Param        from query string false "YYYY-MM-DD (inclusive)"
 // @Param        to   query string false "YYYY-MM-DD (inclusive)"
+// @Param        days query string false "all (default), match (match days only) or other (every day except match days)"
 // @Success      200  {object}  dto.SiteTrafficSummary
 // @Router       /admin/site-analytics/summary [get]
 func (h *SiteEventsHandler) GetSummary(c *gin.Context) {
-	from, to, ok := parseRange(c)
+	from, to, days, ok := parseReport(c)
 	if !ok {
 		return
 	}
-	sum, err := h.service.Summary(c.Request.Context(), from, to, wantsComparison(c))
+	sum, err := h.service.Summary(c.Request.Context(), from, to, days, wantsComparison(c))
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
@@ -120,13 +128,13 @@ func (h *SiteEventsHandler) GetSummary(c *gin.Context) {
 	helpers.SuccessOK(c, "Site traffic retrieved successfully", sum)
 }
 
-func eventFilter(c *gin.Context, from, to time.Time) ports.SiteEventFilter {
+func (h *SiteEventsHandler) eventFilter(c *gin.Context, from, to time.Time, days string) (ports.SiteEventFilter, error) {
+	scope, err := h.service.Scope(c.Request.Context(), from, to, days)
 	return ports.SiteEventFilter{
-		From:        from,
-		To:          to,
+		SiteScope:   scope,
 		EventType:   c.Query("type"),
 		IncludeBots: c.Query("include_bots") == "true",
-	}
+	}, err
 }
 
 // ListEvents godoc
@@ -136,14 +144,19 @@ func eventFilter(c *gin.Context, from, to time.Time) ports.SiteEventFilter {
 // @Success      200  {object}  dto.SiteEventsPage
 // @Router       /admin/site-analytics/events [get]
 func (h *SiteEventsHandler) ListEvents(c *gin.Context) {
-	from, to, ok := parseRange(c)
+	from, to, days, ok := parseReport(c)
 	if !ok {
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	res, err := h.service.ListEvents(c.Request.Context(), eventFilter(c, from, to), page, limit)
+	filter, err := h.eventFilter(c, from, to, days)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	res, err := h.service.ListEvents(c.Request.Context(), filter, page, limit)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
@@ -158,30 +171,39 @@ func (h *SiteEventsHandler) ListEvents(c *gin.Context) {
 // @Produce      text/csv
 // @Router       /admin/site-analytics/export [get]
 func (h *SiteEventsHandler) Export(c *gin.Context) {
-	from, to, ok := parseRange(c)
+	from, to, days, ok := parseReport(c)
 	if !ok {
 		return
 	}
 	kind := c.DefaultQuery("kind", "summary")
 	last := to.AddDate(0, 0, -1).Format("2006-01-02")
-	filename := fmt.Sprintf("showtime-traffic-%s_%s_to_%s.csv", kind, from.Format("2006-01-02"), last)
+	label := kind
+	if days != dto.SiteDaysAll {
+		label += "-" + days + "-days"
+	}
+	filename := fmt.Sprintf("showtime-traffic-%s_%s_to_%s.csv", label, from.Format("2006-01-02"), last)
 
 	switch kind {
 	case "summary":
 		// Small and computed up front, so a failure can still return a proper
 		// error instead of a half-written download.
 		var buf bytes.Buffer
-		if err := h.service.ExportSummaryCSV(c.Request.Context(), from, to, wantsComparison(c), &buf); err != nil {
+		if err := h.service.ExportSummaryCSV(c.Request.Context(), from, to, days, wantsComparison(c), &buf); err != nil {
 			helpers.ServerErrorResponse(c, err)
 			return
 		}
 		c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
 		c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
 	case "events":
+		filter, err := h.eventFilter(c, from, to, days)
+		if err != nil {
+			helpers.ServerErrorResponse(c, err)
+			return
+		}
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
 		c.Status(http.StatusOK)
-		if err := h.service.ExportEventsCSV(c.Request.Context(), eventFilter(c, from, to), c.Writer); err != nil {
+		if err := h.service.ExportEventsCSV(c.Request.Context(), filter, c.Writer); err != nil {
 			// Headers are already out; the best we can do is log and cut the stream.
 			_ = c.Error(err)
 		}

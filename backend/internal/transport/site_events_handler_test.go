@@ -34,7 +34,10 @@ func (f *fakeSiteEventsService) RecordServerEvent(eventType, _ string, _ service
 	f.serverSeen = append(f.serverSeen, eventType)
 }
 func (f *fakeSiteEventsService) Close() {}
-func (f *fakeSiteEventsService) Summary(context.Context, time.Time, time.Time, bool) (*dto.SiteTrafficSummary, error) {
+func (f *fakeSiteEventsService) Scope(_ context.Context, from, to time.Time, _ string) (ports.SiteScope, error) {
+	return ports.SiteScope{From: from, To: to}, nil
+}
+func (f *fakeSiteEventsService) Summary(context.Context, time.Time, time.Time, string, bool) (*dto.SiteTrafficSummary, error) {
 	return &dto.SiteTrafficSummary{}, nil
 }
 func (f *fakeSiteEventsService) ListEvents(context.Context, ports.SiteEventFilter, int, int) (*dto.SiteEventsPage, error) {
@@ -43,7 +46,7 @@ func (f *fakeSiteEventsService) ListEvents(context.Context, ports.SiteEventFilte
 func (f *fakeSiteEventsService) ExportEventsCSV(context.Context, ports.SiteEventFilter, io.Writer) error {
 	return nil
 }
-func (f *fakeSiteEventsService) ExportSummaryCSV(_ context.Context, _, _ time.Time, _ bool, w io.Writer) error {
+func (f *fakeSiteEventsService) ExportSummaryCSV(_ context.Context, _, _ time.Time, _ string, _ bool, w io.Writer) error {
 	_, err := w.Write([]byte("report"))
 	return err
 }
@@ -143,5 +146,17 @@ func TestExport_Headers(t *testing.T) {
 	r.ServeHTTP(bad, httptest.NewRequest(http.MethodGet, "/export?kind=nope", nil))
 	if bad.Code != http.StatusBadRequest {
 		t.Errorf("unknown kind should be 400, got %d", bad.Code)
+	}
+
+	badDays := httptest.NewRecorder()
+	r.ServeHTTP(badDays, httptest.NewRequest(http.MethodGet, "/export?days=weekends", nil))
+	if badDays.Code != http.StatusBadRequest {
+		t.Errorf("unknown day filter should be 400, got %d", badDays.Code)
+	}
+
+	match := httptest.NewRecorder()
+	r.ServeHTTP(match, httptest.NewRequest(http.MethodGet, "/export?from=2026-03-01&to=2026-03-10&kind=summary&days=match", nil))
+	if got := match.Header().Get("Content-Disposition"); got != `attachment; filename="showtime-traffic-summary-match-days_2026-03-01_to_2026-03-10.csv"` {
+		t.Errorf("match-day export should say so in its filename, got %q", got)
 	}
 }

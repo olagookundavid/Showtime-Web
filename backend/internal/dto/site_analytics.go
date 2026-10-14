@@ -34,7 +34,40 @@ type SiteDailyPoint struct {
 	PageViews int    `json:"page_views"`
 	Visitors  int    `json:"visitors"`
 	MatchDay  bool   `json:"match_day"`
+	// MatchDayName is the event day's title, or the fixtures when the day has
+	// no event day. Empty on other days.
+	MatchDayName string `json:"match_day_name,omitempty"`
 }
+
+// SiteMatchDay is one match day in the period: its event-day title (when there
+// is an event day), its fixtures, and the traffic it drew.
+type SiteMatchDay struct {
+	Date      string `json:"date"`
+	Title     string `json:"title"`
+	Fixtures  int    `json:"fixtures"`
+	Games     string `json:"games"`
+	PageViews int    `json:"page_views"`
+	Visitors  int    `json:"visitors"`
+}
+
+// Name is what the dashboard calls the day: the event-day title, else the
+// fixtures, else just "Match day".
+func (d SiteMatchDay) Name() string {
+	switch {
+	case d.Title != "":
+		return d.Title
+	case d.Games != "":
+		return d.Games
+	}
+	return "Match day"
+}
+
+// Day filters for a report: every day, match days only, or the other days.
+const (
+	SiteDaysAll   = "all"
+	SiteDaysMatch = "match"
+	SiteDaysOther = "other"
+)
 
 type SiteMonthlyPoint struct {
 	Month     string `json:"month"`
@@ -115,8 +148,13 @@ type SitePeriod struct {
 }
 
 type SiteTrafficSummary struct {
-	From         string             `json:"from"`
-	To           string             `json:"to"`
+	From string `json:"from"`
+	To   string `json:"to"`
+	// Days is the day filter the report was run with (all, match or other).
+	Days string `json:"days"`
+	// MatchDayList is every match day in the range with its traffic, whatever
+	// the day filter, so the dashboard can always point to them.
+	MatchDayList []SiteMatchDay     `json:"match_day_list"`
 	Totals       SiteTotals         `json:"totals"`
 	Previous     *SitePeriod        `json:"previous"`
 	Daily        []SiteDailyPoint   `json:"daily"`

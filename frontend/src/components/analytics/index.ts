@@ -6,3 +6,4 @@ export { MetricCard } from './MetricCard';
 export { TrafficHeatmap } from './TrafficHeatmap';
 export { TicketFunnel } from './TicketFunnel';
 export { MatchReachTable } from './MatchReachTable';
+export { MatchDayTable } from './MatchDayTable';
