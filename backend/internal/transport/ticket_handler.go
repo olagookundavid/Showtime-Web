@@ -28,8 +28,6 @@ type ITicketHandler interface {
 	CreateProduct(c *gin.Context)
 	UpdateProduct(c *gin.Context)
 	DeleteProduct(c *gin.Context)
-	SaveProductDay(c *gin.Context)
-	DeleteProductDay(c *gin.Context)
 	ListPublicProducts(c *gin.Context)
 	GetGamePassRules(c *gin.Context)
 	SaveGamePassRules(c *gin.Context)
@@ -286,29 +284,6 @@ func (h *TicketHandler) DeleteProduct(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ticket deleted"})
-}
-
-// SaveProductDay sets a ticket's price and capacity on one match day.
-func (h *TicketHandler) SaveProductDay(c *gin.Context) {
-	var req dto.SaveProductDayRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	result, err := h.service.SaveProductDay(c.Request.Context(), c.Param("id"), req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, result)
-}
-
-func (h *TicketHandler) DeleteProductDay(c *gin.Context) {
-	if err := h.service.DeleteProductDay(c.Request.Context(), c.Param("id"), c.Param("eventDayId")); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "match day removed from ticket"})
 }
 
 // SaveGamePassRules replaces the Game Pass discount ladder.

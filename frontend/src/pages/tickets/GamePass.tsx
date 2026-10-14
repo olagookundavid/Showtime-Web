@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { getGamePassRules, getTicketProducts } from "../../services/api";
 import type {
+  GamePassRule,
   TicketProductDayResponse,
   TicketProductResponse,
 } from "../../types";
 import {
   Button,
   ButtonLink,
+  Field,
+  Select,
   Spinner,
   TicketAccessCodeBox,
   TicketCheckout,
@@ -17,6 +21,7 @@ import {
   gamePassPercentFor,
   isSoldOut,
   naira,
+  sortDaysByDate,
 } from "../../components";
 import {
   CalendarDaysIcon,
@@ -28,11 +33,19 @@ import {
 const FAQS = [
   {
     q: "What is a Game Pass?",
-    a: "One ticket that covers several match days. You choose the days, pay once and get one code that works on each of them.",
+    a: "One pass that covers the match days you choose, from one to as many as you like. You pay once and get one code that works on each of them.",
+  },
+  {
+    q: "Why buy more than one match day?",
+    a: "The more match days on your pass, the bigger the discount. The savings are shown above the tickets and on your total.",
   },
   {
     q: "Can I pick any days?",
-    a: "Yes. Any combination of match days that are on sale. They don't need to be back to back.",
+    a: "Yes. Any combination of match days that are on sale, from today onwards. They don't need to be back to back.",
+  },
+  {
+    q: "What are the names in brackets?",
+    a: "The tournament each match day belongs to, for example (Regular Season) before the game day. Filter by tournament to see only its match days.",
   },
   {
     q: "How do I get in?",
@@ -40,7 +53,7 @@ const FAQS = [
   },
   {
     q: "What if one of the days sells out?",
-    a: "A sold-out day can't be added. Pick the days that are still open, or buy single tickets instead.",
+    a: "A sold-out day can't be added. Pick the days that are still open.",
   },
 ];
 
@@ -49,8 +62,31 @@ interface Checkout {
   days: TicketProductDayResponse[];
 }
 
+/**
+ * The next discount a buyer would reach by adding match days, so one day in the
+ * basket becomes a nudge to add more. Null when there is nothing better ahead.
+ */
+const nextSaving = (
+  count: number,
+  rules: GamePassRule[],
+): { moreDays: number; percent: number } | null => {
+  const current = gamePassPercentFor(count, rules);
+  const ahead = rules
+    .filter((r) => r.is_active && r.min_days > count && r.percent_off > current)
+    .sort((a, b) => a.min_days - b.min_days)[0];
+  return ahead
+    ? { moreDays: ahead.min_days - count, percent: ahead.percent_off }
+    : null;
+};
+
 export const GamePass = () => {
+  const [searchParams] = useSearchParams();
+  // A match card links here with ?date=, so that day starts picked.
+  const dateParam = searchParams.get("date");
+
   const [appliedCode, setAppliedCode] = useState<string | undefined>(undefined);
+  // The tournament the buyer narrowed the list to; "" is every tournament.
+  const [tournament, setTournament] = useState("");
   // The days picked on each ticket, by product id.
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [checkout, setCheckout] = useState<Checkout | null>(null);
@@ -67,14 +103,28 @@ export const GamePass = () => {
     staleTime: 60_000,
   });
 
-  // A pass needs at least two days to choose between.
+  // Every tournament that has a match day on sale, for the filter.
+  const tournaments = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const p of products ?? []) {
+      for (const d of p.days) byId.set(d.competition_id, d.competition_name);
+    }
+    return [...byId].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  // Each ticket with the match days still open for the chosen tournament,
+  // earliest first. A ticket with nothing left to pick is not shown.
   const list = useMemo(
     () =>
-      (products ?? []).filter(
-        (p) =>
-          p.allow_game_pass && p.days.filter((d) => !isSoldOut(d)).length >= 2,
-      ),
-    [products],
+      (products ?? [])
+        .map((p) => ({
+          ...p,
+          days: sortDaysByDate(
+            p.days.filter((d) => !tournament || d.competition_id === tournament),
+          ),
+        }))
+        .filter((p) => p.days.some((d) => !isSoldOut(d))),
+    [products, tournament],
   );
 
   const ladder = useMemo(
@@ -97,9 +147,20 @@ export const GamePass = () => {
     return Math.min(...list.map((p) => Math.min(...p.days.map((d) => d.price))));
   }, [list]);
 
+  // What is picked for a ticket: the buyer's own choice, else the day from the
+  // link, else nothing.
+  const selectionFor = (product: TicketProductResponse): string[] => {
+    const chosen = picked[product.id];
+    if (chosen) return chosen;
+    const fromLink = product.days.find(
+      (d) => d.event_date === dateParam && !isSoldOut(d),
+    );
+    return fromLink ? [fromLink.event_day_id] : [];
+  };
+
   const toggleAll = (product: TicketProductResponse) => {
     const open = product.days.filter((d) => !isSoldOut(d)).map((d) => d.event_day_id);
-    const current = picked[product.id] ?? [];
+    const current = selectionFor(product);
     setPicked((prev) => ({
       ...prev,
       [product.id]: current.length === open.length ? [] : open,
@@ -121,8 +182,8 @@ export const GamePass = () => {
                 <span className="block text-sffl-red">One pass.</span>
               </h1>
               <p className="max-w-md text-sm text-white/85 sm:text-base">
-                Choose your ticket, pick the match days you want and get one code
-                that works on all of them.
+                Choose your ticket, pick one match day or as many as you like,
+                and get one code that works on all of them.
               </p>
             </div>
 
@@ -133,8 +194,8 @@ export const GamePass = () => {
         <TicketFeatureStrip
           items={[
             { icon: TicketIcon, label: "Regular, VIP & VIP Plus" },
-            { icon: CalendarDaysIcon, label: "Several match days. One pass." },
-            { icon: TagIcon, label: "The more days, the more you save." },
+            { icon: CalendarDaysIcon, label: "One match day or many. One pass." },
+            { icon: TagIcon, label: "Add more days, save more." },
           ]}
           className="mt-3"
         />
@@ -149,7 +210,7 @@ export const GamePass = () => {
             id="pass-savings"
             className="text-sm font-bold text-emerald-800 dark:text-emerald-200"
           >
-            The more match days, the more you save
+            The more match days you add, the more you save
           </h2>
           <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-emerald-800 dark:text-emerald-200">
             {ladder.map((r) => (
@@ -160,6 +221,26 @@ export const GamePass = () => {
             ))}
           </ul>
         </section>
+      )}
+
+      {tournaments.length > 1 && (
+        <div className="max-w-sm">
+          <Field label="Tournament" htmlFor="tournament-filter">
+            <Select
+              id="tournament-filter"
+              shape="square"
+              value={tournament}
+              onChange={(e) => setTournament(e.target.value)}
+            >
+              <option value="">All tournaments</option>
+              {tournaments.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
       )}
 
       {isLoading ? (
@@ -174,16 +255,17 @@ export const GamePass = () => {
             No Game Passes available yet
           </h2>
           <p className="text-gray-500 dark:text-gray-400">
-            A Game Pass needs at least two match days on sale. You can still
-            buy a ticket for a single day.
+            {tournament
+              ? "There are no match days on sale for this tournament. Try another one."
+              : "Check back soon: tickets go on sale as match days are scheduled."}
           </p>
           <ButtonLink
-            to="/tickets"
+            to="/matches"
             variant="navy"
             shape="square"
             className="mt-6"
           >
-            Buy a single ticket
+            View matches
           </ButtonLink>
         </div>
       ) : (
@@ -200,7 +282,7 @@ export const GamePass = () => {
               const isHighlight = topPrice !== null && cheapest === topPrice;
               const isLowest = cheapestPrice !== null && cheapest === cheapestPrice;
               const variant = isHighlight ? "gold" : isLowest ? "outline" : "navy";
-              const selectedIds = picked[product.id] ?? [];
+              const selectedIds = selectionFor(product);
               const selected = product.days.filter((d) =>
                 selectedIds.includes(d.event_day_id),
               );
@@ -211,6 +293,7 @@ export const GamePass = () => {
               const perPerson = selected.reduce((sum, d) => sum + d.price, 0);
               const percent = gamePassPercentFor(selected.length, rules ?? []);
               const estimate = Math.round(perPerson * (1 - percent / 100));
+              const more = nextSaving(selected.length, rules ?? []);
 
               return (
                 <TicketProductCard
@@ -227,16 +310,18 @@ export const GamePass = () => {
                     >
                       Pick your match days
                     </h3>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      tone={isHighlight ? "dark" : "light"}
-                      onClick={() => toggleAll(product)}
-                    >
-                      {selectedIds.length === openCount
-                        ? "Clear all"
-                        : "Select all"}
-                    </Button>
+                    {openCount > 1 && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        tone={isHighlight ? "dark" : "light"}
+                        onClick={() => toggleAll(product)}
+                      >
+                        {selectedIds.length === openCount
+                          ? "Clear all"
+                          : "Select all"}
+                      </Button>
+                    )}
                   </div>
                   <TicketDayPicker
                     mode="multi"
@@ -249,14 +334,14 @@ export const GamePass = () => {
                     }
                   />
 
-                  {selected.length >= 2 && (
+                  {selected.length >= 1 && (
                     <div
                       className={`flex items-baseline justify-between gap-3 border-t pt-3 ${
                         isHighlight ? "border-white/10" : "dark:border-gray-700"
                       }`}
                     >
                       <span className={`text-sm ${isHighlight ? "text-white/80" : "text-gray-600 dark:text-gray-300"}`}>
-                        {selected.length} match days
+                        {selected.length} match day{selected.length === 1 ? "" : "s"}
                         {percent > 0 && (
                           <span
                             className={`ml-1 font-bold ${
@@ -273,15 +358,29 @@ export const GamePass = () => {
                     </div>
                   )}
 
+                  {more && openCount > selected.length && (
+                    <p
+                      className={`flex items-start gap-1.5 text-xs font-bold ${
+                        isHighlight ? "text-emerald-300" : "text-emerald-700 dark:text-emerald-400"
+                      }`}
+                    >
+                      <TagIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>
+                        Add {more.moreDays} more match day
+                        {more.moreDays === 1 ? "" : "s"} and save {more.percent}%.
+                      </span>
+                    </p>
+                  )}
+
                   <Button
                     fullWidth
                     shape="square"
                     variant={variant}
-                    disabled={selected.length < 2}
+                    disabled={selected.length < 1}
                     onClick={() => setCheckout({ product, days: selected })}
                   >
-                    {selected.length < 2
-                      ? "Pick at least 2 match days"
+                    {selected.length < 1
+                      ? "Pick a match day"
                       : "Get Game Pass"}
                   </Button>
                 </TicketProductCard>
@@ -322,7 +421,6 @@ export const GamePass = () => {
         <TicketCheckout
           product={checkout.product}
           days={checkout.days}
-          purchaseType="GAME_PASS"
           accessCode={appliedCode}
           onClose={() => setCheckout(null)}
         />

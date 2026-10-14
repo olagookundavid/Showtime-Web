@@ -126,10 +126,7 @@ func (s *TicketService) sendReminder(ctx context.Context, e domain.ScheduledEmai
 		return
 	}
 
-	total := 0
-	if ticket.PurchaseType == domain.PurchaseTypeGamePass {
-		total = len(ticket.Days)
-	}
+	total := len(ticket.Days)
 	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Reminder: %s on %s", day.Title, day.Date.Format("Mon 2 Jan"))
 	body := email.DayReminderEmailHTML(email.ReminderEmailData{
 		BuyerName:   ticket.Name,

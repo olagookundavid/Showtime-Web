@@ -22,7 +22,6 @@ type PurchaseEmailData struct {
 	TicketCode  string
 	Quantity    int
 	TotalAmount int
-	IsGamePass  bool
 	Days        []TicketEmailDay
 }
 
@@ -117,19 +116,19 @@ func detailRow(label, value string) string {
 </td>`, label, esc(value))
 }
 
-// PurchaseEmailHTML generates the ticket confirmation email, covering every match
-// day on the ticket in one message.
+// PurchaseEmailHTML generates the confirmation email. Every purchase is a Game
+// Pass, so it lists every match day on it in one message, however many there are.
 func PurchaseEmailHTML(d PurchaseEmailData) string {
-	noun := "ticket"
-	verb := "is"
+	noun := "Game Pass"
 	if d.Quantity > 1 {
-		noun = "tickets"
-		verb = "are"
+		noun = "Game Passes"
 	}
-	heading := "Ticket Confirmed!"
-	intro := fmt.Sprintf("Thank you for your purchase! Your %s %s confirmed. Here are your details:", noun, verb)
-	if d.IsGamePass {
-		heading = "Game Pass Confirmed!"
+	heading := "Game Pass Confirmed!"
+	intro := "Thank you for your purchase! Here are your details:"
+	switch {
+	case len(d.Days) == 1:
+		intro = fmt.Sprintf("Thank you for your purchase! Your %s for %s is confirmed. Here are your details:", strings.ToLower(noun), d.Days[0].Title)
+	case len(d.Days) > 1:
 		intro = fmt.Sprintf("Thank you for your purchase! Your Game Pass covers %d match days. One code gets you in on every one of them:", len(d.Days))
 	}
 
@@ -156,7 +155,7 @@ func PurchaseEmailHTML(d PurchaseEmailData) string {
 ` + daysBlock(d.Days) + `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 14px;">
 <tr>
-` + detailRow("🎫 Ticket", d.ProductName) + detailRow("👥 Quantity", fmt.Sprintf("%d %s", d.Quantity, noun)) + `
+` + detailRow("🎫 Ticket", d.ProductName) + detailRow("👥 Quantity", fmt.Sprintf("%d %s", d.Quantity, strings.ToLower(noun))) + `
 </tr>
 ` + phoneRow + `
 </table>
@@ -199,7 +198,7 @@ func PurchaseEmailHTML(d PurchaseEmailData) string {
 </td>
 </tr>`
 
-	return emailShell("IT'S SHOWTIME — Your Ticket Confirmed", ticketBadge(), heading, body)
+	return emailShell("IT'S SHOWTIME — Your Game Pass Confirmed", ticketBadge(), heading, body)
 }
 
 // DayReminderEmailHTML is the reminder sent ahead of one match day.

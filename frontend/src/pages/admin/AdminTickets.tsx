@@ -179,7 +179,6 @@ const TicketSummary = ({
     <dt className="text-gray-500 dark:text-gray-400">Ticket</dt>
     <dd className="dark:text-white">
       {t.product_name || "—"}
-      {t.purchase_type === "GAME_PASS" && " (Game Pass)"}
     </dd>
     <dt className="text-gray-500 dark:text-gray-400">Admits</dt>
     <dd className="font-bold dark:text-white">{t.quantity}</dd>
@@ -464,11 +463,6 @@ export const AdminTickets = () => {
         cell: (t) => (
           <span>
             {t.product_name || "—"}
-            {t.purchase_type === "GAME_PASS" && (
-              <span className="ml-1.5 rounded bg-sffl-navy px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
-                Game Pass
-              </span>
-            )}
           </span>
         ),
       },

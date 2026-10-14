@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  CalendarDaysIcon,
   CheckIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -15,16 +14,14 @@ import {
   adminDeleteTicketProduct,
   adminListTicketProducts,
   adminSaveGamePassRules,
-  adminSaveTicketProductDay,
   adminUpdateTicketProduct,
-  getEventDays,
+  getCompetitions,
   getGamePassRules,
 } from "../../services/api";
 import type {
+  Competition,
   CreateTicketProductPayload,
-  EventDayResponse,
   GamePassRule,
-  TicketProductDayResponse,
   TicketProductResponse,
 } from "../../types";
 import {
@@ -41,7 +38,6 @@ import {
   RowActions,
   Tabs,
   Textarea,
-  formatDayShort,
   naira,
   type Column,
 } from "../../components";
@@ -52,27 +48,33 @@ type Tab = "tickets" | "game-pass";
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_PRODUCTS: TicketProductResponse[] = [];
+const NO_COMPETITIONS: Competition[] = [];
 
 // ─── Ticket form ──────────────────────────────────────────────────────────────
 
 interface ProductFormModalProps {
   /** The ticket being edited, or null to create one. */
   product: TicketProductResponse | null;
+  competitions: Competition[];
   pending: boolean;
   onClose: () => void;
   onSubmit: (payload: CreateTicketProductPayload) => void;
 }
 
 // Mounted per ticket (keyed by id), so the form starts from that record.
-const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormModalProps) => {
+const ProductFormModal = ({ product, competitions, pending, onClose, onSubmit }: ProductFormModalProps) => {
   const [name, setName] = useState(product?.name ?? "");
   const [basePrice, setBasePrice] = useState(String(product?.base_price ?? ""));
+  const [capacity, setCapacity] = useState(product && product.capacity > 0 ? String(product.capacity) : "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [isHidden, setIsHidden] = useState(Boolean(product?.is_hidden));
   const [accessCode, setAccessCode] = useState(product?.access_code ?? "");
-  const [allowGamePass, setAllowGamePass] = useState(product?.allow_game_pass ?? true);
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [sortOrder, setSortOrder] = useState(String(product?.sort_order ?? 0));
+  const [linked, setLinked] = useState<string[]>(() => product?.competitions.map((c) => c.id) ?? []);
+
+  const toggle = (id: string) =>
+    setLinked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +88,15 @@ const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormMo
       toast.error("A price of 0 (free) or more is required");
       return;
     }
+    const seats = capacity.trim() === "" ? 0 : parseInt(capacity, 10);
+    if (isNaN(seats) || seats < 0) {
+      toast.error("Seats must be 0 (unlimited) or more");
+      return;
+    }
+    if (linked.length === 0) {
+      toast.error("Choose at least one tournament this ticket is sold for");
+      return;
+    }
     if (isHidden && !accessCode.trim()) {
       toast.error("A hidden ticket needs an access code");
       return;
@@ -93,12 +104,13 @@ const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormMo
     onSubmit({
       name: trimmed,
       base_price: price,
+      capacity: seats,
       description: description.trim(),
       is_hidden: isHidden,
       access_code: isHidden ? accessCode.trim().toUpperCase() : "",
-      allow_game_pass: allowGamePass,
       is_active: isActive,
       sort_order: parseInt(sortOrder, 10) || 0,
+      competition_ids: linked,
     });
   };
 
@@ -110,7 +122,7 @@ const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormMo
       subtitle={
         product
           ? product.name
-          : "Create the ticket first, then choose the match days it is sold on."
+          : "Set it up once. Every match day of the tournaments you choose goes on sale automatically."
       }
       maxWidth="lg"
       footer={
@@ -138,7 +150,7 @@ const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormMo
           <Field
             label={<>Price per match day (₦) <span className="text-sffl-red">*</span></>}
             htmlFor="tp-price"
-            hint="0 makes it free. A match day can override this later."
+            hint="0 makes it free."
           >
             <Input
               id="tp-price"
@@ -146,16 +158,58 @@ const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormMo
               min="0"
               value={basePrice}
               onChange={(e) => setBasePrice(e.target.value)}
-              placeholder="5000"
+              placeholder="3000"
               required
             />
           </Field>
         </div>
 
         <Field
+          label="Seats per match day"
+          htmlFor="tp-capacity"
+          hint={
+            product
+              ? "Leave blank for no limit. The same limit applies to every match day."
+              : "Leave blank for no limit."
+          }
+        >
+          <Input
+            id="tp-capacity"
+            type="number"
+            min="0"
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
+            placeholder="Unlimited"
+            className="sm:w-48"
+          />
+        </Field>
+
+        <Field
+          label={<>Tournaments <span className="text-sffl-red">*</span></>}
+          hint="Tick every tournament this ticket is sold for. A new match day added to one of them goes on sale on its own."
+        >
+          {competitions.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              There are no tournaments yet. Create one on the Competitions page first.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-1 border border-gray-200 p-2 dark:border-gray-700 sm:grid-cols-2">
+              {competitions.map((c) => (
+                <Checkbox
+                  key={c.id}
+                  label={c.name}
+                  checked={linked.includes(c.id)}
+                  onChange={() => toggle(c.id)}
+                />
+              ))}
+            </div>
+          )}
+        </Field>
+
+        <Field
           label="What is included"
           htmlFor="tp-description"
-          hint="One perk per line. Each line is shown with a tick on the ticket card."
+          hint="The first line is the short pitch. Each line after it is shown with a tick."
         >
           <Textarea
             id="tp-description"
@@ -185,12 +239,6 @@ const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormMo
             </Field>
           )}
           <Checkbox
-            label="Can be bought as part of a Game Pass"
-            hint="Turn off for tickets that only make sense for one day."
-            checked={allowGamePass}
-            onChange={(e) => setAllowGamePass(e.target.checked)}
-          />
-          <Checkbox
             label="On sale"
             hint="Untick to stop selling this ticket without deleting it."
             checked={isActive}
@@ -208,222 +256,6 @@ const ProductFormModal = ({ product, pending, onClose, onSubmit }: ProductFormMo
           />
         </Field>
       </form>
-    </Modal>
-  );
-};
-
-// ─── Match days a ticket is sold on ───────────────────────────────────────────
-
-interface DayDraft {
-  onSale: boolean;
-  /** Blank uses the ticket's own price. */
-  price: string;
-  /** Blank or 0 is unlimited. */
-  capacity: string;
-}
-
-interface ProductDaysModalProps {
-  product: TicketProductResponse;
-  eventDays: EventDayResponse[];
-  onClose: () => void;
-  onSaved: () => void;
-}
-
-const draftFor = (day: TicketProductDayResponse | undefined): DayDraft => ({
-  onSale: !!day?.is_active,
-  price: day?.price_override != null ? String(day.price_override) : "",
-  capacity: day && day.capacity > 0 ? String(day.capacity) : "",
-});
-
-const ProductDaysModal = ({ product, eventDays, onClose, onSaved }: ProductDaysModalProps) => {
-  const existing = useMemo(
-    () => new Map(product.days.map((d) => [d.event_day_id, d])),
-    [product.days],
-  );
-  const [drafts, setDrafts] = useState<Record<string, DayDraft>>(() =>
-    Object.fromEntries(eventDays.map((ed) => [ed.id, draftFor(existing.get(ed.id))])),
-  );
-  const [bulkPrice, setBulkPrice] = useState("");
-  const [bulkCapacity, setBulkCapacity] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const update = (id: string, patch: Partial<DayDraft>) =>
-    setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-
-  const allOn = eventDays.length > 0 && eventDays.every((ed) => drafts[ed.id]?.onSale);
-
-  const applyToChecked = () => {
-    setDrafts((prev) => {
-      const next = { ...prev };
-      for (const ed of eventDays) {
-        if (!next[ed.id]?.onSale) continue;
-        next[ed.id] = {
-          ...next[ed.id],
-          price: bulkPrice.trim() !== "" ? bulkPrice.trim() : next[ed.id].price,
-          capacity: bulkCapacity.trim() !== "" ? bulkCapacity.trim() : next[ed.id].capacity,
-        };
-      }
-      return next;
-    });
-  };
-
-  const save = async () => {
-    // Validate every row before sending any, so a typo doesn't half-save.
-    for (const ed of eventDays) {
-      const d = drafts[ed.id];
-      if (!d?.onSale) continue;
-      if (d.price.trim() !== "" && (isNaN(parseInt(d.price, 10)) || parseInt(d.price, 10) < 0)) {
-        toast.error(`${ed.title}: price must be 0 or more`);
-        return;
-      }
-      if (d.capacity.trim() !== "" && (isNaN(parseInt(d.capacity, 10)) || parseInt(d.capacity, 10) < 0)) {
-        toast.error(`${ed.title}: capacity must be 0 (unlimited) or more`);
-        return;
-      }
-    }
-
-    // Only rows that changed are sent.
-    const changed = eventDays.filter((ed) => {
-      const before = draftFor(existing.get(ed.id));
-      const now = drafts[ed.id];
-      return now.onSale !== before.onSale || (now.onSale && (now.price !== before.price || now.capacity !== before.capacity));
-    });
-    if (changed.length === 0) {
-      onClose();
-      return;
-    }
-
-    setSaving(true);
-    try {
-      for (const ed of changed) {
-        const d = drafts[ed.id];
-        await adminSaveTicketProductDay(product.id, {
-          event_day_id: ed.id,
-          price_override: d.price.trim() === "" ? null : parseInt(d.price, 10),
-          capacity: d.capacity.trim() === "" ? 0 : parseInt(d.capacity, 10),
-          // Unticking keeps the row (and its sales) and just stops selling.
-          is_active: d.onSale,
-        });
-      }
-      toast.success("Match days saved");
-      onSaved();
-      onClose();
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, "Failed to save match days"));
-      onSaved();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title={`Match days for ${product.name}`}
-      subtitle="Tick the match days this ticket is sold on, and set a price and number of seats for each."
-      maxWidth="3xl"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button icon={CheckIcon} onClick={save} loading={saving}>
-            Save Match Days
-          </Button>
-        </>
-      }
-    >
-      {eventDays.length === 0 ? (
-        <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          There are no upcoming match days yet. Create one on the Match Days page first.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3 bg-gray-50 p-3 dark:bg-gray-700/50">
-            <Checkbox
-              label="All match days"
-              checked={allOn}
-              onChange={(e) =>
-                setDrafts((prev) =>
-                  Object.fromEntries(
-                    eventDays.map((ed) => [ed.id, { ...prev[ed.id], onSale: e.target.checked }]),
-                  ),
-                )
-              }
-            />
-            <Field label="Price for all ticked (₦)" htmlFor="bulk-price" className="w-40">
-              <Input
-                id="bulk-price"
-                type="number"
-                min="0"
-                value={bulkPrice}
-                onChange={(e) => setBulkPrice(e.target.value)}
-                placeholder={String(product.base_price)}
-              />
-            </Field>
-            <Field label="Seats for all ticked" htmlFor="bulk-cap" className="w-40">
-              <Input
-                id="bulk-cap"
-                type="number"
-                min="0"
-                value={bulkCapacity}
-                onChange={(e) => setBulkCapacity(e.target.value)}
-                placeholder="Unlimited"
-              />
-            </Field>
-            <Button variant="secondary" onClick={applyToChecked}>
-              Apply
-            </Button>
-          </div>
-
-          <ul className="divide-y divide-gray-200 border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
-            {eventDays.map((ed) => {
-              const d = drafts[ed.id] ?? draftFor(undefined);
-              const day = existing.get(ed.id);
-              return (
-                <li key={ed.id} className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] sm:items-center">
-                  <div className="min-w-0">
-                    <Checkbox
-                      label={ed.title}
-                      hint={
-                        <>
-                          {formatDayShort(ed.date)}
-                          {day ? ` · ${day.sold_count} sold` : ""}
-                        </>
-                      }
-                      checked={d.onSale}
-                      onChange={(e) => update(ed.id, { onSale: e.target.checked })}
-                    />
-                  </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={d.price}
-                    onChange={(e) => update(ed.id, { price: e.target.value })}
-                    placeholder={`${naira(product.base_price)}`}
-                    aria-label={`Price for ${ed.title}`}
-                    disabled={!d.onSale}
-                  />
-                  <Input
-                    type="number"
-                    min={day?.sold_count ?? 0}
-                    value={d.capacity}
-                    onChange={(e) => update(ed.id, { capacity: e.target.value })}
-                    placeholder="Unlimited"
-                    aria-label={`Seats for ${ed.title}`}
-                    disabled={!d.onSale}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Leave the price blank to use the ticket&apos;s own price ({naira(product.base_price)}). Leave seats blank
-            for no limit. Unticking a match day stops selling it but keeps the tickets already sold.
-          </p>
-        </div>
-      )}
     </Modal>
   );
 };
@@ -586,7 +418,6 @@ export const AdminTicketProducts = () => {
 
   const [tab, setTab] = useState<Tab>("tickets");
   const [formFor, setFormFor] = useState<TicketProductResponse | "new" | null>(null);
-  const [daysFor, setDaysFor] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -594,16 +425,13 @@ export const AdminTicketProducts = () => {
     queryKey: ["adminTicketProducts"],
     queryFn: adminListTicketProducts,
   });
-  // Upcoming match days only: a ticket can't be put on sale for a day that has gone.
-  const { data: eventDaysData } = useQuery({
-    queryKey: ["ticketProductEventDays"],
-    queryFn: getEventDays,
+  const { data: competitionsData } = useQuery({
+    queryKey: ["ticketProductCompetitions"],
+    queryFn: () => getCompetitions(1, 200),
   });
 
   const products = productsData ?? NO_PRODUCTS;
-  const eventDays = useMemo(() => eventDaysData ?? [], [eventDaysData]);
-  // Kept by id so the days modal always reads the latest saved copy.
-  const daysProduct = daysFor ? products.find((p) => p.id === daysFor) ?? null : null;
+  const competitions = competitionsData?.data ?? NO_COMPETITIONS;
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["adminTicketProducts"] });
 
@@ -618,9 +446,8 @@ export const AdminTicketProducts = () => {
         await adminUpdateTicketProduct(formFor.id, payload);
         toast.success("Ticket updated");
       } else {
-        const created = await adminCreateTicketProduct(payload);
-        toast.success("Ticket created. Now choose the match days it is sold on.");
-        setDaysFor(created.id);
+        await adminCreateTicketProduct(payload);
+        toast.success("Ticket created. Its match days are on sale now.");
       }
       setFormFor(null);
       await refresh();
@@ -646,6 +473,9 @@ export const AdminTicketProducts = () => {
     }
   };
 
+  // Match days from today onwards, which is what buyers can pick.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
+
   const columns = useMemo<Column<TicketProductResponse>[]>(
     () => [
       {
@@ -662,24 +492,28 @@ export const AdminTicketProducts = () => {
         ),
       },
       {
-        header: "Price",
+        header: "Price per day",
         align: "right",
         cell: (p) => (p.base_price === 0 ? "Free" : naira(p.base_price)),
       },
       {
-        header: "Visibility",
+        header: "Seats per day",
+        align: "center",
+        cell: (p) => (p.capacity > 0 ? p.capacity : "Unlimited"),
+      },
+      {
+        header: "Tournaments",
         cell: (p) =>
-          p.is_hidden ? (
-            <span className="font-mono text-xs">Hidden · {p.access_code || "no code"}</span>
+          p.competitions.length > 0 ? (
+            p.competitions.map((c) => c.name).join(", ")
           ) : (
-            "Public"
+            <span className="text-amber-700 dark:text-amber-300">None yet: not on sale</span>
           ),
       },
-      { header: "Game Pass", align: "center", cell: (p) => (p.allow_game_pass ? "Yes" : "No") },
       {
-        header: "Match days on sale",
+        header: "Upcoming match days",
         align: "center",
-        cell: (p) => p.days.filter((d) => d.is_active).length,
+        cell: (p) => p.days.filter((d) => d.event_date >= today).length,
       },
       {
         header: "Sold",
@@ -693,11 +527,6 @@ export const AdminTicketProducts = () => {
           <RowActions
             label={`Actions for ${p.name}`}
             actions={[
-              {
-                label: "Match days & seats",
-                icon: CalendarDaysIcon,
-                onSelect: () => setDaysFor(p.id),
-              },
               {
                 label: "Edit ticket",
                 icon: PencilSquareIcon,
@@ -718,14 +547,14 @@ export const AdminTicketProducts = () => {
         ),
       },
     ],
-    [canManage],
+    [canManage, today],
   );
 
   return (
     <div className="space-y-6">
       <DashboardPageHeader
         title="Ticket Products"
-        subtitle="Set up the tickets you sell (5K, VIP, VVIP), the match days each is sold on, and the Game Pass discount."
+        subtitle="Set up the tickets you sell (5K, VIP, VVIP) once, and choose the tournaments each is sold for. Every match day of those tournaments goes on sale automatically."
         actions={
           <Button
             icon={PlusIcon}
@@ -756,7 +585,7 @@ export const AdminTicketProducts = () => {
           getRowId={(p) => p.id}
           paginated={false}
           searchable={false}
-          emptyMessage="No tickets yet. Create one with New Ticket, then choose the match days it is sold on."
+          emptyMessage="No tickets yet. Create one with New Ticket and choose the tournaments it is sold for."
         />
       ) : (
         <GamePassRulesEditor canManage={canManage} />
@@ -766,26 +595,17 @@ export const AdminTicketProducts = () => {
         <ProductFormModal
           key={formFor === "new" ? "new" : formFor.id}
           product={formFor === "new" ? null : formFor}
+          competitions={competitions}
           pending={busy}
           onClose={() => setFormFor(null)}
           onSubmit={saveProduct}
         />
       )}
 
-      {daysProduct && (
-        <ProductDaysModal
-          key={daysProduct.id}
-          product={daysProduct}
-          eventDays={eventDays}
-          onClose={() => setDaysFor(null)}
-          onSaved={refresh}
-        />
-      )}
-
       <ConfirmDialog
         open={pendingAction !== null}
         title="Delete this ticket?"
-        description="It is removed from sale and from every match day. This only works if no tickets have been paid for. It cannot be undone."
+        description="It is removed from sale for every tournament. This only works if no tickets have been paid for. It cannot be undone."
         confirmLabel="Delete Ticket"
         tone="danger"
         icon={TrashIcon}
@@ -795,7 +615,7 @@ export const AdminTicketProducts = () => {
             <ConfirmSummary
               rows={[
                 ["Ticket", pendingAction.product.name],
-                ["Match days", String(pendingAction.product.days.length)],
+                ["Tournaments", pendingAction.product.competitions.map((c) => c.name).join(", ") || "None"],
               ]}
             />
           )

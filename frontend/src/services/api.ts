@@ -38,7 +38,6 @@ import type {
   TicketProductResponse,
   CreateTicketProductPayload,
   UpdateTicketProductPayload,
-  SaveProductDayPayload,
   GamePassRule,
   PriceQuote,
   PriceQuoteRequest,
@@ -1036,28 +1035,6 @@ export const adminUpdateTicketProduct = async (
 
 export const adminDeleteTicketProduct = async (id: string) => {
   const response = await api.delete(`/admin/ticket-products/${id}`);
-  return response.data;
-};
-
-/** Sets a ticket's price and capacity on one match day, adding the day if new. */
-export const adminSaveTicketProductDay = async (
-  productId: string,
-  payload: SaveProductDayPayload,
-): Promise<TicketProductResponse> => {
-  const response = await api.put<TicketProductResponse>(
-    `/admin/ticket-products/${productId}/days`,
-    payload,
-  );
-  return response.data;
-};
-
-export const adminRemoveTicketProductDay = async (
-  productId: string,
-  eventDayId: string,
-) => {
-  const response = await api.delete(
-    `/admin/ticket-products/${productId}/days/${eventDayId}`,
-  );
   return response.data;
 };
 

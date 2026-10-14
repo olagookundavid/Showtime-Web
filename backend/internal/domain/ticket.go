@@ -23,45 +23,54 @@ type EventDay struct {
 
 // ─── Ticket Product ───────────────────────────────────────────────────────────
 
-// TicketProduct is something that can be bought a ticket for: 5K, VIP, VVIP.
-// Its price and capacity are set per match day through TicketProductDay.
-type TicketProduct struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Slug          string    `json:"slug"`
-	Description   string    `json:"description"`
-	BasePrice     int       `json:"base_price"`
-	IsHidden      bool      `json:"is_hidden"`
-	AccessCode    *string   `json:"access_code,omitempty"`
-	IsActive      bool      `json:"is_active"`
-	AllowGamePass bool      `json:"allow_game_pass"`
-	SortOrder     int       `json:"sort_order"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-
-	// Relations
-	Days []TicketProductDay `json:"days,omitempty"`
+// TicketCompetition is a competition a ticket is linked to.
+type TicketCompetition struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
-// TicketProductDay is a product on sale for one match day. It is the row locked
-// to keep a day from overselling.
+// TicketProduct is something that can be bought a ticket for: 5K, VIP, VVIP.
+// It is linked to one or more competitions, and every match day of those
+// competitions is on sale for it at BasePrice, with Capacity seats each.
+type TicketProduct struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+	Description string  `json:"description"`
+	BasePrice   int     `json:"base_price"`
+	IsHidden    bool    `json:"is_hidden"`
+	AccessCode  *string `json:"access_code,omitempty"`
+	IsActive    bool    `json:"is_active"`
+	// Capacity is seats per match day; 0 means unlimited.
+	Capacity  int       `json:"capacity"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Relations
+	Competitions []TicketCompetition `json:"competitions,omitempty"`
+	Days         []TicketProductDay  `json:"days,omitempty"`
+}
+
+// TicketProductDay is one match day a ticket is on sale for, because that day has
+// a match in a competition the ticket is linked to. ID is the row locked to keep
+// the day from overselling; it is empty until the day has first been bought or
+// looked up for purchase.
 type TicketProductDay struct {
-	ID            string `json:"id"`
-	ProductID     string `json:"product_id"`
-	EventDayID    string `json:"event_day_id"`
-	PriceOverride *int   `json:"price_override,omitempty"`
-	// Price is the effective price: the override when set, else the product's
-	// base price. Filled in on read.
-	Price    int  `json:"price"`
-	Capacity int  `json:"capacity"`
-	IsActive bool `json:"is_active"`
+	ID         string `json:"id"`
+	ProductID  string `json:"product_id"`
+	EventDayID string `json:"event_day_id"`
+	// The competition that put this day on sale (the first by name, when a day
+	// belongs to several linked competitions).
+	CompetitionID   string `json:"competition_id"`
+	CompetitionName string `json:"competition_name"`
+	// Price and Capacity come from the ticket itself.
+	Price    int `json:"price"`
+	Capacity int `json:"capacity"`
 	// SoldCount counts paid seats; HeldCount counts unpaid ones still inside the
 	// reservation window. Both are derived from tickets on read.
 	SoldCount int `json:"sold_count"`
 	HeldCount int `json:"held_count"`
-
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 
 	// Relations
 	EventDay *EventDay `json:"event_day,omitempty"`

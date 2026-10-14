@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -23,20 +24,24 @@ func normalizeAccessCode(code *string) *string {
 
 func productToResponse(p *domain.TicketProduct, includeSecrets bool) *dto.TicketProductResponse {
 	res := &dto.TicketProductResponse{
-		ID:            p.ID,
-		Name:          p.Name,
-		Slug:          p.Slug,
-		Description:   p.Description,
-		BasePrice:     p.BasePrice,
-		IsHidden:      p.IsHidden,
-		IsActive:      p.IsActive,
-		AllowGamePass: p.AllowGamePass,
-		SortOrder:     p.SortOrder,
-		Days:          []dto.TicketProductDayResponse{},
+		ID:           p.ID,
+		Name:         p.Name,
+		Slug:         p.Slug,
+		Description:  p.Description,
+		BasePrice:    p.BasePrice,
+		IsHidden:     p.IsHidden,
+		IsActive:     p.IsActive,
+		Capacity:     p.Capacity,
+		SortOrder:    p.SortOrder,
+		Competitions: []dto.TicketCompetitionResponse{},
+		Days:         []dto.TicketProductDayResponse{},
 	}
-	// The access code is what unlocks a hidden product, so it only goes to admins.
+	// The access code is what unlocks a hidden ticket, so it only goes to admins.
 	if includeSecrets {
 		res.AccessCode = p.AccessCode
+	}
+	for _, c := range p.Competitions {
+		res.Competitions = append(res.Competitions, dto.TicketCompetitionResponse{ID: c.ID, Name: c.Name})
 	}
 	for _, d := range p.Days {
 		res.Days = append(res.Days, productDayToResponse(d))
@@ -46,16 +51,16 @@ func productToResponse(p *domain.TicketProduct, includeSecrets bool) *dto.Ticket
 
 func productDayToResponse(d domain.TicketProductDay) dto.TicketProductDayResponse {
 	r := dto.TicketProductDayResponse{
-		ID:            d.ID,
-		ProductID:     d.ProductID,
-		EventDayID:    d.EventDayID,
-		Price:         d.Price,
-		PriceOverride: d.PriceOverride,
-		Capacity:      d.Capacity,
-		SoldCount:     d.SoldCount,
-		HeldCount:     d.HeldCount,
-		Available:     d.Available(),
-		IsActive:      d.IsActive,
+		ID:              d.ID,
+		ProductID:       d.ProductID,
+		EventDayID:      d.EventDayID,
+		CompetitionID:   d.CompetitionID,
+		CompetitionName: d.CompetitionName,
+		Price:           d.Price,
+		Capacity:        d.Capacity,
+		SoldCount:       d.SoldCount,
+		HeldCount:       d.HeldCount,
+		Available:       d.Available(),
 	}
 	if d.EventDay != nil {
 		r.EventTitle = d.EventDay.Title
@@ -65,25 +70,41 @@ func productDayToResponse(d domain.TicketProductDay) dto.TicketProductDayRespons
 	return r
 }
 
+// sortGameDays orders match days by the date they are played, earliest first.
+// It is never the order they were created in: Game Week 19 can be entered before
+// Game Week 3, and buyers must still see Game Week 3 first. Days on the same date
+// fall back to title so the order is stable.
+func sortGameDays(days []domain.TicketProductDay) {
+	sort.SliceStable(days, func(i, j int) bool {
+		a, b := days[i].EventDay, days[j].EventDay
+		if !a.Date.Equal(b.Date) {
+			return a.Date.Before(b.Date)
+		}
+		return a.Title < b.Title
+	})
+}
+
+// cleanIDs trims, drops blanks and removes duplicates, keeping order.
+func cleanIDs(ids []string) []string {
+	return uniqueIDs(ids)
+}
+
 func (s *TicketService) CreateProduct(ctx context.Context, req dto.CreateTicketProductRequest) (*dto.TicketProductResponse, error) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, fmt.Errorf("name is required")
 	}
 	p := &domain.TicketProduct{
-		Name:          name,
-		Description:   req.Description,
-		BasePrice:     req.BasePrice,
-		IsHidden:      req.IsHidden,
-		IsActive:      true,
-		AllowGamePass: true,
-		SortOrder:     req.SortOrder,
+		Name:        name,
+		Description: req.Description,
+		BasePrice:   req.BasePrice,
+		IsHidden:    req.IsHidden,
+		IsActive:    true,
+		Capacity:    req.Capacity,
+		SortOrder:   req.SortOrder,
 	}
 	if req.IsActive != nil {
 		p.IsActive = *req.IsActive
-	}
-	if req.AllowGamePass != nil {
-		p.AllowGamePass = *req.AllowGamePass
 	}
 	if p.IsHidden {
 		p.AccessCode = normalizeAccessCode(req.AccessCode)
@@ -97,7 +118,12 @@ func (s *TicketService) CreateProduct(ctx context.Context, req dto.CreateTicketP
 			p.Slug = fmt.Sprintf("%s-%d", base, i+1)
 		}
 		if err = s.productRepo.CreateProduct(ctx, p); err == nil {
-			return productToResponse(p, true), nil
+			if err := s.linkCompetitions(ctx, p.ID, req.CompetitionIDs); err != nil {
+				// A ticket with bad links would sit there unsellable; take it back.
+				_ = s.productRepo.DeleteProduct(ctx, p.ID)
+				return nil, err
+			}
+			return s.productWithDays(ctx, p.ID)
 		}
 		if strings.Contains(err.Error(), "idx_ticket_products_name") {
 			return nil, fmt.Errorf("a ticket called %q already exists", name)
@@ -141,8 +167,8 @@ func (s *TicketService) UpdateProduct(ctx context.Context, id string, req dto.Up
 	if req.IsActive != nil {
 		p.IsActive = *req.IsActive
 	}
-	if req.AllowGamePass != nil {
-		p.AllowGamePass = *req.AllowGamePass
+	if req.Capacity != nil {
+		p.Capacity = *req.Capacity
 	}
 	if req.SortOrder != nil {
 		p.SortOrder = *req.SortOrder
@@ -153,6 +179,11 @@ func (s *TicketService) UpdateProduct(ctx context.Context, id string, req dto.Up
 			return nil, fmt.Errorf("a ticket called %q already exists", p.Name)
 		}
 		return nil, fmt.Errorf("failed to update ticket: %w", err)
+	}
+	if req.CompetitionIDs != nil {
+		if err := s.linkCompetitions(ctx, id, req.CompetitionIDs); err != nil {
+			return nil, err
+		}
 	}
 	return s.productWithDays(ctx, id)
 }
@@ -176,6 +207,9 @@ func (s *TicketService) productWithDays(ctx context.Context, id string) (*dto.Ti
 }
 
 func (s *TicketService) ListProductsAdmin(ctx context.Context) ([]dto.TicketProductResponse, error) {
+	if err := s.productRepo.EnsureEventDays(ctx); err != nil {
+		fmt.Printf("⚠️ WARNING: failed to prepare match days: %s\n", err.Error())
+	}
 	products, err := s.productRepo.ListProducts(ctx, false)
 	if err != nil {
 		return nil, err
@@ -187,37 +221,28 @@ func (s *TicketService) ListProductsAdmin(ctx context.Context) ([]dto.TicketProd
 	return out, nil
 }
 
-func (s *TicketService) SaveProductDay(ctx context.Context, productID string, req dto.SaveProductDayRequest) (*dto.TicketProductResponse, error) {
-	if _, err := s.productRepo.GetProduct(ctx, productID); err != nil {
-		return nil, fmt.Errorf("ticket not found: %w", err)
+// linkCompetitions sets which competitions a ticket is sold for, then makes sure
+// every match date of those competitions has a match day to buy a ticket for.
+func (s *TicketService) linkCompetitions(ctx context.Context, productID string, ids []string) error {
+	if err := s.productRepo.SetProductCompetitions(ctx, productID, cleanIDs(ids)); err != nil {
+		return fmt.Errorf("could not link those tournaments: %w", err)
 	}
-	if _, err := s.eventDayRepo.GetByID(ctx, req.EventDayID); err != nil {
-		return nil, fmt.Errorf("match day not found: %w", err)
+	if err := s.productRepo.EnsureEventDays(ctx); err != nil {
+		return fmt.Errorf("could not prepare match days for those tournaments: %w", err)
 	}
-	d := &domain.TicketProductDay{
-		ProductID:     productID,
-		EventDayID:    req.EventDayID,
-		PriceOverride: req.PriceOverride,
-		Capacity:      req.Capacity,
-		IsActive:      true,
-	}
-	if req.IsActive != nil {
-		d.IsActive = *req.IsActive
-	}
-	if err := s.productRepo.SaveProductDay(ctx, d); err != nil {
-		return nil, err
-	}
-	return s.productWithDays(ctx, productID)
-}
-
-func (s *TicketService) DeleteProductDay(ctx context.Context, productID, eventDayID string) error {
-	return s.productRepo.DeleteProductDay(ctx, productID, eventDayID)
+	return nil
 }
 
 // ListPublicProducts is what the storefront sells: active products with the
 // upcoming, active days they are on sale for. A hidden product appears only to
 // someone holding its access code.
 func (s *TicketService) ListPublicProducts(ctx context.Context, accessCode string) ([]dto.TicketProductResponse, error) {
+	// Fixtures added to a competition since a ticket was set up need a match day
+	// before they can be bought; this is cheap and does nothing when all exist.
+	if err := s.productRepo.EnsureEventDays(ctx); err != nil {
+		fmt.Printf("⚠️ WARNING: failed to prepare match days: %s\n", err.Error())
+	}
+
 	products, err := s.productRepo.ListProducts(ctx, true)
 	if err != nil {
 		return nil, err
@@ -232,7 +257,7 @@ func (s *TicketService) ListPublicProducts(ctx context.Context, accessCode strin
 		}
 		sellable := p.Days[:0:0]
 		for _, d := range p.Days {
-			if !d.IsActive || d.EventDay == nil || !d.EventDay.IsActive {
+			if d.EventDay == nil || !d.EventDay.IsActive {
 				continue
 			}
 			if dateOnly(d.EventDay.Date).Before(today) {
@@ -243,6 +268,7 @@ func (s *TicketService) ListPublicProducts(ctx context.Context, accessCode strin
 		if len(sellable) == 0 {
 			continue // nothing to buy yet
 		}
+		sortGameDays(sellable)
 		p.Days = sellable
 		out = append(out, *productToResponse(p, false))
 	}

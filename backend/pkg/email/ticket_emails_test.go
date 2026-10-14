@@ -12,7 +12,6 @@ func TestPurchaseEmailListsEveryDayOfAGamePass(t *testing.T) {
 		TicketCode:  "SFFL-ABCD1234",
 		Quantity:    1,
 		TotalAmount: 16200,
-		IsGamePass:  true,
 		Days: []TicketEmailDay{
 			{Title: "Game Day 1", Date: "Sat, Nov 07 2026", Venue: "Showtime Arena"},
 			{Title: "Game Day 2", Date: "Sat, Nov 14 2026", Venue: "Showtime Arena"},
@@ -33,16 +32,22 @@ func TestPurchaseEmailListsEveryDayOfAGamePass(t *testing.T) {
 	}
 }
 
-func TestPurchaseEmailForASingleTicket(t *testing.T) {
+func TestPurchaseEmailForAOneDayPass(t *testing.T) {
 	html := PurchaseEmailHTML(PurchaseEmailData{
 		BuyerName: "Bayo", ProductName: "Regular", TicketCode: "SFFL-ZZZZ9999", Quantity: 2, TotalAmount: 6000,
 		Days: []TicketEmailDay{{Title: "Game Day 1", Date: "Sat, Nov 07 2026", Venue: "Arena"}},
 	})
-	if !strings.Contains(html, "Ticket Confirmed!") || strings.Contains(html, "Game Pass Confirmed!") {
-		t.Error("a single ticket should read as a ticket, not a Game Pass")
+	if !strings.Contains(html, "Game Pass Confirmed!") {
+		t.Error("every purchase is a Game Pass, even for one day")
 	}
-	if !strings.Contains(html, "2 tickets") {
-		t.Error("the quantity should be shown")
+	if strings.Contains(html, "covers 1 match days") || strings.Contains(html, "covers 0") {
+		t.Error("a one-day pass must not read as a multi-day one")
+	}
+	if !strings.Contains(html, "game passes") {
+		t.Error("the quantity should be shown, pluralised")
+	}
+	if !strings.Contains(html, "Game Day 1") {
+		t.Error("the single match day should be named")
 	}
 }
 

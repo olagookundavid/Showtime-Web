@@ -1,7 +1,7 @@
 import { CalendarDaysIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import type { TicketProductDayResponse } from '../../types';
 import { Checkbox } from '../ui';
-import { formatDayShort, isSoldOut, naira, seatsLabel } from './ticketFormat';
+import { dayLabel, formatDayShort, isSoldOut, naira, seatsLabel, sortDaysByDate } from './ticketFormat';
 
 interface TicketDayPickerProps {
     /** The days this ticket is sold on. */
@@ -35,13 +35,13 @@ export const TicketDayPicker = ({ days, selected, onChange, mode, name, tone = '
 
     return (
         <div role={mode === 'single' ? 'radiogroup' : 'group'} aria-label={name} className="space-y-2">
-            {days.map((day) => {
+            {sortDaysByDate(days).map((day) => {
                 const soldOut = isSoldOut(day);
                 const checked = selected.includes(day.event_day_id);
                 const seats = seatsLabel(day);
                 return (
                     <label
-                        key={day.id}
+                        key={day.event_day_id}
                         className={`flex min-h-11 items-center gap-3 border p-3 transition-colors ${
                             soldOut ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                         } ${
@@ -77,7 +77,7 @@ export const TicketDayPicker = ({ days, selected, onChange, mode, name, tone = '
                                     dark ? 'text-white' : 'text-sffl-navy dark:text-white'
                                 }`}
                             >
-                                {day.event_title}
+                                {dayLabel(day)}
                             </span>
                             <span
                                 className={`mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs ${

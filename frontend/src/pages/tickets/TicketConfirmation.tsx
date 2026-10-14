@@ -122,9 +122,7 @@ export const TicketConfirmation = () => {
             {/* Every match day this ticket covers */}
             <div>
               <span className="text-xs text-gray-500 uppercase font-bold">
-                {ticket.days.length > 1
-                  ? `Game Pass · ${ticket.days.length} match days`
-                  : "Match day"}
+                {`Game Pass · ${ticket.days.length} match day${ticket.days.length === 1 ? "" : "s"}`}
               </span>
               <ul className="mt-2 space-y-2">
                 {ticket.days.map((day) => (

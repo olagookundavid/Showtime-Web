@@ -107,13 +107,10 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 		return nil, fmt.Errorf("failed to load tickets: %w", err)
 	}
 	var product *domain.TicketProduct
-	var productDay *domain.TicketProductDay
 	for i := range products {
-		for j := range products[i].Days {
-			d := products[i].Days[j]
-			if d.EventDayID == req.EventDayID && d.IsActive && d.Price == 0 {
+		for _, d := range products[i].Days {
+			if d.EventDayID == req.EventDayID && d.Price == 0 {
 				product = &products[i]
-				productDay = &d
 				break
 			}
 		}
@@ -124,6 +121,12 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 	if product == nil {
 		return nil, fmt.Errorf("no free ticket is configured to issue these allocated tickets from")
 	}
+	// Give the day its seat-lock row, so the seat is counted like any other.
+	days, err := s.productRepo.ResolveProductDays(ctx, product.ID, []string{req.EventDayID})
+	if err != nil || len(days) != 1 {
+		return nil, fmt.Errorf("that match day is not on sale for the free ticket")
+	}
+	productDay := days[0]
 
 	// Create ticket with collision protection
 	var ticket *domain.Ticket
@@ -135,7 +138,7 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 		ticket = &domain.Ticket{
 			ProductID:    &productID,
 			ProductName:  product.Name,
-			PurchaseType: domain.PurchaseTypeSingle,
+			PurchaseType: domain.PurchaseTypeGamePass,
 			Email:        req.Email,
 			Quantity:     1,
 			Status:       domain.TicketStatusPaid,

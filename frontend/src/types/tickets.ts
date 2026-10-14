@@ -1,29 +1,36 @@
 import type { Team } from './matches';
 
-/** SINGLE is one match day; GAME_PASS is two or more under one code. */
-export type PurchaseType = 'SINGLE' | 'GAME_PASS';
+/** Every purchase is a Game Pass: one match day or several under one code. */
+export type PurchaseType = 'GAME_PASS';
 
-/** A ticket product on sale for one match day. */
+/** A match day a ticket is on sale for, because it has a match in a competition the ticket is linked to. */
 export interface TicketProductDayResponse {
+    /** The seat-lock row. Empty until the day has first been looked up for a purchase, so key by event_day_id. */
     id: string;
     product_id: string;
     event_day_id: string;
     event_title: string;
     event_date: string;
     event_venue: string;
-    /** Effective price: the override when set, else the product's base price. */
+    /** The competition that put this day on sale. */
+    competition_id: string;
+    competition_name: string;
+    /** The ticket's price per match day. */
     price: number;
-    price_override?: number | null;
-    /** 0 means unlimited. */
+    /** Seats per match day; 0 means unlimited. */
     capacity: number;
     sold_count: number;
     held_count: number;
     /** Seats left; -1 means unlimited. */
     available: number;
-    is_active: boolean;
 }
 
-/** A ticket you can buy (5K, VIP, VVIP), sold on one or more match days. */
+export interface TicketCompetition {
+    id: string;
+    name: string;
+}
+
+/** A ticket you can buy (5K, VIP, VVIP). Every match day of its competitions is on sale. */
 export interface TicketProductResponse {
     id: string;
     name: string;
@@ -34,8 +41,10 @@ export interface TicketProductResponse {
     /** Only returned to admins. */
     access_code?: string;
     is_active: boolean;
-    allow_game_pass: boolean;
+    /** Seats per match day; 0 means unlimited. */
+    capacity: number;
     sort_order: number;
+    competitions: TicketCompetition[];
     days: TicketProductDayResponse[];
 }
 
@@ -46,20 +55,14 @@ export interface CreateTicketProductPayload {
     is_hidden?: boolean;
     access_code?: string;
     is_active?: boolean;
-    allow_game_pass?: boolean;
+    /** Seats per match day; 0 or left out means unlimited. */
+    capacity?: number;
     sort_order?: number;
+    /** The competitions this ticket is sold for. */
+    competition_ids?: string[];
 }
 
 export type UpdateTicketProductPayload = Partial<CreateTicketProductPayload>;
-
-export interface SaveProductDayPayload {
-    event_day_id: string;
-    /** null clears the override, falling back to the product's base price. */
-    price_override: number | null;
-    /** 0 means unlimited. */
-    capacity: number;
-    is_active?: boolean;
-}
 
 /** One rung of the Game Pass discount ladder. */
 export interface GamePassRule {
@@ -71,7 +74,6 @@ export interface GamePassRule {
 export interface PriceQuoteRequest {
     product_id: string;
     event_day_ids: string[];
-    purchase_type: PurchaseType;
     quantity: number;
 }
 
@@ -143,7 +145,6 @@ export interface TicketResponse {
 
 export interface PurchaseTicketPayload {
     product_id: string;
-    purchase_type: PurchaseType;
     event_day_ids: string[];
     email: string;
     name: string;
@@ -152,8 +153,6 @@ export interface PurchaseTicketPayload {
     referral_code?: string;
     /** Unlocks a hidden ticket. */
     access_code?: string;
-    /** Distinct from referral_code (attribution only) — this one changes price. */
-    discount_code?: string;
 }
 
 export interface GiftTicketPayload {

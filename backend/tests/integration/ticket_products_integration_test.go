@@ -1,7 +1,7 @@
 package tests_integration
 
-// Integration coverage for ticket products, Game Pass days and the scheduled
-// email queue.
+// Integration coverage for tickets linked to competitions, Game Pass days and the
+// scheduled email queue.
 //
 // The seat locking, per-day check-in and expiry rules live in hand-written SQL,
 // so these run them against a real, fully-migrated schema. Fixtures are named
@@ -45,7 +45,10 @@ func cleanTicketFixtures(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	mustExec(t, pool, `DELETE FROM tickets WHERE email LIKE '%@ticketfixture.test'`)
 	mustExec(t, pool, `DELETE FROM ticket_products WHERE name LIKE 'ZZFIX%'`)
-	mustExec(t, pool, `DELETE FROM event_days WHERE title LIKE 'ZZFIX%'`)
+	mustExec(t, pool, `DELETE FROM competitions WHERE name LIKE 'ZZFIX%'`)
+	// Fixture match days sit in 1990 or 2090, including any made automatically
+	// for a fixture competition's matches.
+	mustExec(t, pool, `DELETE FROM event_days WHERE title LIKE 'ZZFIX%' OR date <= '1990-12-31' OR date >= '2089-01-01'`)
 }
 
 type ticketFixture struct {
@@ -82,25 +85,46 @@ func (f *ticketFixture) eventDay(t *testing.T, title, date string) *domain.Event
 	return ed
 }
 
-func (f *ticketFixture) product(t *testing.T, name string, price int) *domain.TicketProduct {
+// competition makes a competition with one match on each of the given dates.
+func (f *ticketFixture) competition(t *testing.T, name string, dates ...string) string {
+	t.Helper()
+	var id string
+	if err := f.pool.QueryRow(context.Background(),
+		`INSERT INTO competitions (name) VALUES ($1) RETURNING id::text`, "ZZFIX "+name).Scan(&id); err != nil {
+		t.Fatalf("create competition %s: %v", name, err)
+	}
+	for _, d := range dates {
+		mustExec(t, f.pool,
+			`INSERT INTO matches (competition_id, date, time, venue) VALUES ($1, $2::date, '12:00', 'Fixture Arena')`, id, d)
+	}
+	return id
+}
+
+// product makes a ticket with the given seats per day, linked to the competitions.
+func (f *ticketFixture) product(t *testing.T, name string, price, capacity int, competitionIDs ...string) *domain.TicketProduct {
 	t.Helper()
 	p := &domain.TicketProduct{
 		Name: "ZZFIX " + name, Slug: "zzfix-" + strings.ToLower(name) + "-" + fmt.Sprint(time.Now().UnixNano()),
-		BasePrice: price, IsActive: true, AllowGamePass: true,
+		BasePrice: price, Capacity: capacity, IsActive: true,
 	}
 	if err := f.products.CreateProduct(context.Background(), p); err != nil {
 		t.Fatalf("create product %s: %v", name, err)
 	}
+	if err := f.products.SetProductCompetitions(context.Background(), p.ID, competitionIDs); err != nil {
+		t.Fatalf("link product %s: %v", name, err)
+	}
 	return p
 }
 
-func (f *ticketFixture) productDay(t *testing.T, p *domain.TicketProduct, ed *domain.EventDay, capacity int) *domain.TicketProductDay {
+// productDay is the seat-lock row for the ticket on a match day, as a purchase
+// would resolve it. The day must be on sale for the ticket.
+func (f *ticketFixture) productDay(t *testing.T, p *domain.TicketProduct, ed *domain.EventDay) *domain.TicketProductDay {
 	t.Helper()
-	d := &domain.TicketProductDay{ProductID: p.ID, EventDayID: ed.ID, Capacity: capacity, IsActive: true}
-	if err := f.products.SaveProductDay(context.Background(), d); err != nil {
-		t.Fatalf("save product day: %v", err)
+	days, err := f.products.ResolveProductDays(context.Background(), p.ID, []string{ed.ID})
+	if err != nil || len(days) != 1 {
+		t.Fatalf("resolve %s on %s: %d days, err=%v", p.Name, ed.Title, len(days), err)
 	}
-	return d
+	return &days[0]
 }
 
 var ticketSeq int
@@ -116,13 +140,10 @@ func nextCode() string {
 func (f *ticketFixture) newTicket(p *domain.TicketProduct, qty int, status domain.TicketStatus, pds ...*domain.TicketProductDay) *domain.Ticket {
 	productID := p.ID
 	tk := &domain.Ticket{
-		ProductID: &productID, ProductName: p.Name, PurchaseType: domain.PurchaseTypeSingle,
+		ProductID: &productID, ProductName: p.Name, PurchaseType: domain.PurchaseTypeGamePass,
 		Email: nextCode() + "@ticketfixture.test", Name: "Fixture", Phone: "0800",
 		Quantity: qty, UnitPrice: 1000, Subtotal: 1000 * qty, TotalAmount: 1000 * qty,
 		Status: status, TicketCode: nextCode(),
-	}
-	if len(pds) > 1 {
-		tk.PurchaseType = domain.PurchaseTypeGamePass
 	}
 	for _, pd := range pds {
 		tk.Days = append(tk.Days, domain.TicketDay{EventDayID: pd.EventDayID, ProductDayID: pd.ID, UnitPrice: 1000})
@@ -134,10 +155,11 @@ func TestTicketProducts_CapacityIsPerProductPerDay(t *testing.T) {
 	f := newTicketFixture(t)
 	ctx := context.Background()
 	d1 := f.eventDay(t, "cap-1", "2090-03-01")
-	vip := f.product(t, "VIP", 1000)
-	reg := f.product(t, "REG", 500)
-	vipDay := f.productDay(t, vip, d1, 2)
-	regDay := f.productDay(t, reg, d1, 0) // unlimited
+	comp := f.competition(t, "cap", "2090-03-01")
+	vip := f.product(t, "VIP", 1000, 2, comp)
+	reg := f.product(t, "REG", 500, 0, comp) // unlimited
+	vipDay := f.productDay(t, vip, d1)
+	regDay := f.productDay(t, reg, d1)
 
 	if err := f.tickets.Create(ctx, f.newTicket(vip, 2, domain.TicketStatusPaid, vipDay)); err != nil {
 		t.Fatalf("filling VIP should work: %v", err)
@@ -146,9 +168,30 @@ func TestTicketProducts_CapacityIsPerProductPerDay(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "only 0 remaining") {
 		t.Fatalf("VIP should be sold out, got %v", err)
 	}
-	// A full VIP does not stop the other product on the same day.
+	// A full VIP does not stop the other ticket on the same day.
 	if err := f.tickets.Create(ctx, f.newTicket(reg, 5, domain.TicketStatusPaid, regDay)); err != nil {
-		t.Fatalf("an unlimited product should still sell: %v", err)
+		t.Fatalf("an unlimited ticket should still sell: %v", err)
+	}
+}
+
+func TestTicketProducts_SeatLimitIsPerMatchDay(t *testing.T) {
+	// One seat limit on the ticket applies to every day separately: filling one
+	// day leaves the next one untouched.
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d1 := f.eventDay(t, "perday-1", "2090-03-05")
+	d2 := f.eventDay(t, "perday-2", "2090-03-06")
+	comp := f.competition(t, "perday", "2090-03-05", "2090-03-06")
+	vip := f.product(t, "VIPPERDAY", 1000, 1, comp)
+
+	if err := f.tickets.Create(ctx, f.newTicket(vip, 1, domain.TicketStatusPaid, f.productDay(t, vip, d1))); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.tickets.Create(ctx, f.newTicket(vip, 1, domain.TicketStatusPaid, f.productDay(t, vip, d1))); err == nil {
+		t.Fatal("day 1 should be full")
+	}
+	if err := f.tickets.Create(ctx, f.newTicket(vip, 1, domain.TicketStatusPaid, f.productDay(t, vip, d2))); err != nil {
+		t.Fatalf("day 2 has its own seat: %v", err)
 	}
 }
 
@@ -156,8 +199,9 @@ func TestTicketProducts_PendingHoldsSeatsButAbandonedOnesRelease(t *testing.T) {
 	f := newTicketFixture(t)
 	ctx := context.Background()
 	d1 := f.eventDay(t, "hold-1", "2090-03-02")
-	vip := f.product(t, "VIPHOLD", 1000)
-	pd := f.productDay(t, vip, d1, 1)
+	comp := f.competition(t, "hold", "2090-03-02")
+	vip := f.product(t, "VIPHOLD", 1000, 1, comp)
+	pd := f.productDay(t, vip, d1)
 
 	pending := f.newTicket(vip, 1, domain.TicketStatusPending, pd)
 	if err := f.tickets.Create(ctx, pending); err != nil {
@@ -178,9 +222,10 @@ func TestTicketProducts_GamePassIsAllOrNothing(t *testing.T) {
 	ctx := context.Background()
 	d1 := f.eventDay(t, "pass-1", "2090-03-03")
 	d2 := f.eventDay(t, "pass-2", "2090-03-04")
-	vip := f.product(t, "VIPPASS", 1000)
-	pd1 := f.productDay(t, vip, d1, 0)
-	pd2 := f.productDay(t, vip, d2, 1)
+	comp := f.competition(t, "pass", "2090-03-03", "2090-03-04")
+	vip := f.product(t, "VIPPASS", 1000, 1, comp)
+	pd1 := f.productDay(t, vip, d1)
+	pd2 := f.productDay(t, vip, d2)
 
 	if err := f.tickets.Create(ctx, f.newTicket(vip, 1, domain.TicketStatusPaid, pd2)); err != nil {
 		t.Fatal(err)
@@ -206,9 +251,10 @@ func TestTicketProducts_ConcurrentOverlappingPassesNeitherOversellNorDeadlock(t 
 	ctx := context.Background()
 	d1 := f.eventDay(t, "race-1", "2090-04-01")
 	d2 := f.eventDay(t, "race-2", "2090-04-02")
-	vip := f.product(t, "VIPRACE", 1000)
-	pd1 := f.productDay(t, vip, d1, 5)
-	pd2 := f.productDay(t, vip, d2, 5)
+	comp := f.competition(t, "race", "2090-04-01", "2090-04-02")
+	vip := f.product(t, "VIPRACE", 1000, 5, comp)
+	pd1 := f.productDay(t, vip, d1)
+	pd2 := f.productDay(t, vip, d2)
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -253,9 +299,10 @@ func TestTicketProducts_CheckinIsPerDay(t *testing.T) {
 	d1 := f.eventDay(t, "ci-1", "2090-05-01")
 	d2 := f.eventDay(t, "ci-2", "2090-05-02")
 	other := f.eventDay(t, "ci-3", "2090-05-03")
-	vip := f.product(t, "VIPCI", 1000)
-	pd1 := f.productDay(t, vip, d1, 0)
-	pd2 := f.productDay(t, vip, d2, 0)
+	comp := f.competition(t, "ci", "2090-05-01", "2090-05-02")
+	vip := f.product(t, "VIPCI", 1000, 0, comp)
+	pd1 := f.productDay(t, vip, d1)
+	pd2 := f.productDay(t, vip, d2)
 
 	tk := f.newTicket(vip, 1, domain.TicketStatusPaid, pd1, pd2)
 	if err := f.tickets.Create(ctx, tk); err != nil {
@@ -304,9 +351,10 @@ func TestTicketProducts_ExpiryWaitsForTheLastDay(t *testing.T) {
 	ctx := context.Background()
 	past := f.eventDay(t, "exp-past", "1990-01-01")
 	future := f.eventDay(t, "exp-future", "2090-06-01")
-	vip := f.product(t, "VIPEXP", 1000)
-	pdPast := f.productDay(t, vip, past, 0)
-	pdFuture := f.productDay(t, vip, future, 0)
+	comp := f.competition(t, "exp", "1990-01-01", "2090-06-01")
+	vip := f.product(t, "VIPEXP", 1000, 0, comp)
+	pdPast := f.productDay(t, vip, past)
+	pdFuture := f.productDay(t, vip, future)
 
 	// Direct inserts: Create would not stop us, but the service never sells past days.
 	allPast := f.newTicket(vip, 1, domain.TicketStatusPaid, pdPast)
@@ -339,44 +387,49 @@ func TestTicketProducts_ExpiryWaitsForTheLastDay(t *testing.T) {
 	}
 }
 
-func TestTicketProducts_CapacityCannotDropBelowCommitted(t *testing.T) {
+func TestTicketProducts_SeatLimitCannotDropBelowCommitted(t *testing.T) {
 	f := newTicketFixture(t)
 	ctx := context.Background()
 	d1 := f.eventDay(t, "shrink-1", "2090-07-01")
-	vip := f.product(t, "VIPSHRINK", 1000)
-	pd := f.productDay(t, vip, d1, 10)
+	comp := f.competition(t, "shrink", "2090-07-01")
+	vip := f.product(t, "VIPSHRINK", 1000, 10, comp)
+	pd := f.productDay(t, vip, d1)
 	if err := f.tickets.Create(ctx, f.newTicket(vip, 4, domain.TicketStatusPaid, pd)); err != nil {
 		t.Fatal(err)
 	}
 
-	small := &domain.TicketProductDay{ProductID: vip.ID, EventDayID: d1.ID, Capacity: 3, IsActive: true}
-	if err := f.products.SaveProductDay(ctx, small); err == nil || !strings.Contains(err.Error(), "cannot be less than") {
+	vip.Capacity = 3
+	if err := f.products.UpdateProduct(ctx, vip); err == nil || !strings.Contains(err.Error(), "cannot be less than") {
 		t.Fatalf("shrinking below sold seats should be refused, got %v", err)
 	}
-	ok := &domain.TicketProductDay{ProductID: vip.ID, EventDayID: d1.ID, Capacity: 4, IsActive: true}
-	if err := f.products.SaveProductDay(ctx, ok); err != nil {
+	vip.Capacity = 4
+	if err := f.products.UpdateProduct(ctx, vip); err != nil {
 		t.Fatalf("shrinking to exactly the sold count is fine: %v", err)
+	}
+	vip.Capacity = 0 // unlimited is always allowed
+	if err := f.products.UpdateProduct(ctx, vip); err != nil {
+		t.Fatalf("making it unlimited is fine: %v", err)
 	}
 }
 
-func TestTicketProducts_ListShowsEffectivePriceAndSeatCounts(t *testing.T) {
+func TestTicketProducts_ListsEveryDayOfLinkedCompetitionsEarliestFirst(t *testing.T) {
 	f := newTicketFixture(t)
 	ctx := context.Background()
-	d1 := f.eventDay(t, "list-1", "2090-08-01")
-	d2 := f.eventDay(t, "list-2", "2090-08-02")
-	vip := f.product(t, "VIPLIST", 5000)
-	f.productDay(t, vip, d1, 10)
-	override := 7500
-	pd2 := &domain.TicketProductDay{ProductID: vip.ID, EventDayID: d2.ID, PriceOverride: &override, Capacity: 0, IsActive: true}
-	if err := f.products.SaveProductDay(ctx, pd2); err != nil {
+	// Created out of order on purpose: the order they are played is what counts.
+	f.eventDay(t, "late", "2090-08-20")
+	d1 := f.eventDay(t, "early", "2090-08-01")
+	f.eventDay(t, "mid", "2090-08-10")
+	league := f.competition(t, "league", "2090-08-20", "2090-08-01")
+	cup := f.competition(t, "cup", "2090-08-10", "2090-08-01") // shares 1 Aug with the league
+	unrelated := f.competition(t, "unrelated", "2090-08-30")
+	_ = unrelated
+	vip := f.product(t, "VIPLIST", 5000, 10, league, cup)
+
+	pd := f.productDay(t, vip, d1)
+	if err := f.tickets.Create(ctx, f.newTicket(vip, 3, domain.TicketStatusPaid, pd)); err != nil {
 		t.Fatal(err)
 	}
-	pd1 := &domain.TicketProductDay{ProductID: vip.ID, EventDayID: d1.ID, Capacity: 10, IsActive: true}
-	_ = f.products.SaveProductDay(ctx, pd1)
-	if err := f.tickets.Create(ctx, f.newTicket(vip, 3, domain.TicketStatusPaid, pd1)); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.tickets.Create(ctx, f.newTicket(vip, 2, domain.TicketStatusPending, pd1)); err != nil {
+	if err := f.tickets.Create(ctx, f.newTicket(vip, 2, domain.TicketStatusPending, pd)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -390,52 +443,135 @@ func TestTicketProducts_ListShowsEffectivePriceAndSeatCounts(t *testing.T) {
 			found = &products[i]
 		}
 	}
-	if found == nil || len(found.Days) != 2 {
-		t.Fatalf("expected the product with two days, got %+v", found)
+	if found == nil {
+		t.Fatal("ticket not listed")
 	}
-	byDay := map[string]domain.TicketProductDay{}
+	if len(found.Competitions) != 2 {
+		t.Fatalf("expected both linked competitions, got %+v", found.Competitions)
+	}
+	if len(found.Days) != 3 {
+		t.Fatalf("expected 3 match days (1 Aug shared, 10 Aug, 20 Aug), got %d", len(found.Days))
+	}
+	var order []string
 	for _, d := range found.Days {
-		byDay[d.EventDayID] = d
+		order = append(order, d.EventDay.Date.Format("2006-01-02"))
 	}
-	if got := byDay[d1.ID]; got.Price != 5000 || got.SoldCount != 3 || got.HeldCount != 2 || got.Available() != 5 {
-		t.Errorf("day 1: price=%d sold=%d held=%d available=%d", got.Price, got.SoldCount, got.HeldCount, got.Available())
+	if strings.Join(order, ",") != "2090-08-01,2090-08-10,2090-08-20" {
+		t.Fatalf("days should run by the date played, got %v", order)
 	}
-	if got := byDay[d2.ID]; got.Price != 7500 || got.Available() != -1 {
-		t.Errorf("day 2: price=%d available=%d (want 7500, unlimited)", got.Price, got.Available())
+	first := found.Days[0]
+	if first.Price != 5000 || first.SoldCount != 3 || first.HeldCount != 2 || first.Available() != 5 {
+		t.Errorf("1 Aug: price=%d sold=%d held=%d available=%d", first.Price, first.SoldCount, first.HeldCount, first.Available())
 	}
-	if found.Days[0].EventDay == nil || found.Days[0].EventDay.Title == "" {
-		t.Error("days should carry their event day")
+	if first.CompetitionName != "ZZFIX cup" {
+		t.Errorf("a shared day should be labelled with the first competition by name, got %q", first.CompetitionName)
+	}
+	if found.Days[2].Available() != 10 {
+		t.Errorf("an untouched day should show every seat, got %d", found.Days[2].Available())
+	}
+}
+
+func TestTicketProducts_OnlyLinkedCompetitionsPutDaysOnSale(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d1 := f.eventDay(t, "link-1", "2090-08-05")
+	d2 := f.eventDay(t, "link-2", "2090-08-06")
+	linked := f.competition(t, "linked", "2090-08-05")
+	f.competition(t, "notlinked", "2090-08-06")
+	vip := f.product(t, "VIPLINK", 1000, 0, linked)
+
+	days, err := f.products.ResolveProductDays(ctx, vip.ID, []string{d1.ID, d2.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(days) != 1 || days[0].EventDayID != d1.ID {
+		t.Fatalf("only the linked competition's day should resolve, got %+v", days)
+	}
+	// Resolving again returns the same seat-lock row, not a new one.
+	again, _ := f.products.ResolveProductDays(ctx, vip.ID, []string{d1.ID})
+	if len(again) != 1 || again[0].ID == "" || again[0].ID != days[0].ID {
+		t.Fatalf("the seat-lock row should be stable, got %q then %q", days[0].ID, again[0].ID)
+	}
+
+	// Linking the second competition puts its day on sale.
+	other := f.competition(t, "second", "2090-08-06")
+	if err := f.products.SetProductCompetitions(ctx, vip.ID, []string{linked, other}); err != nil {
+		t.Fatal(err)
+	}
+	days, _ = f.products.ResolveProductDays(ctx, vip.ID, []string{d1.ID, d2.ID})
+	if len(days) != 2 {
+		t.Fatalf("both days should be on sale after linking, got %d", len(days))
+	}
+	// Unlinking everything takes everything off sale.
+	if err := f.products.SetProductCompetitions(ctx, vip.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	days, _ = f.products.ResolveProductDays(ctx, vip.ID, []string{d1.ID, d2.ID})
+	if len(days) != 0 {
+		t.Fatalf("an unlinked ticket should have no days on sale, got %d", len(days))
+	}
+}
+
+func TestTicketProducts_EnsureEventDaysCreatesMissingMatchDays(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	existing := f.eventDay(t, "have", "2090-09-01")
+	comp := f.competition(t, "ensure", "2090-09-01", "2090-09-08")
+	vip := f.product(t, "VIPENSURE", 1000, 0, comp)
+
+	if err := f.products.EnsureEventDays(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.products.EnsureEventDays(ctx); err != nil { // idempotent
+		t.Fatal(err)
+	}
+
+	var n int
+	var title string
+	if err := f.pool.QueryRow(ctx, `SELECT COUNT(*) FROM event_days WHERE date = '2090-09-01'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("an existing match day must not be duplicated, got %d err=%v", n, err)
+	}
+	if err := f.pool.QueryRow(ctx, `SELECT title FROM event_days WHERE id = $1`, existing.ID).Scan(&title); err != nil || title != existing.Title {
+		t.Fatalf("an existing match day must be left alone, title=%q err=%v", title, err)
+	}
+	if err := f.pool.QueryRow(ctx, `SELECT COUNT(*) FROM event_days WHERE date = '2090-09-08'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("the missing match day should be created once, got %d err=%v", n, err)
+	}
+
+	products, _ := f.products.ListProducts(ctx, false)
+	for _, p := range products {
+		if p.ID == vip.ID && len(p.Days) != 2 {
+			t.Fatalf("both match days should now be on sale, got %d", len(p.Days))
+		}
 	}
 }
 
 func TestTicketProducts_DeleteGuards(t *testing.T) {
 	f := newTicketFixture(t)
 	ctx := context.Background()
-	d1 := f.eventDay(t, "del-1", "2090-09-01")
-	vip := f.product(t, "VIPDEL", 1000)
-	pd := f.productDay(t, vip, d1, 0)
+	d1 := f.eventDay(t, "del-1", "2090-09-15")
+	comp := f.competition(t, "del", "2090-09-15")
+	vip := f.product(t, "VIPDEL", 1000, 0, comp)
+	pd := f.productDay(t, vip, d1)
 	if err := f.tickets.Create(ctx, f.newTicket(vip, 1, domain.TicketStatusPaid, pd)); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := f.products.DeleteProduct(ctx, vip.ID); err == nil {
-		t.Error("a product with paid tickets must not be deletable")
-	}
-	if err := f.products.DeleteProductDay(ctx, vip.ID, d1.ID); err == nil {
-		t.Error("a product day with paid tickets must not be removable")
+		t.Error("a ticket with paid purchases must not be deletable")
 	}
 	if err := f.days.Delete(ctx, d1.ID); err == nil {
 		t.Error("a match day with paid tickets must not be deletable")
 	}
 
-	empty := f.eventDay(t, "del-2", "2090-09-02")
-	free := f.product(t, "VIPDEL2", 1000)
-	f.productDay(t, free, empty, 0)
+	empty := f.eventDay(t, "del-2", "2090-09-16")
+	f.competition(t, "del2", "2090-09-16")
+	free := f.product(t, "VIPDEL2", 1000, 0)
 	if err := f.days.Delete(ctx, empty.ID); err != nil {
-		t.Errorf("an unsold match day should delete, taking its product days with it: %v", err)
+		t.Errorf("an unsold match day should delete: %v", err)
 	}
 	if err := f.products.DeleteProduct(ctx, free.ID); err != nil {
-		t.Errorf("an unsold product should delete: %v", err)
+		t.Errorf("an unsold ticket should delete: %v", err)
 	}
 }
 
@@ -443,8 +579,9 @@ func TestScheduledEmails_QueueLifecycle(t *testing.T) {
 	f := newTicketFixture(t)
 	ctx := context.Background()
 	d1 := f.eventDay(t, "mail-1", "2090-10-01")
-	vip := f.product(t, "VIPMAIL", 1000)
-	pd := f.productDay(t, vip, d1, 0)
+	comp := f.competition(t, "mail", "2090-10-01")
+	vip := f.product(t, "VIPMAIL", 1000, 0, comp)
+	pd := f.productDay(t, vip, d1)
 	tk := f.newTicket(vip, 1, domain.TicketStatusPaid, pd)
 	if err := f.tickets.Create(ctx, tk); err != nil {
 		t.Fatal(err)
@@ -544,8 +681,9 @@ func TestScheduledEmails_MovingAMatchDayMovesItsReminders(t *testing.T) {
 	f := newTicketFixture(t)
 	ctx := context.Background()
 	d1 := f.eventDay(t, "move-1", "2090-11-10")
-	vip := f.product(t, "VIPMOVE", 1000)
-	pd := f.productDay(t, vip, d1, 0)
+	comp := f.competition(t, "move", "2090-11-10")
+	vip := f.product(t, "VIPMOVE", 1000, 0, comp)
+	pd := f.productDay(t, vip, d1)
 	tk := f.newTicket(vip, 1, domain.TicketStatusPaid, pd)
 	if err := f.tickets.Create(ctx, tk); err != nil {
 		t.Fatal(err)

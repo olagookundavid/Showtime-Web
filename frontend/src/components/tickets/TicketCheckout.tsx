@@ -4,45 +4,34 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CreditCardIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon } from '@heroicons/react/24/outline';
 import { getUserProfile, purchaseTicket, quoteTicketPrice } from '../../services/api';
 import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
-import type {
-    AuthUser,
-    DiscountPreview,
-    PurchaseTicketPayload,
-    PurchaseType,
-    TicketProductDayResponse,
-    TicketProductResponse,
-} from '../../types';
+import type { AuthUser, PurchaseTicketPayload, TicketProductDayResponse, TicketProductResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';
-import { DiscountCodeInput } from '../discounts';
-import { formatDayShort, naira } from './ticketFormat';
+import { dayLabel, formatDayShort, naira, sortDaysByDate } from './ticketFormat';
 
 interface TicketCheckoutProps {
     product: TicketProductResponse;
-    /** The days being bought: one for a normal ticket, two or more for a Game Pass. */
+    /** The match days being bought: one or more. */
     days: TicketProductDayResponse[];
-    purchaseType: PurchaseType;
     /** The access code that unlocked this ticket, if it is a hidden one. */
     accessCode?: string;
     onClose: () => void;
 }
 
 /**
- * Collects the buyer's details and starts payment. Used by both the single-ticket
- * page and the Game Pass page, so the two cannot drift apart.
+ * Collects the buyer's details and starts payment for a Game Pass of one or more
+ * match days.
  *
  * What the buyer sees is a preview. The server prices the selection again at
- * purchase from the product's own prices, and ignores any amount sent from here.
+ * purchase from the ticket's own price, and ignores any amount sent from here.
  */
-export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClose }: TicketCheckoutProps) => {
+export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose }: TicketCheckoutProps) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const isPass = purchaseType === 'GAME_PASS';
+    const days = sortDaysByDate(pickedDays);
     const dayIds = days.map((d) => d.event_day_id);
+    const manyDays = days.length > 1;
 
     const [quantity, setQuantity] = useState(1);
-    // Server-priced preview of an applied discount code. Display only — the
-    // server re-prices the code at purchase time.
-    const [discount, setDiscount] = useState<DiscountPreview | null>(null);
     const [email, setEmail] = useState('');
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -60,14 +49,8 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
     // The same pricing code the purchase uses, so the figure shown is the figure
     // charged. Kept while a new quantity loads so the total doesn't flicker.
     const { data: quote } = useQuery({
-        queryKey: ['ticketQuote', product.id, dayIds, purchaseType, quantity],
-        queryFn: () =>
-            quoteTicketPrice({
-                product_id: product.id,
-                event_day_ids: dayIds,
-                purchase_type: purchaseType,
-                quantity,
-            }),
+        queryKey: ['ticketQuote', product.id, dayIds, quantity],
+        queryFn: () => quoteTicketPrice({ product_id: product.id, event_day_ids: dayIds, quantity }),
         staleTime: 30_000,
         placeholderData: keepPreviousData,
     });
@@ -97,12 +80,10 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
 
     // Until the server's quote arrives, fall back to the list prices.
     const listUnit = days.reduce((sum, d) => sum + d.price, 0);
-    const unitPrice = quote?.unit_price ?? listUnit;
     const subtotal = quote?.subtotal ?? listUnit * quantity;
     const passDiscount = quote?.game_pass_discount_amount ?? 0;
     const passPercent = quote?.game_pass_discount_percent ?? 0;
-    const codeDiscount = !isPass ? (discount?.discount_amount ?? 0) : 0;
-    const total = Math.max(0, subtotal - passDiscount - codeDiscount);
+    const total = Math.max(0, subtotal - passDiscount);
     const free = total === 0;
 
     const handlePurchase = async () => {
@@ -116,7 +97,6 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
         try {
             const payload: PurchaseTicketPayload = {
                 product_id: product.id,
-                purchase_type: purchaseType,
                 event_day_ids: dayIds,
                 email,
                 name,
@@ -124,8 +104,6 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                 quantity,
                 referral_code: referralCode.trim() || undefined,
                 access_code: accessCode || undefined,
-                // Send the code, not the amount — the server recomputes it.
-                discount_code: !isPass ? discount?.code || undefined : undefined,
             };
 
             const result = await purchaseTicket(payload);
@@ -141,7 +119,7 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
             } else if (result.paystack_reference) {
-                // Free ticket case - redirect to success page
+                // Free pass case - redirect to success page
                 navigate(`/tickets/confirm?reference=${result.paystack_reference}`);
             }
         } catch (err: unknown) {
@@ -152,14 +130,12 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
         }
     };
 
-    const noun = isPass ? 'Game Pass' : 'ticket';
-
     return (
         <>
             <Modal
                 open
                 onClose={onClose}
-                title={isPass ? 'Buy Game Pass' : 'Purchase Tickets'}
+                title="Buy Game Pass"
                 maxWidth="lg"
                 shape="square"
                 footer={
@@ -183,7 +159,7 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                             disabled={purchasing || !email || !name || !phone.trim()}
                             onClick={() => setConfirmPurchase(true)}
                         >
-                            {purchasing ? 'Processing…' : free ? `Get Free ${isPass ? 'Pass' : 'Ticket'}` : 'Pay with Paystack'}
+                            {purchasing ? 'Processing…' : free ? 'Get Free Pass' : 'Pay with Paystack'}
                         </Button>
                     </>
                 }
@@ -192,15 +168,14 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                     {/* What is being bought */}
                     <div className="bg-gray-50 p-4 dark:bg-gray-700">
                         <div className="inline-block bg-sffl-navy px-3 py-1 text-xs font-bold text-white">
-                            {product.name}
-                            {isPass && ` Game Pass · ${days.length} match days`}
+                            {product.name} Game Pass · {days.length} match day{manyDays ? 's' : ''}
                         </div>
                         <ul className="mt-3 space-y-2">
                             {days.map((d) => (
-                                <li key={d.id} className="flex items-baseline justify-between gap-3 text-sm">
+                                <li key={d.event_day_id} className="flex items-baseline justify-between gap-3 text-sm">
                                     <span className="min-w-0">
                                         <span className="block font-bold wrap-break-word text-sffl-navy dark:text-white">
-                                            {d.event_title}
+                                            {dayLabel(d)}
                                         </span>
                                         <span className="block text-xs text-gray-600 dark:text-gray-300">
                                             {formatDayShort(d.event_date)}
@@ -213,11 +188,11 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                                 </li>
                             ))}
                         </ul>
-                        {isPass && (
-                            <p className="mt-3 text-xs text-gray-600 dark:text-gray-300">
-                                One code gets you in on every one of these days.
-                            </p>
-                        )}
+                        <p className="mt-3 text-xs text-gray-600 dark:text-gray-300">
+                            {manyDays
+                                ? 'One code gets you in on every one of these days.'
+                                : 'Your code gets you in on this match day.'}
+                        </p>
                     </div>
 
                     {/* Auth Toggle */}
@@ -258,7 +233,7 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                             </>
                         }
                         htmlFor="ticket-email"
-                        hint={`Your ${noun} will be sent to this email`}
+                        hint="Your Game Pass will be sent to this email"
                     >
                         <Input
                             id="ticket-email"
@@ -279,7 +254,7 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                             </>
                         }
                         htmlFor="ticket-phone"
-                        hint={`We may call you regarding your ${noun}`}
+                        hint="We may call you regarding your Game Pass"
                     >
                         <Input
                             id="ticket-phone"
@@ -311,7 +286,7 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                         />
                     </Field>
 
-                    <Field label={isPass ? 'How many passes' : 'Quantity'}>
+                    <Field label="How many passes">
                         <div className="flex items-center gap-4">
                             <IconButton
                                 variant="secondary"
@@ -333,23 +308,9 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                         </div>
                     </Field>
 
-                    {/* Discount codes are for single tickets (a Game Pass has its own
-                        percentage off), and there is nothing to take off a free one. */}
-                    {!isPass && unitPrice > 0 && (
-                        <div className="border-t pt-4 dark:border-gray-700">
-                            <DiscountCodeInput
-                                productId={product.id}
-                                eventDayId={days[0]?.event_day_id}
-                                quantity={quantity}
-                                onChange={setDiscount}
-                                disabled={purchasing}
-                            />
-                        </div>
-                    )}
-
                     {/* Total */}
                     <div className="space-y-1.5 border-t pt-4 dark:border-gray-700">
-                        {(passDiscount > 0 || codeDiscount > 0) && (
+                        {passDiscount > 0 && (
                             <div className="flex items-baseline justify-between text-sm">
                                 <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
                                 <span className="text-gray-500 line-through dark:text-gray-400">{naira(subtotal)}</span>
@@ -362,16 +323,6 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                                 </span>
                                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
                                     −{naira(passDiscount)}
-                                </span>
-                            </div>
-                        )}
-                        {codeDiscount > 0 && (
-                            <div className="flex items-baseline justify-between gap-3 text-sm">
-                                <span className="min-w-0 break-all text-gray-500 dark:text-gray-400">
-                                    Discount ({discount?.code})
-                                </span>
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                    −{naira(codeDiscount)}
                                 </span>
                             </div>
                         )}
@@ -409,7 +360,7 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                             <LockClosedIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                         )}
                         {free
-                            ? `Your free ${noun} will be sent instantly`
+                            ? 'Your free Game Pass will be sent instantly'
                             : 'You will be redirected to Paystack for secure payment'}
                     </p>
                 </div>
@@ -418,13 +369,13 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
             {/* Sits outside the Modal, so its backdrop clicks don't close the purchase. */}
             <ConfirmDialog
                 open={confirmPurchase}
-                title={free ? `Get this free ${noun}?` : isPass ? 'Pay for this Game Pass?' : 'Pay for these tickets?'}
+                title={free ? 'Get this free Game Pass?' : 'Pay for this Game Pass?'}
                 description={
                     free
-                        ? `Your ${noun} will be emailed to you straight away.`
+                        ? 'Your Game Pass will be emailed to you straight away.'
                         : 'You will be taken to Paystack to complete payment.'
                 }
-                confirmLabel={free ? `Get free ${noun}` : 'Pay now'}
+                confirmLabel={free ? 'Get free pass' : 'Pay now'}
                 tone="info"
                 icon={TicketIcon}
                 pending={purchasing}
@@ -432,8 +383,8 @@ export const TicketCheckout = ({ product, days, purchaseType, accessCode, onClos
                     <ConfirmSummary
                         rows={[
                             ['Ticket', product.name],
-                            [isPass ? 'Match days' : 'Match day', days.map((d) => d.event_title).join(', ')],
-                            ['Quantity', String(quantity)],
+                            [manyDays ? 'Match days' : 'Match day', days.map((d) => dayLabel(d)).join(', ')],
+                            ['Passes', String(quantity)],
                             ['Total', naira(total)],
                         ]}
                     />

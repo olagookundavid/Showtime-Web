@@ -432,8 +432,6 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketProductsGroup.POST("", app.Handlers.TicketHandler.CreateProduct)
 		ticketProductsGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateProduct)
 		ticketProductsGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteProduct)
-		ticketProductsGroup.PUT("/:id/days", app.Handlers.TicketHandler.SaveProductDay)
-		ticketProductsGroup.DELETE("/:id/days/:eventDayId", app.Handlers.TicketHandler.DeleteProductDay)
 	}
 
 	gamePassGroup := adminRoutes.Group("/game-pass")

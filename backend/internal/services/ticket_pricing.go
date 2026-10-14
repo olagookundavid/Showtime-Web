@@ -37,20 +37,18 @@ func gamePassPercent(days int, rules []domain.GamePassRule) float64 {
 	return percent
 }
 
-// PriceTicket prices a selection from the per-day prices. The Game Pass ladder
-// applies only to GAME_PASS; a single ticket is never discounted here. The
-// discount is rounded to whole naira (half up) because Paystack amounts and the
-// ticket total are integers.
-func PriceTicket(dayPrices []int, quantity int, purchaseType domain.PurchaseType, rules []domain.GamePassRule) TicketPricing {
+// PriceTicket prices a selection from the per-day prices. Every purchase is a Game
+// Pass, so the ladder applies to it by the number of days chosen; one day reaches
+// no rung and pays full price. The discount is rounded to whole naira (half up)
+// because Paystack amounts and the ticket total are integers.
+func PriceTicket(dayPrices []int, quantity int, rules []domain.GamePassRule) TicketPricing {
 	unit := 0
 	for _, p := range dayPrices {
 		unit += p
 	}
 	p := TicketPricing{UnitPrice: unit, Subtotal: unit * quantity}
-	if purchaseType == domain.PurchaseTypeGamePass {
-		p.GamePassPercent = gamePassPercent(len(dayPrices), rules)
-		p.GamePassAmount = int(math.Round(float64(p.Subtotal) * p.GamePassPercent / 100))
-	}
+	p.GamePassPercent = gamePassPercent(len(dayPrices), rules)
+	p.GamePassAmount = int(math.Round(float64(p.Subtotal) * p.GamePassPercent / 100))
 	p.Total = p.Subtotal - p.GamePassAmount
 	if p.Total < 0 {
 		p.Total = 0

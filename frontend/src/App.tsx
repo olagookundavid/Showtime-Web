@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
 import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, TicketsLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
 import {
@@ -21,7 +21,6 @@ import {
   MatchDetail,
   Standings,
   Stats,
-  Tickets,
   GamePass,
   TicketConfirmation,
   ReferralGenerator,
@@ -185,6 +184,14 @@ const AdminStandings = lazy(() =>
     default: m.AdminStandings,
   })),
 );
+// Game Pass is the only way to buy tickets for now, so the old /tickets address
+// (and the links to it on match cards, the home page and referral links) goes
+// there, keeping the query string so ?date= and ?ref= still work.
+const TicketsRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: "/tickets/game-pass", search }} replace />;
+};
+
 const AdminTickets = lazy(() =>
   import("./pages/admin/AdminTickets").then((m) => ({
     default: m.AdminTickets,
@@ -434,7 +441,7 @@ function App() {
                       {/* Store */}
                       <Route element={<StoreLayout />}>
                         <Route element={<TicketsLayout />}>
-                          <Route path="/tickets" element={<Tickets />} />
+                          <Route path="/tickets" element={<TicketsRedirect />} />
                           <Route
                             path="/tickets/game-pass"
                             element={<GamePass />}

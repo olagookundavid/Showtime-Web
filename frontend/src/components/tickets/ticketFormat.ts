@@ -48,3 +48,16 @@ export const gamePassPercentFor = (days: number, rules: GamePassRule[]): number 
     }
     return percent;
 };
+
+/** "(Regular Season) Game Week 3": the tournament in brackets, then the match day. */
+export const dayLabel = (day: TicketProductDayResponse) =>
+    day.competition_name ? `(${day.competition_name}) ${day.event_title}` : day.event_title;
+
+/**
+ * Match days in the order they are played, earliest first. Never the order they
+ * were created in: Game Week 19 can be entered before Game Week 3, and buyers
+ * must still see Game Week 3 first. The server sends them this way; sorting again
+ * here keeps the list right wherever it is shown.
+ */
+export const sortDaysByDate = <T extends { event_date: string; event_title: string }>(days: T[]): T[] =>
+    [...days].sort((a, b) => a.event_date.localeCompare(b.event_date) || a.event_title.localeCompare(b.event_title));

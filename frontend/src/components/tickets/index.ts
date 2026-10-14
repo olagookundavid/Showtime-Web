@@ -12,6 +12,8 @@ export {
     isSoldOut,
     naira,
     perksOf,
+    dayLabel,
+    sortDaysByDate,
     seatsLabel,
     taglineOf,
 } from './ticketFormat';

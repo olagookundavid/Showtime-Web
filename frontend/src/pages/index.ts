@@ -31,7 +31,6 @@ export { Standings } from "./matches/Standings";
 export { Stats } from "./stats/Stats";
 
 // Tickets
-export { Tickets } from "./tickets/Tickets";
 export { GamePass } from "./tickets/GamePass";
 export { TicketConfirmation } from "./tickets/TicketConfirmation";
 export { ReferralGenerator } from "./tickets/ReferralGenerator";

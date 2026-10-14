@@ -1,8 +1,8 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { StarIcon, Square3Stack3DIcon, TicketIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
+import { StarIcon, Square3Stack3DIcon } from '@heroicons/react/24/outline';
 import type { HeroIcon } from '../ui';
 
-type Mode = 'season-pass' | 'game-pass' | 'tickets';
+type Mode = 'season-pass' | 'game-pass';
 
 const MODES: { value: Mode; label: string; description: string; icon: HeroIcon; to?: string; disabled?: boolean }[] = [
     {
@@ -15,30 +15,25 @@ const MODES: { value: Mode; label: string; description: string; icon: HeroIcon; 
     {
         value: 'game-pass',
         label: 'Game Pass',
-        description: 'Several match days, one code, a discount.',
+        description: 'One or more match days, one code. The more you add, the more you save.',
         icon: Square3Stack3DIcon,
         to: '/tickets/game-pass',
-    },
-    {
-        value: 'tickets',
-        label: 'Gameday Tickets',
-        description: 'One match day. Your ticket tier of choice.',
-        icon: TicketIcon,
-        to: '/tickets',
     },
 ];
 
 /**
- * The "Season Pass / Game Pass / Gameday Tickets" picker nested under the Tickets tab.
+ * The "Season Pass / Game Pass" picker nested under the Tickets tab. Game Pass is
+ * the only way to buy for now (one match day or several); single tickets are
+ * gone until they are wanted back.
  * The active tile borrows TicketProductCard's navy/gold "highest tier" look.
  */
 export const TicketModeTabs = () => {
-    const { pathname } = useLocation();
     const navigate = useNavigate();
-    const active: Mode = pathname.startsWith('/tickets/game-pass') ? 'game-pass' : 'tickets';
+    // Game Pass is the only live mode; Season Pass is a placeholder for later.
+    const active: Mode = 'game-pass';
 
     return (
-        <div className="grid grid-cols-3 gap-2 sm:gap-3" role="tablist" aria-label="Ticket type">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3" role="tablist" aria-label="Ticket type">
             {MODES.map((mode) => {
                 const isActive = mode.value === active;
                 const Icon = mode.icon;
