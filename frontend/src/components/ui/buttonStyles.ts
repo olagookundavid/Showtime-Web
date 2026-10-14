@@ -17,7 +17,7 @@ const variantStyles: Record<Variant, string> = {
     success: 'bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:hover:bg-green-700 focus:ring-green-500',
     info: 'bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700 focus:ring-blue-500',
     warning: 'bg-orange-600 hover:bg-orange-700 text-white dark:bg-orange-600 dark:hover:bg-orange-700 focus:ring-orange-500',
-    gold: 'bg-sffl-gold hover:bg-sffl-gold/90 text-sffl-navy focus:ring-sffl-gold',
+    gold: 'bg-sffl-gold hover:bg-sffl-gold/90 text-sffl-navy focus:ring-sffl-gold disabled:opacity-100 disabled:bg-sffl-gold/70 disabled:text-sffl-navy',
 };
 
 // Only the variants that change on a dark surface. The rest (primary, danger, success, info, warning) read the same on both.
