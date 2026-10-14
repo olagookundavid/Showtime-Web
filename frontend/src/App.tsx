@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, TicketsLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -433,8 +433,13 @@ function App() {
 
                       {/* Store */}
                       <Route element={<StoreLayout />}>
-                        <Route path="/tickets" element={<Tickets />} />
-                        <Route path="/game-pass" element={<GamePass />} />
+                        <Route element={<TicketsLayout />}>
+                          <Route path="/tickets" element={<Tickets />} />
+                          <Route
+                            path="/tickets/game-pass"
+                            element={<GamePass />}
+                          />
+                        </Route>
                         <Route path="/store" element={<Store />} />
                         <Route
                           path="/store/products/:id"

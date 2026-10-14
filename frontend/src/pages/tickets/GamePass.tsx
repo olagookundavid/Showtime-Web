@@ -12,12 +12,18 @@ import {
   TicketAccessCodeBox,
   TicketCheckout,
   TicketDayPicker,
+  TicketFeatureStrip,
   TicketProductCard,
   gamePassPercentFor,
   isSoldOut,
   naira,
 } from "../../components";
-import { ChevronDownIcon, TicketIcon } from "@heroicons/react/24/outline";
+import {
+  CalendarDaysIcon,
+  ChevronDownIcon,
+  TagIcon,
+  TicketIcon,
+} from "@heroicons/react/24/outline";
 
 const FAQS = [
   {
@@ -84,6 +90,13 @@ export const GamePass = () => {
     return Math.max(...list.map((p) => Math.min(...p.days.map((d) => d.price))));
   }, [list]);
 
+  // The cheapest ticket's CTA stays outline, the priciest goes gold, anything
+  // in between is solid navy — the same ladder the highest tier's card uses.
+  const cheapestPrice = useMemo(() => {
+    if (list.length === 0) return null;
+    return Math.min(...list.map((p) => Math.min(...p.days.map((d) => d.price))));
+  }, [list]);
+
   const toggleAll = (product: TicketProductResponse) => {
     const open = product.days.filter((d) => !isSoldOut(d)).map((d) => d.event_day_id);
     const current = picked[product.id] ?? [];
@@ -95,26 +108,37 @@ export const GamePass = () => {
 
   return (
     <div className="space-y-8 md:space-y-12">
-      <section className="bg-sffl-navy text-white">
-        <div className="flex flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:py-16">
-          <div className="min-w-0 space-y-5">
-            <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
-              <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
-              Game Pass
-            </p>
-            <h1 className="text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl">
-              Every game.
-              <span className="block text-sffl-red">One pass.</span>
-            </h1>
-            <p className="max-w-md text-sm text-white/85 sm:text-base">
-              Choose your ticket, pick the match days you want and get one code
-              that works on all of them.
-            </p>
-          </div>
+      <div>
+        <section className="bg-sffl-navy text-white">
+          <div className="flex flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:py-16">
+            <div className="min-w-0 space-y-5">
+              <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
+                <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
+                Game Pass
+              </p>
+              <h1 className="text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl">
+                Every game.
+                <span className="block text-sffl-red">One pass.</span>
+              </h1>
+              <p className="max-w-md text-sm text-white/85 sm:text-base">
+                Choose your ticket, pick the match days you want and get one code
+                that works on all of them.
+              </p>
+            </div>
 
-          <TicketAccessCodeBox onApply={setAppliedCode} />
-        </div>
-      </section>
+            <TicketAccessCodeBox onApply={setAppliedCode} />
+          </div>
+        </section>
+
+        <TicketFeatureStrip
+          items={[
+            { icon: TicketIcon, label: "Regular, VIP & VIP Plus" },
+            { icon: CalendarDaysIcon, label: "Several match days. One pass." },
+            { icon: TagIcon, label: "The more days, the more you save." },
+          ]}
+          className="mt-3"
+        />
+      </div>
 
       {ladder.length > 0 && (
         <section
@@ -171,8 +195,11 @@ export const GamePass = () => {
             Choose your ticket
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((product) => {
+            {list.map((product, index) => {
               const cheapest = Math.min(...product.days.map((d) => d.price));
+              const isHighlight = topPrice !== null && cheapest === topPrice;
+              const isLowest = cheapestPrice !== null && cheapest === cheapestPrice;
+              const variant = isHighlight ? "gold" : isLowest ? "outline" : "navy";
               const selectedIds = picked[product.id] ?? [];
               const selected = product.days.filter((d) =>
                 selectedIds.includes(d.event_day_id),
@@ -189,15 +216,21 @@ export const GamePass = () => {
                 <TicketProductCard
                   key={product.id}
                   product={product}
-                  highlight={topPrice !== null && cheapest === topPrice}
+                  position={index + 1}
+                  highlight={isHighlight}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    <h3
+                      className={`text-[11px] font-black uppercase tracking-widest ${
+                        isHighlight ? "text-white/60" : "text-gray-500 dark:text-gray-400"
+                      }`}
+                    >
                       Pick your match days
                     </h3>
                     <Button
                       variant="link"
                       size="sm"
+                      tone={isHighlight ? "dark" : "light"}
                       onClick={() => toggleAll(product)}
                     >
                       {selectedIds.length === openCount
@@ -210,22 +243,31 @@ export const GamePass = () => {
                     name={`${product.name} match days`}
                     days={product.days}
                     selected={selectedIds}
+                    tone={isHighlight ? "dark" : "light"}
                     onChange={(ids) =>
                       setPicked((prev) => ({ ...prev, [product.id]: ids }))
                     }
                   />
 
                   {selected.length >= 2 && (
-                    <div className="flex items-baseline justify-between gap-3 border-t pt-3 dark:border-gray-700">
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                    <div
+                      className={`flex items-baseline justify-between gap-3 border-t pt-3 ${
+                        isHighlight ? "border-white/10" : "dark:border-gray-700"
+                      }`}
+                    >
+                      <span className={`text-sm ${isHighlight ? "text-white/80" : "text-gray-600 dark:text-gray-300"}`}>
                         {selected.length} match days
                         {percent > 0 && (
-                          <span className="ml-1 font-bold text-emerald-600 dark:text-emerald-400">
+                          <span
+                            className={`ml-1 font-bold ${
+                              isHighlight ? "text-emerald-300" : "text-emerald-600 dark:text-emerald-400"
+                            }`}
+                          >
                             ({percent}% off)
                           </span>
                         )}
                       </span>
-                      <span className="text-lg font-black text-sffl-navy dark:text-white">
+                      <span className={`text-lg font-black ${isHighlight ? "text-white" : "text-sffl-navy dark:text-white"}`}>
                         {estimate === 0 ? "Free" : naira(estimate)}
                       </span>
                     </div>
@@ -234,7 +276,7 @@ export const GamePass = () => {
                   <Button
                     fullWidth
                     shape="square"
-                    variant="primary"
+                    variant={variant}
                     disabled={selected.length < 2}
                     onClick={() => setCheckout({ product, days: selected })}
                   >

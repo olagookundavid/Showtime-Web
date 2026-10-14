@@ -8,12 +8,18 @@ export const formatDayLong = (date: string) =>
 export const formatDayShort = (date: string) =>
     new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-/** One perk per line of a product's description; blank lines are dropped. */
-export const perksOf = (description: string) =>
+/** A product's description, as non-blank lines: the first is its one-line tagline, the rest are perks. */
+const descriptionLines = (description: string) =>
     description
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
+
+/** The short pitch shown above a product's perks. */
+export const taglineOf = (description: string): string => descriptionLines(description)[0] ?? '';
+
+/** Every perk line after the tagline. */
+export const perksOf = (description: string) => descriptionLines(description).slice(1);
 
 export const isSoldOut = (day: TicketProductDayResponse) => day.capacity > 0 && day.available <= 0;
 
