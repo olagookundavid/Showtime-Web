@@ -28,6 +28,13 @@ type ITicketHandler interface {
 	CreateProduct(c *gin.Context)
 	UpdateProduct(c *gin.Context)
 	DeleteProduct(c *gin.Context)
+	ListSeasonPassesAdmin(c *gin.Context)
+	CreateSeasonPass(c *gin.Context)
+	UpdateSeasonPass(c *gin.Context)
+	DeleteSeasonPass(c *gin.Context)
+	ListSeasonPasses(c *gin.Context)
+	GetSeasonPass(c *gin.Context)
+	PurchaseSeasonPass(c *gin.Context)
 	ListPublicProducts(c *gin.Context)
 	GetGamePassRules(c *gin.Context)
 	SaveGamePassRules(c *gin.Context)
@@ -305,6 +312,30 @@ func (h *TicketHandler) SaveGamePassRules(c *gin.Context) {
 // Tickets
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// paymentCallbackURL is where Paystack sends the buyer back to: the frontend's
+// confirmation page, taken from the request's origin when there is one.
+func paymentCallbackURL(c *gin.Context) string {
+	scheme := "https"
+	if c.Request.TLS == nil {
+		scheme = "http"
+	}
+	callbackURL := scheme + "://" + c.Request.Host + "/tickets/confirm"
+	if origin := c.GetHeader("Origin"); origin != "" {
+		callbackURL = origin + "/tickets/confirm"
+	}
+	return callbackURL
+}
+
+// optionalUserID is the signed-in buyer, from the token and never the body, or
+// nil for a guest checkout.
+func optionalUserID(c *gin.Context) *string {
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil && payload.UserId != "" {
+		id := payload.UserId
+		return &id
+	}
+	return nil
+}
+
 // Purchase godoc
 // @Summary Purchase tickets
 // @Tags tickets
@@ -320,26 +351,8 @@ func (h *TicketHandler) Purchase(c *gin.Context) {
 		return
 	}
 
-	// Build the callback URL from the request
-	scheme := "https"
-	if c.Request.TLS == nil {
-		scheme = "http"
-	}
-	callbackURL := scheme + "://" + c.Request.Host + "/tickets/confirm"
-
-	// Override with frontend origin if present
-	origin := c.GetHeader("Origin")
-	if origin != "" {
-		callbackURL = origin + "/tickets/confirm"
-	}
-
-	// Identity comes from the token, never the body — a discount code restricted
-	// to signed-in customers must not be unlockable by posting a user_id.
-	var userID *string
-	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil && payload.UserId != "" {
-		id := payload.UserId
-		userID = &id
-	}
+	callbackURL := paymentCallbackURL(c)
+	userID := optionalUserID(c)
 
 	result, err := h.service.Purchase(c.Request.Context(), req, callbackURL, userID)
 	if err != nil {
@@ -630,4 +643,114 @@ func (h *TicketHandler) ListReferralStats(c *gin.Context) {
 		"limit":       limit,
 		"total_pages": totalPages,
 	})
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Season passes
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// quantityParam reads ?quantity=, defaulting to 1; the service clamps it.
+func quantityParam(c *gin.Context) int {
+	q, _ := strconv.Atoi(c.DefaultQuery("quantity", "1"))
+	return q
+}
+
+// ListSeasonPasses godoc
+// @Summary List season passes on sale, priced from the match days that remain
+// @Tags tickets
+// @Produce json
+// @Param quantity query int false "How many passes to price (1 to 10)"
+// @Param code query string false "Access code that unlocks a hidden ticket's pass"
+// @Success 200
+// @Router /api/v1/season-passes [get]
+func (h *TicketHandler) ListSeasonPasses(c *gin.Context) {
+	passes, err := h.service.ListSeasonPasses(c.Request.Context(), quantityParam(c), c.Query("code"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": passes})
+}
+
+// GetSeasonPass godoc
+// @Summary One season pass with its match days and price
+// @Tags tickets
+// @Produce json
+// @Param id path string true "Season pass ID"
+// @Success 200 {object} dto.SeasonPassResponse
+// @Router /api/v1/season-passes/{id} [get]
+func (h *TicketHandler) GetSeasonPass(c *gin.Context) {
+	pass, err := h.service.GetSeasonPass(c.Request.Context(), c.Param("id"), quantityParam(c), c.Query("code"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, pass)
+}
+
+// PurchaseSeasonPass godoc
+// @Summary Buy a season pass
+// @Tags tickets
+// @Accept json
+// @Produce json
+// @Param body body dto.PurchaseSeasonPassRequest true "Purchase request"
+// @Success 201 {object} dto.TicketResponse
+// @Router /api/v1/tickets/season-pass [post]
+func (h *TicketHandler) PurchaseSeasonPass(c *gin.Context) {
+	var req dto.PurchaseSeasonPassRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.service.PurchaseSeasonPass(c.Request.Context(), req, paymentCallbackURL(c), optionalUserID(c))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, result)
+}
+
+func (h *TicketHandler) ListSeasonPassesAdmin(c *gin.Context) {
+	passes, err := h.service.ListSeasonPassesAdmin(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": passes})
+}
+
+func (h *TicketHandler) CreateSeasonPass(c *gin.Context) {
+	var req dto.CreateSeasonPassRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.service.CreateSeasonPass(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, result)
+}
+
+func (h *TicketHandler) UpdateSeasonPass(c *gin.Context) {
+	var req dto.UpdateSeasonPassRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.service.UpdateSeasonPass(c.Request.Context(), c.Param("id"), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *TicketHandler) DeleteSeasonPass(c *gin.Context) {
+	if err := h.service.DeleteSeasonPass(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "season pass deleted"})
 }

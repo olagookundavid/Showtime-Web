@@ -115,12 +115,16 @@ type PurchaseType string
 const (
 	PurchaseTypeSingle   PurchaseType = "SINGLE"
 	PurchaseTypeGamePass PurchaseType = "GAME_PASS"
+	// PurchaseTypeSeasonPass is a Game Pass sold as one offer: every match day
+	// still to be played, at the season pass's percentage off.
+	PurchaseTypeSeasonPass PurchaseType = "SEASON_PASS"
 )
 
 // Ticket is one purchase: one code, one payment, covering one or more match days.
 type Ticket struct {
 	ID           string       `json:"id"`
 	ProductID    *string      `json:"product_id,omitempty"`
+	SeasonPassID *string      `json:"season_pass_id,omitempty"`
 	ProductName  string       `json:"product_name"`
 	PurchaseType PurchaseType `json:"purchase_type"`
 	Email        string       `json:"email"`
@@ -191,4 +195,24 @@ type ReferralStats struct {
 	TicketsSold  int       `json:"tickets_sold"`
 	TotalRevenue int       `json:"total_revenue"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// ─── Season Pass ──────────────────────────────────────────────────────────────
+
+// SeasonPass is an offer made from a ticket: every match day still to be played in
+// the competitions the ticket is linked to, at PercentOff off the ticket's price
+// per day. Nothing about its price is stored; it is worked out from the match days
+// that remain.
+type SeasonPass struct {
+	ID          string    `json:"id"`
+	ProductID   string    `json:"product_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	PercentOff  float64   `json:"percent_off"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+
+	// Product is the ticket the pass is made from, when loaded.
+	Product *TicketProduct `json:"product,omitempty"`
 }

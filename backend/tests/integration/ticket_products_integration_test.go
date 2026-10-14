@@ -22,7 +22,9 @@ import (
 	"time"
 
 	"showtime-backend/internal/domain"
+	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+	"showtime-backend/internal/services"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -712,4 +714,167 @@ func TestScheduledEmails_MovingAMatchDayMovesItsReminders(t *testing.T) {
 	if !sendAt.Equal(want) {
 		t.Fatalf("reminder should be 09:00 Lagos on 19 Nov, got %v", sendAt)
 	}
+}
+
+// ─── Season passes ────────────────────────────────────────────────────────────
+
+func (f *ticketFixture) seasonService() *services.TicketService {
+	return services.NewTicketService(
+		f.days, f.products, f.tickets, f.emails, ports.NewSeasonPassRepository(f.pool),
+		nil, nil, nil, nil, nil,
+	)
+}
+
+func (f *ticketFixture) seasonPass(t *testing.T, p *domain.TicketProduct, percent float64) *domain.SeasonPass {
+	t.Helper()
+	pass := &domain.SeasonPass{ProductID: p.ID, Name: "ZZFIX " + p.Name + " Season Pass", PercentOff: percent, IsActive: true}
+	if err := ports.NewSeasonPassRepository(f.pool).Create(context.Background(), pass); err != nil {
+		t.Fatalf("create season pass: %v", err)
+	}
+	return pass
+}
+
+func TestSeasonPass_QuoteIsRemainingDaysLessPercentOff(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	// Created out of order, one already played: only the three remaining count.
+	f.eventDay(t, "sp-late", "2090-12-20")
+	f.eventDay(t, "sp-early", "2090-12-01")
+	f.eventDay(t, "sp-mid", "2090-12-10")
+	f.eventDay(t, "sp-played", "1990-12-01")
+	season := f.competition(t, "spseason", "2090-12-20", "2090-12-01", "1990-12-01")
+	cup := f.competition(t, "spcup", "2090-12-10")
+	vip := f.product(t, "SPQUOTE", 3000, 0, season, cup)
+	pass := f.seasonPass(t, vip, 60)
+
+	got, err := f.seasonService().GetSeasonPass(ctx, pass.ID, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 3 remaining days x 3000 = 9000; 60% off = 5400; pay 3600.
+	if got.DaysRemaining != 3 || got.FullPrice != 9000 || got.DiscountAmount != 5400 || got.Price != 3600 || !got.Available {
+		t.Fatalf("unexpected quote: %+v", got)
+	}
+	var dates []string
+	for _, d := range got.MatchDays {
+		dates = append(dates, d.EventDate)
+	}
+	if strings.Join(dates, ",") != "2090-12-01,2090-12-10,2090-12-20" {
+		t.Fatalf("covered days should run by the date played, got %v", dates)
+	}
+	if len(got.Competitions) != 2 {
+		t.Fatalf("the pass should show the tournaments it spans, got %+v", got.Competitions)
+	}
+
+	// Two passes double it.
+	two, _ := f.seasonService().GetSeasonPass(ctx, pass.ID, 2, "")
+	if two.FullPrice != 18000 || two.Price != 7200 {
+		t.Fatalf("two passes should cost 7200, got %+v", two)
+	}
+}
+
+func TestSeasonPass_PurchaseBecomesOneTicketWithADayPerRemainingMatchDay(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d1 := f.eventDay(t, "sb-1", "2091-01-05")
+	f.eventDay(t, "sb-2", "2091-01-12")
+	d3 := f.eventDay(t, "sb-3", "2091-01-19")
+	comp := f.competition(t, "sb", "2091-01-05", "2091-01-12", "2091-01-19")
+	// Seats per day: 1. A first buyer takes the third day, so it is sold out.
+	vip := f.product(t, "SPBUY", 3000, 1, comp)
+	if err := f.tickets.Create(ctx, f.newTicket(vip, 1, domain.TicketStatusPaid, f.productDay(t, vip, d3))); err != nil {
+		t.Fatal(err)
+	}
+	// 100% off so no payment provider is needed; the discount sum is covered above.
+	pass := f.seasonPass(t, vip, 100)
+
+	svc := f.seasonService()
+	res, err := svc.PurchaseSeasonPass(ctx, dto.PurchaseSeasonPassRequest{
+		SeasonPassID: pass.ID, Email: "season@ticketfixture.test", Name: "Season Buyer", Phone: "0800", Quantity: 1,
+	}, "http://localhost/tickets/confirm", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Status != "PAID" || res.PurchaseType != "SEASON_PASS" || res.SeasonPassID != pass.ID {
+		t.Fatalf("unexpected ticket: status=%s type=%s pass=%s", res.Status, res.PurchaseType, res.SeasonPassID)
+	}
+	if res.ProductName != pass.Name {
+		t.Errorf("the receipt should carry the pass name, got %q", res.ProductName)
+	}
+	if len(res.Days) != 2 {
+		t.Fatalf("the sold-out day must be left out, leaving 2 days, got %d", len(res.Days))
+	}
+	if res.Days[0].EventDayID != d1.ID {
+		t.Errorf("days should run earliest first, got %+v", res.Days)
+	}
+
+	// One reminder per covered day, queued for the future.
+	var reminders int
+	if err := f.pool.QueryRow(ctx, `SELECT COUNT(*) FROM scheduled_emails se JOIN tickets t ON t.id = se.ticket_id WHERE t.email = 'season@ticketfixture.test'`).Scan(&reminders); err != nil {
+		t.Fatal(err)
+	}
+	if reminders != 2 {
+		t.Errorf("expected a reminder per covered day, got %d", reminders)
+	}
+
+	// The seats are really taken: a second buyer cannot have the same days.
+	again, err := svc.GetSeasonPass(ctx, pass.ID, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Available {
+		t.Errorf("with every remaining day now full the pass has nothing left to sell, got %+v", again)
+	}
+	if _, err := svc.PurchaseSeasonPass(ctx, dto.PurchaseSeasonPassRequest{
+		SeasonPassID: pass.ID, Email: "late@ticketfixture.test", Name: "Late", Phone: "0800", Quantity: 1,
+	}, "http://localhost/tickets/confirm", nil); err == nil {
+		t.Error("a pass with no seats left on any day must not sell")
+	}
+}
+
+func TestSeasonPass_RepositoryRules(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d1 := f.eventDay(t, "sr-1", "2091-02-02")
+	comp := f.competition(t, "sr", "2091-02-02")
+	vip := f.product(t, "SPREPO", 3000, 0, comp)
+	repo := ports.NewSeasonPassRepository(f.pool)
+	pass := f.seasonPass(t, vip, 25)
+
+	// One pass per ticket.
+	dup := &domain.SeasonPass{ProductID: vip.ID, Name: "ZZFIX again", PercentOff: 10, IsActive: true}
+	if err := repo.Create(ctx, dup); err == nil {
+		t.Fatal("a second pass on the same ticket should be refused")
+	}
+
+	pass.PercentOff = 40
+	pass.IsActive = false
+	if err := repo.Update(ctx, pass); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := repo.GetByProduct(ctx, vip.ID)
+	if got.PercentOff != 40 || got.IsActive {
+		t.Fatalf("update not saved: %+v", got)
+	}
+	// An off-sale pass is not offered to the public.
+	pub, _ := f.seasonService().ListSeasonPasses(ctx, 1, "")
+	for _, p := range pub {
+		if p.ID == pass.ID {
+			t.Error("an inactive pass must not be listed publicly")
+		}
+	}
+
+	// A pass someone has paid for cannot be deleted.
+	pass.IsActive, pass.PercentOff = true, 100
+	_ = repo.Update(ctx, pass)
+	if _, err := f.seasonService().PurchaseSeasonPass(ctx, dto.PurchaseSeasonPassRequest{
+		SeasonPassID: pass.ID, Email: "del@ticketfixture.test", Name: "D", Phone: "1", Quantity: 1,
+	}, "http://localhost/tickets/confirm", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Delete(ctx, pass.ID); err == nil {
+		t.Error("a season pass with a paid purchase must not be deletable")
+	}
+	_ = d1
 }

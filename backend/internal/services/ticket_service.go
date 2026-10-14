@@ -36,6 +36,15 @@ type ITicketService interface {
 	SaveGamePassRules(ctx context.Context, req dto.SaveGamePassRulesRequest) ([]dto.GamePassRuleResponse, error)
 	QuotePrice(ctx context.Context, req dto.PriceQuoteRequest) (*dto.PriceQuoteResponse, error)
 
+	// Season passes
+	CreateSeasonPass(ctx context.Context, req dto.CreateSeasonPassRequest) (*dto.SeasonPassResponse, error)
+	UpdateSeasonPass(ctx context.Context, id string, req dto.UpdateSeasonPassRequest) (*dto.SeasonPassResponse, error)
+	DeleteSeasonPass(ctx context.Context, id string) error
+	ListSeasonPassesAdmin(ctx context.Context) ([]dto.SeasonPassResponse, error)
+	ListSeasonPasses(ctx context.Context, quantity int, accessCode string) ([]dto.SeasonPassResponse, error)
+	GetSeasonPass(ctx context.Context, id string, quantity int, accessCode string) (*dto.SeasonPassResponse, error)
+	PurchaseSeasonPass(ctx context.Context, req dto.PurchaseSeasonPassRequest, callbackURL string, userID *string) (*dto.TicketResponse, error)
+
 	// Tickets
 	Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string, userID *string) (*dto.TicketResponse, error)
 	GiftTicket(ctx context.Context, req dto.GiftTicketRequest) (*dto.TicketResponse, error)
@@ -58,6 +67,7 @@ type TicketService struct {
 	productRepo     ports.TicketProductRepository
 	ticketRepo      ports.TicketRepository
 	scheduledRepo   ports.ScheduledEmailRepository
+	seasonRepo      ports.SeasonPassRepository
 	matchRepo       ports.MatchRepository
 	paystack        *PaystackClient
 	email           ports.EmailService
@@ -70,6 +80,7 @@ func NewTicketService(
 	productRepo ports.TicketProductRepository,
 	ticketRepo ports.TicketRepository,
 	scheduledRepo ports.ScheduledEmailRepository,
+	seasonRepo ports.SeasonPassRepository,
 	matchRepo ports.MatchRepository,
 	paystack *PaystackClient,
 	emailService ports.EmailService,
@@ -83,6 +94,7 @@ func NewTicketService(
 		productRepo:     productRepo,
 		ticketRepo:      ticketRepo,
 		scheduledRepo:   scheduledRepo,
+		seasonRepo:      seasonRepo,
 		matchRepo:       matchRepo,
 		paystack:        paystack,
 		email:           emailService,
@@ -375,9 +387,52 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		return nil, fmt.Errorf("failed to load Game Pass pricing: %w", err)
 	}
 	pricing := PriceTicket(sel.dayPrices(), req.Quantity, rules)
-	totalAmount := pricing.Total
 
-	// 2b. Generate unique reference
+	return s.checkout(ctx, checkoutInput{
+		sel:          sel,
+		pricing:      pricing,
+		purchaseType: domain.PurchaseTypeGamePass,
+		productName:  sel.product.Name,
+		email:        req.Email,
+		name:         req.Name,
+		phone:        req.Phone,
+		quantity:     req.Quantity,
+		referralCode: req.ReferralCode,
+		callbackURL:  callbackURL,
+		userID:       userID,
+	})
+}
+
+// checkoutInput is a priced selection ready to be paid for, whichever kind of pass
+// it is. Purchase and PurchaseSeasonPass differ only in how they arrive here.
+type checkoutInput struct {
+	sel          *selection
+	pricing      TicketPricing
+	purchaseType domain.PurchaseType
+	seasonPassID *string
+	// productName is what the ticket is called on the receipt and in sales
+	// reports: the ticket's name, or the season pass's.
+	productName  string
+	email, name  string
+	phone        string
+	quantity     int
+	referralCode *string
+	callbackURL  string
+	userID       *string
+}
+
+// checkout starts payment (or settles a free pass at once) and creates the
+// ticket with its seats. It is the one place money is taken.
+func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.TicketResponse, error) {
+	sel, pricing, totalAmount := in.sel, in.pricing, in.pricing.Total
+	req := struct {
+		Email, Name, Phone string
+		Quantity           int
+		ReferralCode       *string
+	}{in.email, in.name, in.phone, in.quantity, in.referralCode}
+	callbackURL, userID := in.callbackURL, in.userID
+
+	// Generate unique reference
 	reference := "SFFL-" + uuid.New().String()[:12]
 
 	var paystackRef *string
@@ -425,8 +480,9 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		productID := sel.product.ID
 		ticket = &domain.Ticket{
 			ProductID:               &productID,
-			ProductName:             sel.product.Name,
-			PurchaseType:            domain.PurchaseTypeGamePass,
+			ProductName:             in.productName,
+			PurchaseType:            in.purchaseType,
+			SeasonPassID:            in.seasonPassID,
 			Email:                   req.Email,
 			Phone:                   req.Phone,
 			Name:                    req.Name,
@@ -803,6 +859,14 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// passNameFor is what a purchase is called in emails.
+func passNameFor(ticket *domain.Ticket) string {
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		return "Season Pass"
+	}
+	return "Game Pass"
+}
+
 func formatDay(d domain.TicketDay) email.TicketEmailDay {
 	date := ""
 	if !d.Date.IsZero() {
@@ -820,11 +884,13 @@ func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
 		days[i] = formatDay(d)
 	}
 
-	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Game Pass for %s", days[0].Title)
+	passName := passNameFor(ticket)
+	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your %s for %s", passName, days[0].Title)
 	if len(days) > 1 {
-		subject = fmt.Sprintf("IT'S SHOWTIME 🏈, Your Game Pass (%d match days)", len(days))
+		subject = fmt.Sprintf("IT'S SHOWTIME 🏈, Your %s (%d match days)", passName, len(days))
 	}
 	body := email.PurchaseEmailHTML(email.PurchaseEmailData{
+		PassName:    passName,
 		BuyerName:   ticket.Name,
 		ProductName: ticket.ProductName,
 		Phone:       ticket.Phone,
@@ -895,6 +961,9 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 
 	if t.ProductID != nil {
 		res.ProductID = *t.ProductID
+	}
+	if t.SeasonPassID != nil {
+		res.SeasonPassID = *t.SeasonPassID
 	}
 	if t.DiscountCode != nil {
 		res.DiscountCode = *t.DiscountCode

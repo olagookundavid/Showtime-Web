@@ -16,6 +16,9 @@ type TicketEmailDay struct {
 // PurchaseEmailData is everything the confirmation email shows. A Game Pass lists
 // every day it covers; a single ticket lists one.
 type PurchaseEmailData struct {
+	// PassName is what the purchase is called: "Game Pass" or "Season Pass". Left
+	// empty it reads as a Game Pass.
+	PassName    string
 	BuyerName   string
 	ProductName string
 	Phone       string
@@ -27,6 +30,8 @@ type PurchaseEmailData struct {
 
 // ReminderEmailData is the "your match day is tomorrow" email for one day.
 type ReminderEmailData struct {
+	// PassName as in PurchaseEmailData.
+	PassName    string
 	BuyerName   string
 	ProductName string
 	TicketCode  string
@@ -116,20 +121,29 @@ func detailRow(label, value string) string {
 </td>`, label, esc(value))
 }
 
-// PurchaseEmailHTML generates the confirmation email. Every purchase is a Game
-// Pass, so it lists every match day on it in one message, however many there are.
-func PurchaseEmailHTML(d PurchaseEmailData) string {
-	noun := "Game Pass"
-	if d.Quantity > 1 {
-		noun = "Game Passes"
+func passNameOr(name string) string {
+	if strings.TrimSpace(name) == "" {
+		return "Game Pass"
 	}
-	heading := "Game Pass Confirmed!"
+	return name
+}
+
+// PurchaseEmailHTML generates the confirmation email. Every purchase is a Game
+// Pass or a Season Pass, so it lists every match day on it in one message, however
+// many there are.
+func PurchaseEmailHTML(d PurchaseEmailData) string {
+	pass := passNameOr(d.PassName)
+	noun := pass
+	if d.Quantity > 1 {
+		noun = pass + "es" // Game Passes, Season Passes
+	}
+	heading := pass + " Confirmed!"
 	intro := "Thank you for your purchase! Here are your details:"
 	switch {
 	case len(d.Days) == 1:
 		intro = fmt.Sprintf("Thank you for your purchase! Your %s for %s is confirmed. Here are your details:", strings.ToLower(noun), d.Days[0].Title)
 	case len(d.Days) > 1:
-		intro = fmt.Sprintf("Thank you for your purchase! Your Game Pass covers %d match days. One code gets you in on every one of them:", len(d.Days))
+		intro = fmt.Sprintf("Thank you for your purchase! Your %s covers %d match days. One code gets you in on every one of them:", pass, len(d.Days))
 	}
 
 	phoneRow := ""
@@ -198,14 +212,14 @@ func PurchaseEmailHTML(d PurchaseEmailData) string {
 </td>
 </tr>`
 
-	return emailShell("IT'S SHOWTIME — Your Game Pass Confirmed", ticketBadge(), heading, body)
+	return emailShell("IT'S SHOWTIME — Your "+pass+" Confirmed", ticketBadge(), heading, body)
 }
 
 // DayReminderEmailHTML is the reminder sent ahead of one match day.
 func DayReminderEmailHTML(d ReminderEmailData) string {
 	label := "Your match day is almost here"
 	if d.TotalDays > 1 && d.DayNumber > 0 {
-		label = fmt.Sprintf("Day %d of %d on your Game Pass", d.DayNumber, d.TotalDays)
+		label = fmt.Sprintf("Day %d of %d on your %s", d.DayNumber, d.TotalDays, passNameOr(d.PassName))
 	}
 	noun := "ticket"
 	if d.Quantity > 1 {

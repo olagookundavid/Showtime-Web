@@ -129,6 +129,7 @@ func (s *TicketService) sendReminder(ctx context.Context, e domain.ScheduledEmai
 	total := len(ticket.Days)
 	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Reminder: %s on %s", day.Title, day.Date.Format("Mon 2 Jan"))
 	body := email.DayReminderEmailHTML(email.ReminderEmailData{
+		PassName:    passNameFor(ticket),
 		BuyerName:   ticket.Name,
 		ProductName: ticket.ProductName,
 		TicketCode:  ticket.TicketCode,

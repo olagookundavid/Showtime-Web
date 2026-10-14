@@ -47,6 +47,9 @@ type TicketProductRepository interface {
 	// match in a competition linked to an active ticket and none yet. Match days
 	// are what tickets are bought for, and not every competition has them.
 	EnsureEventDays(ctx context.Context) error
+	// ListProductDays returns every match day the ticket is on sale for (past ones
+	// too), with seat counts, earliest first.
+	ListProductDays(ctx context.Context, productID string) ([]domain.TicketProductDay, error)
 	// ResolveProductDays checks which of the given match days are on sale for the
 	// ticket (through its linked competitions), makes sure each has its seat-lock
 	// row, and returns them with price and seat counts. A day that is not on sale
@@ -534,6 +537,10 @@ func (r *PostgresTicketProductRepository) queryGameDays(ctx context.Context, whe
 	return days, rows.Err()
 }
 
+func (r *PostgresTicketProductRepository) ListProductDays(ctx context.Context, productID string) ([]domain.TicketProductDay, error) {
+	return r.queryGameDays(ctx, `WHERE p.id = $1`, []interface{}{productID})
+}
+
 func (r *PostgresTicketProductRepository) ResolveProductDays(ctx context.Context, productID string, eventDayIDs []string) ([]domain.TicketProductDay, error) {
 	if len(eventDayIDs) == 0 {
 		return []domain.TicketProductDay{}, nil
@@ -631,7 +638,7 @@ const ticketColumns = `t.id, t.product_id, t.product_name, t.purchase_type, t.em
 	COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.subtotal,
 	t.total_amount, t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 	t.referral_code, t.created_at, t.updated_at, t.discount_code, t.discount_amount,
-	t.game_pass_discount_percent::float8, t.game_pass_discount_amount`
+	t.game_pass_discount_percent::float8, t.game_pass_discount_amount, t.season_pass_id::text`
 
 func scanTicket(row pgx.Row, t *domain.Ticket) error {
 	return row.Scan(
@@ -639,7 +646,7 @@ func scanTicket(row pgx.Row, t *domain.Ticket) error {
 		&t.Phone, &t.Name, &t.UserID, &t.Quantity, &t.UnitPrice, &t.Subtotal,
 		&t.TotalAmount, &t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.ReferralCode, &t.CreatedAt, &t.UpdatedAt, &t.DiscountCode, &t.DiscountAmount,
-		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount,
+		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount, &t.SeasonPassID,
 	)
 }
 
@@ -775,15 +782,16 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 	err = tx.QueryRow(ctx, `
 		INSERT INTO tickets (product_id, product_name, purchase_type, email, phone, name, user_id, quantity,
 			unit_price, subtotal, total_amount, status, paystack_reference, paystack_access_code, ticket_code,
-			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount,
+			season_pass_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
 		ON CONFLICT (paystack_reference) DO NOTHING
 		RETURNING id, created_at, updated_at`,
 		ticket.ProductID, ticket.ProductName, ticket.PurchaseType, ticket.Email, ticket.Phone, ticket.Name,
 		ticket.UserID, ticket.Quantity, ticket.UnitPrice, ticket.Subtotal, ticket.TotalAmount, ticket.Status,
 		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
 		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
-		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount,
+		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount, ticket.SeasonPassID,
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
 	if err != nil {
 		return err
