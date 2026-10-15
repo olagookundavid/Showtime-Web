@@ -523,7 +523,6 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeHandler := transport.NewStoreHandler(storeService, paystackClient)
 	importHandler := transport.NewImportHandler(importService)
 	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
-	sitemapHandler := transport.NewSitemapHandler(ports.NewSitemapRepository(pool))
 	seasonHandler := transport.NewSeasonHandler(seasonService)
 	playHandler := transport.NewPlayHandler(playService)
 	contractHandler := transport.NewContractHandler(contractService, authRepo, auditService)
@@ -574,7 +573,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		authHandler, roleHandler, newsHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, siteEventsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, storeHandler, importHandler,
-		heroSlideHandler, sitemapHandler, seasonHandler, playHandler, reliveHandler,
+		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,

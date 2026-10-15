@@ -15,6 +15,7 @@ import {
   OurTeam,
   Sponsorships,
   PrivacyPolicy,
+  Sitemap,
   NewsList,
   NewsDetail,
   MatchHub,
@@ -575,6 +576,7 @@ function App() {
                         path="/about/privacy"
                         element={<PrivacyPolicy />}
                       />
+                      <Route path="/sitemap" element={<Sitemap />} />
                     </Route>
 
                     {/* Admin Routes (No Layout) */}

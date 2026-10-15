@@ -1,4 +1,5 @@
 export { Landing } from "./Landing";
+export { Sitemap } from "./Sitemap";
 
 // Auth
 export { Login } from "./auth/Login";

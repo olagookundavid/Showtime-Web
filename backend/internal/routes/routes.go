@@ -77,7 +77,6 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
 	SetupHeroSlideRoutes(v1_api, app)
-	SetupSitemapRoutes(v1_api, app)
 	SetupSeasonRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
 	SetupPlayerRoutes(v1_api, app)
@@ -660,12 +659,6 @@ func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
 		newsRoutes.GET("/slug/:slug", app.Handlers.NewsHandler.GetNewsBySlug)
 		newsRoutes.GET("/:id", app.Handlers.NewsHandler.GetNewsByID)
 	}
-}
-
-// SetupSitemapRoutes serves the sitemap. The frontend host rewrites /sitemap.xml
-// to this route (frontend/vercel.json).
-func SetupSitemapRoutes(r *gin.RouterGroup, app *api.Application) {
-	r.GET("/sitemap.xml", app.Handlers.SitemapHandler.GetSitemap)
 }
 
 func SetupHeroSlideRoutes(r *gin.RouterGroup, app *api.Application) {
