@@ -1,8 +1,7 @@
 import { BookOpenIcon, DocumentArrowDownIcon } from "@heroicons/react/24/outline";
 
 export const GameplayRules = () => {
-  const pdfUrl =
-    "https://cdn.showtimeflag.football/pdfs/showtime_flag_rule_book.pdf";
+  const pdfUrl = "/docs/showtime-rulebook-2026.pdf";
 
   return (
     <div className="space-y-4 md:space-y-8">
@@ -80,7 +79,7 @@ export const GameplayRules = () => {
               </a>
               <a
                 href={pdfUrl}
-                download
+                download="Showtime Rulebook 2026.pdf"
                 className="w-full text-center bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-3 px-6 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
               >
                 <DocumentArrowDownIcon className="w-5 h-5" aria-hidden="true" />

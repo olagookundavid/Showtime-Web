@@ -7,7 +7,7 @@
     ],
     "headers": [
         {
-            "source": "/(images|badges)/(.*)",
+            "source": "/(images|badges|docs)/(.*)",
             "headers": [
                 {
                     "key": "Cache-Control",
