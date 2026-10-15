@@ -1217,6 +1217,7 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 		if prior != nil {
 			lineup = prior
 			isRollover = true
+			previewRollover(lineup, gw)
 		}
 	}
 	if lineup == nil {
@@ -1320,6 +1321,25 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 	}, nil
 }
 
+// previewRollover turns the previous gameweek's lineup into a preview of what
+// will roll over into gw. The lineup it is handed belongs to an earlier
+// gameweek, so its LOCKED status and its points are that gameweek's, not this
+// one's: shown as they are, a gameweek still open for changes reads as locked
+// and already carries last week's score. The preview is therefore a draft with
+// nothing scored until the gameweek actually locks.
+func previewRollover(l *domain.FantasyLineup, gw *domain.FantasyGameweek) {
+	if l == nil || gw == nil {
+		return
+	}
+	l.Points = 0
+	for i := range l.Picks {
+		l.Picks[i].Points = 0
+	}
+	if gw.Status == domain.GameweekScheduled {
+		l.Status = domain.LineupDraft
+	}
+}
+
 func (s *FantasyService) GetTeamLineup(ctx context.Context, requestingUserID, teamID, gameweekID string) (*dto.FantasyTeamLineupDetailResponse, error) {
 	team, err := s.repo.GetTeamByID(ctx, teamID)
 	if err != nil {
@@ -1367,6 +1387,7 @@ func (s *FantasyService) GetTeamLineup(ctx context.Context, requestingUserID, te
 		if prior != nil {
 			lineup = prior
 			isRollover = true
+			previewRollover(lineup, gw)
 		}
 	}
 
