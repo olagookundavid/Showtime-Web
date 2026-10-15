@@ -1323,12 +1323,21 @@ export function FantasySquadBuilder() {
 
     // 7. Purchase-specific validations
     if (opts?.isBuying) {
-      const maxSquadSize = opts?.season?.squad_size || 18;
-      if (opts?.mySquad && opts.mySquad.players.length >= maxSquadSize) {
+      // The cap is the whole squad's, starters plus bench. season.squad_size is
+      // the starting fourteen, and measuring against it called a 14-player
+      // squad "full" with every bench spot still open.
+      const squadMax = opts?.mySquad?.squad_max ?? 19;
+      const squadSize =
+        opts?.mySquad?.squad_size ?? opts?.mySquad?.players.length ?? 0;
+      if (opts?.mySquad && squadSize >= squadMax) {
+        const displaced = currentSquad[targetSlot.slot];
         return {
           valid: false,
           title: "Squad Full",
-          error: `Your squad is full (${maxSquadSize} players). Sell a player before signing a new one.`,
+          error:
+            displaced && displaced.player_id !== candidateId
+              ? `Your squad is full (${squadMax} of ${squadMax}). Signing ${candidateName} would move ${displaced.player_name} to the bench, but there is no bench room left. Sell a bench player, or use Transfer Out on ${displaced.player_name} to sell them and sign ${candidateName} in their place.`
+              : `Your squad is full (${squadMax} of ${squadMax}). Sell a bench player before signing ${candidateName}.`,
         };
       }
       const bank = opts?.mySquad?.bank ?? 0;
@@ -1446,14 +1455,71 @@ export function FantasySquadBuilder() {
 
     // The pick is saved the moment it is made, and it stays in the slot it
     // was put in — it is not parked on the bench waiting for a later save.
+    // Whoever held the slot is still owned, so they drop to the bench.
+    const displaced = squad[activeModalSlot.slot];
     commitSquad((prev) => ({
       ...prev,
       [activeModalSlot.slot]: enrichedPlayer,
     }));
+    if (displaced && displaced.player_id !== player.player_id) {
+      toast.success(
+        `${player.player_name} in, ${displaced.player_name} moved to the bench.`,
+      );
+    }
     setActiveModalSlot(null);
     setMarketTeamFilter("");
     setMarketGenderFilter("");
   };
+
+  // Why a starter cannot start, or null if they can. The pitch badge, the
+  // Manage menu and the checklist's list of blocked starters all read this,
+  // so they can never disagree about who is blocked. `owned` is false for a
+  // pick no longer in the squad: there is nothing to sell, only to bench.
+  const starterIssue = (
+    slot: FantasySlot,
+  ): { reason: string; detail: string; owned: boolean } | null => {
+    const player = squad[slot];
+    if (!player || !mySquad?.players) return null;
+    const squadMember = mySquad.players.find(
+      (sp) => sp.player_id === player.player_id,
+    );
+    if (!squadMember) {
+      return {
+        reason: "Not Owned",
+        detail: "No longer in your squad.",
+        owned: false,
+      };
+    }
+    if (squadMember.team_active === false) {
+      return {
+        reason: "Club Inactive",
+        detail: "Their club is inactive, so they cannot start.",
+        owned: true,
+      };
+    }
+    if (isDeletedPlayer({ status: squadMember.player_status })) {
+      return {
+        reason: "Unavailable",
+        detail: "No longer in the league, so they cannot start.",
+        owned: true,
+      };
+    }
+    if (squadMember.is_reserve) {
+      return {
+        reason: "Club reserve",
+        detail:
+          "On their club's reserve list — they can sit on your bench but cannot start.",
+        owned: true,
+      };
+    }
+    return null;
+  };
+
+  const blockedStarters = SLOT_DEFINITIONS.flatMap((def) => {
+    const issue = starterIssue(def.slot);
+    const player = squad[def.slot];
+    return issue && player ? [{ def, player, issue }] : [];
+  });
 
   // "Move to Bench" — remove from starting slot
   const handleMoveToBench = (slot: FantasySlot) => {
@@ -2144,15 +2210,8 @@ export function FantasySquadBuilder() {
           actionSlot={actionSlot}
           onSlotClick={(slot, player) => {
             if (player) {
-              // 1-A: If clicking an inactive/invalid starter, directly open replacement picker
-              if (player.isInvalid) {
-                const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
-                if (def) {
-                  setActionSlot(null);
-                  setActiveModalSlot(def);
-                  return;
-                }
-              }
+              // A blocked starter opens the same Manage menu as anyone else,
+              // so they can be benched or sold, not only replaced.
               setActionSlot(actionSlot === slot ? null : slot);
             } else {
               const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
@@ -2160,28 +2219,8 @@ export function FantasySquadBuilder() {
             }
           }}
           isSlotInvalid={(slot) => {
-            const player = squad[slot];
-            if (!player) return false;
-
-            if (mySquad?.players) {
-              const squadMember = mySquad.players.find(
-                (sp) => sp.player_id === player.player_id,
-              );
-              if (!squadMember) {
-                return { invalid: true, reason: "Not Owned" };
-              }
-              if (squadMember.team_active === false) {
-                return { invalid: true, reason: "Club Inactive" };
-              }
-              if (isDeletedPlayer({ status: squadMember.player_status })) {
-                return { invalid: true, reason: "Unavailable" };
-              }
-              if (squadMember.is_reserve) {
-                return { invalid: true, reason: "Club reserve" };
-              }
-            }
-
-            return false;
+            const issue = starterIssue(slot);
+            return issue ? { invalid: true, reason: issue.reason } : false;
           }}
           isSlotInactive={(slot) => {
             const player = squad[slot];
@@ -2244,6 +2283,23 @@ export function FantasySquadBuilder() {
               </div>
             </div>
 
+            {starterIssue(actionSlot) && (
+              <div
+                role="alert"
+                className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-3 py-2.5 text-xs text-red-800 dark:text-red-200"
+              >
+                <ExclamationCircleIcon
+                  className="w-4 h-4 shrink-0 mt-px text-sffl-red"
+                  aria-hidden="true"
+                />
+                <span>
+                  <strong>Cannot start:</strong>{" "}
+                  {starterIssue(actionSlot)!.detail} Move them to the bench,
+                  sell them, or swap someone in.
+                </span>
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="p-4 space-y-2">
               <button
@@ -2264,6 +2320,7 @@ export function FantasySquadBuilder() {
                 </div>
               </button>
 
+              {starterIssue(actionSlot)?.owned !== false && (
               <button
                 type="button"
                 onClick={() => handleTransferOut(actionSlot)}
@@ -2284,6 +2341,7 @@ export function FantasySquadBuilder() {
                   </span>
                 </div>
               </button>
+              )}
 
               <button
                 type="button"
@@ -2438,6 +2496,55 @@ export function FantasySquadBuilder() {
               </li>
             ))}
           </ul>
+
+          {blockedStarters.length > 0 && (
+            <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-200 mb-2">
+                Can't start — bench or sell them
+              </p>
+              <ul className="space-y-2">
+                {blockedStarters.map(({ def, player, issue }) => (
+                  <li
+                    key={def.slot}
+                    className="flex flex-wrap items-center gap-2 text-xs"
+                  >
+                    <span className="min-w-0 flex-1 text-gray-800 dark:text-gray-100">
+                      <strong className="font-black">
+                        {player.player_name}
+                      </strong>{" "}
+                      <span className="text-gray-500 dark:text-gray-400">
+                        ({def.label}) · {issue.reason}
+                      </span>
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={ArrowUturnDownIcon}
+                      onClick={() => handleMoveToBench(def.slot)}
+                    >
+                      {issue.owned ? "Bench" : "Remove"}
+                    </Button>
+                    {issue.owned && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={ArrowUpTrayIcon}
+                        disabled={!!marketClosed}
+                        title={
+                          marketClosed
+                            ? "Unavailable while the market is closed"
+                            : "Sell and pick a replacement"
+                        }
+                        onClick={() => handleTransferOut(def.slot)}
+                      >
+                        Sell
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* The server decides what is publishable, not this list. The
                         checks above are a local preview that exists so feedback is
