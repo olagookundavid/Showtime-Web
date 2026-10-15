@@ -344,7 +344,7 @@ export const MediaGuidelines = () => {
         </div>
         <div className="w-full sm:w-auto">
           <CopyableEmail
-            email="showtime@showtimeflag.football"
+            email="showtime@sffl.football"
             label="Inquiries?"
             className="w-full sm:w-auto justify-center bg-white text-sffl-navy px-4 sm:px-8 py-2 font-bold rounded-xl text-center shadow-md hover:bg-gray-100 transition-all text-sm sm:text-base"
           />

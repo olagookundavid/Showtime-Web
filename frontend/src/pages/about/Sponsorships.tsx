@@ -55,7 +55,7 @@ export const Sponsorships = () => {
           </p>
           <div className="flex justify-center mt-6">
             <CopyableEmail
-              email="showtime@showtimeflag.football"
+              email="showtime@sffl.football"
               label="Request Deck at:"
               className="bg-gray-100 dark:bg-gray-800 text-sffl-navy dark:text-white px-4 sm:px-6 py-2 rounded-3xl sm:rounded-full justify-center text-sm border border-gray-200 dark:border-gray-700 shadow-sm"
             />

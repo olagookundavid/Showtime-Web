@@ -162,7 +162,7 @@ export const Footer = () => {
           </div>
           <div className="mt-4 md:mt-6">
             <CopyableEmail
-              email="showtime@showtimeflag.football"
+              email="showtime@sffl.football"
               label="Contact Us:"
               className="bg-gray-800 dark:bg-gray-900 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm transition-colors"
             />
