@@ -6,6 +6,7 @@ export interface GraphicEvent {
   stat?: string;
   photo?: string;
   compact?: boolean;
+  large?: boolean;
   duration?: number;
 }
 
