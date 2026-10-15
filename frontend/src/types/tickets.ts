@@ -1,7 +1,7 @@
 import type { Team } from './matches';
 
-/** Every purchase is a Game Pass: one match day or several under one code. */
-export type PurchaseType = 'GAME_PASS';
+/** A Game Pass (one match day or several under one code) or a Season Pass (valid until an end date). */
+export type PurchaseType = 'GAME_PASS' | 'SEASON_PASS';
 
 /** A match day a ticket is on sale for, because it has a match in a competition the ticket is linked to. */
 export interface TicketProductDayResponse {
@@ -139,6 +139,9 @@ export interface TicketResponse {
     ticket_code?: string;
     authorization_url?: string;
     referral_code?: string;
+    /** Set for a Season Pass: the last day it lets people in (YYYY-MM-DD). It has no match days. */
+    season_pass_id?: string;
+    valid_until?: string;
     days: TicketDayResponse[];
     created_at: string;
 }

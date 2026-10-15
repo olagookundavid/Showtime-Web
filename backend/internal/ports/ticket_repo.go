@@ -73,6 +73,11 @@ type TicketRepository interface {
 	// CheckinDay marks one day of a PAID ticket as attended. The ticket becomes
 	// USED once every day has been.
 	CheckinDay(ctx context.Context, ticketID, eventDayID, checkedInBy string) error
+	// CheckinSeasonPass lets a season pass in for today. It is valid every day up to
+	// and including its end date, so there is no "already used": a second scan the
+	// same day is still let in, and is recorded once. firstEntryToday says whether
+	// this was the first time today.
+	CheckinSeasonPass(ctx context.Context, ticketID, checkedInBy string) (firstEntryToday bool, err error)
 	List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]domain.Ticket, int, error)
 	ExpirePastTickets(ctx context.Context) (int64, error)
 	GetTotalRevenue(ctx context.Context) (int, error)
@@ -638,7 +643,8 @@ const ticketColumns = `t.id, t.product_id, t.product_name, t.purchase_type, t.em
 	COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.subtotal,
 	t.total_amount, t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 	t.referral_code, t.created_at, t.updated_at, t.discount_code, t.discount_amount,
-	t.game_pass_discount_percent::float8, t.game_pass_discount_amount, t.season_pass_id::text`
+	t.game_pass_discount_percent::float8, t.game_pass_discount_amount, t.season_pass_id::text,
+	(SELECT to_char(sp.ends_on, 'YYYY-MM-DD') FROM season_passes sp WHERE sp.id = t.season_pass_id)`
 
 func scanTicket(row pgx.Row, t *domain.Ticket) error {
 	return row.Scan(
@@ -646,7 +652,7 @@ func scanTicket(row pgx.Row, t *domain.Ticket) error {
 		&t.Phone, &t.Name, &t.UserID, &t.Quantity, &t.UnitPrice, &t.Subtotal,
 		&t.TotalAmount, &t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.ReferralCode, &t.CreatedAt, &t.UpdatedAt, &t.DiscountCode, &t.DiscountAmount,
-		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount, &t.SeasonPassID,
+		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount, &t.SeasonPassID, &t.ValidUntil,
 	)
 }
 
@@ -698,7 +704,9 @@ func loadTicketDays(ctx context.Context, db interface {
 }
 
 func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ticket) error {
-	if len(ticket.Days) == 0 {
+	// A season pass has no match days (it is valid until its end date), so it takes
+	// no seats. Every other ticket must cover at least one day.
+	if len(ticket.Days) == 0 && ticket.SeasonPassID == nil {
 		return fmt.Errorf("a ticket needs at least one day")
 	}
 
@@ -712,6 +720,69 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 	}
 	defer tx.Rollback(ctx)
 
+	if len(ticket.Days) > 0 {
+		if err := reserveSeatsTx(ctx, tx, ticket); err != nil {
+			return err
+		}
+	}
+
+	err = tx.QueryRow(ctx, `
+		INSERT INTO tickets (product_id, product_name, purchase_type, email, phone, name, user_id, quantity,
+			unit_price, subtotal, total_amount, status, paystack_reference, paystack_access_code, ticket_code,
+			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount,
+			season_pass_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+		ON CONFLICT (paystack_reference) DO NOTHING
+		RETURNING id, created_at, updated_at`,
+		ticket.ProductID, ticket.ProductName, ticket.PurchaseType, ticket.Email, ticket.Phone, ticket.Name,
+		ticket.UserID, ticket.Quantity, ticket.UnitPrice, ticket.Subtotal, ticket.TotalAmount, ticket.Status,
+		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
+		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
+		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount, ticket.SeasonPassID,
+	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
+	if err != nil {
+		return err
+	}
+
+	for _, d := range ticket.Days {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO ticket_days (ticket_id, event_day_id, product_day_id, unit_price, day_title, day_date, day_venue)
+			SELECT $1::uuid, ed.id, $3::uuid, $4::int, ed.title, ed.date, ed.venue FROM event_days ed WHERE ed.id = $2`,
+			ticket.ID, d.EventDayID, d.ProductDayID, d.UnitPrice); err != nil {
+			return err
+		}
+	}
+
+	// Hold the code in the same transaction that claims the seats, so a buyer
+	// never takes one without the other.
+	if ticket.DiscountCodeID != nil && *ticket.DiscountCodeID != "" {
+		if err := reserveDiscountTx(ctx, tx, *ticket.DiscountCodeID, ticket.Email, ticket.UserID, nil, &ticket.ID, float64(ticket.DiscountAmount)); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// A season pass says when it ends; read it back so the ticket in hand (and the
+	// confirmation email built from it) carries the date.
+	if ticket.SeasonPassID != nil {
+		var endsOn string
+		if err := r.db.QueryRow(ctx,
+			`SELECT to_char(ends_on, 'YYYY-MM-DD') FROM season_passes WHERE id = $1`, *ticket.SeasonPassID,
+		).Scan(&endsOn); err == nil {
+			ticket.ValidUntil = &endsOn
+		}
+	}
+
+	return loadTicketDays(ctx, r.db, []*domain.Ticket{ticket})
+}
+
+// reserveSeatsTx locks every day the ticket covers and checks each has room, inside
+// the purchase's transaction. The rows are locked in a fixed order (by event day),
+// so overlapping passes queue instead of deadlocking.
+func reserveSeatsTx(ctx context.Context, tx pgx.Tx, ticket *domain.Ticket) error {
 	productDayIDs := make([]string, len(ticket.Days))
 	for i, d := range ticket.Days {
 		productDayIDs[i] = d.ProductDayID
@@ -778,47 +849,7 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 			return fmt.Errorf("not enough tickets available for %s, only %d remaining", l.title, remaining)
 		}
 	}
-
-	err = tx.QueryRow(ctx, `
-		INSERT INTO tickets (product_id, product_name, purchase_type, email, phone, name, user_id, quantity,
-			unit_price, subtotal, total_amount, status, paystack_reference, paystack_access_code, ticket_code,
-			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount,
-			season_pass_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-		ON CONFLICT (paystack_reference) DO NOTHING
-		RETURNING id, created_at, updated_at`,
-		ticket.ProductID, ticket.ProductName, ticket.PurchaseType, ticket.Email, ticket.Phone, ticket.Name,
-		ticket.UserID, ticket.Quantity, ticket.UnitPrice, ticket.Subtotal, ticket.TotalAmount, ticket.Status,
-		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
-		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
-		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount, ticket.SeasonPassID,
-	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
-	if err != nil {
-		return err
-	}
-
-	for _, d := range ticket.Days {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO ticket_days (ticket_id, event_day_id, product_day_id, unit_price, day_title, day_date, day_venue)
-			SELECT $1::uuid, ed.id, $3::uuid, $4::int, ed.title, ed.date, ed.venue FROM event_days ed WHERE ed.id = $2`,
-			ticket.ID, d.EventDayID, d.ProductDayID, d.UnitPrice); err != nil {
-			return err
-		}
-	}
-
-	// Hold the code in the same transaction that claims the seats, so a buyer
-	// never takes one without the other.
-	if ticket.DiscountCodeID != nil && *ticket.DiscountCodeID != "" {
-		if err := reserveDiscountTx(ctx, tx, *ticket.DiscountCodeID, ticket.Email, ticket.UserID, nil, &ticket.ID, float64(ticket.DiscountAmount)); err != nil {
-			return err
-		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-
-	return loadTicketDays(ctx, r.db, []*domain.Ticket{ticket})
+	return nil
 }
 
 func (r *PostgresTicketRepository) getOne(ctx context.Context, where string, arg string) (*domain.Ticket, error) {
@@ -952,6 +983,49 @@ func (r *PostgresTicketRepository) CheckinDay(ctx context.Context, ticketID, eve
 	return tx.Commit(ctx)
 }
 
+func (r *PostgresTicketRepository) CheckinSeasonPass(ctx context.Context, ticketID, checkedInBy string) (bool, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+
+	var status domain.TicketStatus
+	var passID *string
+	var endsOn *string
+	var expired bool
+	if err := tx.QueryRow(ctx, `
+		SELECT t.status, t.season_pass_id::text, to_char(sp.ends_on, 'YYYY-MM-DD'), COALESCE(sp.ends_on < `+lagosToday+`, FALSE)
+		FROM tickets t LEFT JOIN season_passes sp ON sp.id = t.season_pass_id
+		WHERE t.id = $1 FOR UPDATE OF t`, ticketID).Scan(&status, &passID, &endsOn, &expired); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, fmt.Errorf("ticket not found")
+		}
+		return false, err
+	}
+	if passID == nil || endsOn == nil {
+		return false, fmt.Errorf("this ticket is not a season pass")
+	}
+	if status != domain.TicketStatusPaid {
+		return false, fmt.Errorf("ticket is %s, not PAID", status)
+	}
+	if expired {
+		return false, fmt.Errorf("this season pass ended on %s", *endsOn)
+	}
+
+	res, err := tx.Exec(ctx, `
+		INSERT INTO season_pass_entries (ticket_id, entry_date, checked_in_by)
+		VALUES ($1, `+lagosToday+`, $2)
+		ON CONFLICT (ticket_id, entry_date) DO NOTHING`, ticketID, checkedInBy)
+	if err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return res.RowsAffected() == 1, nil
+}
+
 func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]domain.Ticket, int, error) {
 	where := ` WHERE 1=1`
 	args := []interface{}{}
@@ -1003,7 +1077,21 @@ func (r *PostgresTicketRepository) ExpirePastTickets(ctx context.Context) (int64
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected(), nil
+	expired := res.RowsAffected()
+
+	// A season pass has no match days; it ends on its pass's end date.
+	passes, err := r.db.Exec(ctx, `
+		UPDATE tickets
+		SET status = CASE WHEN tickets.status = 'PAID' THEN 'EXPIRED' ELSE 'CANCELLED' END,
+		    updated_at = NOW()
+		FROM season_passes sp
+		WHERE sp.id = tickets.season_pass_id
+		  AND tickets.status IN ('PAID', 'PENDING', 'FAILED')
+		  AND sp.ends_on < `+lagosToday)
+	if err != nil {
+		return expired, err
+	}
+	return expired + passes.RowsAffected(), nil
 }
 
 func (r *PostgresTicketRepository) GetTotalRevenue(ctx context.Context) (int, error) {

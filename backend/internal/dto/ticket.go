@@ -184,6 +184,8 @@ type TicketResponse struct {
 	ID                      string  `json:"id"`
 	ProductID               string  `json:"product_id,omitempty"`
 	SeasonPassID            string  `json:"season_pass_id,omitempty"`
+	// ValidUntil is set for a season pass: the last day it lets people in.
+	ValidUntil string `json:"valid_until,omitempty"`
 	ProductName             string  `json:"product_name,omitempty"`
 	PurchaseType            string  `json:"purchase_type"`
 	Email                   string  `json:"email"`
@@ -242,72 +244,38 @@ type ReferralStatsResponse struct {
 // ─── Season Pass DTOs ─────────────────────────────────────────────────────────
 
 type CreateSeasonPassRequest struct {
-	// The ticket the pass is made from. Its linked competitions decide which match
-	// days the pass covers, and its price per day is what the discount comes off.
-	ProductID string `json:"product_id" binding:"required"`
-	// Left out, it is "<ticket name> Season Pass".
-	Name        string `json:"name"`
+	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
-	// Percent off the ticket's price per day, 0 to 100.
-	PercentOff float64 `json:"percent_off" binding:"min=0,max=100"`
-	IsActive   *bool   `json:"is_active"`
+	// Naira for one pass. 0 makes it free.
+	Price int `json:"price" binding:"min=0"`
+	// The last day the pass lets people in, YYYY-MM-DD.
+	EndsOn   string `json:"ends_on" binding:"required"`
+	IsActive *bool  `json:"is_active"`
 }
 
 type UpdateSeasonPassRequest struct {
-	Name        *string  `json:"name"`
-	Description *string  `json:"description"`
-	PercentOff  *float64 `json:"percent_off" binding:"omitempty,min=0,max=100"`
-	IsActive    *bool    `json:"is_active"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Price       *int    `json:"price" binding:"omitempty,min=0"`
+	EndsOn      *string `json:"ends_on"`
+	IsActive    *bool   `json:"is_active"`
 }
 
-// SeasonPassDayResponse is one match day a season pass covers.
-type SeasonPassDayResponse struct {
-	EventDayID      string `json:"event_day_id"`
-	EventTitle      string `json:"event_title"`
-	EventDate       string `json:"event_date"`
-	EventVenue      string `json:"event_venue"`
-	CompetitionID   string `json:"competition_id"`
-	CompetitionName string `json:"competition_name"`
-	// Price is the ticket's full price for this day, before the season discount.
-	Price int `json:"price"`
-	// Available is seats left; -1 means unlimited.
-	Available int `json:"available"`
-}
-
-// SeasonPassResponse is a season pass with what it costs right now.
+// SeasonPassResponse is a season pass as buyers and admins see it.
 type SeasonPassResponse struct {
-	ID          string  `json:"id"`
-	ProductID   string  `json:"product_id"`
-	ProductName string  `json:"product_name"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	PercentOff  float64 `json:"percent_off"`
-	IsActive    bool    `json:"is_active"`
-	// The ticket's own perks (its description), for showing alongside the pass.
-	ProductDescription string                      `json:"product_description"`
-	PricePerDay        int                         `json:"price_per_day"`
-	Competitions       []TicketCompetitionResponse `json:"competitions"`
-
-	// What the pass would cost for Quantity passes, today.
-	Quantity int `json:"quantity"`
-	// MatchDays are the days still to be played that the pass covers, earliest
-	// first, and DaysRemaining is how many there are.
-	MatchDays     []SeasonPassDayResponse `json:"match_days"`
-	DaysRemaining int                     `json:"days_remaining"`
-	// SkippedDays are remaining days left out because they have fewer seats than
-	// Quantity. They are not charged for.
-	SkippedDays []SeasonPassDayResponse `json:"skipped_days"`
-	// FullPrice is every covered day at the ticket's price, times Quantity.
-	FullPrice      int `json:"full_price"`
-	DiscountAmount int `json:"discount_amount"`
-	// Price is what Quantity passes cost: FullPrice less DiscountAmount.
-	Price int `json:"price"`
-	// Available is false when there is nothing left to buy (no match days remain).
-	Available bool `json:"available"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Price       int    `json:"price"`
+	// EndsOn is the last day the pass is valid, YYYY-MM-DD.
+	EndsOn   string `json:"ends_on"`
+	IsActive bool   `json:"is_active"`
+	// Expired is true once EndsOn has passed. An expired pass is not sold.
+	Expired bool `json:"expired"`
 }
 
-// PurchaseSeasonPassRequest buys a season pass. There is no list of match days:
-// the server covers every remaining day, so what is charged cannot be argued with.
+// PurchaseSeasonPassRequest buys a season pass. There is no day list and no amount:
+// the pass has one price and one end date, both read here from the pass itself.
 type PurchaseSeasonPassRequest struct {
 	SeasonPassID string  `json:"season_pass_id" binding:"required"`
 	Email        string  `json:"email" binding:"required,email"`
@@ -315,6 +283,4 @@ type PurchaseSeasonPassRequest struct {
 	Phone        string  `json:"phone" binding:"required"`
 	Quantity     int     `json:"quantity" binding:"required,min=1,max=10"`
 	ReferralCode *string `json:"referral_code,omitempty"`
-	// Unlocks a pass made from a hidden ticket.
-	AccessCode string `json:"access_code"`
 }

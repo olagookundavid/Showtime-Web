@@ -10,13 +10,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// SeasonPassRepository stores season passes. A pass holds no price: what it costs
-// is worked out from the match days that remain.
+// SeasonPassRepository stores season passes: a name, a price and an end date.
 type SeasonPassRepository interface {
 	Create(ctx context.Context, p *domain.SeasonPass) error
 	Update(ctx context.Context, p *domain.SeasonPass) error
 	GetByID(ctx context.Context, id string) (*domain.SeasonPass, error)
-	GetByProduct(ctx context.Context, productID string) (*domain.SeasonPass, error)
 	List(ctx context.Context, activeOnly bool) ([]domain.SeasonPass, error)
 	// Delete refuses while anyone has paid for the pass; turn it off instead.
 	Delete(ctx context.Context, id string) error
@@ -30,28 +28,28 @@ func NewSeasonPassRepository(db *pgxpool.Pool) *PostgresSeasonPassRepository {
 	return &PostgresSeasonPassRepository{db: db}
 }
 
-const seasonPassColumns = `id, product_id, name, description, percent_off::float8, is_active, created_at, updated_at`
+const seasonPassColumns = `id, name, description, price, ends_on, is_active, created_at, updated_at`
 
 func scanSeasonPass(row pgx.Row, p *domain.SeasonPass) error {
-	return row.Scan(&p.ID, &p.ProductID, &p.Name, &p.Description, &p.PercentOff, &p.IsActive, &p.CreatedAt, &p.UpdatedAt)
+	return row.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.EndsOn, &p.IsActive, &p.CreatedAt, &p.UpdatedAt)
 }
 
 func (r *PostgresSeasonPassRepository) Create(ctx context.Context, p *domain.SeasonPass) error {
 	return r.db.QueryRow(ctx, `
-		INSERT INTO season_passes (product_id, name, description, percent_off, is_active)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO season_passes (name, description, price, ends_on, is_active)
+		VALUES ($1, $2, $3, $4::date, $5)
 		RETURNING id, created_at, updated_at`,
-		p.ProductID, p.Name, p.Description, p.PercentOff, p.IsActive,
+		p.Name, p.Description, p.Price, p.EndsOn.Format("2006-01-02"), p.IsActive,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 }
 
 func (r *PostgresSeasonPassRepository) Update(ctx context.Context, p *domain.SeasonPass) error {
 	return r.db.QueryRow(ctx, `
 		UPDATE season_passes
-		SET name = $1, description = $2, percent_off = $3, is_active = $4, updated_at = NOW()
-		WHERE id = $5
+		SET name = $1, description = $2, price = $3, ends_on = $4::date, is_active = $5, updated_at = NOW()
+		WHERE id = $6
 		RETURNING updated_at`,
-		p.Name, p.Description, p.PercentOff, p.IsActive, p.ID,
+		p.Name, p.Description, p.Price, p.EndsOn.Format("2006-01-02"), p.IsActive, p.ID,
 	).Scan(&p.UpdatedAt)
 }
 
@@ -63,20 +61,12 @@ func (r *PostgresSeasonPassRepository) GetByID(ctx context.Context, id string) (
 	return &p, nil
 }
 
-func (r *PostgresSeasonPassRepository) GetByProduct(ctx context.Context, productID string) (*domain.SeasonPass, error) {
-	var p domain.SeasonPass
-	if err := scanSeasonPass(r.db.QueryRow(ctx, `SELECT `+seasonPassColumns+` FROM season_passes WHERE product_id = $1`, productID), &p); err != nil {
-		return nil, err
-	}
-	return &p, nil
-}
-
 func (r *PostgresSeasonPassRepository) List(ctx context.Context, activeOnly bool) ([]domain.SeasonPass, error) {
 	query := `SELECT ` + seasonPassColumns + ` FROM season_passes`
 	if activeOnly {
 		query += ` WHERE is_active = TRUE`
 	}
-	query += ` ORDER BY created_at ASC`
+	query += ` ORDER BY ends_on ASC, created_at ASC`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err

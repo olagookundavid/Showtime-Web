@@ -26,6 +26,9 @@ type PurchaseEmailData struct {
 	Quantity    int
 	TotalAmount int
 	Days        []TicketEmailDay
+	// ValidUntil is a season pass's end date, already formatted for reading. When
+	// it is set the email shows it in place of a list of match days.
+	ValidUntil string
 }
 
 // ReminderEmailData is the "your match day is tomorrow" email for one day.
@@ -145,6 +148,16 @@ func PurchaseEmailHTML(d PurchaseEmailData) string {
 	case len(d.Days) > 1:
 		intro = fmt.Sprintf("Thank you for your purchase! Your %s covers %d match days. One code gets you in on every one of them:", pass, len(d.Days))
 	}
+	// A season pass has no match days: it is good on every one until its end date.
+	daysSection := daysBlock(d.Days)
+	if d.ValidUntil != "" {
+		intro = "Thank you for your purchase! Show the code below at the entrance on any match day until your pass ends:"
+		daysSection = `<div>
+<p style="color: ` + sfflRed + `; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 4px;">Valid until</p>
+<p style="color: #0f172a; font-size: 17px; font-weight: 700; margin: 0 0 8px;">` + esc(d.ValidUntil) + `</p>
+<p style="color: #1e293b; font-size: 14px; font-weight: 600; margin: 0;">Every match day, up to and including this date.</p>
+</div>`
+	}
 
 	phoneRow := ""
 	if strings.TrimSpace(d.Phone) != "" && d.Phone != "N/A" {
@@ -166,7 +179,7 @@ func PurchaseEmailHTML(d PurchaseEmailData) string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid ` + sfflRed + `; border-radius: 12px; overflow: hidden;">
 <tr>
 <td style="padding: 24px;">
-` + daysBlock(d.Days) + `
+` + daysSection + `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 14px;">
 <tr>
 ` + detailRow("🎫 Ticket", d.ProductName) + detailRow("👥 Quantity", fmt.Sprintf("%d %s", d.Quantity, strings.ToLower(noun))) + `

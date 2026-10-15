@@ -125,6 +125,9 @@ type Ticket struct {
 	ID           string       `json:"id"`
 	ProductID    *string      `json:"product_id,omitempty"`
 	SeasonPassID *string      `json:"season_pass_id,omitempty"`
+	// ValidUntil is a season pass's end date (YYYY-MM-DD), read from the pass. Nil
+	// for every other kind of ticket.
+	ValidUntil *string `json:"valid_until,omitempty"`
 	ProductName  string       `json:"product_name"`
 	PurchaseType PurchaseType `json:"purchase_type"`
 	Email        string       `json:"email"`
@@ -199,20 +202,19 @@ type ReferralStats struct {
 
 // ─── Season Pass ──────────────────────────────────────────────────────────────
 
-// SeasonPass is an offer made from a ticket: every match day still to be played in
-// the competitions the ticket is linked to, at PercentOff off the ticket's price
-// per day. Nothing about its price is stored; it is worked out from the match days
-// that remain.
+// SeasonPass is a standalone pass: a name, a price an admin sets, and an end date.
+// Whoever holds its code is let in at every match day up to and including EndsOn.
+// It is not tied to a ticket or a tournament, and nothing about its price is
+// worked out.
 type SeasonPass struct {
-	ID          string    `json:"id"`
-	ProductID   string    `json:"product_id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	PercentOff  float64   `json:"percent_off"`
-	IsActive    bool      `json:"is_active"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-
-	// Product is the ticket the pass is made from, when loaded.
-	Product *TicketProduct `json:"product,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// Price is naira for one pass.
+	Price int `json:"price"`
+	// EndsOn is the last day the pass lets people in, as a calendar date.
+	EndsOn    time.Time `json:"ends_on"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

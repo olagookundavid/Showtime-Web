@@ -56,24 +56,6 @@ func PriceTicket(dayPrices []int, quantity int, rules []domain.GamePassRule) Tic
 	return p
 }
 
-// PriceSeasonPass prices a season pass: every covered day at the ticket's price,
-// less the pass's own percentage. The Game Pass ladder does not apply on top; the
-// season pass's percentage is the whole discount. Rounded to whole naira (half
-// up) like the ladder.
-func PriceSeasonPass(dayPrices []int, quantity int, percentOff float64) TicketPricing {
-	unit := 0
-	for _, p := range dayPrices {
-		unit += p
-	}
-	p := TicketPricing{UnitPrice: unit, Subtotal: unit * quantity, GamePassPercent: percentOff}
-	p.GamePassAmount = int(math.Round(float64(p.Subtotal) * percentOff / 100))
-	p.Total = p.Subtotal - p.GamePassAmount
-	if p.Total < 0 {
-		p.Total = 0
-	}
-	return p
-}
-
 var (
 	lagosOnce sync.Once
 	lagosLoc  *time.Location

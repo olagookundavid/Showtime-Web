@@ -41,8 +41,8 @@ type ITicketService interface {
 	UpdateSeasonPass(ctx context.Context, id string, req dto.UpdateSeasonPassRequest) (*dto.SeasonPassResponse, error)
 	DeleteSeasonPass(ctx context.Context, id string) error
 	ListSeasonPassesAdmin(ctx context.Context) ([]dto.SeasonPassResponse, error)
-	ListSeasonPasses(ctx context.Context, quantity int, accessCode string) ([]dto.SeasonPassResponse, error)
-	GetSeasonPass(ctx context.Context, id string, quantity int, accessCode string) (*dto.SeasonPassResponse, error)
+	ListSeasonPasses(ctx context.Context) ([]dto.SeasonPassResponse, error)
+	GetSeasonPass(ctx context.Context, id string) (*dto.SeasonPassResponse, error)
 	PurchaseSeasonPass(ctx context.Context, req dto.PurchaseSeasonPassRequest, callbackURL string, userID *string) (*dto.TicketResponse, error)
 
 	// Tickets
@@ -63,14 +63,14 @@ type ITicketService interface {
 }
 
 type TicketService struct {
-	eventDayRepo    ports.EventDayRepository
-	productRepo     ports.TicketProductRepository
-	ticketRepo      ports.TicketRepository
-	scheduledRepo   ports.ScheduledEmailRepository
-	seasonRepo      ports.SeasonPassRepository
+	eventDayRepo  ports.EventDayRepository
+	productRepo   ports.TicketProductRepository
+	ticketRepo    ports.TicketRepository
+	scheduledRepo ports.ScheduledEmailRepository
+	seasonRepo    ports.SeasonPassRepository
 	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
 	// profile after they pay.
-	userPhones UserPhoneSaver
+	userPhones      UserPhoneSaver
 	matchRepo       ports.MatchRepository
 	paystack        *PaystackClient
 	email           ports.EmailService
@@ -428,6 +428,10 @@ type checkoutInput struct {
 // ticket with its seats. It is the one place money is taken.
 func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.TicketResponse, error) {
 	sel, pricing, totalAmount := in.sel, in.pricing, in.pricing.Total
+	var days []domain.TicketDay
+	if sel != nil {
+		days = ticketDaysFor(sel)
+	}
 	req := struct {
 		Email, Name, Phone string
 		Quantity           int
@@ -480,9 +484,14 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 	var lastErr error
 
 	for i := 0; i < maxRetries; i++ {
-		productID := sel.product.ID
+		// A season pass is not made from a ticket, so it has no product.
+		var productID *string
+		if sel != nil {
+			id := sel.product.ID
+			productID = &id
+		}
 		ticket = &domain.Ticket{
-			ProductID:               &productID,
+			ProductID:               productID,
 			ProductName:             in.productName,
 			PurchaseType:            in.purchaseType,
 			SeasonPassID:            in.seasonPassID,
@@ -501,7 +510,7 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 			ReferralCode:            referralCode,
 			GamePassDiscountPercent: pricing.GamePassPercent,
 			GamePassDiscountAmount:  pricing.GamePassAmount,
-			Days:                    ticketDaysFor(sel),
+			Days:                    days,
 		}
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
@@ -819,6 +828,9 @@ func (s *TicketService) Checkin(ctx context.Context, id string, checkedInBy stri
 	if ticket.Status != domain.TicketStatusPaid && ticket.Status != domain.TicketStatusUsed {
 		return fmt.Errorf("ticket is %s, not PAID", ticket.Status)
 	}
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		return s.checkinSeasonPass(ctx, ticket, checkedInBy)
+	}
 	day, err := dayForCheckin(ticket, eventDayID, true, time.Now())
 	if err != nil {
 		return err
@@ -827,6 +839,14 @@ func (s *TicketService) Checkin(ctx context.Context, id string, checkedInBy stri
 		return fmt.Errorf("ticket already checked in for %s", day.Title)
 	}
 	return s.ticketRepo.CheckinDay(ctx, ticket.ID, day.EventDayID, checkedInBy)
+}
+
+// checkinSeasonPass lets a season pass in. It is valid on every day up to its end
+// date, so being let in twice on one day is not an error; the repository records
+// the day once and refuses a pass that has ended or is not paid.
+func (s *TicketService) checkinSeasonPass(ctx context.Context, ticket *domain.Ticket, checkedInBy string) error {
+	_, err := s.ticketRepo.CheckinSeasonPass(ctx, ticket.ID, checkedInBy)
+	return err
 }
 
 // AdminCheckin is the override path: it will first try to confirm an unpaid ticket
@@ -856,6 +876,9 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 		return fmt.Errorf("ticket is %s and payment could not be verified", ticket.Status)
 	}
 
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		return s.checkinSeasonPass(ctx, ticket, checkedInBy)
+	}
 	day, err := dayForCheckin(ticket, eventDayID, false, time.Now())
 	if err != nil {
 		return err
@@ -887,7 +910,14 @@ func formatDay(d domain.TicketDay) email.TicketEmailDay {
 }
 
 func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
-	if s.email == nil || len(ticket.Days) == 0 {
+	if s.email == nil {
+		return
+	}
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		s.sendSeasonPassEmail(ticket)
+		return
+	}
+	if len(ticket.Days) == 0 {
 		return
 	}
 	days := make([]email.TicketEmailDay, len(ticket.Days))
@@ -915,6 +945,34 @@ func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
 	_ = SubmitJob(func() {
 		if err := s.email.SendEmail(to, subject, body); err != nil {
 			fmt.Printf("Failed to send purchase email to %s: %v\n", to, err)
+		}
+	})
+}
+
+// sendSeasonPassEmail confirms a season pass: its name, the date it is valid until,
+// and the code to show at the entrance. It has no match days to list.
+func (s *TicketService) sendSeasonPassEmail(ticket *domain.Ticket) {
+	validUntil := ""
+	if ticket.ValidUntil != nil {
+		if d, err := time.Parse("2006-01-02", *ticket.ValidUntil); err == nil {
+			validUntil = d.Format("Mon, Jan 02 2006")
+		}
+	}
+	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your %s", ticket.ProductName)
+	body := email.PurchaseEmailHTML(email.PurchaseEmailData{
+		PassName:    "Season Pass",
+		BuyerName:   ticket.Name,
+		ProductName: ticket.ProductName,
+		Phone:       ticket.Phone,
+		TicketCode:  ticket.TicketCode,
+		Quantity:    ticket.Quantity,
+		TotalAmount: ticket.TotalAmount,
+		ValidUntil:  validUntil,
+	})
+	to := ticket.Email
+	_ = SubmitJob(func() {
+		if err := s.email.SendEmail(to, subject, body); err != nil {
+			fmt.Printf("Failed to send season pass email to %s: %v\n", to, err)
 		}
 	})
 }
@@ -975,6 +1033,9 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 	}
 	if t.SeasonPassID != nil {
 		res.SeasonPassID = *t.SeasonPassID
+	}
+	if t.ValidUntil != nil {
+		res.ValidUntil = *t.ValidUntil
 	}
 	if t.DiscountCode != nil {
 		res.DiscountCode = *t.DiscountCode

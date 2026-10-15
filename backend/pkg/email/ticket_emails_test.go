@@ -89,3 +89,18 @@ func TestReminderEmailSaysWhereTheDaySitsInAPass(t *testing.T) {
 		t.Error("a single-ticket reminder should not mention a Game Pass")
 	}
 }
+
+func TestSeasonPassEmailShowsTheEndDateInsteadOfMatchDays(t *testing.T) {
+	html := PurchaseEmailHTML(PurchaseEmailData{
+		PassName: "Season Pass", BuyerName: "Ada", ProductName: "Showtime Season Pass",
+		TicketCode: "SFFL-SEASON01", Quantity: 1, TotalAmount: 50000, ValidUntil: "Mon, May 31 2027",
+	})
+	for _, want := range []string{"Season Pass Confirmed!", "Valid until", "Mon, May 31 2027", "SFFL-SEASON01", "Every match day"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("season pass email is missing %q", want)
+		}
+	}
+	if strings.Contains(html, "Match Day 1") {
+		t.Error("a season pass has no list of match days")
+	}
+}

@@ -649,22 +649,14 @@ func (h *TicketHandler) ListReferralStats(c *gin.Context) {
 // Season passes
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// quantityParam reads ?quantity=, defaulting to 1; the service clamps it.
-func quantityParam(c *gin.Context) int {
-	q, _ := strconv.Atoi(c.DefaultQuery("quantity", "1"))
-	return q
-}
-
 // ListSeasonPasses godoc
-// @Summary List season passes on sale, priced from the match days that remain
+// @Summary List season passes on sale (not ended, switched on)
 // @Tags tickets
 // @Produce json
-// @Param quantity query int false "How many passes to price (1 to 10)"
-// @Param code query string false "Access code that unlocks a hidden ticket's pass"
 // @Success 200
 // @Router /api/v1/season-passes [get]
 func (h *TicketHandler) ListSeasonPasses(c *gin.Context) {
-	passes, err := h.service.ListSeasonPasses(c.Request.Context(), quantityParam(c), c.Query("code"))
+	passes, err := h.service.ListSeasonPasses(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -673,14 +665,14 @@ func (h *TicketHandler) ListSeasonPasses(c *gin.Context) {
 }
 
 // GetSeasonPass godoc
-// @Summary One season pass with its match days and price
+// @Summary One season pass: name, price and end date
 // @Tags tickets
 // @Produce json
 // @Param id path string true "Season pass ID"
 // @Success 200 {object} dto.SeasonPassResponse
 // @Router /api/v1/season-passes/{id} [get]
 func (h *TicketHandler) GetSeasonPass(c *gin.Context) {
-	pass, err := h.service.GetSeasonPass(c.Request.Context(), c.Param("id"), quantityParam(c), c.Query("code"))
+	pass, err := h.service.GetSeasonPass(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
