@@ -1031,7 +1031,19 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 	args := []interface{}{}
 	if eventDayID != "" {
 		args = append(args, eventDayID)
-		where += fmt.Sprintf(` AND EXISTS (SELECT 1 FROM ticket_days td WHERE td.ticket_id = t.id AND td.event_day_id = $%d)`, len(args))
+		n := len(args)
+		// A season pass has no ticket_days row for any match day — it is valid
+		// for every one of them up to its end date — so filtering by a match day
+		// must also surface its season-pass tickets, or they can never appear
+		// under the default "next match day" view and look like they vanished.
+		where += fmt.Sprintf(` AND (
+			EXISTS (SELECT 1 FROM ticket_days td WHERE td.ticket_id = t.id AND td.event_day_id = $%d)
+			OR EXISTS (
+				SELECT 1 FROM season_passes sp
+				JOIN event_days ed ON ed.id = $%d
+				WHERE sp.id = t.season_pass_id AND ed.date <= sp.ends_on
+			)
+		)`, n, n)
 	}
 	if status != "" {
 		args = append(args, status)

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CreditCardIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon } from '@heroicons/react/24/outline';
+import { CreditCardIcon, ExclamationTriangleIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon } from '@heroicons/react/24/outline';
 import { getUserProfile, purchaseTicket, quoteTicketPrice } from '../../services/api';
 import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
 import type { AuthUser, PurchaseTicketPayload, TicketProductDayResponse, TicketProductResponse } from '../../types';
@@ -48,7 +48,7 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
 
     // The same pricing code the purchase uses, so the figure shown is the figure
     // charged. Kept while a new quantity loads so the total doesn't flicker.
-    const { data: quote } = useQuery({
+    const { data: quote, isError: quoteFailed } = useQuery({
         queryKey: ['ticketQuote', product.id, dayIds, quantity],
         queryFn: () => quoteTicketPrice({ product_id: product.id, event_day_ids: dayIds, quantity }),
         staleTime: 30_000,
@@ -330,6 +330,15 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                             <span className="font-semibold text-gray-700 dark:text-gray-300">Total:</span>
                             <span className="text-2xl font-black text-sffl-red sm:text-3xl">{naira(total)}</span>
                         </div>
+                        {quoteFailed && (
+                            <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                                <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                <span>
+                                    We couldn't confirm this price with the server just now. It's shown from the
+                                    ticket's list price and may change slightly at payment.
+                                </span>
+                            </p>
+                        )}
                     </div>
 
                     {error && (

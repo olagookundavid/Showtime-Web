@@ -200,3 +200,37 @@ export interface ReferralStatsResponse {
     total_revenue: number;
     created_at: string;
 }
+
+/** A standalone pass: a name, a fixed price, and an end date. Not linked to a tournament or match day. */
+export interface SeasonPassResponse {
+    id: string;
+    name: string;
+    description: string;
+    /** Naira for one pass. */
+    price: number;
+    /** The last day it lets people in, YYYY-MM-DD. */
+    ends_on: string;
+    is_active: boolean;
+    /** True once ends_on has passed. The public list never includes these. */
+    expired: boolean;
+}
+
+export interface CreateSeasonPassPayload {
+    name: string;
+    description?: string;
+    price: number;
+    ends_on: string;
+    is_active?: boolean;
+}
+
+export type UpdateSeasonPassPayload = Partial<CreateSeasonPassPayload>;
+
+/** Buys a season pass: no day list and no quote, since the pass has one fixed price. */
+export interface PurchaseSeasonPassPayload {
+    season_pass_id: string;
+    email: string;
+    name: string;
+    phone: string;
+    quantity: number;
+    referral_code?: string;
+}

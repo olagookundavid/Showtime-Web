@@ -5,23 +5,30 @@ import {
   CheckIcon,
   PencilSquareIcon,
   PlusIcon,
+  StarIcon,
   TagIcon,
   TicketIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import {
+  adminCreateSeasonPass,
   adminCreateTicketProduct,
+  adminDeleteSeasonPass,
   adminDeleteTicketProduct,
+  adminListSeasonPasses,
   adminListTicketProducts,
   adminSaveGamePassRules,
+  adminUpdateSeasonPass,
   adminUpdateTicketProduct,
   getCompetitions,
   getGamePassRules,
 } from "../../services/api";
 import type {
   Competition,
+  CreateSeasonPassPayload,
   CreateTicketProductPayload,
   GamePassRule,
+  SeasonPassResponse,
   TicketProductResponse,
 } from "../../types";
 import {
@@ -38,17 +45,19 @@ import {
   RowActions,
   Tabs,
   Textarea,
+  formatDayLong,
   naira,
   type Column,
 } from "../../components";
 import { usePermissions } from "../../hooks";
 import { getApiErrorMessage } from "../../utils";
 
-type Tab = "tickets" | "game-pass";
+type Tab = "tickets" | "game-pass" | "season-passes";
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_PRODUCTS: TicketProductResponse[] = [];
 const NO_COMPETITIONS: Competition[] = [];
+const NO_SEASON_PASSES: SeasonPassResponse[] = [];
 
 // ─── Ticket form ──────────────────────────────────────────────────────────────
 
@@ -407,6 +416,303 @@ const GamePassRulesEditor = ({ canManage }: { canManage: boolean }) => {
   );
 };
 
+// ─── Season passes ────────────────────────────────────────────────────────────
+
+interface SeasonPassFormModalProps {
+  /** The pass being edited, or null to create one. */
+  pass: SeasonPassResponse | null;
+  pending: boolean;
+  onClose: () => void;
+  onSubmit: (payload: CreateSeasonPassPayload) => void;
+}
+
+const SeasonPassFormModal = ({ pass, pending, onClose, onSubmit }: SeasonPassFormModalProps) => {
+  const [name, setName] = useState(pass?.name ?? "");
+  const [price, setPrice] = useState(String(pass?.price ?? ""));
+  const [description, setDescription] = useState(pass?.description ?? "");
+  const [endsOn, setEndsOn] = useState(pass?.ends_on ?? "");
+  const [isActive, setIsActive] = useState(pass?.is_active ?? true);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast.error("Name is required");
+      return;
+    }
+    const value = parseInt(price, 10);
+    if (isNaN(value) || value < 0) {
+      toast.error("A price of 0 (free) or more is required");
+      return;
+    }
+    if (!endsOn) {
+      toast.error("An end date is required");
+      return;
+    }
+    onSubmit({
+      name: trimmed,
+      description: description.trim(),
+      price: value,
+      ends_on: endsOn,
+      is_active: isActive,
+    });
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={pass ? "Edit Season Pass" : "New Season Pass"}
+      subtitle={
+        pass
+          ? pass.name
+          : "One name, one price, one end date. It is not tied to a tournament or match days."
+      }
+      maxWidth="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="season-pass-form" loading={pending}>
+            Save Pass
+          </Button>
+        </>
+      }
+    >
+      <form id="season-pass-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label={<>Name <span className="text-sffl-red">*</span></>} htmlFor="sp-name">
+            <Input
+              id="sp-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Full Season Pass"
+              required
+            />
+          </Field>
+          <Field
+            label={<>Price (₦) <span className="text-sffl-red">*</span></>}
+            htmlFor="sp-price"
+            hint="0 makes it free."
+          >
+            <Input
+              id="sp-price"
+              type="number"
+              min="0"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="30000"
+              required
+            />
+          </Field>
+        </div>
+
+        <Field
+          label={<>Ends on <span className="text-sffl-red">*</span></>}
+          htmlFor="sp-ends-on"
+          hint="The last day it lets people in."
+        >
+          <Input
+            id="sp-ends-on"
+            type="date"
+            value={endsOn}
+            onChange={(e) => setEndsOn(e.target.value)}
+            className="sm:w-56"
+            required
+          />
+        </Field>
+
+        <Field
+          label="What is included"
+          htmlFor="sp-description"
+          hint="The first line is the short pitch. Each line after it is shown with a tick."
+        >
+          <Textarea
+            id="sp-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={"Every match day, all season\nPriority entry\nNo days to pick"}
+          />
+        </Field>
+
+        <Checkbox
+          label="On sale"
+          hint="Untick to stop selling this pass without deleting it."
+          checked={isActive}
+          onChange={(e) => setIsActive(e.target.checked)}
+        />
+      </form>
+    </Modal>
+  );
+};
+
+type SeasonPassPendingAction = { kind: "delete"; pass: SeasonPassResponse };
+
+const SeasonPassesEditor = ({ canManage }: { canManage: boolean }) => {
+  const queryClient = useQueryClient();
+  const [formFor, setFormFor] = useState<SeasonPassResponse | "new" | null>(null);
+  const [pendingAction, setPendingAction] = useState<SeasonPassPendingAction | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const { data: passesData, isLoading } = useQuery({
+    queryKey: ["adminSeasonPasses"],
+    queryFn: adminListSeasonPasses,
+  });
+  const passes = passesData ?? NO_SEASON_PASSES;
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["adminSeasonPasses"] });
+
+  const savePass = async (payload: CreateSeasonPassPayload) => {
+    if (!canManage) {
+      toast.error("View-only access: your role can view season passes but not make changes.");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (formFor && formFor !== "new") {
+        await adminUpdateSeasonPass(formFor.id, payload);
+        toast.success("Season pass updated");
+      } else {
+        await adminCreateSeasonPass(payload);
+        toast.success("Season pass created and on sale");
+      }
+      setFormFor(null);
+      await refresh();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to save season pass"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingAction) return;
+    setBusy(true);
+    try {
+      await adminDeleteSeasonPass(pendingAction.pass.id);
+      toast.success("Season pass deleted");
+      await refresh();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to delete season pass"));
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  };
+
+  const columns = useMemo<Column<SeasonPassResponse>[]>(
+    () => [
+      {
+        header: "Pass",
+        cell: (p) => (
+          <span className="font-bold text-sffl-navy dark:text-white">
+            {p.name}
+            {!p.is_active && (
+              <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-bold uppercase text-gray-600 dark:bg-gray-600 dark:text-gray-200">
+                Off sale
+              </span>
+            )}
+            {p.expired && (
+              <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                Expired
+              </span>
+            )}
+          </span>
+        ),
+      },
+      {
+        header: "Price",
+        align: "right",
+        cell: (p) => (p.price === 0 ? "Free" : naira(p.price)),
+      },
+      {
+        header: "Valid until",
+        cell: (p) => formatDayLong(p.ends_on),
+      },
+      {
+        header: "Actions",
+        align: "right",
+        cell: (p) => (
+          <RowActions
+            label={`Actions for ${p.name}`}
+            actions={[
+              {
+                label: "Edit pass",
+                icon: PencilSquareIcon,
+                disabled: !canManage,
+                hint: canManage ? undefined : "View-only access",
+                onSelect: () => setFormFor(p),
+              },
+              {
+                label: "Delete",
+                icon: TrashIcon,
+                danger: true,
+                disabled: !canManage,
+                hint: canManage ? "Only works if nothing has been sold" : "View-only access",
+                onSelect: () => setPendingAction({ kind: "delete", pass: p }),
+              },
+            ]}
+          />
+        ),
+      },
+    ],
+    [canManage],
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button icon={PlusIcon} onClick={() => setFormFor("new")} disabled={!canManage}>
+          New Season Pass
+        </Button>
+      </div>
+
+      <DataTable
+        data={passes}
+        columns={columns}
+        loading={isLoading}
+        getRowId={(p) => p.id}
+        paginated={false}
+        searchable={false}
+        emptyMessage="No season passes yet. Create one with New Season Pass."
+      />
+
+      {formFor && (
+        <SeasonPassFormModal
+          key={formFor === "new" ? "new" : formFor.id}
+          pass={formFor === "new" ? null : formFor}
+          pending={busy}
+          onClose={() => setFormFor(null)}
+          onSubmit={savePass}
+        />
+      )}
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title="Delete this season pass?"
+        description="It is removed from sale. This only works if no passes have been paid for. It cannot be undone."
+        confirmLabel="Delete Pass"
+        tone="danger"
+        icon={TrashIcon}
+        pending={busy}
+        body={
+          pendingAction && (
+            <ConfirmSummary
+              rows={[
+                ["Pass", pendingAction.pass.name],
+                ["Valid until", formatDayLong(pendingAction.pass.ends_on)],
+              ]}
+            />
+          )
+        }
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingAction(null)}
+      />
+    </div>
+  );
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 type PendingAction = { kind: "delete"; product: TicketProductResponse };
@@ -556,14 +862,16 @@ export const AdminTicketProducts = () => {
         title="Ticket Products"
         subtitle="Set up the tickets you sell (5K, VIP, VVIP) once, and choose the tournaments each is sold for. Every match day of those tournaments goes on sale automatically."
         actions={
-          <Button
-            icon={PlusIcon}
-            onClick={() => setFormFor("new")}
-            disabled={!canManage}
-            className="w-full sm:w-auto"
-          >
-            New Ticket
-          </Button>
+          tab === "tickets" ? (
+            <Button
+              icon={PlusIcon}
+              onClick={() => setFormFor("new")}
+              disabled={!canManage}
+              className="w-full sm:w-auto"
+            >
+              New Ticket
+            </Button>
+          ) : undefined
         }
       />
 
@@ -572,6 +880,7 @@ export const AdminTicketProducts = () => {
         items={[
           { value: "tickets", label: "Tickets", icon: TicketIcon },
           { value: "game-pass", label: "Game Pass discounts", icon: TagIcon },
+          { value: "season-passes", label: "Season Passes", icon: StarIcon },
         ]}
         value={tab}
         onChange={setTab}
@@ -587,8 +896,10 @@ export const AdminTicketProducts = () => {
           searchable={false}
           emptyMessage="No tickets yet. Create one with New Ticket and choose the tournaments it is sold for."
         />
-      ) : (
+      ) : tab === "game-pass" ? (
         <GamePassRulesEditor canManage={canManage} />
+      ) : (
+        <SeasonPassesEditor canManage={canManage} />
       )}
 
       {formFor && (

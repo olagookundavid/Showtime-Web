@@ -23,6 +23,7 @@ import {
   Standings,
   Stats,
   GamePass,
+  SeasonPass,
   TicketConfirmation,
   ReferralGenerator,
   Login,
@@ -184,9 +185,10 @@ const AdminStandings = lazy(() =>
     default: m.AdminStandings,
   })),
 );
-// Game Pass is the only way to buy tickets for now, so the old /tickets address
+// Game Pass is still the default landing mode, so the old /tickets address
 // (and the links to it on match cards, the home page and referral links) goes
-// there, keeping the query string so ?date= and ?ref= still work.
+// there; the mode tabs let a visitor switch to Season Pass from there, keeping
+// the query string so ?date= and ?ref= still work.
 const TicketsRedirect = () => {
   const { search } = useLocation();
   return <Navigate to={{ pathname: "/tickets/game-pass", search }} replace />;
@@ -447,6 +449,10 @@ function App() {
                           <Route
                             path="/tickets/game-pass"
                             element={<GamePass />}
+                          />
+                          <Route
+                            path="/tickets/season-pass"
+                            element={<SeasonPass />}
                           />
                         </Route>
                         <Route path="/store" element={<Store />} />

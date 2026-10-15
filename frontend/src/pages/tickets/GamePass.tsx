@@ -28,6 +28,7 @@ import {
   CalendarDaysIcon,
   CheckIcon,
   ChevronDownIcon,
+  ExclamationTriangleIcon,
   TagIcon,
   TicketIcon,
 } from "@heroicons/react/24/outline";
@@ -104,7 +105,13 @@ export const GamePass = () => {
     dayPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedProductId]);
 
-  const { data: products, isLoading } = useQuery({
+  const {
+    data: products,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ["publicTicketProducts", appliedCode],
     queryFn: () => getTicketProducts(appliedCode),
     staleTime: 30_000,
@@ -261,6 +268,28 @@ export const GamePass = () => {
 
       {isLoading ? (
         <Spinner size="lg" className="py-16" label="Loading Game Passes…" />
+      ) : isError ? (
+        <div className="border border-red-200 bg-red-50 px-4 py-16 text-center dark:border-red-800 dark:bg-red-900/20">
+          <ExclamationTriangleIcon
+            className="mx-auto mb-4 h-16 w-16 text-red-400"
+            aria-hidden="true"
+          />
+          <h2 className="mb-2 text-2xl font-black uppercase tracking-tight text-red-700 dark:text-red-300">
+            Couldn't load Game Passes
+          </h2>
+          <p className="mb-6 text-red-600 dark:text-red-400">
+            Something went wrong fetching the tickets on sale. Check your
+            connection and try again.
+          </p>
+          <Button
+            shape="square"
+            variant="navy"
+            loading={isRefetching}
+            onClick={() => refetch()}
+          >
+            Try again
+          </Button>
+        </div>
       ) : list.length === 0 ? (
         <div className="border border-gray-200 bg-white px-4 py-16 text-center dark:border-gray-700 dark:bg-gray-800">
           <TicketIcon
