@@ -3,23 +3,22 @@ package broadcast
 import (
 	"context"
 	"log"
-	"math"
 	"strings"
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 )
 
-// Data for the full-screen scenes (opening matchup, match facts, standings and
-// starting lineup), assembled from the match, its team sheets, the live
-// standings and the play-by-play. The overlay fetches it while a scene is up,
+// Data for the full-screen scenes (opening matchup, standings and starting
+// lineup), assembled from the match, its team sheets and the live standings.
+// The attack and defence stat scenes read the public match stats and play log
+// directly, through the same calculation as the match page. The overlay fetches it while a scene is up,
 // so it is built on demand rather than kept in the hub.
 
 type SceneData struct {
 	Match     SceneMatch      `json:"match"`
 	Home      SceneTeam       `json:"home"`
 	Away      SceneTeam       `json:"away"`
-	Facts     []SceneFact     `json:"facts"`
 	Standings []SceneStanding `json:"standings"`
 }
 
@@ -82,14 +81,6 @@ type SceneSeasonStats struct {
 	DefensiveTDs    int `json:"defensive_tds"`
 }
 
-// SceneFact is one home-versus-away line on the match facts scene.
-type SceneFact struct {
-	Label string  `json:"label"`
-	Home  float64 `json:"home"`
-	Away  float64 `json:"away"`
-	Unit  string  `json:"unit,omitempty"` // "%" for rates
-}
-
 type SceneStanding struct {
 	Position int     `json:"position"`
 	TeamID   string  `json:"team_id"`
@@ -144,61 +135,6 @@ func sceneTeam(t *domain.Team, sheet []domain.TeamSheetPlayer, coverage int) Sce
 	return team
 }
 
-func isWoman(gender string) bool {
-	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(gender)), "F")
-}
-
-// sceneFacts totals the play-by-play for each side. Touchdowns are those a
-// player scored (receiving, rushing, defensive), so a passing touchdown is not
-// counted twice; bat-downs are the defenders' deflections.
-func sceneFacts(homeID, awayID string, players []domain.AggregatedPlayerStat, teams []domain.TeamMatchStat, women map[string]bool) []SceneFact {
-	type totals struct {
-		plays, tds, femaleTDs, attempts, completions, flagPulls, ints, batDowns, penalties int
-	}
-	sides := map[string]*totals{homeID: {}, awayID: {}}
-
-	for _, p := range players {
-		t := sides[p.TeamID]
-		if t == nil {
-			continue
-		}
-		tds := p.ReceivingTDs + p.RushingTDs + p.DefensiveTDs
-		t.tds += tds
-		if women[p.PlayerID] {
-			t.femaleTDs += tds
-		}
-		t.attempts += p.PassingAttempts
-		t.completions += p.CompletedPasses
-		t.flagPulls += p.FlagPulls
-		t.ints += p.Interceptions
-		t.batDowns += p.PassDeflections
-	}
-	for _, s := range teams {
-		if t := sides[s.TeamID]; t != nil {
-			t.plays += s.TotalPlays
-			t.penalties += s.Penalties
-		}
-	}
-
-	rate := func(t *totals) float64 {
-		if t.attempts == 0 {
-			return 0
-		}
-		return math.Round(float64(t.completions) * 100 / float64(t.attempts))
-	}
-	h, a := sides[homeID], sides[awayID]
-	return []SceneFact{
-		{Label: "Total Plays", Home: float64(h.plays), Away: float64(a.plays)},
-		{Label: "Touchdowns", Home: float64(h.tds), Away: float64(a.tds)},
-		{Label: "Female Touchdowns", Home: float64(h.femaleTDs), Away: float64(a.femaleTDs)},
-		{Label: "Completion Rate", Home: rate(h), Away: rate(a), Unit: "%"},
-		{Label: "Flag Pulls", Home: float64(h.flagPulls), Away: float64(a.flagPulls)},
-		{Label: "Interceptions", Home: float64(h.ints), Away: float64(a.ints)},
-		{Label: "Bat Downs", Home: float64(h.batDowns), Away: float64(a.batDowns)},
-		{Label: "Infractions", Home: float64(h.penalties), Away: float64(a.penalties)},
-	}
-}
-
 func sceneStandings(rows []dto.StandingResponse) []SceneStanding {
 	out := make([]SceneStanding, 0, len(rows))
 	for _, r := range rows {
@@ -232,8 +168,8 @@ func seasonStats(p domain.AggregatedPlayerStat) *SceneSeasonStats {
 }
 
 // buildSceneData assembles the scenes for a match. Only the match itself is
-// required; a missing table, play log or stat line leaves its part empty so
-// the other scenes still show.
+// required; a missing table or stat line leaves its part empty so the other
+// scenes still show.
 func (h *BroadcastHandler) buildSceneData(ctx context.Context, matchID string) (*SceneData, error) {
 	detail, err := h.matchService.GetMatchDetail(ctx, matchID)
 	if err != nil {
@@ -252,7 +188,6 @@ func (h *BroadcastHandler) buildSceneData(ctx context.Context, matchID string) (
 		},
 		Home:      sceneTeam(m.HomeTeam, detail.TeamSheet.HomeTeam, detail.TeamSheet.HomeCoverage),
 		Away:      sceneTeam(m.AwayTeam, detail.TeamSheet.AwayTeam, detail.TeamSheet.AwayCoverage),
-		Facts:     []SceneFact{},
 		Standings: []SceneStanding{},
 	}
 	if m.Competition != nil {
@@ -294,25 +229,6 @@ func (h *BroadcastHandler) buildSceneData(ctx context.Context, matchID string) (
 			}
 		}
 	}
-
-	// Match facts, straight from the play log so they are live during the game.
-	women := map[string]bool{}
-	for _, team := range []SceneTeam{data.Home, data.Away} {
-		for _, p := range team.Players {
-			if isWoman(p.Gender) {
-				women[p.ID] = true
-			}
-		}
-	}
-	players, err := h.playService.DeriveMatchStats(ctx, matchID)
-	if err != nil {
-		log.Printf("[BroadcastScenes] player stats for match %s: %v", matchID, err)
-	}
-	teamStats, err := h.playService.DeriveTeamMatchStats(ctx, matchID)
-	if err != nil {
-		log.Printf("[BroadcastScenes] team stats for match %s: %v", matchID, err)
-	}
-	data.Facts = sceneFacts(data.Home.ID, data.Away.ID, players, teamStats, women)
 
 	// Each player's season so far in this competition, for the lineup intros.
 	if h.statsService != nil && m.CompetitionID != "" {

@@ -3,8 +3,7 @@ import { getBroadcastScenes } from '../services/broadcastApi';
 
 /**
  * Data for a match's full-screen scenes, fetched only while a scene is on air.
- * It is refreshed every 10 seconds, so match facts follow the play log and the
- * standings follow the live score.
+ * It is refreshed every 10 seconds, so the standings follow the live score.
  */
 export function useBroadcastScenes(matchId: string, active: boolean) {
   return useQuery({

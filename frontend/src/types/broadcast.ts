@@ -43,7 +43,9 @@ export interface BroadcastState {
 }
 
 /** Full-screen scenes on the scenes layer. */
-export type BroadcastScene = 'opening' | 'facts' | 'standings' | 'lineup';
+export type BroadcastScene = 'opening' | 'attack' | 'defence' | 'standings' | 'lineup' | 'facts';
+// 'facts' is the single stats scene from before attack and defence were split;
+// a state still holding it shows the attack scene.
 
 /**
  * Starters are introduced one at a time in a fixed order. `cursor` starters are
@@ -92,7 +94,7 @@ export const OVERLAY_LAYERS: { value: OverlayLayer; label: string; hint: string 
   {
     value: 'scenes',
     label: 'Full-screen scenes only',
-    hint: 'Opening matchup, match facts, standings and starting lineup',
+    hint: 'Opening matchup, attack and defence stats, standings and starting lineup',
   },
   { value: 'all', label: 'Everything', hint: 'Scorebug, lower-thirds and scenes in one input' },
 ];
@@ -203,13 +205,6 @@ export interface SceneTeam {
   players: ScenePlayer[];
 }
 
-export interface SceneFact {
-  label: string;
-  home: number;
-  away: number;
-  unit?: string;
-}
-
 export interface SceneStanding {
   position: number;
   team_id: string;
@@ -232,6 +227,5 @@ export interface SceneData {
   match: SceneMatch;
   home: SceneTeam;
   away: SceneTeam;
-  facts: SceneFact[];
   standings: SceneStanding[];
 }

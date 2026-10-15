@@ -26,8 +26,9 @@ type BroadcastState struct {
 	GraphicID    int           `json:"graphic_id"`
 	UpdatedAt    int64         `json:"updated_at"`
 
-	// Scene is the full-screen scene on air: "" (none), "opening", "facts",
-	// "standings" or "lineup". It shows on the scenes layer and the combined one.
+	// Scene is the full-screen scene on air: "" (none), "opening", "attack",
+	// "defence", "standings" or "lineup" ("facts", from before the stats were
+	// split, shows as "attack"). It shows on the scenes layer and the combined one.
 	Scene string `json:"scene"`
 	// LineupAttack is the side shown attacking on the lineup scene: "home" or "away".
 	LineupAttack string `json:"lineup_attack"`

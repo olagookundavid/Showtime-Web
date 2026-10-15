@@ -69,6 +69,8 @@ export type {
   SchemeSpec,
 } from './gameFormat';
 export { isWomanPlayer, placeStarters, projectLineup, splitLineup } from './teamSheetLineup';
+export { attackRows, computeTeamComparison, defenceRows } from './matchComparison';
+export type { ComparisonRow, TeamComparison, TeamTotals } from './matchComparison';
 export { buildAutoFillLineup } from './autoFillLineup';
 export type {
   LineupCandidate,

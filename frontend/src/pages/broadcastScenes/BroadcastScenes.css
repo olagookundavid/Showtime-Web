@@ -235,10 +235,18 @@
   font: 900 24px Arial, sans-serif;
 }
 
-/* ── MATCH FACTS ── */
-.scn-facts .scn-card {
-  left: 160px;
-  bottom: 110px;
+/* ── ATTACK / DEFENCE STATS ──
+   One half of the match comparison per scene, large enough to read on a big
+   screen: single-column rows, the card centred below the brand bug. */
+.scn-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 84px;
+}
+
+.scn-stats .scn-card {
+  position: relative;
   width: 1600px;
 }
 
@@ -326,47 +334,56 @@
   letter-spacing: 0.1em;
 }
 
-.scn-facts-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 56px;
-  padding: 22px 46px 30px;
+.scn-stats-body {
+  padding: 16px 64px 22px;
 }
 
-.scn-fact {
+.scn-stat {
   display: grid;
-  grid-template-columns: 96px 1fr 96px;
+  grid-template-columns: 200px minmax(0, 1fr) 200px;
   align-items: center;
-  min-height: 68px;
+  min-height: 62px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
 }
 
-.scn-fact-value {
-  text-align: center;
-  font: 900 30px Arial, sans-serif;
+.scn-stats.defence .scn-stat {
+  min-height: 80px;
 }
 
-.scn-fact-label {
+.scn-stat-value {
   text-align: center;
-  font: 800 18px Arial, sans-serif;
+  font: 900 44px Arial, sans-serif;
+}
+
+.scn-stats.defence .scn-stat-value {
+  font-size: 52px;
+}
+
+.scn-stat-label {
+  text-align: center;
+  font: 800 24px Arial, sans-serif;
   color: var(--scn-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
-.scn-fact-track {
+.scn-stats.defence .scn-stat-label {
+  font-size: 27px;
+}
+
+.scn-stat-track {
   display: flex;
-  height: 7px;
+  height: 10px;
   margin-top: 10px;
   overflow: hidden;
   background: #2b415c;
 }
 
-.scn-fact-track .home {
+.scn-stat-track .home {
   background: var(--scn-home);
 }
 
-.scn-fact-track .away {
+.scn-stat-track .away {
   flex: 1;
   background: var(--scn-red);
 }

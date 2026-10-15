@@ -7,6 +7,7 @@ import {
   ForwardIcon,
   PlayIcon,
   PresentationChartBarIcon,
+  ShieldCheckIcon,
   SparklesIcon,
   StopIcon,
   TableCellsIcon,
@@ -27,7 +28,8 @@ const SCENES: {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }[] = [
   { value: "opening", label: "Opening matchup", hint: "Both clubs, records, venue and kickoff", icon: SparklesIcon },
-  { value: "facts", label: "Match facts", hint: "Live score over team stats from the play-by-play", icon: PresentationChartBarIcon },
+  { value: "attack", label: "Attack & possession", hint: "Plays, yards, completions, catches, drops, turnovers, punts, touchdowns", icon: PresentationChartBarIcon },
+  { value: "defence", label: "Defence & discipline", hint: "Flag pulls, interceptions, bat downs, sacks, infractions, pick sixes", icon: ShieldCheckIcon },
   { value: "standings", label: "Standings", hint: "The competition table, counting live scores", icon: TableCellsIcon },
   { value: "lineup", label: "Starting lineup", hint: "Both starting units on the field, with benches", icon: UserGroupIcon },
 ];
@@ -46,7 +48,8 @@ export function BroadcastScenesCard({ state, updateFields }: Props) {
   const { data, isLoading, isError } = useBroadcastScenes(state.match_id, true);
   const [autoPlay, setAutoPlay] = useState(false);
 
-  const scene = state.scene || "";
+  // 'facts' (the single stats scene before attack and defence were split) is the attack scene.
+  const scene = state.scene === "facts" ? "attack" : state.scene || "";
   const attackSide = state.lineup_attack ?? "home";
   const intro = state.lineup_intro ?? null;
   const lineup = useMemo(() => (data ? buildSceneLineup(data, attackSide) : null), [data, attackSide]);
