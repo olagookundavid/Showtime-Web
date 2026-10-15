@@ -782,7 +782,7 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 		productRoutes.POST("/quote", commonAuth.RateLimit(rls), app.Handlers.TicketHandler.QuotePrice)
 	}
 
-	// Season passes (Public): priced from the match days that remain
+	// Season passes (Public): a standalone pass with an admin-set price and end date
 	seasonRoutes := r.Group("/season-passes")
 	{
 		seasonRoutes.GET("", app.Handlers.TicketHandler.ListSeasonPasses)
