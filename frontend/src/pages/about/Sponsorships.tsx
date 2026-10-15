@@ -4,13 +4,6 @@ import { CopyableEmail } from "../../components";
 export const Sponsorships = () => {
   return (
     <div className="space-y-4 md:space-y-8">
-      <div className="bg-sffl-navy text-white p-5 sm:p-8 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-r from-sffl-red/30 to-sffl-navy/40" />
-        <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter relative z-10 wrap-break-word">
-          PARTNERSHIPS & SPONSORSHIPS
-        </h1>
-      </div>
-
       <section className="bg-white dark:bg-gray-800 p-5 sm:p-8 md:p-10 rounded-3xl shadow-xl relative overflow-hidden">
         <h2 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white mb-6">
           SPONSORSHIPS

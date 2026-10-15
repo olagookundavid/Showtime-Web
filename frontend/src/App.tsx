@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, StoreLayout, TicketsLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, StoreLayout, TicketsLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -548,35 +548,37 @@ function App() {
                       />
 
                       {/* About Us Pages */}
-                      <Route
-                        path="/about/showtime-flag"
-                        element={<AboutShowtimeFlag />}
-                      />
-                      <Route
-                        path="/about/media-guidelines"
-                        element={<MediaGuidelines />}
-                      />
-                      <Route path="/about/rules" element={<GameplayRules />} />
-                      <Route
-                        path="/about/byelaws"
-                        element={<ShowtimeByelaws />}
-                      />
-                      <Route path="/about/arena" element={<ShowtimeArena />} />
-                      <Route path="/about/education" element={<Education />} />
-                      <Route path="/about/faq" element={<FAQ />} />
-                      <Route
-                        path="/about/whistleblower"
-                        element={<Whistleblower />}
-                      />
-                      <Route path="/about/our-team" element={<OurTeam />} />
-                      <Route
-                        path="/about/sponsorships"
-                        element={<Sponsorships />}
-                      />
-                      <Route
-                        path="/about/privacy"
-                        element={<PrivacyPolicy />}
-                      />
+                      <Route element={<AboutLayout />}>
+                        <Route
+                          path="/about/showtime-flag"
+                          element={<AboutShowtimeFlag />}
+                        />
+                        <Route
+                          path="/about/media-guidelines"
+                          element={<MediaGuidelines />}
+                        />
+                        <Route path="/about/rules" element={<GameplayRules />} />
+                        <Route
+                          path="/about/byelaws"
+                          element={<ShowtimeByelaws />}
+                        />
+                        <Route path="/about/arena" element={<ShowtimeArena />} />
+                        <Route path="/about/education" element={<Education />} />
+                        <Route path="/about/faq" element={<FAQ />} />
+                        <Route
+                          path="/about/whistleblower"
+                          element={<Whistleblower />}
+                        />
+                        <Route path="/about/our-team" element={<OurTeam />} />
+                        <Route
+                          path="/about/sponsorships"
+                          element={<Sponsorships />}
+                        />
+                        <Route
+                          path="/about/privacy"
+                          element={<PrivacyPolicy />}
+                        />
+                      </Route>
                     </Route>
 
                     {/* Admin Routes (No Layout) */}

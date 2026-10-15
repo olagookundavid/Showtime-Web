@@ -14,6 +14,11 @@
        published by TicketsLayout. Lets a page below work out the full sticky
        stack's height, e.g. to scroll a panel into view below all of it. */
   --ticket-tabs-h: 0px;
+  /* The document's true, scrollbar-excluded width, published by Layout and
+       kept in sync on resize. `vw` units include a desktop scrollbar's width,
+       which a naive `calc(50% - 50vw)` full-bleed trick doesn't account for;
+       this does. 100vw here is only the fallback before that effect runs. */
+  --viewport-w: 100vw;
 }
 
 /* While any dialog is on screen, the scores carousel folds away.

@@ -127,19 +127,6 @@ const TeamMemberCard = ({ member }: { member: TeamMember }) => (
 export const OurTeam = () => {
   return (
     <div className="space-y-8 md:space-y-12">
-      {/* Header */}
-      <div className="bg-sffl-navy text-white p-5 sm:p-8 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-r from-sffl-red/20 to-blue-900/30" />
-        <div className="relative z-10 text-center md:text-left">
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
-            OUR TEAM
-          </h1>
-          <p className="text-sm md:text-xl text-gray-300 mt-2 font-semibold uppercase tracking-wider md:tracking-widest">
-            Showtime Leadership & Sporting Operations
-          </p>
-        </div>
-      </div>
-
       {/* Founder & President */}
       <TeamMemberCard member={PRESIDENT} />
 

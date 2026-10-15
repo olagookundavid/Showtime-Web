@@ -4,11 +4,6 @@ import { CopyableEmail } from '../../components';
 export const Whistleblower = () => {
     return (
         <div className="space-y-4 md:space-y-8">
-            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-                <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">POLICIES & CONDUCT</h1>
-                <p className="text-gray-300 mt-2">Ensuring a safe environment for all</p>
-            </div>
-
             <section className="bg-white dark:bg-gray-800 p-4 sm:p-8 rounded-xl shadow-md space-y-6">
                 <h2 className="text-2xl font-bold text-sffl-red">Sexual Harassment Policy</h2>
                 <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-sffl-red p-4 sm:p-6 text-gray-800 dark:text-gray-100 leading-relaxed">

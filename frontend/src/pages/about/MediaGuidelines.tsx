@@ -273,19 +273,6 @@ export const MediaGuidelines = () => {
 
   return (
     <div className="space-y-4 md:space-y-8">
-      {/* Header */}
-      <div className="bg-sffl-navy text-white p-5 sm:p-8 md:p-12 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10" />
-        <div className="text-center md:text-left z-10 min-w-0">
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter uppercase wrap-break-word">
-            Media Accreditation
-          </h1>
-          <p className="text-sm sm:text-xl text-gray-300 mt-2 font-semibold tracking-wider uppercase">
-            Guidelines for Content Creators & Journalists
-          </p>
-        </div>
-      </div>
-
       {/* Purpose Section */}
       <section className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-xl border-l-8 border-sffl-red">
         <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white mb-4">

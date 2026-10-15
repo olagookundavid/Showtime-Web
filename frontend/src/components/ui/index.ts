@@ -32,5 +32,6 @@ export { CopyableEmail } from './CopyableEmail';
 export { LazyImage } from './LazyImage';
 export { buttonClass, iconSize, shapeStyles } from './buttonStyles';
 export type { Variant, Size, Tone, Shape } from './buttonStyles';
+export { navLinkClass } from './navLinkStyles';
 export { fieldControlClass, fieldControlDarkClass, fieldShapeClass, fieldInvalidClass } from './formStyles';
 

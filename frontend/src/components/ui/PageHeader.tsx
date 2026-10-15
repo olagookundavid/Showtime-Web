@@ -1,24 +1,51 @@
 import { type ReactNode } from 'react';
 
 interface PageHeaderProps {
-    title: string;
-    subtitle?: string;
+    /** Small uppercase label above the headline, e.g. "Help Center". */
+    eyebrow?: string;
+    /** Headline. Pass a <span className="block text-sffl-red"> child for a highlighted line. */
+    title: ReactNode;
+    subtitle?: ReactNode;
+    /** Right-side slot on large screens — a CTA, a logo badge, or omitted. */
+    actions?: ReactNode;
+    /** Decorative low-opacity background image behind the navy fill. */
+    backgroundImage?: string;
+    /** Extra content inside the hero band, below the title row (e.g. a section nav). */
     children?: ReactNode;
     className?: string;
 }
 
-export const PageHeader = ({ title, subtitle, children, className = '' }: PageHeaderProps) => {
+/** The flat navy hero band used across the public site's catalogue-style pages (see Tickets.tsx). */
+export const PageHeader = ({ eyebrow, title, subtitle, actions, backgroundImage, children, className = '' }: PageHeaderProps) => {
     return (
-        <div className={`text-center mb-6 md:mb-8 ${className}`}>
-            <h1 className="text-2xl md:text-5xl font-black text-sffl-navy dark:text-white mb-2 md:mb-4">
-                {title}
-            </h1>
-            {subtitle && (
-                <p className="text-sm md:text-lg text-gray-600 dark:text-gray-300">
-                    {subtitle}
-                </p>
+        <section className={`relative overflow-hidden bg-sffl-navy text-white ${className}`}>
+            {backgroundImage && (
+                <div
+                    className="absolute inset-0 bg-cover bg-center opacity-10"
+                    style={{ backgroundImage: `url('${backgroundImage}')` }}
+                    aria-hidden="true"
+                />
             )}
-            {children}
-        </div>
+            <div className="relative mx-auto max-w-shell px-5 py-10 sm:px-8 sm:py-14 lg:px-12 lg:py-16">
+                <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="min-w-0 space-y-5">
+                        {eyebrow && (
+                            <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
+                                <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
+                                {eyebrow}
+                            </p>
+                        )}
+                        <h1 className="text-4xl font-black uppercase leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl wrap-break-word">
+                            {title}
+                        </h1>
+                        {subtitle && (
+                            <p className="max-w-md text-sm text-white/85 sm:text-base">{subtitle}</p>
+                        )}
+                    </div>
+                    {actions}
+                </div>
+                {children}
+            </div>
+        </section>
     );
 };

@@ -1,10 +1,11 @@
-import { useState, type ComponentType, type SVGProps } from "react";
+import { type ComponentType, type SVGProps } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ChevronDownIcon,
   RocketLaunchIcon,
   TicketIcon,
 } from "@heroicons/react/24/outline";
-import { CopyableEmail, FootballIcon, PitchIcon } from "../../components";
+import { CopyableEmail, FootballIcon, PitchIcon, navLinkClass } from "../../components";
 
 // Heroicons has no handshake, so the partnerships mark is drawn in their
 // outline style: two forearms meeting in a clasp.
@@ -26,6 +27,7 @@ const HandshakeIcon = (props: SVGProps<SVGSVGElement>) => (
 );
 
 type FaqCategory = {
+  id: string;
   title: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   faqs: { q: string; a: string }[];
@@ -33,6 +35,7 @@ type FaqCategory = {
 
 const faqCategories: FaqCategory[] = [
   {
+    id: "about-sffl",
     title: "About Showtime Flag Football",
     icon: FootballIcon,
     faqs: [
@@ -71,6 +74,7 @@ const faqCategories: FaqCategory[] = [
     ],
   },
   {
+    id: "games-attendance",
     title: "Games & Attendance",
     icon: TicketIcon,
     faqs: [
@@ -101,6 +105,7 @@ const faqCategories: FaqCategory[] = [
     ],
   },
   {
+    id: "sponsorships",
     title: "Sponsorships & Partnerships",
     icon: HandshakeIcon,
     faqs: [
@@ -123,6 +128,7 @@ const faqCategories: FaqCategory[] = [
     ],
   },
   {
+    id: "incubator",
     title: "Players & Development (Incubator)",
     icon: RocketLaunchIcon,
     faqs: [
@@ -149,6 +155,7 @@ const faqCategories: FaqCategory[] = [
     ],
   },
   {
+    id: "own-a-team",
     title: "Own A Team",
     icon: PitchIcon,
     faqs: [
@@ -168,100 +175,64 @@ const faqCategories: FaqCategory[] = [
   },
 ];
 
-// Reusable FAQ Item Component
-const FAQItem = ({
-  faq,
-  isOpen,
-  onToggle,
-}: {
-  faq: { q: string; a: string };
-  isOpen: boolean;
-  onToggle: () => void;
-}) => {
-  return (
-    <div
-      className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border ${isOpen ? "border-sffl-red" : "border-gray-200 dark:border-gray-700"} overflow-hidden transition-all duration-300`}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full min-h-11 text-left px-4 sm:px-6 py-4 flex items-center justify-between gap-3 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-        aria-expanded={isOpen}
-      >
-        <span
-          className={`font-bold text-base sm:text-lg min-w-0 ${isOpen ? "text-sffl-red" : "text-sffl-navy dark:text-gray-200"}`}
-        >
-          {faq.q}
-        </span>
-        <ChevronDownIcon
-          aria-hidden="true"
-          className={`w-6 h-6 shrink-0 transform transition-transform duration-300 ${isOpen ? "rotate-180 text-sffl-red" : "text-gray-400"}`}
-        />
-      </button>
-      {/* Grows to the answer's own height, so a long answer is never cut off. */}
-      <div
-        className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-      >
-        <div className="overflow-hidden">
-          <p className="px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 leading-relaxed text-base wrap-break-word">
-            {faq.a}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const FAQ = () => {
-  // Keep track of which question is open globally using a combination of categoryIndex and questionIndex
-  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = searchParams.get("category");
+  const activeCategory =
+    faqCategories.find((c) => c.id === categoryParam) ?? faqCategories[0];
 
-  const handleToggle = (catIndex: number, qIndex: number) => {
-    const key = `${catIndex}-${qIndex}`;
-    setOpenKey(openKey === key ? null : key);
+  const selectCategory = (id: string) => {
+    setSearchParams({ category: id }, { replace: true });
   };
 
   return (
     <div className="space-y-4 md:space-y-8">
-      <div className="bg-linear-to-r from-sffl-navy to-blue-900 text-white p-6 md:p-12 rounded-3xl shadow-2xl text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
-        <div className="relative z-10">
-          <span className="inline-block bg-sffl-red text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 mt-2">
-            Help Center
-          </span>
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter mb-4 text-white wrap-break-word">
-            FREQUENTLY ASKED QUESTIONS
-          </h1>
-          <p className="text-base sm:text-xl text-gray-200 font-medium">
-            Everything you need to know about Showtime Flag Football
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-8 md:space-y-12">
-        {faqCategories.map((category, catIndex) => (
-          <section key={catIndex} className="scroll-mt-24">
-            <div className="flex items-center gap-3 mb-4 md:mb-6 border-b-2 border-gray-100 dark:border-gray-800 pb-2">
-              <category.icon
-                className="w-7 h-7 md:w-8 md:h-8 shrink-0 text-sffl-red"
-                aria-hidden="true"
-              />
-              <h2 className="min-w-0 text-xl sm:text-2xl md:text-3xl font-black italic tracking-tight text-sffl-navy dark:text-white">
+      <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-10 lg:items-start">
+        <div
+          role="tablist"
+          aria-label="FAQ categories"
+          className="flex flex-wrap gap-x-6 gap-y-3 border-b border-gray-200 pb-4 text-xs font-bold uppercase tracking-wide lg:flex-col lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6 dark:border-gray-700"
+        >
+          {faqCategories.map((category) => {
+            const active = category.id === activeCategory.id;
+            const Icon = category.icon;
+            return (
+              <button
+                key={category.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={`${navLinkClass(active, "text-sffl-navy dark:text-white")} gap-2`}
+                onClick={() => selectCategory(category.id)}
+              >
+                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {category.title}
-              </h2>
-            </div>
-            <div className="space-y-4">
-              {category.faqs.map((faq, qIndex) => (
-                <FAQItem
-                  key={qIndex}
-                  faq={faq}
-                  isOpen={openKey === `${catIndex}-${qIndex}`}
-                  onToggle={() => handleToggle(catIndex, qIndex)}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
+              </button>
+            );
+          })}
+        </div>
+
+        <div role="tabpanel" className="mt-6 min-w-0 lg:mt-0">
+          <h2 className="mb-4 text-2xl font-black tracking-tight text-sffl-navy sm:text-3xl dark:text-white">
+            {activeCategory.title}
+          </h2>
+          <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+            {activeCategory.faqs.map((faq) => (
+              <details key={faq.q} className="group">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-bold text-sffl-navy [&::-webkit-details-marker]:hidden dark:text-white">
+                  {faq.q}
+                  <ChevronDownIcon
+                    className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <p className="pb-4 text-sm text-gray-600 dark:text-gray-300 wrap-break-word">
+                  {faq.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="text-center pt-8 border-t border-gray-200 dark:border-gray-800 max-w-4xl mx-auto">
@@ -275,7 +246,7 @@ export const FAQ = () => {
           <CopyableEmail
             email="showtime@showtimeflag.football"
             label="Contact Support:"
-            className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-sffl-navy dark:text-white px-4 sm:px-6 py-2 rounded-3xl sm:rounded-full justify-center text-sm border border-gray-200 dark:border-gray-700 shadow-sm transition"
+            className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-sffl-navy dark:text-white px-4 sm:px-6 py-2 rounded-none justify-center text-sm border border-gray-200 dark:border-gray-700 transition"
           />
         </div>
       </div>

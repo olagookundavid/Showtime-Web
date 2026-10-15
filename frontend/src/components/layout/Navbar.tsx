@@ -13,7 +13,7 @@ import {
 import { useAuth, useCart, useTheme } from "../../contexts";
 import { NotificationBell } from "./NotificationBell";
 import { getInitials } from "../../utils";
-import { IconButton } from "../ui";
+import { IconButton, navLinkClass } from "../ui";
 import {
   STANDINGS_MENU,
   standingsStagePath,
@@ -25,17 +25,8 @@ type Menu = "league" | "stats" | "awards" | "user";
 const menuItemClass =
   "flex items-center gap-3 px-3 py-2 min-h-11 rounded-xl font-bold hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors";
 
-const navItemBase =
-  "relative min-h-11 inline-flex items-center font-bold transition-colors duration-300 " +
-  "after:absolute after:left-0 after:bottom-1 after:h-0.75 after:w-full after:rounded-full " +
-  "after:bg-sffl-red after:origin-left after:scale-x-0 after:transition-transform " +
-  "after:duration-300 after:ease-out motion-reduce:after:transition-none " +
-  "hover:after:scale-x-100 focus-visible:after:scale-x-100 " +
-  "outline-none focus-visible:text-sffl-red";
-
 // Active keeps its own colour and holds the bar; idle turns red on hover.
-const navItem = (active: boolean, color = "text-white") =>
-  `${navItemBase} ${color} ${active ? "after:scale-x-100" : "hover:text-sffl-red"}`;
+const navItem = navLinkClass;
 
 // Dropdown rows: the hover style, held permanently for the current page.
 const dropdownItem = (active: boolean) =>

@@ -4,13 +4,8 @@ import { CopyableEmail } from '../../components';
 export const PrivacyPolicy = () => {
     return (
         <div className="space-y-4 md:space-y-8">
-            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-                <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">PRIVACY POLICY</h1>
-                <p className="text-gray-300 mt-2">How we collect, use, and protect your information</p>
-                <p className="text-gray-400 text-sm mt-1">Last updated: 27 June 2026</p>
-            </div>
-
             <section className="bg-white dark:bg-gray-800 p-4 sm:p-6 md:p-8 rounded-xl shadow-md space-y-6 text-gray-700 dark:text-gray-100 leading-relaxed wrap-break-word">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Last updated: 27 June 2026</p>
                 <p>
                     This Privacy Policy explains how the Showtime Flag Football League ("Showtime", "we",
                     "us", or "our") collects, uses, and safeguards your information when you visit
