@@ -53,6 +53,9 @@ func Routes(app *api.Application) *gin.Engine {
 	// Event-day overlay: one link per match day, showing whichever match is on air
 	r.GET("/broadcast/day/:date/overlay/ws", app.Handlers.BroadcastHandler.DayViewerWS)
 	r.GET("/broadcast/day/:date/overlay/state", app.Handlers.BroadcastHandler.DayOverlayState)
+	// Data for the full-screen scenes (opening, facts, standings, lineup); the
+	// overlay asks for whichever match its state names, per-match or event-day.
+	r.GET("/broadcast/:matchId/overlay/scenes", app.Handlers.BroadcastHandler.SceneData)
 	// expvar exposes runtime internals (and can leak command-line flags such as
 	// the DB DSN / token key) — lock it behind admin auth instead of public.
 	debugGroup := r.Group("/debug", commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureAdministratorTools))

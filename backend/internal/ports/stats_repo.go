@@ -369,7 +369,9 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 	groupByTeam := "t.id, t.name, t.short_name, t.logo"
 	if filter.TeamID != "" {
 		teamJoinExpr = "ps.team_id"
-		groupByTeam = "ps.team_id, t.name, t.short_name, t.logo"
+		// t is joined on ps.team_id, so t.id is the same column; Postgres still
+		// needs it grouped because it is selected.
+		groupByTeam = "ps.team_id, t.id, t.name, t.short_name, t.logo"
 	}
 
 	query := fmt.Sprintf(`

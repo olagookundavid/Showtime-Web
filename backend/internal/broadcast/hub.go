@@ -132,6 +132,9 @@ func (h *Hub) LoadState(ctx context.Context, matchID string) (*BroadcastState, b
 	}
 	state.MatchID = matchID
 	state.Graphic = nil
+	// Nor a full-screen scene: after a restart nobody may be watching it.
+	state.Scene = ""
+	state.LineupIntro = nil
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -399,7 +402,11 @@ func (h *Hub) SetDayOnAir(ctx context.Context, day, matchID string) error {
 	if !ok {
 		return fmt.Errorf("broadcast state for match %s is not loaded", matchID)
 	}
+	// A lower-third or full-screen scene left up for the previous game must
+	// not appear over this one.
 	state.Graphic = nil
+	state.Scene = ""
+	state.LineupIntro = nil
 	h.SetState(state) // fans out to the day's overlays too
 	return nil
 }

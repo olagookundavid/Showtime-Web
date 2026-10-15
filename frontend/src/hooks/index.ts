@@ -8,6 +8,7 @@ export { usePermissions } from './usePermissions';
 export { useImageUpload } from './useImageUpload';
 export { getWebSocketURL, useBroadcastProducer } from './useBroadcastProducer';
 export { useBroadcastViewer } from './useBroadcastViewer';
+export { useBroadcastScenes } from './useBroadcastScenes';
 export { LEADERBOARD_LIMIT, num, rankBadgeClass, useFantasyLeaderboard } from './useFantasyLeaderboard';
 export { useReserveDrag } from './useReserveDrag';
 export type { ReserveDragState } from './useReserveDrag';

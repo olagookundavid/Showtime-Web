@@ -567,7 +567,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		}
 		services.GlobalSSEBroker.Broadcast(matchID, "score_updated", map[string]int{"home_score": home, "away_score": away})
 	}
-	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService, broadcastRepo)
+	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService, statsService, broadcastRepo)
 
 	h := handlers.NewHandlers(
 		authHandler, roleHandler, newsHandler, matchHandler, playerHandler,

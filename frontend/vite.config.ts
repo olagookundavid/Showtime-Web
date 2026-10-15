@@ -29,7 +29,7 @@ export default defineConfig({
       },
       // Only the overlays' backend endpoints (per match and per event day) —
       // the /broadcast/.../overlay pages themselves are SPA routes.
-      '^/broadcast/(day/)?[^/]+/overlay/(ws|state)$': {
+      '^/broadcast/(day/)?[^/]+/overlay/(ws|state|scenes)$': {
         target: 'http://localhost:8089',
         changeOrigin: true,
         ws: true,

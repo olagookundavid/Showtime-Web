@@ -24,6 +24,8 @@ type IPlayService interface {
 
 	// Step 2 — stat derivation
 	DeriveMatchStats(ctx context.Context, matchID string) ([]domain.AggregatedPlayerStat, error)
+	// DeriveTeamMatchStats totals team-level stats (plays, penalties, ...) from the play log.
+	DeriveTeamMatchStats(ctx context.Context, matchID string) ([]domain.TeamMatchStat, error)
 	CompareMatchStats(ctx context.Context, matchID string) (derived, current []domain.AggregatedPlayerStat, err error)
 	CommitDerivedStats(ctx context.Context, matchID string) (int, error)
 

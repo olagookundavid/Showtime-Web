@@ -68,6 +68,7 @@ export type {
   OffenseSlotSpec,
   SchemeSpec,
 } from './gameFormat';
+export { isWomanPlayer, placeStarters, projectLineup, splitLineup } from './teamSheetLineup';
 export { buildAutoFillLineup } from './autoFillLineup';
 export type {
   LineupCandidate,

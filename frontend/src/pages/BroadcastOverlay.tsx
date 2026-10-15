@@ -8,6 +8,7 @@ import {
   parseOverlayLayer,
 } from "../types";
 import { fitTeamName } from "../utils";
+import { BroadcastSceneLayer } from "./broadcastScenes";
 import "./BroadcastOverlay.css";
 
 // Inner width of a scorebug team box: 180px less 15px padding each side,
@@ -34,11 +35,12 @@ export function BroadcastOverlay() {
   // /broadcast/:matchId/overlay follows one match; /broadcast/day/:date/overlay
   // follows whichever match is on air that day.
   const { matchId, date } = useParams<{ matchId?: string; date?: string }>();
-  // ?layer=scorebug or ?layer=graphics gives vMix one part per input; no param shows both.
+  // ?layer=scorebug|graphics|scenes gives vMix one part per input; no param shows all.
   const [searchParams] = useSearchParams();
   const layer = parseOverlayLayer(searchParams.get("layer"));
-  const showScorebug = layer !== "graphics";
-  const showGraphics = layer !== "scorebug";
+  const showScorebug = layer === "all" || layer === "scorebug";
+  const showGraphics = layer === "all" || layer === "graphics";
+  const showScenes = layer === "all" || layer === "scenes";
 
   const { state } = useBroadcastViewer(
     date ? { kind: "day", date } : { kind: "match", matchId: matchId || "" },
@@ -155,7 +157,11 @@ export function BroadcastOverlay() {
     >
       {/* 1. Scorebug (Persistent top-left on-air display); left out of a lower-thirds-only input */}
       {showScorebug && (
-        <div className={`scorebug-container ${!state.scorebug ? "off" : ""}`}>
+        // Scenes fill the frame, so the scorebug steps aside while one is up,
+        // in a scorebug-only input too (every input gets the same state).
+        <div
+          className={`scorebug-container ${!state.scorebug || state.scene ? "off" : ""}`}
+        >
           <div className="scorebug-main">
             {/* Home Team */}
             <div className="bug-team home">
@@ -225,7 +231,10 @@ export function BroadcastOverlay() {
         </div>
       )}
 
-      {/* 2. Lower-Third Graphic Banner; left out of a scorebug-only input */}
+      {/* 2. Full-screen scene (opening, facts, standings, lineup), under the lower-thirds */}
+      {showScenes && <BroadcastSceneLayer state={state} clock={clockDisplay} />}
+
+      {/* 3. Lower-Third Graphic Banner; left out of a scorebug-only input */}
       {showGraphics && activeGraphic && (
         <div
           key={graphicKey}
