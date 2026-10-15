@@ -76,7 +76,6 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupSiteEventRoutes(v1_api, app)
 	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
-	// SetupGalleryRoutes(v1_api, app) // Disabled gallery
 	SetupHeroSlideRoutes(v1_api, app)
 	SetupSeasonRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
@@ -150,7 +149,7 @@ func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
 	//
 	// Anyone who can open the admin panel (any role holding an admin feature) is allowed
 	// too: presigning alone doesn't let anyone attach
-	// the file anywhere — the feature it's used by (Hero Slides, News, Gallery, Store
+	// the file anywhere — the feature it's used by (Hero Slides, News, Store
 	// products, team logos, etc.) is separately gated by FeatureAccessMiddleware, so this
 	// is just "can this person reach the admin panel at all", not a per-feature check.
 	// It is derived from the roles table rather than listed here, so a newly created role
@@ -246,16 +245,6 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		newsGroup.DELETE("/:id", app.Handlers.NewsHandler.DeleteNews)
 		newsGroup.PUT("/:id/comment-settings", app.Handlers.CommentHandler.UpdateNewsCommentSettings)
 	}
-
-	/*
-		galleryGroup := adminRoutes.Group("/gallery")
-		galleryGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureGallery))
-		{
-			galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
-			galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
-			galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
-		}
-	*/
 
 	// Hero slides — open to admin and above. Only the Administrator (gift-ticket)
 	// section is reserved for app_admin; everything else an admin can manage.
@@ -677,16 +666,6 @@ func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
 		newsRoutes.GET("/slug/:slug", app.Handlers.NewsHandler.GetNewsBySlug)
 		newsRoutes.GET("/:id", app.Handlers.NewsHandler.GetNewsByID)
 	}
-}
-
-func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
-	/*
-		galleryRoutes := r.Group("/gallery")
-		{
-			galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
-			galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
-		}
-	*/
 }
 
 func SetupHeroSlideRoutes(r *gin.RouterGroup, app *api.Application) {

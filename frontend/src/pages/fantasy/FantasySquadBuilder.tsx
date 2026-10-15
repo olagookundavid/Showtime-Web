@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { isDeletedPlayer, FemaleIcon, Button, Field, Input, Select, Modal, Spinner, Loader, PlayerAvatar, FantasyBackLink, FantasyPitch } from "../../components";
+import { isDeletedPlayer, FemaleIcon, Button, Field, Input, Select, Modal, Spinner, Loader, PlayerAvatar, PlayerLink, FantasyBackLink, FantasyPitch } from "../../components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
@@ -199,6 +199,16 @@ const formatPositions = (positions: string[]): string =>
   positions.length <= 1
     ? positions[0] || ""
     : `${positions.slice(0, -1).join(", ")} or ${positions[positions.length - 1]}`;
+
+/** Names as prose: "A", "A and B", "A, B and C". */
+const joinNames = (names: string[]): string =>
+  names.length <= 1
+    ? names[0] || ""
+    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+
+/** A player with the position they play, for messages: "Bakare (Receiver)". */
+const describePlayer = (name: string, position?: string | null): string =>
+  position && position !== "-" ? `${name} (${position})` : name;
 
 const isFemale = (g?: string): boolean =>
   (g || "").toUpperCase().startsWith("F");
@@ -753,13 +763,27 @@ export function FantasySquadBuilder() {
     let defenseAllrounders = 0;
     const clubCounts: Record<string, number> = {};
     const chosenPlayerIds = new Set<string>();
+    // Who is behind each count, so a failing check can name the players to
+    // change instead of only saying a rule is broken.
+    const defenseAllrounderNames: string[] = [];
+    const clubPlayerNames: Record<string, string[]> = {};
+    const clubLabels: Record<string, string> = {};
+    const seenNames: Record<string, string> = {};
+    const doubledUpNames: string[] = [];
 
     SLOT_DEFINITIONS.forEach((def) => {
       const player = squad[def.slot];
       if (player) {
         totalSpent += player.price;
         filledCount++;
+        if (
+          chosenPlayerIds.has(player.player_id) &&
+          !doubledUpNames.includes(player.player_name)
+        ) {
+          doubledUpNames.push(player.player_name);
+        }
         chosenPlayerIds.add(player.player_id);
+        seenNames[player.player_id] = player.player_name;
 
         const isFem = (player.gender || "").toUpperCase() === "F";
         if (def.unit === "OFFENSE" && isFem) offenseFemales++;
@@ -767,10 +791,14 @@ export function FantasySquadBuilder() {
 
         if (def.unit === "DEFENSE" && isAllrounderPosition(player.position)) {
           defenseAllrounders++;
+          defenseAllrounderNames.push(player.player_name);
         }
 
         if (player.team_id) {
           clubCounts[player.team_id] = (clubCounts[player.team_id] || 0) + 1;
+          (clubPlayerNames[player.team_id] ??= []).push(player.player_name);
+          clubLabels[player.team_id] ||=
+            player.team_short_name || player.team_name || "one club";
         }
       }
     });
@@ -804,6 +832,12 @@ export function FantasySquadBuilder() {
     const clubLimitValid = !Object.values(clubCounts).some(
       (count) => count > maxPerClub,
     );
+    const overLimitClubs = Object.entries(clubCounts)
+      .filter(([, count]) => count > maxPerClub)
+      .map(
+        ([teamId]) =>
+          `${joinNames(clubPlayerNames[teamId] ?? [])} are all from ${clubLabels[teamId]}`,
+      );
 
     let hasInactiveStartingPlayer = false;
     for (const def of SLOT_DEFINITIONS) {
@@ -839,7 +873,9 @@ export function FantasySquadBuilder() {
     // physically cannot hold two players.
     const duplicatePlayerValid = chosenPlayerIds.size === filledCount;
 
-    let ineligibleSlot: string | null = null;
+    // Every mismatch, named: "Defender 1 is mismatched" left the manager to
+    // work out who was in Defender 1 and what was wrong with them.
+    const ineligiblePicks: string[] = [];
     for (const def of SLOT_DEFINITIONS) {
       const player = squad[def.slot];
       if (!player) continue;
@@ -848,11 +884,13 @@ export function FantasySquadBuilder() {
         !def.requiredGender ||
         (player.gender || "").toUpperCase() === def.requiredGender;
       if (!positionOK || !genderOK) {
-        ineligibleSlot = def.label;
-        break;
+        ineligiblePicks.push(
+          `${describePlayer(player.player_name, player.position)} can't play ${def.label}`,
+        );
       }
     }
-    const slotEligibilityValid = ineligibleSlot === null;
+    const ineligibleSlot = ineligiblePicks[0] ?? null;
+    const slotEligibilityValid = ineligiblePicks.length === 0;
 
     const isValid =
       slotsFilled &&
@@ -888,6 +926,10 @@ export function FantasySquadBuilder() {
       duplicatePlayerValid,
       slotEligibilityValid,
       ineligibleSlot,
+      ineligiblePicks,
+      defenseAllrounderNames,
+      overLimitClubs,
+      doubledUpNames,
       isValid,
     };
   }, [squad, season, mySquad]);
@@ -918,14 +960,18 @@ export function FantasySquadBuilder() {
       },
       {
         ok: calculations.defenseAllroundersValid,
-        label: "Max 1 All-Rounder in defence",
+        label: calculations.defenseAllroundersValid
+          ? "Max 1 All-Rounder in defence"
+          : `Max 1 All-Rounder in defence — ${joinNames(calculations.defenseAllrounderNames)} are all All-Rounders`,
         detail: calculations.defenseAllroundersValid
           ? `${calculations.defenseAllrounders} of 1`
           : `${calculations.defenseAllrounders} selected (max 1)`,
       },
       {
         ok: calculations.clubLimitValid,
-        label: `No more than ${calculations.maxPerClub} from one club`,
+        label: calculations.clubLimitValid
+          ? `No more than ${calculations.maxPerClub} from one club`
+          : `No more than ${calculations.maxPerClub} from one club — ${calculations.overLimitClubs.join("; ")}`,
         detail: calculations.clubLimitValid ? "OK" : "Exceeded",
       },
       {
@@ -935,17 +981,17 @@ export function FantasySquadBuilder() {
       },
       {
         ok: calculations.duplicatePlayerValid,
-        label: "No player in two slots",
-        detail: calculations.duplicatePlayerValid
-          ? "OK"
-          : "Someone is doubled up",
+        label: calculations.duplicatePlayerValid
+          ? "No player in two slots"
+          : `No player in two slots — ${joinNames(calculations.doubledUpNames)} ${calculations.doubledUpNames.length === 1 ? "is" : "are"} in two`,
+        detail: calculations.duplicatePlayerValid ? "OK" : "Doubled up",
       },
       {
         ok: calculations.slotEligibilityValid,
-        label: "Every player suits their slot",
-        detail: calculations.slotEligibilityValid
-          ? "OK"
-          : `${calculations.ineligibleSlot} is mismatched`,
+        label: calculations.slotEligibilityValid
+          ? "Every player suits their slot"
+          : calculations.ineligiblePicks.join("; "),
+        detail: calculations.slotEligibilityValid ? "OK" : "Wrong slot",
       },
     ],
     [calculations],
@@ -1248,7 +1294,7 @@ export function FantasySquadBuilder() {
       return {
         valid: false,
         title: "Invalid Position",
-        error: `${candidateName} plays ${candidatePos}, which does not match slot ${targetSlot.label} (${targetSlot.allowedPositions.join("/")}).`,
+        error: `${describePlayer(candidateName, candidatePos)} can't play ${targetSlot.label} — that slot needs a ${formatPositions(targetSlot.allowedPositions)}.`,
       };
     }
 
@@ -1260,7 +1306,7 @@ export function FantasySquadBuilder() {
       return {
         valid: false,
         title: "Gender Requirement",
-        error: `Slot ${targetSlot.label} requires a ${targetSlot.requiredGender === "F" ? "Female" : "Male"} player.`,
+        error: `${candidateName} can't play ${targetSlot.label} — that slot needs a ${targetSlot.requiredGender === "F" ? "female" : "male"} player.`,
       };
     }
 
@@ -1284,18 +1330,20 @@ export function FantasySquadBuilder() {
     if (targetSlot.unit === "DEFENSE" && isAllrounderPosition(candidatePos)) {
       const otherDefAllrounders = SLOT_DEFINITIONS.filter(
         (d) => d.unit === "DEFENSE" && d.slot !== targetSlot.slot,
-      ).filter((d) => {
-        const p = currentSquad[d.slot];
-        return (
-          p && p.player_id !== candidateId && isAllrounderPosition(p.position)
+      )
+        .map((d) => currentSquad[d.slot])
+        .filter(
+          (p): p is FantasyPlayerListItem =>
+            !!p &&
+            p.player_id !== candidateId &&
+            isAllrounderPosition(p.position),
         );
-      }).length;
 
-      if (otherDefAllrounders >= 1) {
+      if (otherDefAllrounders.length >= 1) {
         return {
           valid: false,
           title: "Defense All-Rounder Limit",
-          error: "You can only have a maximum of 1 All-Rounder in defence.",
+          error: `${candidateName} is an All-Rounder, and ${joinNames(otherDefAllrounders.map((p) => p.player_name))} already fills your one All-Rounder spot in defence.`,
         };
       }
     }
@@ -1303,32 +1351,41 @@ export function FantasySquadBuilder() {
     // 6. Max Players Per Club
     const maxPerClub = opts?.season?.max_per_club || 3;
     if (candidateClubId) {
-      let clubCount = 0;
+      const clubmates: string[] = [];
       for (const def of SLOT_DEFINITIONS) {
         if (def.slot === targetSlot.slot) continue;
         const p = currentSquad[def.slot];
         if (!p || p.player_id === candidateId) continue;
         if (p.team_id === candidateClubId) {
-          clubCount++;
+          clubmates.push(p.player_name);
         }
       }
-      if (clubCount + 1 > maxPerClub) {
+      if (clubmates.length + 1 > maxPerClub) {
         return {
           valid: false,
           title: "Club Quota Exceeded",
-          error: `You cannot select more than ${maxPerClub} players from ${candidateClubName || "the same club"} in your starting 14.`,
+          error: `${candidateName} would make ${clubmates.length + 1} from ${candidateClubName || "one club"} — you already start ${joinNames(clubmates)}, and the limit is ${maxPerClub}.`,
         };
       }
     }
 
     // 7. Purchase-specific validations
     if (opts?.isBuying) {
-      const maxSquadSize = opts?.season?.squad_size || 18;
-      if (opts?.mySquad && opts.mySquad.players.length >= maxSquadSize) {
+      // The cap is the whole squad's, starters plus bench. season.squad_size is
+      // the starting fourteen, and measuring against it called a 14-player
+      // squad "full" with every bench spot still open.
+      const squadMax = opts?.mySquad?.squad_max ?? 19;
+      const squadSize =
+        opts?.mySquad?.squad_size ?? opts?.mySquad?.players.length ?? 0;
+      if (opts?.mySquad && squadSize >= squadMax) {
+        const displaced = currentSquad[targetSlot.slot];
         return {
           valid: false,
           title: "Squad Full",
-          error: `Your squad is full (${maxSquadSize} players). Sell a player before signing a new one.`,
+          error:
+            displaced && displaced.player_id !== candidateId
+              ? `Your squad is full (${squadMax} of ${squadMax}). Signing ${candidateName} would move ${displaced.player_name} to the bench, but there is no bench room left. Sell a bench player, or use Transfer Out on ${displaced.player_name} to sell them and sign ${candidateName} in their place.`
+              : `Your squad is full (${squadMax} of ${squadMax}). Sell a bench player before signing ${candidateName}.`,
         };
       }
       const bank = opts?.mySquad?.bank ?? 0;
@@ -1376,7 +1433,7 @@ export function FantasySquadBuilder() {
       return {
         valid: false,
         title: "Female Quota Violation",
-        error: `Placing a male player in ${targetSlot.label} leaves only ${totalPotentialFemales} possible female athletes in ${targetSlot.unit.toLowerCase()}, but at least ${minFemale} are required.`,
+        error: `Placing ${candidateName} in ${targetSlot.label} leaves only ${totalPotentialFemales} possible female athletes in ${targetSlot.unit.toLowerCase()}, but at least ${minFemale} are required.`,
       };
     }
 
@@ -1446,14 +1503,71 @@ export function FantasySquadBuilder() {
 
     // The pick is saved the moment it is made, and it stays in the slot it
     // was put in — it is not parked on the bench waiting for a later save.
+    // Whoever held the slot is still owned, so they drop to the bench.
+    const displaced = squad[activeModalSlot.slot];
     commitSquad((prev) => ({
       ...prev,
       [activeModalSlot.slot]: enrichedPlayer,
     }));
+    if (displaced && displaced.player_id !== player.player_id) {
+      toast.success(
+        `${player.player_name} in, ${displaced.player_name} moved to the bench.`,
+      );
+    }
     setActiveModalSlot(null);
     setMarketTeamFilter("");
     setMarketGenderFilter("");
   };
+
+  // Why a starter cannot start, or null if they can. The pitch badge, the
+  // Manage menu and the checklist's list of blocked starters all read this,
+  // so they can never disagree about who is blocked. `owned` is false for a
+  // pick no longer in the squad: there is nothing to sell, only to bench.
+  const starterIssue = (
+    slot: FantasySlot,
+  ): { reason: string; detail: string; owned: boolean } | null => {
+    const player = squad[slot];
+    if (!player || !mySquad?.players) return null;
+    const squadMember = mySquad.players.find(
+      (sp) => sp.player_id === player.player_id,
+    );
+    if (!squadMember) {
+      return {
+        reason: "Not Owned",
+        detail: "No longer in your squad.",
+        owned: false,
+      };
+    }
+    if (squadMember.team_active === false) {
+      return {
+        reason: "Club Inactive",
+        detail: "Their club is inactive, so they cannot start.",
+        owned: true,
+      };
+    }
+    if (isDeletedPlayer({ status: squadMember.player_status })) {
+      return {
+        reason: "Unavailable",
+        detail: "No longer in the league, so they cannot start.",
+        owned: true,
+      };
+    }
+    if (squadMember.is_reserve) {
+      return {
+        reason: "Club reserve",
+        detail:
+          "On their club's reserve list — they can sit on your bench but cannot start.",
+        owned: true,
+      };
+    }
+    return null;
+  };
+
+  const blockedStarters = SLOT_DEFINITIONS.flatMap((def) => {
+    const issue = starterIssue(def.slot);
+    const player = squad[def.slot];
+    return issue && player ? [{ def, player, issue }] : [];
+  });
 
   // "Move to Bench" — remove from starting slot
   const handleMoveToBench = (slot: FantasySlot) => {
@@ -2144,15 +2258,8 @@ export function FantasySquadBuilder() {
           actionSlot={actionSlot}
           onSlotClick={(slot, player) => {
             if (player) {
-              // 1-A: If clicking an inactive/invalid starter, directly open replacement picker
-              if (player.isInvalid) {
-                const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
-                if (def) {
-                  setActionSlot(null);
-                  setActiveModalSlot(def);
-                  return;
-                }
-              }
+              // A blocked starter opens the same Manage menu as anyone else,
+              // so they can be benched or sold, not only replaced.
               setActionSlot(actionSlot === slot ? null : slot);
             } else {
               const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
@@ -2160,28 +2267,8 @@ export function FantasySquadBuilder() {
             }
           }}
           isSlotInvalid={(slot) => {
-            const player = squad[slot];
-            if (!player) return false;
-
-            if (mySquad?.players) {
-              const squadMember = mySquad.players.find(
-                (sp) => sp.player_id === player.player_id,
-              );
-              if (!squadMember) {
-                return { invalid: true, reason: "Not Owned" };
-              }
-              if (squadMember.team_active === false) {
-                return { invalid: true, reason: "Club Inactive" };
-              }
-              if (isDeletedPlayer({ status: squadMember.player_status })) {
-                return { invalid: true, reason: "Unavailable" };
-              }
-              if (squadMember.is_reserve) {
-                return { invalid: true, reason: "Club reserve" };
-              }
-            }
-
-            return false;
+            const issue = starterIssue(slot);
+            return issue ? { invalid: true, reason: issue.reason } : false;
           }}
           isSlotInactive={(slot) => {
             const player = squad[slot];
@@ -2219,6 +2306,7 @@ export function FantasySquadBuilder() {
                   image={squad[actionSlot]!.player_image}
                   gender={squad[actionSlot]!.gender}
                   size="md"
+                  zoomable
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -2232,17 +2320,44 @@ export function FantasySquadBuilder() {
                       }
                     </span>
                   </div>
+                  {/* Opens the player's profile. There is no fantasy player
+                      page yet, so this is the league one for now. */}
                   <h3 className="text-base font-black truncate text-gray-900 dark:text-white mt-0.5">
-                    {squad[actionSlot]!.player_name}
+                    <PlayerLink
+                      id={squad[actionSlot]!.player_id}
+                      title={`View ${squad[actionSlot]!.player_name}'s profile`}
+                    >
+                      {squad[actionSlot]!.player_name}
+                    </PlayerLink>
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {squad[actionSlot]!.team_short_name ||
+                    <span className="font-bold text-gray-700 dark:text-gray-200">
+                      {squad[actionSlot]!.position || "Position unknown"}
+                    </span>{" "}
+                    • {squad[actionSlot]!.team_short_name ||
                       squad[actionSlot]!.team_name}{" "}
                     • {formatFantasyPrice(squad[actionSlot]!.price)}
                   </p>
                 </div>
               </div>
             </div>
+
+            {starterIssue(actionSlot) && (
+              <div
+                role="alert"
+                className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-3 py-2.5 text-xs text-red-800 dark:text-red-200"
+              >
+                <ExclamationCircleIcon
+                  className="w-4 h-4 shrink-0 mt-px text-sffl-red"
+                  aria-hidden="true"
+                />
+                <span>
+                  <strong>Cannot start:</strong>{" "}
+                  {starterIssue(actionSlot)!.detail} Move them to the bench,
+                  sell them, or swap someone in.
+                </span>
+              </div>
+            )}
 
             {/* Action buttons */}
             <div className="p-4 space-y-2">
@@ -2264,6 +2379,7 @@ export function FantasySquadBuilder() {
                 </div>
               </button>
 
+              {starterIssue(actionSlot)?.owned !== false && (
               <button
                 type="button"
                 onClick={() => handleTransferOut(actionSlot)}
@@ -2284,6 +2400,7 @@ export function FantasySquadBuilder() {
                   </span>
                 </div>
               </button>
+              )}
 
               <button
                 type="button"
@@ -2438,6 +2555,55 @@ export function FantasySquadBuilder() {
               </li>
             ))}
           </ul>
+
+          {blockedStarters.length > 0 && (
+            <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-200 mb-2">
+                Can't start — bench or sell them
+              </p>
+              <ul className="space-y-2">
+                {blockedStarters.map(({ def, player, issue }) => (
+                  <li
+                    key={def.slot}
+                    className="flex flex-wrap items-center gap-2 text-xs"
+                  >
+                    <span className="min-w-0 flex-1 text-gray-800 dark:text-gray-100">
+                      <strong className="font-black">
+                        {player.player_name}
+                      </strong>{" "}
+                      <span className="text-gray-500 dark:text-gray-400">
+                        ({def.label}) · {issue.reason}
+                      </span>
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={ArrowUturnDownIcon}
+                      onClick={() => handleMoveToBench(def.slot)}
+                    >
+                      {issue.owned ? "Bench" : "Remove"}
+                    </Button>
+                    {issue.owned && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={ArrowUpTrayIcon}
+                        disabled={!!marketClosed}
+                        title={
+                          marketClosed
+                            ? "Unavailable while the market is closed"
+                            : "Sell and pick a replacement"
+                        }
+                        onClick={() => handleTransferOut(def.slot)}
+                      >
+                        Sell
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* The server decides what is publishable, not this list. The
                         checks above are a local preview that exists so feedback is

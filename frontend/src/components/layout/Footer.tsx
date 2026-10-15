@@ -162,7 +162,7 @@ export const Footer = () => {
           </div>
           <div className="mt-4 md:mt-6">
             <CopyableEmail
-              email="showtime@showtimeflag.football"
+              email="showtime@sffl.football"
               label="Contact Us:"
               className="bg-gray-800 dark:bg-gray-900 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm transition-colors"
             />
@@ -171,6 +171,12 @@ export const Footer = () => {
       </div>
       <div className="text-center text-gray-400 dark:text-gray-500 text-[10px] md:text-xs mt-6 md:mt-8 border-t border-gray-800 dark:border-gray-800/80 pt-3 md:pt-4">
         &copy; 2026 Showtime Flag Football League.
+        <Link
+          to="/sitemap"
+          className="hover:text-white min-h-11 flex items-center justify-center"
+        >
+          Sitemap
+        </Link>
       </div>
     </footer>
   );

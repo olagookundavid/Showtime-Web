@@ -88,7 +88,7 @@ export const AdminGiftTicket = () => {
         <div>
             <DashboardPageHeader
                 title="Administrator"
-                subtitle="Gift a complimentary ticket without payment."
+                subtitle="Complimentary ticket."
                 className="mb-6"
             />
 
@@ -200,7 +200,7 @@ export const AdminGiftTicket = () => {
                     disabled={submitting || !productId || selectedDays.length === 0 || !name.trim() || !email.trim()}
                     fullWidth
                 >
-                    Gift Ticket
+                    Give Ticket
                 </Button>
 
                 {issued && (
@@ -232,7 +232,7 @@ export const AdminGiftTicket = () => {
                 open={confirming}
                 title={selectedDays.length > 1 ? 'Gift this Game Pass?' : 'Gift this ticket?'}
                 description="The ticket is issued without payment and emailed to the recipient straight away."
-                confirmLabel="Gift Ticket"
+                confirmLabel="Give Ticket"
                 tone="success"
                 icon={GiftIcon}
                 pending={submitting}

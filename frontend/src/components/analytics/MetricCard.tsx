@@ -13,6 +13,8 @@ interface MetricCardProps {
     higherIsBetter?: boolean;
     /** 'points' for rates (0-1): a move from 40% to 44% reads "+4 pts", not "+10%". */
     changeAs?: 'percent' | 'points';
+    /** 'highlight' picks this tile out as the page's one headline stat: solid navy surface, gold value. */
+    tone?: 'default' | 'highlight';
 }
 
 const Change = ({
@@ -88,13 +90,25 @@ export const MetricCard = ({
     comparisonLabel = 'vs previous period',
     higherIsBetter = true,
     changeAs = 'percent',
-}: MetricCardProps) => (
-    <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:p-5">
-        <p className="text-xs font-bold text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="mt-1 text-2xl font-black text-sffl-navy dark:text-white sm:text-3xl">{value}</p>
-        {hint && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
-        {current !== undefined && previous !== undefined && previous !== null && (
-            <Change current={current} previous={previous} comparisonLabel={comparisonLabel} higherIsBetter={higherIsBetter} changeAs={changeAs} />
-        )}
-    </div>
-);
+    tone = 'default',
+}: MetricCardProps) => {
+    const isHighlight = tone === 'highlight';
+    return (
+        <div
+            className={
+                isHighlight
+                    ? 'min-w-0 rounded-t-xl border-b-4 border-sffl-red bg-sffl-navy p-4 shadow-md sm:p-5'
+                    : 'min-w-0 rounded-t-xl border-t border-x border-b-4 border-t-gray-200 border-x-gray-200 border-b-sffl-red bg-white p-4 shadow-md dark:border-t-gray-700 dark:border-x-gray-700 dark:bg-gray-800 sm:p-5'
+            }
+        >
+            <p className={isHighlight ? 'text-xs font-bold text-white/70' : 'text-xs font-bold text-gray-500 dark:text-gray-400'}>{label}</p>
+            <p className={isHighlight ? 'mt-1 text-2xl font-black text-sffl-gold sm:text-3xl' : 'mt-1 text-2xl font-black text-sffl-navy dark:text-white sm:text-3xl'}>
+                {value}
+            </p>
+            {hint && <p className={isHighlight ? 'mt-1 text-xs text-white/60' : 'mt-1 text-xs text-gray-500 dark:text-gray-400'}>{hint}</p>}
+            {current !== undefined && previous !== undefined && previous !== null && (
+                <Change current={current} previous={previous} comparisonLabel={comparisonLabel} higherIsBetter={higherIsBetter} changeAs={changeAs} />
+            )}
+        </div>
+    );
+};

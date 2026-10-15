@@ -36,6 +36,7 @@ type GraphicEvent struct {
 	Stat     string `json:"stat,omitempty"`
 	Photo    string `json:"photo,omitempty"`
 	Compact  bool   `json:"compact"`
+	Large    bool   `json:"large,omitempty"` // show the big breakout player portrait instead of the small avatar circle
 	Duration int    `json:"duration"` // Display duration in ms (default 5500)
 }
 

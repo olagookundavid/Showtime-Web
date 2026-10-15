@@ -44,23 +44,6 @@ const CarIcon = ({ className }: { className?: string }) => (
 export const ShowtimeArena = () => {
   return (
     <div className="space-y-4 md:space-y-8">
-      <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl relative overflow-hidden h-75 md:h-112.5 flex flex-col justify-end">
-        <img
-          src="/images/branding/showtime-arena-main.webp"
-          alt="Showtime Arena"
-          className="absolute inset-0 w-full h-full object-cover opacity-60 z-0"
-        />
-        <div className="absolute inset-0 bg-linear-to-t from-sffl-navy/90 via-sffl-navy/40 to-transparent z-10" />
-        <div className="relative z-20">
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
-            SHOWTIME ARENA
-          </h1>
-          <p className="text-gray-300 mt-2 font-bold uppercase tracking-widest text-sm">
-            The Premium Hub of the SFFL
-          </p>
-        </div>
-      </div>
-
       <section className="bg-white dark:bg-gray-800 p-4 sm:p-8 rounded-xl shadow-md space-y-6">
         <h2 className="text-2xl font-bold text-sffl-red">
           Experience the Game Night

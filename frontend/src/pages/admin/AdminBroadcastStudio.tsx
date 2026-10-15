@@ -290,6 +290,7 @@ export function BroadcastControlPanel({
       compact: /DOWN|GOAL|EXTRA POINT|FLAG PULL|PENALTY|BAT DOWN/.test(
         callType,
       ),
+      large: /PICK SIX|INTERCEPTION|SACK/.test(callType),
       duration: 5500,
     };
 
@@ -310,6 +311,7 @@ export function BroadcastControlPanel({
       team,
       photo: player?.image || "",
       compact: false,
+      large: true,
       duration: 5500,
     };
     fireGraphic(graphic);

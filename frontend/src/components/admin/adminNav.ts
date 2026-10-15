@@ -1,6 +1,5 @@
 import {
   Squares2X2Icon,
-  PresentationChartLineIcon,
   CalendarIcon,
   PlayCircleIcon,
   TrophyIcon,
@@ -63,11 +62,6 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     title: "Overview",
     links: [
       { name: "Dashboard", path: "/admin", icon: Squares2X2Icon, end: true },
-      {
-        name: "Analytics",
-        path: "/admin/analytics",
-        icon: PresentationChartLineIcon,
-      },
       { name: "Traffic", path: "/admin/traffic", icon: GlobeAltIcon },
     ],
   },
@@ -144,7 +138,6 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     title: "Content",
     links: [
       { name: "News", path: "/admin/news", icon: NewspaperIcon },
-      // { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
       { name: "Hero Slides", path: "/admin/hero-slides", icon: PhotoIcon },
       { name: "Live Stream", path: "/admin/live-stream", icon: SignalIcon },
     ],
@@ -163,7 +156,6 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
 /** Every nav link's name mapped to the shared feature-access key that gates it. */
 const NAV_FEATURE: Record<string, FeatureKey> = {
   Dashboard: "dashboard",
-  Analytics: "dashboard",
   Traffic: "dashboard",
   Matches: "matches",
   "Play by Play": "play_by_play",

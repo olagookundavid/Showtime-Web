@@ -73,6 +73,8 @@ export const Layout = () => {
   // The store has no use for match scores, so its pages leave the strip out.
   const isStorePage =
     location.pathname === "/store" || location.pathname.startsWith("/store/");
+  // About's hero sits flush under the navbar's red line, so it also skips the strip.
+  const isAboutPage = location.pathname.startsWith("/about/");
 
   // The sticky chrome's height, published as a CSS variable so dialogs can
   // open below it instead of being cut off by it. It is measured rather than
@@ -94,6 +96,21 @@ export const Layout = () => {
       observer.disconnect();
       document.documentElement.style.removeProperty("--chrome-h");
     };
+  }, []);
+
+  // The document's true, scrollbar-excluded width — `clientWidth`, unlike
+  // `vw`, never includes a desktop scrollbar's width — so full-bleed sections
+  // (e.g. the About hero) can break out to the real viewport edge without
+  // overflowing past it by a scrollbar's worth of pixels.
+  useEffect(() => {
+    const publish = () =>
+      document.documentElement.style.setProperty(
+        "--viewport-w",
+        `${document.documentElement.clientWidth}px`,
+      );
+    publish();
+    window.addEventListener("resize", publish);
+    return () => window.removeEventListener("resize", publish);
   }, []);
 
   // Close menu on route change
@@ -142,8 +159,8 @@ export const Layout = () => {
                 this wrapper the outer sticky is what actually pins. */}
       <div ref={chromeRef} className="sticky top-0 z-50">
         <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
-        {/* Store pages skip the strip entirely, so it is not mounted there. */}
-        {!isStorePage && (
+        {/* Store and About pages skip the strip entirely, so it is not mounted there. */}
+        {!isStorePage && !isAboutPage && (
           /* Reading down the page, the scores roll up out of the way and
                     give the content back its room; the first flick upward brings
                     them straight back. The 0fr/1fr grid animates to the row's

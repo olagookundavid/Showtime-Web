@@ -7,7 +7,7 @@ export {
   isMatchLocked,
   getMatchLockCountdown,
 } from './dateUtils';
-export { formatStatNumber, formatStatDecimal, getInitials } from './formatters';
+export { formatStatNumber, formatStatDecimal, formatNaira, getInitials } from './formatters';
 export { getApiErrorMessage } from './apiError';
 export { addToGoogleCalendar, createMatchEvent } from './calendar';
 export { normalizePosition, getStatsForPosition } from './positionStatsMatrix';

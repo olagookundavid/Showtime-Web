@@ -4,6 +4,7 @@ export { DashboardClock } from './DashboardClock';
 export { DashboardNavLinks } from './DashboardNavLinks';
 export { DashboardPageHeader } from './DashboardPageHeader';
 export { DashboardShell } from './DashboardShell';
+export { SectionKicker } from './SectionKicker';
 export { DashboardUserMenu } from './DashboardUserMenu';
 export { isNavLinkActive } from './dashboardNav';
 export type { DashboardNavLink, DashboardNavSection, DashboardBottomNavItem } from './dashboardNav';

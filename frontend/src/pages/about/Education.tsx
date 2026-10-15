@@ -4,11 +4,6 @@ import { FootballIcon } from "../../components";
 export const Education = () => {
     return (
         <div className="space-y-4 md:space-y-8">
-            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter wrap-break-word">FLAG FOOTBALL EDUCATION</h1>
-                <p className="text-gray-300 mt-2">Master the game</p>
-            </div>
-
             <section className="bg-white dark:bg-gray-800 p-4 sm:p-8 rounded-xl shadow-md space-y-6">
                 <h2 className="text-2xl font-bold text-sffl-red">Routes and Strategy</h2>
                 <p className="text-gray-700 dark:text-gray-100">

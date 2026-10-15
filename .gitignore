@@ -34,6 +34,9 @@ scripts/historical-import/
 *.pages
 *.numbers
 
+# Updated league rulebook — self-hosted and committed, unlike other PDFs above.
+!frontend/public/docs/showtime-rulebook-2026.pdf
+
 # Ignore scratch folders and their contents
 scratch/
 **/scratch/
@@ -71,3 +74,5 @@ inject_opening_player_prices.sql
 
 # Local UI mockups (design references, not shipped)
 /Showtime_*_UI.html
+/Showtime_Livestream_Overlay_Package.html
+/Showtime_Starting_Lineup_Overlay.html

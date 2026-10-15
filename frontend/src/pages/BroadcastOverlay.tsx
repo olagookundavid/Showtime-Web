@@ -18,7 +18,11 @@ const TEAM_NAME_WIDTH = 76;
 function TeamName({ name }: { name: string }) {
   const fitted = useMemo(() => fitTeamName(name, TEAM_NAME_WIDTH), [name]);
   return (
-    <strong title={name} className={fitted.lines.length > 1 ? 'two-line' : ''} style={{ fontSize: fitted.fontSize }}>
+    <strong
+      title={name}
+      className={fitted.lines.length > 1 ? "two-line" : ""}
+      style={{ fontSize: fitted.fontSize }}
+    >
       {fitted.lines.map((line) => (
         <span key={line}>{line}</span>
       ))}
@@ -37,7 +41,7 @@ export function BroadcastOverlay() {
   const showGraphics = layer !== "scorebug";
 
   const { state } = useBroadcastViewer(
-    date ? { kind: 'day', date } : { kind: 'match', matchId: matchId || '' },
+    date ? { kind: "day", date } : { kind: "match", matchId: matchId || "" },
   );
   const [scale, setScale] = useState({ k: 1, x: 0, y: 0 });
 
@@ -88,7 +92,9 @@ export function BroadcastOverlay() {
   // Schedule the exit of each new graphic after its duration. Graphic ids count
   // per match, so the key includes the match: an event-day overlay switching
   // matches must not mistake match B's graphic #3 for match A's.
-  const graphicKey = state?.graphic ? `${state.match_id}:${state.graphic_id}` : '';
+  const graphicKey = state?.graphic
+    ? `${state.match_id}:${state.graphic_id}`
+    : "";
   const graphicDuration = state?.graphic?.duration || 5500;
   useEffect(() => {
     if (!graphicKey) return;
@@ -135,6 +141,9 @@ export function BroadcastOverlay() {
     : activeGraphic?.team
       ? activeGraphic.team.slice(0, 2).toUpperCase()
       : "S";
+
+  const portraitPhoto = activeGraphic?.large ? activeGraphic.photo : undefined;
+  const hasPortrait = !!portraitPhoto;
 
   return (
     <div
@@ -203,10 +212,14 @@ export function BroadcastOverlay() {
           </div>
 
           {/* Down & Ball Possession, floating to whichever side has the ball */}
-          <div className={`bug-down-pill ${homeHasBall ? "side-home" : "side-away"}`}>
+          <div
+            className={`bug-down-pill ${homeHasBall ? "side-home" : "side-away"}`}
+          >
             {downText}
           </div>
-          <div className={`bug-ball-pill ${homeHasBall ? "side-home" : "side-away"}`}>
+          <div
+            className={`bug-ball-pill ${homeHasBall ? "side-home" : "side-away"}`}
+          >
             BALL
           </div>
         </div>
@@ -218,9 +231,9 @@ export function BroadcastOverlay() {
           key={graphicKey}
           className={`graphic-banner ${animClass} ${activeGraphic.compact ? "compact-mode" : ""} ${
             !activeGraphic.player ? "no-avatar" : ""
-          }`}
+          } ${hasPortrait ? "has-portrait" : ""}`}
         >
-          {/* Avatar / Photo Circle */}
+          {/* Avatar / Photo Circle; hidden (space still reserved) when the big breakout portrait is showing */}
           {activeGraphic.player && (
             <div className="graphic-avatar">
               {activeGraphic.photo ? (
@@ -256,6 +269,21 @@ export function BroadcastOverlay() {
             src="/showtime-broadcast-logo.webp"
             alt="Showtime"
             className="graphic-corner-logo"
+          />
+        </div>
+      )}
+
+      {/* Big breakout portrait: rises above the banner for scoring plays with a player photo */}
+      {showGraphics && hasPortrait && (
+        <div
+          key={`${graphicKey}-portrait`}
+          className={`graphic-portrait-wrap ${animClass}`}
+        >
+          <img className="graphic-portrait-glow" src={portraitPhoto} alt="" />
+          <img
+            className="graphic-portrait-photo"
+            src={portraitPhoto}
+            alt={activeGraphic?.player}
           />
         </div>
       )}
