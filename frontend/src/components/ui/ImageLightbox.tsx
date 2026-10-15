@@ -16,15 +16,15 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   isOpen,
   onClose,
 }) => {
-  // Prevent scrolling when lightbox is open
+  // Prevent scrolling while open, then put back whatever was there. Resetting
+  // to "unset" instead would unlock the page under a Modal the lightbox was
+  // opened from, which locks scrolling the same way (see Modal.tsx).
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = prevOverflow;
     };
   }, [isOpen]);
 

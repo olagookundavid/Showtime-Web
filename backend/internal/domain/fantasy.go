@@ -247,6 +247,10 @@ func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete 
 	bySlot := make(map[FantasySlot]LineupCandidate, len(picks))
 	seenPlayers := make(map[string]bool, len(picks))
 	clubCounts := make(map[string]int)
+	// Who is behind each count, so a breach names the players to change
+	// rather than leaving the manager to work out which ones it means.
+	clubPlayers := make(map[string][]string)
+	var defenseAllrounders []string
 
 	for _, p := range picks {
 		spec, ok := SlotSpecFor(p.Slot)
@@ -264,10 +268,12 @@ func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete 
 		seenPlayers[p.PlayerID] = true
 
 		if !spec.Accepts(p.Position, p.Gender) {
+			needs := spec.PositionsLabel()
 			if spec.RequiredGender != "" {
-				return totals, fmt.Errorf("slot %s must be a %s %s", p.Slot, genderWord(spec.RequiredGender), spec.PositionsLabel())
+				needs = genderWord(spec.RequiredGender) + " " + needs
 			}
-			return totals, fmt.Errorf("slot %s must be a %s", p.Slot, spec.PositionsLabel())
+			return totals, fmt.Errorf("%s can't play %s — that slot needs a %s",
+				describePick(p), slotLabel(spec), needs)
 		}
 
 		if NormalizeGender(p.Gender) == "F" {
@@ -280,10 +286,12 @@ func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete 
 
 		if spec.Unit == UnitDefense && IsAllrounderRole(p.Position) {
 			totals.DefenseAllrounders++
+			defenseAllrounders = append(defenseAllrounders, displayName(p))
 		}
 
 		if p.TeamID != "" {
 			clubCounts[p.TeamID]++
+			clubPlayers[p.TeamID] = append(clubPlayers[p.TeamID], displayName(p))
 		}
 		totals.TotalSpent += p.Price
 	}
@@ -299,9 +307,10 @@ func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete 
 	// A club ceiling can be breached by a partial sheet, so it is checked either
 	// way — unlike the minimums below, going over is never "not finished yet".
 	if rules.MaxPerClub > 0 {
-		for _, count := range clubCounts {
+		for teamID, count := range clubCounts {
 			if count > rules.MaxPerClub {
-				return totals, fmt.Errorf("no more than %d players may come from the same team", rules.MaxPerClub)
+				return totals, fmt.Errorf("no more than %d players may come from the same club — %s are all from one club",
+					rules.MaxPerClub, joinNames(clubPlayers[teamID]))
 			}
 		}
 	}
@@ -310,7 +319,8 @@ func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete 
 	// Like the club ceiling, having more than 1 in defense breaches the rule immediately,
 	// even on an incomplete/partial sheet.
 	if totals.DefenseAllrounders > 1 {
-		return totals, fmt.Errorf("defensive unit allows a maximum of 1 All-Rounder, received %d", totals.DefenseAllrounders)
+		return totals, fmt.Errorf("defence allows only 1 All-Rounder — %s are all All-Rounders",
+			joinNames(defenseAllrounders))
 	}
 
 	// The female minimums are floors, and a sheet still being filled in is
@@ -374,6 +384,36 @@ func displayName(p LineupCandidate) string {
 		return p.Name
 	}
 	return "This player"
+}
+
+// describePick names a player with the position they play, which is what the
+// manager needs to see to understand why a slot refused them.
+func describePick(p LineupCandidate) string {
+	pos := strings.TrimSpace(p.Position)
+	if pos == "" || pos == "-" {
+		return displayName(p)
+	}
+	return fmt.Sprintf("%s (%s)", displayName(p), pos)
+}
+
+// slotLabel is the slot as the manager sees it ("Defender 1"), not its code.
+func slotLabel(spec SlotSpec) string {
+	if spec.Label != "" {
+		return spec.Label
+	}
+	return string(spec.Slot)
+}
+
+// joinNames lists names as prose: "A", "A and B", "A, B and C".
+func joinNames(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	default:
+		return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+	}
 }
 
 func genderWord(g string) string {

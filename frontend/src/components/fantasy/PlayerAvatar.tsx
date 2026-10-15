@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FemaleIcon } from '../icons/FemaleIcon';
 import { MaleIcon } from '../icons/MaleIcon';
+import { ImageLightbox } from '../ui';
 
 interface Props {
     name: string;
@@ -9,6 +10,8 @@ interface Props {
     gender?: string | null;
     size?: 'sm' | 'md' | 'lg';
     className?: string;
+    /** Tap the photo to open it full size, as player photos do elsewhere on the site. */
+    zoomable?: boolean;
 }
 
 const SIZES = {
@@ -38,20 +41,39 @@ function initials(name: string): string {
  * are drawn rather than fetched, so there is nothing left to 404. onError covers
  * the other half: a URL that exists but fails to load.
  */
-export function PlayerAvatar({ name, image, gender, size = 'md', className = '' }: Props) {
+export function PlayerAvatar({ name, image, gender, size = 'md', className = '', zoomable = false }: Props) {
     const [failed, setFailed] = useState(false);
+    const [zoomed, setZoomed] = useState(false);
     const showImage = !!image && !failed;
     const female = (gender || '').toUpperCase().startsWith('F');
 
+    const photo = showImage ? (
+        <img
+            src={image as string}
+            alt=""
+            onError={() => setFailed(true)}
+            className={`${SIZES[size]} rounded-xl object-cover bg-gray-100 dark:bg-gray-700`}
+        />
+    ) : null;
+
     return (
         <span className={`relative inline-flex shrink-0 ${className}`}>
-            {showImage ? (
-                <img
-                    src={image as string}
-                    alt=""
-                    onError={() => setFailed(true)}
-                    className={`${SIZES[size]} rounded-xl object-cover bg-gray-100 dark:bg-gray-700`}
-                />
+            {photo && zoomable ? (
+                <button
+                    type="button"
+                    aria-label={`View ${name}'s photo`}
+                    title="View photo"
+                    onClick={(e) => {
+                        // Inside a clickable card or row, open the photo only.
+                        e.stopPropagation();
+                        setZoomed(true);
+                    }}
+                    className="rounded-xl cursor-zoom-in transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red"
+                >
+                    {photo}
+                </button>
+            ) : photo ? (
+                photo
             ) : (
                 <span
                     aria-hidden
@@ -74,6 +96,9 @@ export function PlayerAvatar({ name, image, gender, size = 'md', className = '' 
                         <MaleIcon className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
                     )}
                 </span>
+            )}
+            {zoomable && showImage && (
+                <ImageLightbox src={image as string} alt={name} isOpen={zoomed} onClose={() => setZoomed(false)} />
             )}
         </span>
     );

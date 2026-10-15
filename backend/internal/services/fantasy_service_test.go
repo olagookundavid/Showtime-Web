@@ -653,7 +653,7 @@ func TestLineupValidation(t *testing.T) {
 		_, _, svc := newServiceWith(squad)
 
 		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
-		assertErrContains(t, err, "must be a Defender")
+		assertErrContains(t, err, "that slot needs a Defender")
 	})
 
 	t.Run("rejects a wrong position for a slot", func(t *testing.T) {
@@ -679,7 +679,7 @@ func TestLineupValidation(t *testing.T) {
 		_, _, svc := newServiceWith(squad)
 
 		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
-		assertErrContains(t, err, "must be a Male QB")
+		assertErrContains(t, err, "that slot needs a Male QB")
 	})
 
 	// Missing a quota no longer throws the sheet away. Thirteen good picks are
