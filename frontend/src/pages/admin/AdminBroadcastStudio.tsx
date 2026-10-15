@@ -37,6 +37,7 @@ import {
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 import { BroadcastScenesCard } from "./BroadcastScenesCard";
+import { DayStreamBanner } from "./DayStreamBanner";
 
 const CALL_BUTTONS = [
   { label: "Touchdown", call: "TOUCHDOWN", red: true },
@@ -1023,14 +1024,18 @@ export function AdminBroadcastStudio() {
       matchId={id}
       overlayTarget={{ kind: "match", matchId: id }}
       header={(state) => (
-        <DashboardPageHeader
-          back={{
-            to: "/admin/broadcast?view=matches",
-            label: "Back to matches",
-          }}
-          title={`${state.home} vs ${state.away}`}
-          subtitle="On-air graphics control for vMix. For a full match day on one stream, use the event day studio instead."
-        />
+        <>
+          <DashboardPageHeader
+            back={{
+              to: "/admin/broadcast?view=matches",
+              label: "Back to matches",
+            }}
+            title={`${state.home} vs ${state.away}`}
+            subtitle="On-air graphics control for vMix. For a full match day on one stream, use the event day studio instead."
+          />
+          {/* Whether the match day's stream (the day links) is carrying this match */}
+          <DayStreamBanner matchId={id} title={`${state.home} vs ${state.away}`} />
+        </>
       )}
     />
   );
