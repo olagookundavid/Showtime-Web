@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 export type AboutNavItem = {
   to: string;
   /** Nav pill label — matches Footer.tsx's existing wording for these links. */
@@ -9,8 +7,6 @@ export type AboutNavItem = {
   subtitle?: string;
   /** Real local photo only — no stock imagery. */
   backgroundImage?: string;
-  /** Right-side hero slot, e.g. a logo badge. */
-  actions?: ReactNode;
 };
 
 const LEAGUE_EYEBROW = "The league";
@@ -25,13 +21,6 @@ export const ABOUT_NAV: AboutNavItem[] = [
     subtitle: "The standard of co-ed flag football.",
     backgroundImage:
       "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop",
-    actions: (
-      <img
-        src="/images/branding/showtime-logo.webp"
-        alt="SFFL Logo"
-        className="hidden h-24 w-24 shrink-0 object-contain sm:block sm:h-28 sm:w-28"
-      />
-    ),
   },
   {
     to: "/about/our-team",
@@ -39,6 +28,7 @@ export const ABOUT_NAV: AboutNavItem[] = [
     eyebrow: LEAGUE_EYEBROW,
     title: "OUR TEAM",
     subtitle: "Showtime Leadership & Sporting Operations",
+    backgroundImage: "/images/team/team-photo-1.webp",
   },
   {
     to: "/about/arena",
