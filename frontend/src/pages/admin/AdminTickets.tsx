@@ -127,8 +127,20 @@ const dayToCheckin = (
   t.days.find((d) => filterDayId && d.event_day_id === filterDayId) ??
   t.days.find((d) => d.date === today);
 
-// Every match day on a ticket, with a tick once it has been attended.
-const TicketDays = ({ ticket }: { ticket: TicketResponse }) => (
+// Every match day on a ticket, with a tick once it has been attended. A Season
+// Pass has no match days: it says when it ends instead.
+const TicketDays = ({ ticket }: { ticket: TicketResponse }) =>
+  ticket.purchase_type === "SEASON_PASS" ? (
+    <span className="text-sm font-bold">
+      Season Pass
+      {ticket.valid_until && (
+        <span className="font-normal text-gray-500 dark:text-gray-400">
+          {" "}
+          · valid until {formatEventDate(ticket.valid_until)}
+        </span>
+      )}
+    </span>
+  ) : (
   <ul className="space-y-1">
     {ticket.days.map((d) => (
       <li key={d.id} className="flex items-center gap-1.5 text-sm">
@@ -152,7 +164,7 @@ const TicketDays = ({ ticket }: { ticket: TicketResponse }) => (
       </li>
     ))}
   </ul>
-);
+  );
 
 const TicketSummary = ({
   t,
@@ -183,7 +195,6 @@ const TicketSummary = ({
     <dt className="text-gray-500 dark:text-gray-400">Ticket</dt>
     <dd className="dark:text-white">
       {t.product_name || "—"}
-      {t.purchase_type === "GAME_PASS" && " (Game Pass)"}
     </dd>
     <dt className="text-gray-500 dark:text-gray-400">Admits</dt>
     <dd className="font-bold dark:text-white">{t.quantity}</dd>
@@ -469,11 +480,6 @@ export const AdminTickets = () => {
         cell: (t) => (
           <span>
             {t.product_name || "—"}
-            {t.purchase_type === "GAME_PASS" && (
-              <span className="ml-1.5 rounded bg-sffl-navy px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
-                Game Pass
-              </span>
-            )}
           </span>
         ),
       },

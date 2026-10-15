@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { useIsScrolled } from '../../hooks';
 import { TicketModeTabs } from './TicketModeTabs';
 
-/** Wraps /tickets and /tickets/game-pass with the Season Pass / Game Pass / Gameday Tickets picker. */
+/** Wraps /tickets/game-pass and /tickets/season-pass with the mode picker. */
 export const TicketsLayout = () => {
     // Shrinks to a compact bar once pinned under the Store/Tickets tabs, so it
     // doesn't permanently eat a large chunk of the viewport while scrolling.

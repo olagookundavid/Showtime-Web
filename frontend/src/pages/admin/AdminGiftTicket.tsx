@@ -41,7 +41,7 @@ export const AdminGiftTicket = () => {
     const selectedProduct = activeProducts.find((p) => p.id === productId);
     // Only match days that can still be attended and are on sale.
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date());
-    const availableDays = (selectedProduct?.days ?? []).filter((d) => d.is_active && d.event_date >= today);
+    const availableDays = (selectedProduct?.days ?? []).filter((d) => d.event_date >= today);
     const selectedDays = availableDays.filter((d) => dayIds.includes(d.event_day_id));
 
     const resetForm = () => {
@@ -117,13 +117,13 @@ export const AdminGiftTicket = () => {
                 {/* Match days */}
                 <Field
                     label="Match days"
-                    hint="Pick one for a normal ticket, or several to gift a Game Pass. One code covers them all."
+                    hint="Pick one or more. One code covers every match day picked."
                 >
                     {!selectedProduct ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400">Select a ticket first.</p>
                     ) : availableDays.length === 0 ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            This ticket is not on sale for any upcoming match day. Add days on the Ticket Products page.
+                            This ticket has no upcoming match days. Link it to a tournament on the Ticket Products page, or wait for the next fixtures.
                         </p>
                     ) : (
                         <TicketDayPicker

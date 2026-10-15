@@ -55,9 +55,12 @@ type StoreService struct {
 	storage         ports.StorageService
 	discountService IDiscountService
 	discountRepo    ports.IDiscountRepository
+	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
+	// profile after they pay.
+	userPhones UserPhoneSaver
 }
 
-func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient, emailService *email.ResendService, storage ports.StorageService, discountService IDiscountService, discountRepo ports.IDiscountRepository) IStoreService {
+func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient, emailService *email.ResendService, storage ports.StorageService, discountService IDiscountService, discountRepo ports.IDiscountRepository, userPhones UserPhoneSaver) IStoreService {
 	return &StoreService{
 		repo:            repo,
 		paystackClient:  paystackClient,
@@ -65,6 +68,7 @@ func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient
 		storage:         storage,
 		discountService: discountService,
 		discountRepo:    discountRepo,
+		userPhones:      userPhones,
 	}
 }
 
@@ -518,6 +522,9 @@ func (s *StoreService) VerifyPayment(ctx context.Context, paystackRef string) (*
 		if !alreadySaved {
 			_, _ = s.repo.SaveAddress(ctx, savedAddr)
 		}
+		// And the phone, on the profile itself, so tickets and the next checkout
+		// are prefilled too. Only fills a blank.
+		rememberBuyerPhone(ctx, s.userPhones, order.UserID, order.CustomerPhone)
 	}
 
 	// Dispatch Resend Emails

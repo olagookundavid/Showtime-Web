@@ -25,6 +25,9 @@ type IAuthRepository interface {
 	ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]domain.User, int, error)
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
+	// SetPhoneIfEmpty fills a profile's phone only when it has none; it never
+	// replaces one that is there.
+	SetPhoneIfEmpty(ctx context.Context, userID, phone string) error
 	CountTotalUsers(ctx context.Context) (int, error)
 	// OTP methods
 	SaveOTP(ctx context.Context, email, code, purpose string, expiry time.Duration) error
@@ -253,6 +256,18 @@ func (m AuthRepository) UpdateUserRole(ctx context.Context, userID, newRole stri
 	}
 
 	return nil
+}
+
+// SetPhoneIfEmpty puts a phone number on a profile that has none. A profile that
+// already has one is left exactly as it is, and so is an unknown user: neither is
+// an error, since this is a convenience that follows a purchase.
+func (m AuthRepository) SetPhoneIfEmpty(ctx context.Context, userID, phone string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err := m.Db.Exec(ctx,
+		`UPDATE users SET phone = $2, updated_at = NOW() WHERE id = $1 AND COALESCE(phone, '') = ''`,
+		userID, phone)
+	return err
 }
 
 func (m AuthRepository) UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error {

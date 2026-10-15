@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
 import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, StoreLayout, TicketsLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
 import {
@@ -22,8 +22,8 @@ import {
   MatchDetail,
   Standings,
   Stats,
-  Tickets,
   GamePass,
+  SeasonPass,
   TicketConfirmation,
   ReferralGenerator,
   Login,
@@ -185,6 +185,15 @@ const AdminStandings = lazy(() =>
     default: m.AdminStandings,
   })),
 );
+// Game Pass is still the default landing mode, so the old /tickets address
+// (and the links to it on match cards, the home page and referral links) goes
+// there; the mode tabs let a visitor switch to Season Pass from there, keeping
+// the query string so ?date= and ?ref= still work.
+const TicketsRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: "/tickets/game-pass", search }} replace />;
+};
+
 const AdminTickets = lazy(() =>
   import("./pages/admin/AdminTickets").then((m) => ({
     default: m.AdminTickets,
@@ -436,10 +445,14 @@ function App() {
                       {/* Store */}
                       <Route element={<StoreLayout />}>
                         <Route element={<TicketsLayout />}>
-                          <Route path="/tickets" element={<Tickets />} />
+                          <Route path="/tickets" element={<TicketsRedirect />} />
                           <Route
                             path="/tickets/game-pass"
                             element={<GamePass />}
+                          />
+                          <Route
+                            path="/tickets/season-pass"
+                            element={<SeasonPass />}
                           />
                         </Route>
                         <Route path="/store" element={<Store />} />

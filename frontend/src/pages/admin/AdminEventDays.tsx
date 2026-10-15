@@ -620,7 +620,7 @@ export const AdminEventDays = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {(productsByDay.get(ed.id) ?? []).map(({ product, day }) => (
                         <div
-                          key={day.id}
+                          key={`${product.id}:${day.event_day_id}`}
                           className="bg-gray-50 dark:bg-gray-700/80 rounded-xl p-4 border border-gray-200 dark:border-gray-600"
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -654,9 +654,9 @@ export const AdminEventDays = () => {
                               )}
                             </div>
                           </div>
-                          {!day.is_active && (
-                            <p className="mt-2 text-[11px] font-bold text-amber-700 dark:text-amber-300">
-                              Not on sale
+                          {day.competition_name && (
+                            <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                              {day.competition_name}
                             </p>
                           )}
                         </div>

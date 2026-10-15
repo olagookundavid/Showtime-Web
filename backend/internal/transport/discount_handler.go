@@ -149,17 +149,8 @@ func (h *DiscountHandler) Preview(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ticket not found"})
 			return
 		}
-		// The line is priced off the product on the day being bought, not off
-		// anything the client sends.
+		// Priced off the ticket itself, never off anything the client sends.
 		unitPrice := product.BasePrice
-		if req.EventDayID != "" {
-			days, err := h.productRepo.GetProductDays(c.Request.Context(), product.ID, []string{req.EventDayID})
-			if err != nil || len(days) != 1 {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "this ticket is not on sale for that day"})
-				return
-			}
-			unitPrice = days[0].Price
-		}
 		qty := req.Quantity
 		if qty < 1 {
 			qty = 1

@@ -39,7 +39,6 @@ import type {
   TicketProductResponse,
   CreateTicketProductPayload,
   UpdateTicketProductPayload,
-  SaveProductDayPayload,
   GamePassRule,
   PriceQuote,
   PriceQuoteRequest,
@@ -50,6 +49,10 @@ import type {
   CreateReferralPayload,
   ReferralResponse,
   ReferralStatsResponse,
+  SeasonPassResponse,
+  CreateSeasonPassPayload,
+  UpdateSeasonPassPayload,
+  PurchaseSeasonPassPayload,
   AdminAnalyticsResponse,
   SiteTrafficSummary,
   SiteEventsPage,
@@ -1015,28 +1018,6 @@ export const adminDeleteTicketProduct = async (id: string) => {
   return response.data;
 };
 
-/** Sets a ticket's price and capacity on one match day, adding the day if new. */
-export const adminSaveTicketProductDay = async (
-  productId: string,
-  payload: SaveProductDayPayload,
-): Promise<TicketProductResponse> => {
-  const response = await api.put<TicketProductResponse>(
-    `/admin/ticket-products/${productId}/days`,
-    payload,
-  );
-  return response.data;
-};
-
-export const adminRemoveTicketProductDay = async (
-  productId: string,
-  eventDayId: string,
-) => {
-  const response = await api.delete(
-    `/admin/ticket-products/${productId}/days/${eventDayId}`,
-  );
-  return response.data;
-};
-
 export const adminSaveGamePassRules = async (
   rules: GamePassRule[],
 ): Promise<GamePassRule[]> => {
@@ -1045,6 +1026,67 @@ export const adminSaveGamePassRules = async (
     { rules },
   );
   return response.data.data || [];
+};
+
+// Season passes (public): a standalone pass with an admin-set price and end date
+export const getSeasonPasses = async (): Promise<SeasonPassResponse[]> => {
+  const response = await api.get<{ data: SeasonPassResponse[] }>(
+    "/season-passes",
+  );
+  return response.data.data || [];
+};
+
+export const getSeasonPassById = async (
+  id: string,
+): Promise<SeasonPassResponse> => {
+  const response = await api.get<SeasonPassResponse>(`/season-passes/${id}`);
+  return response.data;
+};
+
+export const purchaseSeasonPass = async (
+  payload: PurchaseSeasonPassPayload,
+): Promise<TicketResponse> => {
+  const response = await api.post<TicketResponse>(
+    "/tickets/season-pass",
+    payload,
+  );
+  return response.data;
+};
+
+// Admin season passes
+export const adminListSeasonPasses = async (): Promise<
+  SeasonPassResponse[]
+> => {
+  const response = await api.get<{ data: SeasonPassResponse[] }>(
+    "/admin/season-passes",
+  );
+  return response.data.data || [];
+};
+
+export const adminCreateSeasonPass = async (
+  payload: CreateSeasonPassPayload,
+): Promise<SeasonPassResponse> => {
+  const response = await api.post<SeasonPassResponse>(
+    "/admin/season-passes",
+    payload,
+  );
+  return response.data;
+};
+
+export const adminUpdateSeasonPass = async (
+  id: string,
+  payload: UpdateSeasonPassPayload,
+): Promise<SeasonPassResponse> => {
+  const response = await api.put<SeasonPassResponse>(
+    `/admin/season-passes/${id}`,
+    payload,
+  );
+  return response.data;
+};
+
+export const adminDeleteSeasonPass = async (id: string) => {
+  const response = await api.delete(`/admin/season-passes/${id}`);
+  return response.data;
 };
 
 // -------- ADMIN USER MANAGEMENT API -------- //

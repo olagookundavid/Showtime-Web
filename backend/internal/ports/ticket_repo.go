@@ -27,24 +27,34 @@ type EventDayRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
-// TicketProductRepository owns products, the days they are sold on, and the Game
-// Pass discount ladder.
+// TicketProductRepository owns tickets (products), the competitions they are
+// linked to, the match days those links put on sale, and the Game Pass ladder.
 type TicketProductRepository interface {
 	CreateProduct(ctx context.Context, p *domain.TicketProduct) error
+	// UpdateProduct saves the ticket. It refuses a seat limit below what is
+	// already sold or being paid for on any match day.
 	UpdateProduct(ctx context.Context, p *domain.TicketProduct) error
+	// GetProduct returns the ticket with its competitions (no days).
 	GetProduct(ctx context.Context, id string) (*domain.TicketProduct, error)
-	// ListProducts returns products with their days (and each day's event day and
-	// seat counts) attached.
+	// ListProducts returns tickets with their competitions and every match day
+	// those competitions put on sale, past ones included, with seat counts.
 	ListProducts(ctx context.Context, activeOnly bool) ([]domain.TicketProduct, error)
 	DeleteProduct(ctx context.Context, id string) error
 
-	// SaveProductDay creates or updates a product's price and capacity on one day.
-	SaveProductDay(ctx context.Context, d *domain.TicketProductDay) error
-	DeleteProductDay(ctx context.Context, productID, eventDayID string) error
-	// GetProductDays returns the product's rows for the given event days, with the
-	// effective price and seat counts. Days the product is not sold on are simply
-	// absent, so callers compare lengths.
-	GetProductDays(ctx context.Context, productID string, eventDayIDs []string) ([]domain.TicketProductDay, error)
+	// SetProductCompetitions replaces the competitions a ticket is linked to.
+	SetProductCompetitions(ctx context.Context, productID string, competitionIDs []string) error
+	// EnsureEventDays creates a match day (event day) for every date that has a
+	// match in a competition linked to an active ticket and none yet. Match days
+	// are what tickets are bought for, and not every competition has them.
+	EnsureEventDays(ctx context.Context) error
+	// ListProductDays returns every match day the ticket is on sale for (past ones
+	// too), with seat counts, earliest first.
+	ListProductDays(ctx context.Context, productID string) ([]domain.TicketProductDay, error)
+	// ResolveProductDays checks which of the given match days are on sale for the
+	// ticket (through its linked competitions), makes sure each has its seat-lock
+	// row, and returns them with price and seat counts. A day that is not on sale
+	// is simply absent, so callers compare lengths.
+	ResolveProductDays(ctx context.Context, productID string, eventDayIDs []string) ([]domain.TicketProductDay, error)
 
 	ListGamePassRules(ctx context.Context) ([]domain.GamePassRule, error)
 	ReplaceGamePassRules(ctx context.Context, rules []domain.GamePassRule) error
@@ -63,6 +73,11 @@ type TicketRepository interface {
 	// CheckinDay marks one day of a PAID ticket as attended. The ticket becomes
 	// USED once every day has been.
 	CheckinDay(ctx context.Context, ticketID, eventDayID, checkedInBy string) error
+	// CheckinSeasonPass lets a season pass in for today. It is valid every day up to
+	// and including its end date, so there is no "already used": a second scan the
+	// same day is still let in, and is recorded once. firstEntryToday says whether
+	// this was the first time today.
+	CheckinSeasonPass(ctx context.Context, ticketID, checkedInBy string) (firstEntryToday bool, err error)
 	List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]domain.Ticket, int, error)
 	ExpirePastTickets(ctx context.Context) (int64, error)
 	GetTotalRevenue(ctx context.Context) (int, error)
@@ -269,6 +284,8 @@ const pendingReservationTTL = "30 minutes"
 
 // Seat counts for a product day, derived from tickets so they cannot drift.
 // Sold is paid seats; held is unpaid seats still inside the reservation window.
+// They read the seat-lock row as `pd`, which is NULL (so 0) for a day nobody has
+// bought yet.
 const productDaySoldSQL = `COALESCE((
 	SELECT SUM(t.quantity) FROM ticket_days td JOIN tickets t ON t.id = td.ticket_id
 	WHERE td.product_day_id = pd.id AND t.status IN ('PAID', 'USED')), 0)`
@@ -278,31 +295,88 @@ const productDayHeldSQL = `COALESCE((
 	WHERE td.product_day_id = pd.id AND t.status = 'PENDING'
 	  AND t.created_at > NOW() - INTERVAL '` + pendingReservationTTL + `'), 0)`
 
-const productColumns = `id, name, slug, description, base_price, is_hidden, access_code, is_active, allow_game_pass, sort_order, created_at, updated_at`
+const productColumns = `id, name, slug, description, base_price, is_hidden, access_code, is_active, capacity, sort_order, created_at, updated_at`
 
 func scanProduct(row pgx.Row, p *domain.TicketProduct) error {
 	return row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.BasePrice, &p.IsHidden, &p.AccessCode,
-		&p.IsActive, &p.AllowGamePass, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt)
+		&p.IsActive, &p.Capacity, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt)
 }
 
 func (r *PostgresTicketProductRepository) CreateProduct(ctx context.Context, p *domain.TicketProduct) error {
 	return r.db.QueryRow(ctx, `
-		INSERT INTO ticket_products (name, slug, description, base_price, is_hidden, access_code, is_active, allow_game_pass, sort_order)
+		INSERT INTO ticket_products (name, slug, description, base_price, is_hidden, access_code, is_active, capacity, sort_order)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at`,
-		p.Name, p.Slug, p.Description, p.BasePrice, p.IsHidden, p.AccessCode, p.IsActive, p.AllowGamePass, p.SortOrder,
+		p.Name, p.Slug, p.Description, p.BasePrice, p.IsHidden, p.AccessCode, p.IsActive, p.Capacity, p.SortOrder,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 }
 
 func (r *PostgresTicketProductRepository) UpdateProduct(ctx context.Context, p *domain.TicketProduct) error {
+	// Lowering the seat limit below what one match day has already sold or is
+	// holding would strand buyers, so it is refused rather than silently accepted.
+	if p.Capacity > 0 {
+		var committed int
+		if err := r.db.QueryRow(ctx, `
+			SELECT COALESCE(MAX(per_day.seats), 0) FROM (
+				SELECT SUM(t.quantity) AS seats
+				FROM ticket_product_days pd
+				JOIN ticket_days td ON td.product_day_id = pd.id
+				JOIN tickets t ON t.id = td.ticket_id
+				WHERE pd.product_id = $1
+				  AND (t.status IN ('PAID', 'USED')
+				       OR (t.status = 'PENDING' AND t.created_at > NOW() - INTERVAL '`+pendingReservationTTL+`'))
+				GROUP BY pd.id
+			) per_day`, p.ID,
+		).Scan(&committed); err != nil {
+			return err
+		}
+		if p.Capacity < committed {
+			return fmt.Errorf("seats per match day (%d) cannot be less than seats already sold or held on one day (%d)", p.Capacity, committed)
+		}
+	}
 	return r.db.QueryRow(ctx, `
 		UPDATE ticket_products
 		SET name = $1, description = $2, base_price = $3, is_hidden = $4, access_code = $5,
-		    is_active = $6, allow_game_pass = $7, sort_order = $8, updated_at = NOW()
+		    is_active = $6, capacity = $7, sort_order = $8, updated_at = NOW()
 		WHERE id = $9
 		RETURNING updated_at`,
-		p.Name, p.Description, p.BasePrice, p.IsHidden, p.AccessCode, p.IsActive, p.AllowGamePass, p.SortOrder, p.ID,
+		p.Name, p.Description, p.BasePrice, p.IsHidden, p.AccessCode, p.IsActive, p.Capacity, p.SortOrder, p.ID,
 	).Scan(&p.UpdatedAt)
+}
+
+// loadCompetitions attaches each ticket's linked competitions, by name.
+func (r *PostgresTicketProductRepository) loadCompetitions(ctx context.Context, products []domain.TicketProduct) error {
+	if len(products) == 0 {
+		return nil
+	}
+	ids := make([]string, len(products))
+	index := make(map[string]int, len(products))
+	for i := range products {
+		ids[i] = products[i].ID
+		index[products[i].ID] = i
+		products[i].Competitions = []domain.TicketCompetition{}
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT pc.product_id, c.id, c.name
+		FROM ticket_product_competitions pc
+		JOIN competitions c ON c.id = pc.competition_id
+		WHERE pc.product_id = ANY($1::uuid[])
+		ORDER BY c.name ASC`, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var productID string
+		var c domain.TicketCompetition
+		if err := rows.Scan(&productID, &c.ID, &c.Name); err != nil {
+			return err
+		}
+		if i, ok := index[productID]; ok {
+			products[i].Competitions = append(products[i].Competitions, c)
+		}
+	}
+	return rows.Err()
 }
 
 func (r *PostgresTicketProductRepository) GetProduct(ctx context.Context, id string) (*domain.TicketProduct, error) {
@@ -310,7 +384,11 @@ func (r *PostgresTicketProductRepository) GetProduct(ctx context.Context, id str
 	if err := scanProduct(r.db.QueryRow(ctx, `SELECT `+productColumns+` FROM ticket_products WHERE id = $1`, id), &p); err != nil {
 		return nil, err
 	}
-	return &p, nil
+	list := []domain.TicketProduct{p}
+	if err := r.loadCompetitions(ctx, list); err != nil {
+		return nil, err
+	}
+	return &list[0], nil
 }
 
 func (r *PostgresTicketProductRepository) ListProducts(ctx context.Context, activeOnly bool) ([]domain.TicketProduct, error) {
@@ -339,11 +417,15 @@ func (r *PostgresTicketProductRepository) ListProducts(ctx context.Context, acti
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	rows.Close()
 	if len(products) == 0 {
 		return products, nil
 	}
 
-	days, err := r.queryProductDays(ctx, ``, nil)
+	if err := r.loadCompetitions(ctx, products); err != nil {
+		return nil, err
+	}
+	days, err := r.queryGameDays(ctx, ``, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -363,27 +445,81 @@ func (r *PostgresTicketProductRepository) DeleteProduct(ctx context.Context, id 
 		return err
 	}
 	if sold > 0 {
-		return fmt.Errorf("cannot delete a product with %d paid ticket(s); deactivate it instead", sold)
+		return fmt.Errorf("cannot delete a ticket with %d paid ticket(s); turn it off instead", sold)
 	}
 	_, err := r.db.Exec(ctx, `DELETE FROM ticket_products WHERE id = $1`, id)
 	return err
 }
 
-// queryProductDays selects product days with their event day and seat counts.
-// where is appended to the base query and uses args as $1.. placeholders.
-func (r *PostgresTicketProductRepository) queryProductDays(ctx context.Context, where string, args []interface{}) ([]domain.TicketProductDay, error) {
-	query := `
-		SELECT pd.id, pd.product_id, pd.event_day_id, pd.price_override,
-		       COALESCE(pd.price_override, p.base_price), pd.capacity, pd.is_active,
-		       ` + productDaySoldSQL + `, ` + productDayHeldSQL + `,
-		       pd.created_at, pd.updated_at,
-		       ed.title, ed.date, ed.venue, ed.is_active
-		FROM ticket_product_days pd
-		JOIN ticket_products p ON p.id = pd.product_id
-		JOIN event_days ed ON ed.id = pd.event_day_id ` + where + `
-		ORDER BY ed.date ASC, p.sort_order ASC`
+func (r *PostgresTicketProductRepository) SetProductCompetitions(ctx context.Context, productID string, competitionIDs []string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	if _, err := tx.Exec(ctx, `DELETE FROM ticket_product_competitions WHERE product_id = $1`, productID); err != nil {
+		return err
+	}
+	for _, id := range competitionIDs {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO ticket_product_competitions (product_id, competition_id) VALUES ($1, $2)
+			ON CONFLICT DO NOTHING`, productID, id); err != nil {
+			return fmt.Errorf("unknown tournament %s: %w", id, err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *PostgresTicketProductRepository) EnsureEventDays(ctx context.Context) error {
+	// One event day per calendar date (event_days.date is unique), so a date that
+	// two competitions share is created once. An existing day, whoever made it
+	// (the admin, or fantasy), is never touched.
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO event_days (title, date, venue, is_active)
+		SELECT DISTINCT ON (m.date)
+			'Game Day · ' || to_char(m.date, 'FMDD Mon'),
+			m.date,
+			COALESCE(NULLIF(m.venue, ''), 'Showtime Arena'),
+			TRUE
+		FROM ticket_product_competitions pc
+		JOIN ticket_products p ON p.id = pc.product_id AND p.is_active
+		JOIN matches m ON m.competition_id = pc.competition_id
+		WHERE NOT EXISTS (SELECT 1 FROM event_days ed WHERE ed.date = m.date)
+		ORDER BY m.date, m.time
+		ON CONFLICT (date) DO NOTHING`)
+	return err
+}
+
+// gameDaysSelect is every match day a ticket is on sale for: a day with a match
+// in a competition the ticket is linked to. A day reached through two linked
+// competitions is listed once, under the first by name. `where` narrows it.
+const gameDaysSelect = `
+	SELECT x.product_id, x.pd_id, x.event_day_id, x.competition_id, x.competition_name,
+	       x.price, x.capacity, x.sold, x.held, x.title, x.date, x.venue, x.is_active
+	FROM (
+		SELECT DISTINCT ON (p.id, ed.id)
+		       p.id AS product_id, COALESCE(pd.id::text, '') AS pd_id, ed.id AS event_day_id,
+		       c.id AS competition_id, c.name AS competition_name,
+		       p.base_price AS price, p.capacity AS capacity,
+		       ` + productDaySoldSQL + ` AS sold, ` + productDayHeldSQL + ` AS held,
+		       ed.title, ed.date, ed.venue, ed.is_active
+		FROM ticket_products p
+		JOIN ticket_product_competitions pc ON pc.product_id = p.id
+		JOIN competitions c ON c.id = pc.competition_id
+		JOIN LATERAL (
+			SELECT DISTINCT ed2.id, ed2.title, ed2.date, ed2.venue, ed2.is_active
+			FROM matches m JOIN event_days ed2 ON ed2.id = m.event_day_id OR ed2.date = m.date
+			WHERE m.competition_id = c.id
+		) ed ON TRUE
+		LEFT JOIN ticket_product_days pd ON pd.product_id = p.id AND pd.event_day_id = ed.id
+		%s
+		ORDER BY p.id, ed.id, c.name
+	) x
+	ORDER BY x.date ASC, x.product_id`
+
+func (r *PostgresTicketProductRepository) queryGameDays(ctx context.Context, where string, args []interface{}) ([]domain.TicketProductDay, error) {
+	rows, err := r.db.Query(ctx, fmt.Sprintf(gameDaysSelect, where), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -393,10 +529,8 @@ func (r *PostgresTicketProductRepository) queryProductDays(ctx context.Context, 
 	for rows.Next() {
 		var d domain.TicketProductDay
 		ed := domain.EventDay{}
-		if err := rows.Scan(&d.ID, &d.ProductID, &d.EventDayID, &d.PriceOverride,
-			&d.Price, &d.Capacity, &d.IsActive,
-			&d.SoldCount, &d.HeldCount,
-			&d.CreatedAt, &d.UpdatedAt,
+		if err := rows.Scan(&d.ProductID, &d.ID, &d.EventDayID, &d.CompetitionID, &d.CompetitionName,
+			&d.Price, &d.Capacity, &d.SoldCount, &d.HeldCount,
 			&ed.Title, &ed.Date, &ed.Venue, &ed.IsActive,
 		); err != nil {
 			return nil, err
@@ -408,64 +542,42 @@ func (r *PostgresTicketProductRepository) queryProductDays(ctx context.Context, 
 	return days, rows.Err()
 }
 
-func (r *PostgresTicketProductRepository) GetProductDays(ctx context.Context, productID string, eventDayIDs []string) ([]domain.TicketProductDay, error) {
+func (r *PostgresTicketProductRepository) ListProductDays(ctx context.Context, productID string) ([]domain.TicketProductDay, error) {
+	return r.queryGameDays(ctx, `WHERE p.id = $1`, []interface{}{productID})
+}
+
+func (r *PostgresTicketProductRepository) ResolveProductDays(ctx context.Context, productID string, eventDayIDs []string) ([]domain.TicketProductDay, error) {
 	if len(eventDayIDs) == 0 {
 		return []domain.TicketProductDay{}, nil
 	}
-	return r.queryProductDays(ctx,
-		`WHERE pd.product_id = $1 AND pd.event_day_id = ANY($2::uuid[])`,
+	days, err := r.queryGameDays(ctx,
+		`WHERE p.id = $1 AND ed.id = ANY($2::uuid[])`,
 		[]interface{}{productID, eventDayIDs})
-}
-
-func (r *PostgresTicketProductRepository) SaveProductDay(ctx context.Context, d *domain.TicketProductDay) error {
-	// Lowering capacity below what is already sold or held would strand buyers, so
-	// it is refused rather than silently accepted.
-	if d.Capacity > 0 {
-		var committed int
-		if err := r.db.QueryRow(ctx, `
-			SELECT COALESCE(SUM(t.quantity), 0)
-			FROM ticket_product_days pd
-			JOIN ticket_days td ON td.product_day_id = pd.id
-			JOIN tickets t ON t.id = td.ticket_id
-			WHERE pd.product_id = $1 AND pd.event_day_id = $2
-			  AND (t.status IN ('PAID', 'USED')
-			       OR (t.status = 'PENDING' AND t.created_at > NOW() - INTERVAL '`+pendingReservationTTL+`'))`,
-			d.ProductID, d.EventDayID,
-		).Scan(&committed); err != nil {
-			return err
-		}
-		if d.Capacity < committed {
-			return fmt.Errorf("capacity (%d) cannot be less than seats already sold or held (%d)", d.Capacity, committed)
+	if err != nil {
+		return nil, err
+	}
+	// Give every valid day its seat-lock row, so Create has something to lock.
+	missing := []string{}
+	for _, d := range days {
+		if d.ID == "" {
+			missing = append(missing, d.EventDayID)
 		}
 	}
-	return r.db.QueryRow(ctx, `
-		INSERT INTO ticket_product_days (product_id, event_day_id, price_override, capacity, is_active)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (product_id, event_day_id) DO UPDATE
-		SET price_override = EXCLUDED.price_override, capacity = EXCLUDED.capacity,
-		    is_active = EXCLUDED.is_active, updated_at = NOW()
-		RETURNING id, created_at, updated_at`,
-		d.ProductID, d.EventDayID, d.PriceOverride, d.Capacity, d.IsActive,
-	).Scan(&d.ID, &d.CreatedAt, &d.UpdatedAt)
-}
-
-func (r *PostgresTicketProductRepository) DeleteProductDay(ctx context.Context, productID, eventDayID string) error {
-	var sold int
-	if err := r.db.QueryRow(ctx, `
-		SELECT COUNT(*)
-		FROM ticket_product_days pd
-		JOIN ticket_days td ON td.product_day_id = pd.id
-		JOIN tickets t ON t.id = td.ticket_id
-		WHERE pd.product_id = $1 AND pd.event_day_id = $2 AND t.status IN ('PAID', 'USED')`,
-		productID, eventDayID,
-	).Scan(&sold); err != nil {
-		return err
+	if len(missing) > 0 {
+		if _, err := r.db.Exec(ctx, `
+			INSERT INTO ticket_product_days (product_id, event_day_id)
+			SELECT $1, UNNEST($2::uuid[])
+			ON CONFLICT (product_id, event_day_id) DO NOTHING`, productID, missing); err != nil {
+			return nil, err
+		}
+		days, err = r.queryGameDays(ctx,
+			`WHERE p.id = $1 AND ed.id = ANY($2::uuid[])`,
+			[]interface{}{productID, eventDayIDs})
+		if err != nil {
+			return nil, err
+		}
 	}
-	if sold > 0 {
-		return fmt.Errorf("cannot remove a day that already has %d paid ticket(s); deactivate it instead", sold)
-	}
-	_, err := r.db.Exec(ctx, `DELETE FROM ticket_product_days WHERE product_id = $1 AND event_day_id = $2`, productID, eventDayID)
-	return err
+	return days, nil
 }
 
 func (r *PostgresTicketProductRepository) ListGamePassRules(ctx context.Context) ([]domain.GamePassRule, error) {
@@ -531,7 +643,8 @@ const ticketColumns = `t.id, t.product_id, t.product_name, t.purchase_type, t.em
 	COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.subtotal,
 	t.total_amount, t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 	t.referral_code, t.created_at, t.updated_at, t.discount_code, t.discount_amount,
-	t.game_pass_discount_percent::float8, t.game_pass_discount_amount`
+	t.game_pass_discount_percent::float8, t.game_pass_discount_amount, t.season_pass_id::text,
+	(SELECT to_char(sp.ends_on, 'YYYY-MM-DD') FROM season_passes sp WHERE sp.id = t.season_pass_id)`
 
 func scanTicket(row pgx.Row, t *domain.Ticket) error {
 	return row.Scan(
@@ -539,7 +652,7 @@ func scanTicket(row pgx.Row, t *domain.Ticket) error {
 		&t.Phone, &t.Name, &t.UserID, &t.Quantity, &t.UnitPrice, &t.Subtotal,
 		&t.TotalAmount, &t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.ReferralCode, &t.CreatedAt, &t.UpdatedAt, &t.DiscountCode, &t.DiscountAmount,
-		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount,
+		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount, &t.SeasonPassID, &t.ValidUntil,
 	)
 }
 
@@ -591,7 +704,9 @@ func loadTicketDays(ctx context.Context, db interface {
 }
 
 func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ticket) error {
-	if len(ticket.Days) == 0 {
+	// A season pass has no match days (it is valid until its end date), so it takes
+	// no seats. Every other ticket must cover at least one day.
+	if len(ticket.Days) == 0 && ticket.SeasonPassID == nil {
 		return fmt.Errorf("a ticket needs at least one day")
 	}
 
@@ -605,14 +720,78 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 	}
 	defer tx.Rollback(ctx)
 
+	if len(ticket.Days) > 0 {
+		if err := reserveSeatsTx(ctx, tx, ticket); err != nil {
+			return err
+		}
+	}
+
+	err = tx.QueryRow(ctx, `
+		INSERT INTO tickets (product_id, product_name, purchase_type, email, phone, name, user_id, quantity,
+			unit_price, subtotal, total_amount, status, paystack_reference, paystack_access_code, ticket_code,
+			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount,
+			season_pass_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+		ON CONFLICT (paystack_reference) DO NOTHING
+		RETURNING id, created_at, updated_at`,
+		ticket.ProductID, ticket.ProductName, ticket.PurchaseType, ticket.Email, ticket.Phone, ticket.Name,
+		ticket.UserID, ticket.Quantity, ticket.UnitPrice, ticket.Subtotal, ticket.TotalAmount, ticket.Status,
+		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
+		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
+		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount, ticket.SeasonPassID,
+	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
+	if err != nil {
+		return err
+	}
+
+	for _, d := range ticket.Days {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO ticket_days (ticket_id, event_day_id, product_day_id, unit_price, day_title, day_date, day_venue)
+			SELECT $1::uuid, ed.id, $3::uuid, $4::int, ed.title, ed.date, ed.venue FROM event_days ed WHERE ed.id = $2`,
+			ticket.ID, d.EventDayID, d.ProductDayID, d.UnitPrice); err != nil {
+			return err
+		}
+	}
+
+	// Hold the code in the same transaction that claims the seats, so a buyer
+	// never takes one without the other.
+	if ticket.DiscountCodeID != nil && *ticket.DiscountCodeID != "" {
+		if err := reserveDiscountTx(ctx, tx, *ticket.DiscountCodeID, ticket.Email, ticket.UserID, nil, &ticket.ID, float64(ticket.DiscountAmount)); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// A season pass says when it ends; read it back so the ticket in hand (and the
+	// confirmation email built from it) carries the date.
+	if ticket.SeasonPassID != nil {
+		var endsOn string
+		if err := r.db.QueryRow(ctx,
+			`SELECT to_char(ends_on, 'YYYY-MM-DD') FROM season_passes WHERE id = $1`, *ticket.SeasonPassID,
+		).Scan(&endsOn); err == nil {
+			ticket.ValidUntil = &endsOn
+		}
+	}
+
+	return loadTicketDays(ctx, r.db, []*domain.Ticket{ticket})
+}
+
+// reserveSeatsTx locks every day the ticket covers and checks each has room, inside
+// the purchase's transaction. The rows are locked in a fixed order (by event day),
+// so overlapping passes queue instead of deadlocking.
+func reserveSeatsTx(ctx context.Context, tx pgx.Tx, ticket *domain.Ticket) error {
 	productDayIDs := make([]string, len(ticket.Days))
 	for i, d := range ticket.Days {
 		productDayIDs[i] = d.ProductDayID
 	}
 
 	lockRows, err := tx.Query(ctx, `
-		SELECT pd.id, pd.capacity, pd.is_active, ed.title
+		SELECT pd.id, p.capacity, p.is_active, ed.title
 		FROM ticket_product_days pd
+		JOIN ticket_products p ON p.id = pd.product_id
 		JOIN event_days ed ON ed.id = pd.event_day_id
 		WHERE pd.id = ANY($1::uuid[])
 		ORDER BY pd.event_day_id
@@ -670,46 +849,7 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 			return fmt.Errorf("not enough tickets available for %s, only %d remaining", l.title, remaining)
 		}
 	}
-
-	err = tx.QueryRow(ctx, `
-		INSERT INTO tickets (product_id, product_name, purchase_type, email, phone, name, user_id, quantity,
-			unit_price, subtotal, total_amount, status, paystack_reference, paystack_access_code, ticket_code,
-			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-		ON CONFLICT (paystack_reference) DO NOTHING
-		RETURNING id, created_at, updated_at`,
-		ticket.ProductID, ticket.ProductName, ticket.PurchaseType, ticket.Email, ticket.Phone, ticket.Name,
-		ticket.UserID, ticket.Quantity, ticket.UnitPrice, ticket.Subtotal, ticket.TotalAmount, ticket.Status,
-		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
-		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
-		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount,
-	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
-	if err != nil {
-		return err
-	}
-
-	for _, d := range ticket.Days {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO ticket_days (ticket_id, event_day_id, product_day_id, unit_price, day_title, day_date, day_venue)
-			SELECT $1::uuid, ed.id, $3::uuid, $4::int, ed.title, ed.date, ed.venue FROM event_days ed WHERE ed.id = $2`,
-			ticket.ID, d.EventDayID, d.ProductDayID, d.UnitPrice); err != nil {
-			return err
-		}
-	}
-
-	// Hold the code in the same transaction that claims the seats, so a buyer
-	// never takes one without the other.
-	if ticket.DiscountCodeID != nil && *ticket.DiscountCodeID != "" {
-		if err := reserveDiscountTx(ctx, tx, *ticket.DiscountCodeID, ticket.Email, ticket.UserID, nil, &ticket.ID, float64(ticket.DiscountAmount)); err != nil {
-			return err
-		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-
-	return loadTicketDays(ctx, r.db, []*domain.Ticket{ticket})
+	return nil
 }
 
 func (r *PostgresTicketRepository) getOne(ctx context.Context, where string, arg string) (*domain.Ticket, error) {
@@ -843,12 +983,67 @@ func (r *PostgresTicketRepository) CheckinDay(ctx context.Context, ticketID, eve
 	return tx.Commit(ctx)
 }
 
+func (r *PostgresTicketRepository) CheckinSeasonPass(ctx context.Context, ticketID, checkedInBy string) (bool, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+
+	var status domain.TicketStatus
+	var passID *string
+	var endsOn *string
+	var expired bool
+	if err := tx.QueryRow(ctx, `
+		SELECT t.status, t.season_pass_id::text, to_char(sp.ends_on, 'YYYY-MM-DD'), COALESCE(sp.ends_on < `+lagosToday+`, FALSE)
+		FROM tickets t LEFT JOIN season_passes sp ON sp.id = t.season_pass_id
+		WHERE t.id = $1 FOR UPDATE OF t`, ticketID).Scan(&status, &passID, &endsOn, &expired); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, fmt.Errorf("ticket not found")
+		}
+		return false, err
+	}
+	if passID == nil || endsOn == nil {
+		return false, fmt.Errorf("this ticket is not a season pass")
+	}
+	if status != domain.TicketStatusPaid {
+		return false, fmt.Errorf("ticket is %s, not PAID", status)
+	}
+	if expired {
+		return false, fmt.Errorf("this season pass ended on %s", *endsOn)
+	}
+
+	res, err := tx.Exec(ctx, `
+		INSERT INTO season_pass_entries (ticket_id, entry_date, checked_in_by)
+		VALUES ($1, `+lagosToday+`, $2)
+		ON CONFLICT (ticket_id, entry_date) DO NOTHING`, ticketID, checkedInBy)
+	if err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return res.RowsAffected() == 1, nil
+}
+
 func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]domain.Ticket, int, error) {
 	where := ` WHERE 1=1`
 	args := []interface{}{}
 	if eventDayID != "" {
 		args = append(args, eventDayID)
-		where += fmt.Sprintf(` AND EXISTS (SELECT 1 FROM ticket_days td WHERE td.ticket_id = t.id AND td.event_day_id = $%d)`, len(args))
+		n := len(args)
+		// A season pass has no ticket_days row for any match day — it is valid
+		// for every one of them up to its end date — so filtering by a match day
+		// must also surface its season-pass tickets, or they can never appear
+		// under the default "next match day" view and look like they vanished.
+		where += fmt.Sprintf(` AND (
+			EXISTS (SELECT 1 FROM ticket_days td WHERE td.ticket_id = t.id AND td.event_day_id = $%d)
+			OR EXISTS (
+				SELECT 1 FROM season_passes sp
+				JOIN event_days ed ON ed.id = $%d
+				WHERE sp.id = t.season_pass_id AND ed.date <= sp.ends_on
+			)
+		)`, n, n)
 	}
 	if status != "" {
 		args = append(args, status)
@@ -894,7 +1089,21 @@ func (r *PostgresTicketRepository) ExpirePastTickets(ctx context.Context) (int64
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected(), nil
+	expired := res.RowsAffected()
+
+	// A season pass has no match days; it ends on its pass's end date.
+	passes, err := r.db.Exec(ctx, `
+		UPDATE tickets
+		SET status = CASE WHEN tickets.status = 'PAID' THEN 'EXPIRED' ELSE 'CANCELLED' END,
+		    updated_at = NOW()
+		FROM season_passes sp
+		WHERE sp.id = tickets.season_pass_id
+		  AND tickets.status IN ('PAID', 'PENDING', 'FAILED')
+		  AND sp.ends_on < `+lagosToday)
+	if err != nil {
+		return expired, err
+	}
+	return expired + passes.RowsAffected(), nil
 }
 
 func (r *PostgresTicketRepository) GetTotalRevenue(ctx context.Context) (int, error) {

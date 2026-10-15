@@ -42,6 +42,10 @@ type MatchRepository interface {
 	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error)
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
+	// FindMatchesInOtherCompetitions lists matches on a date (YYYY-MM-DD) that belong
+	// to a competition other than competitionID, skipping excludeMatchID and
+	// postponed fixtures (they are not going to be played that day).
+	FindMatchesInOtherCompetitions(ctx context.Context, date, competitionID, excludeMatchID string) ([]dto.SharedDayMatch, error)
 	UpdateMatch(ctx context.Context, match *domain.Match) error
 	DeleteMatch(ctx context.Context, id string) error
 	SetMatchSlot(ctx context.Context, matchID, slot string, teamID *string) error
@@ -680,6 +684,37 @@ func matchInsertArgs(match *domain.Match) []any {
 		match.CompetitionID, match.HomeTeamID, match.AwayTeamID, match.Date, match.StartTime, match.Venue, match.Status, match.HomeScore, match.AwayScore, match.HighlightsURL, match.TicketURL,
 		match.Round, match.BracketPos, match.FeedsMatchID, match.FeedsSlot, match.SecondLegMatchID, mvpID, match.MVPOverridden,
 	}
+}
+
+func (r *PostgresMatchRepository) FindMatchesInOtherCompetitions(ctx context.Context, date, competitionID, excludeMatchID string) ([]dto.SharedDayMatch, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT m.id::text, c.id::text, c.name,
+		       COALESCE(ht.name, 'TBD'), COALESCE(at.name, 'TBD'),
+		       to_char(m.time, 'HH24:MI'), COALESCE(m.venue, ''), m.status
+		FROM matches m
+		JOIN competitions c ON c.id = m.competition_id
+		LEFT JOIN teams ht ON ht.id = m.home_team_id
+		LEFT JOIN teams at ON at.id = m.away_team_id
+		WHERE m.date = $1::date
+		  AND m.competition_id <> $2::uuid
+		  AND ($3 = '' OR m.id <> $3::uuid)
+		  AND m.status <> 'POSTPONED'
+		ORDER BY c.name ASC, m.time ASC`, date, competitionID, excludeMatchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []dto.SharedDayMatch{}
+	for rows.Next() {
+		var m dto.SharedDayMatch
+		if err := rows.Scan(&m.MatchID, &m.CompetitionID, &m.CompetitionName, &m.HomeTeam, &m.AwayTeam,
+			&m.StartTime, &m.Venue, &m.Status); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }
 
 func (r *PostgresMatchRepository) CreateMatch(ctx context.Context, match *domain.Match) error {

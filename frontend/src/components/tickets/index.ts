@@ -1,3 +1,4 @@
+export { SeasonPassCheckout } from './SeasonPassCheckout';
 export { TicketAccessCodeBox } from './TicketAccessCodeBox';
 export { TicketCheckout } from './TicketCheckout';
 export { TicketDayPicker } from './TicketDayPicker';
@@ -12,6 +13,8 @@ export {
     isSoldOut,
     naira,
     perksOf,
+    dayLabel,
+    sortDaysByDate,
     seatsLabel,
     taglineOf,
 } from './ticketFormat';

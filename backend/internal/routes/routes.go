@@ -450,8 +450,15 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketProductsGroup.POST("", app.Handlers.TicketHandler.CreateProduct)
 		ticketProductsGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateProduct)
 		ticketProductsGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteProduct)
-		ticketProductsGroup.PUT("/:id/days", app.Handlers.TicketHandler.SaveProductDay)
-		ticketProductsGroup.DELETE("/:id/days/:eventDayId", app.Handlers.TicketHandler.DeleteProductDay)
+	}
+
+	seasonPassGroup := adminRoutes.Group("/season-passes")
+	seasonPassGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
+	{
+		seasonPassGroup.GET("", app.Handlers.TicketHandler.ListSeasonPassesAdmin)
+		seasonPassGroup.POST("", app.Handlers.TicketHandler.CreateSeasonPass)
+		seasonPassGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateSeasonPass)
+		seasonPassGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteSeasonPass)
 	}
 
 	gamePassGroup := adminRoutes.Group("/game-pass")
@@ -757,6 +764,13 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 		productRoutes.POST("/quote", commonAuth.RateLimit(rls), app.Handlers.TicketHandler.QuotePrice)
 	}
 
+	// Season passes (Public): a standalone pass with an admin-set price and end date
+	seasonRoutes := r.Group("/season-passes")
+	{
+		seasonRoutes.GET("", app.Handlers.TicketHandler.ListSeasonPasses)
+		seasonRoutes.GET("/:id", app.Handlers.TicketHandler.GetSeasonPass)
+	}
+
 	// Ticket routes
 	ticketRoutes := r.Group("/tickets")
 	{
@@ -766,6 +780,7 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 			// Optional auth: guests still buy tickets, but a signed-in buyer is
 			// recognised so members-only discount codes work and the ticket is
 			// linked to their account.
+			limitedTickets.POST("/season-pass", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.TicketHandler.PurchaseSeasonPass)
 			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
 		}
 

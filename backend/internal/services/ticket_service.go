@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"sort"
 	"strings"
@@ -32,12 +31,19 @@ type ITicketService interface {
 	UpdateProduct(ctx context.Context, id string, req dto.UpdateTicketProductRequest) (*dto.TicketProductResponse, error)
 	DeleteProduct(ctx context.Context, id string) error
 	ListProductsAdmin(ctx context.Context) ([]dto.TicketProductResponse, error)
-	SaveProductDay(ctx context.Context, productID string, req dto.SaveProductDayRequest) (*dto.TicketProductResponse, error)
-	DeleteProductDay(ctx context.Context, productID, eventDayID string) error
 	ListPublicProducts(ctx context.Context, accessCode string) ([]dto.TicketProductResponse, error)
 	GetGamePassRules(ctx context.Context) ([]dto.GamePassRuleResponse, error)
 	SaveGamePassRules(ctx context.Context, req dto.SaveGamePassRulesRequest) ([]dto.GamePassRuleResponse, error)
 	QuotePrice(ctx context.Context, req dto.PriceQuoteRequest) (*dto.PriceQuoteResponse, error)
+
+	// Season passes
+	CreateSeasonPass(ctx context.Context, req dto.CreateSeasonPassRequest) (*dto.SeasonPassResponse, error)
+	UpdateSeasonPass(ctx context.Context, id string, req dto.UpdateSeasonPassRequest) (*dto.SeasonPassResponse, error)
+	DeleteSeasonPass(ctx context.Context, id string) error
+	ListSeasonPassesAdmin(ctx context.Context) ([]dto.SeasonPassResponse, error)
+	ListSeasonPasses(ctx context.Context) ([]dto.SeasonPassResponse, error)
+	GetSeasonPass(ctx context.Context, id string) (*dto.SeasonPassResponse, error)
+	PurchaseSeasonPass(ctx context.Context, req dto.PurchaseSeasonPassRequest, callbackURL string, userID *string) (*dto.TicketResponse, error)
 
 	// Tickets
 	Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string, userID *string) (*dto.TicketResponse, error)
@@ -57,10 +63,14 @@ type ITicketService interface {
 }
 
 type TicketService struct {
-	eventDayRepo    ports.EventDayRepository
-	productRepo     ports.TicketProductRepository
-	ticketRepo      ports.TicketRepository
-	scheduledRepo   ports.ScheduledEmailRepository
+	eventDayRepo  ports.EventDayRepository
+	productRepo   ports.TicketProductRepository
+	ticketRepo    ports.TicketRepository
+	scheduledRepo ports.ScheduledEmailRepository
+	seasonRepo    ports.SeasonPassRepository
+	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
+	// profile after they pay.
+	userPhones      UserPhoneSaver
 	matchRepo       ports.MatchRepository
 	paystack        *PaystackClient
 	email           ports.EmailService
@@ -73,6 +83,7 @@ func NewTicketService(
 	productRepo ports.TicketProductRepository,
 	ticketRepo ports.TicketRepository,
 	scheduledRepo ports.ScheduledEmailRepository,
+	seasonRepo ports.SeasonPassRepository,
 	matchRepo ports.MatchRepository,
 	paystack *PaystackClient,
 	emailService ports.EmailService,
@@ -86,6 +97,7 @@ func NewTicketService(
 		productRepo:     productRepo,
 		ticketRepo:      ticketRepo,
 		scheduledRepo:   scheduledRepo,
+		seasonRepo:      seasonRepo,
 		matchRepo:       matchRepo,
 		paystack:        paystack,
 		email:           emailService,
@@ -219,11 +231,10 @@ func (s *TicketService) getMatchesForDate(ctx context.Context, date time.Time) [
 // rows in one transaction.
 const maxPassDays = 30
 
-// selection is a validated product plus the days it is being bought for.
+// selection is a validated ticket plus the match days it is being bought for.
 type selection struct {
-	product      *domain.TicketProduct
-	days         []domain.TicketProductDay // sorted by date
-	purchaseType domain.PurchaseType
+	product *domain.TicketProduct
+	days    []domain.TicketProductDay // sorted by date
 }
 
 func (sel *selection) dayPrices() []int {
@@ -248,32 +259,32 @@ func uniqueIDs(ids []string) []string {
 	return out
 }
 
-// resolveSelection checks that a product can be bought for the requested days and
-// returns the priced days. It is the single gate in front of quoting, purchasing
-// and gifting, so all three agree on what is allowed.
+// resolveSelection checks that a ticket can be bought for the requested match
+// days and returns the priced days. It is the single gate in front of quoting,
+// purchasing and gifting, so all three agree on what is allowed.
 //
-// adminIssue skips the hidden-product access code, which an admin issuing a
+// A match day is on sale for a ticket when it has a match in a competition the
+// ticket is linked to, so a day outside those competitions is refused here.
+//
+// adminIssue skips the hidden-ticket access code, which an admin issuing a
 // complimentary ticket has no need for.
-func (s *TicketService) resolveSelection(ctx context.Context, productID string, eventDayIDs []string, purchaseType domain.PurchaseType, quantity int, accessCode string, adminIssue bool) (*selection, error) {
+func (s *TicketService) resolveSelection(ctx context.Context, productID string, eventDayIDs []string, quantity int, accessCode string, adminIssue bool) (*selection, error) {
 	ids := uniqueIDs(eventDayIDs)
 	if len(ids) == 0 {
 		return nil, fmt.Errorf("choose at least one match day")
 	}
 	if len(ids) > maxPassDays {
-		return nil, fmt.Errorf("a ticket can cover at most %d match days", maxPassDays)
+		return nil, fmt.Errorf("a Game Pass can cover at most %d match days", maxPassDays)
 	}
-
-	switch purchaseType {
-	case domain.PurchaseTypeSingle:
-		if len(ids) != 1 {
-			return nil, fmt.Errorf("a single ticket is for exactly one match day; use a Game Pass for several")
+	// Ids come from the browser; refuse a malformed one here rather than let the
+	// database's own error message reach a buyer.
+	if _, err := uuid.Parse(productID); err != nil {
+		return nil, fmt.Errorf("ticket not found")
+	}
+	for _, id := range ids {
+		if _, err := uuid.Parse(id); err != nil {
+			return nil, fmt.Errorf("one of the selected match days is not valid")
 		}
-	case domain.PurchaseTypeGamePass:
-		if len(ids) < 2 {
-			return nil, fmt.Errorf("a Game Pass covers two or more match days")
-		}
-	default:
-		return nil, fmt.Errorf("unknown purchase type %q", purchaseType)
 	}
 
 	product, err := s.productRepo.GetProduct(ctx, productID)
@@ -283,25 +294,22 @@ func (s *TicketService) resolveSelection(ctx context.Context, productID string, 
 	if !product.IsActive {
 		return nil, fmt.Errorf("%s is not on sale", product.Name)
 	}
-	if purchaseType == domain.PurchaseTypeGamePass && !product.AllowGamePass {
-		return nil, fmt.Errorf("%s is not available as a Game Pass", product.Name)
-	}
 	if product.IsHidden && !adminIssue && !accessCodeMatches(product.AccessCode, accessCode) {
 		return nil, fmt.Errorf("ticket not found")
 	}
 
-	days, err := s.productRepo.GetProductDays(ctx, productID, ids)
+	days, err := s.productRepo.ResolveProductDays(ctx, productID, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load match days: %w", err)
 	}
 	if len(days) != len(ids) {
-		return nil, fmt.Errorf("%s is not on sale for one of the selected days", product.Name)
+		return nil, fmt.Errorf("%s is not on sale for one of the selected match days", product.Name)
 	}
 
 	today := todayLagos(time.Now())
 	for _, d := range days {
 		title := d.EventDay.Title
-		if !d.IsActive || !d.EventDay.IsActive {
+		if !d.EventDay.IsActive {
 			return nil, fmt.Errorf("tickets are not on sale for %s", title)
 		}
 		if dateOnly(d.EventDay.Date).Before(today) {
@@ -315,7 +323,7 @@ func (s *TicketService) resolveSelection(ctx context.Context, productID string, 
 	sort.SliceStable(days, func(i, j int) bool {
 		return days[i].EventDay.Date.Before(days[j].EventDay.Date)
 	})
-	return &selection{product: product, days: days, purchaseType: purchaseType}, nil
+	return &selection{product: product, days: days}, nil
 }
 
 func accessCodeMatches(productCode *string, given string) bool {
@@ -341,7 +349,7 @@ func ticketDaysFor(sel *selection) []domain.TicketDay {
 // QuotePrice prices a selection with the same code the purchase uses, so the
 // number shown while choosing is the number that is charged.
 func (s *TicketService) QuotePrice(ctx context.Context, req dto.PriceQuoteRequest) (*dto.PriceQuoteResponse, error) {
-	sel, err := s.resolveSelection(ctx, req.ProductID, req.EventDayIDs, domain.PurchaseType(req.PurchaseType), req.Quantity, "", true)
+	sel, err := s.resolveSelection(ctx, req.ProductID, req.EventDayIDs, req.Quantity, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +357,7 @@ func (s *TicketService) QuotePrice(ctx context.Context, req dto.PriceQuoteReques
 	if err != nil {
 		return nil, err
 	}
-	p := PriceTicket(sel.dayPrices(), req.Quantity, sel.purchaseType, rules)
+	p := PriceTicket(sel.dayPrices(), req.Quantity, rules)
 	return &dto.PriceQuoteResponse{
 		UnitPrice:               p.UnitPrice,
 		Subtotal:                p.Subtotal,
@@ -364,10 +372,14 @@ func (s *TicketService) QuotePrice(ctx context.Context, req dto.PriceQuoteReques
 // and nil for a guest checkout; it is taken from the caller's token, never from
 // the request body.
 func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string, userID *string) (*dto.TicketResponse, error) {
-	purchaseType := domain.PurchaseType(req.PurchaseType)
+	// Codes are not accepted on tickets for now. Refuse one rather than quietly
+	// charge full price to someone who thinks they have a discount.
+	if strings.TrimSpace(req.DiscountCode) != "" {
+		return nil, fmt.Errorf("discount codes can't be used on tickets right now. A Game Pass gets a percentage off when you add more match days")
+	}
 
-	// 1. Validate the product, days and availability.
-	sel, err := s.resolveSelection(ctx, req.ProductID, req.EventDayIDs, purchaseType, req.Quantity, req.AccessCode, false)
+	// 1. Validate the ticket, the match days and availability.
+	sel, err := s.resolveSelection(ctx, req.ProductID, req.EventDayIDs, req.Quantity, req.AccessCode, false)
 	if err != nil {
 		return nil, err
 	}
@@ -377,42 +389,57 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Game Pass pricing: %w", err)
 	}
-	pricing := PriceTicket(sel.dayPrices(), req.Quantity, purchaseType, rules)
-	totalAmount := pricing.Total
+	pricing := PriceTicket(sel.dayPrices(), req.Quantity, rules)
 
-	// 2b. Apply a discount code, if one was given. Like the storefront, an
-	// unusable code fails the purchase rather than being quietly ignored.
-	//
-	// The code discounts one ticket, not every ticket in the order — the same
-	// "once per product" rule the storefront uses. Codes are for single tickets;
-	// a Game Pass has its own percentage ladder.
-	var discountCode *string
-	var discountCodeID *string
-	var discountAmount int
-	if strings.TrimSpace(req.DiscountCode) != "" {
-		if purchaseType == domain.PurchaseTypeGamePass {
-			return nil, fmt.Errorf("discount codes can't be used on a Game Pass")
-		}
-		app, err := s.discountService.ApplyToCart(ctx, req.DiscountCode, userID != nil && *userID != "", []CartLine{{
-			EntityType: domain.DiscountEntityTicketProduct,
-			EntityID:   sel.product.ID,
-			Name:       sel.product.Name,
-			UnitPrice:  float64(pricing.UnitPrice),
-			Quantity:   req.Quantity,
-		}})
-		if err != nil {
-			return nil, err
-		}
-		discountAmount = int(math.Round(app.TotalDiscount))
-		totalAmount -= discountAmount
-		if totalAmount < 0 {
-			totalAmount = 0
-		}
-		discountCode = &app.Code
-		discountCodeID = &app.CodeID
+	return s.checkout(ctx, checkoutInput{
+		sel:          sel,
+		pricing:      pricing,
+		purchaseType: domain.PurchaseTypeGamePass,
+		productName:  sel.product.Name,
+		email:        req.Email,
+		name:         req.Name,
+		phone:        req.Phone,
+		quantity:     req.Quantity,
+		referralCode: req.ReferralCode,
+		callbackURL:  callbackURL,
+		userID:       userID,
+	})
+}
+
+// checkoutInput is a priced selection ready to be paid for, whichever kind of pass
+// it is. Purchase and PurchaseSeasonPass differ only in how they arrive here.
+type checkoutInput struct {
+	sel          *selection
+	pricing      TicketPricing
+	purchaseType domain.PurchaseType
+	seasonPassID *string
+	// productName is what the ticket is called on the receipt and in sales
+	// reports: the ticket's name, or the season pass's.
+	productName  string
+	email, name  string
+	phone        string
+	quantity     int
+	referralCode *string
+	callbackURL  string
+	userID       *string
+}
+
+// checkout starts payment (or settles a free pass at once) and creates the
+// ticket with its seats. It is the one place money is taken.
+func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.TicketResponse, error) {
+	sel, pricing, totalAmount := in.sel, in.pricing, in.pricing.Total
+	var days []domain.TicketDay
+	if sel != nil {
+		days = ticketDaysFor(sel)
 	}
+	req := struct {
+		Email, Name, Phone string
+		Quantity           int
+		ReferralCode       *string
+	}{in.email, in.name, in.phone, in.quantity, in.referralCode}
+	callbackURL, userID := in.callbackURL, in.userID
 
-	// 3. Generate unique reference
+	// Generate unique reference
 	reference := "SFFL-" + uuid.New().String()[:12]
 
 	var paystackRef *string
@@ -457,11 +484,17 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	var lastErr error
 
 	for i := 0; i < maxRetries; i++ {
-		productID := sel.product.ID
+		// A season pass is not made from a ticket, so it has no product.
+		var productID *string
+		if sel != nil {
+			id := sel.product.ID
+			productID = &id
+		}
 		ticket = &domain.Ticket{
-			ProductID:               &productID,
-			ProductName:             sel.product.Name,
-			PurchaseType:            purchaseType,
+			ProductID:               productID,
+			ProductName:             in.productName,
+			PurchaseType:            in.purchaseType,
+			SeasonPassID:            in.seasonPassID,
 			Email:                   req.Email,
 			Phone:                   req.Phone,
 			Name:                    req.Name,
@@ -475,12 +508,9 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 			PaystackAccessCode:      paystackAccessCode,
 			TicketCode:              GenerateTicketCode(),
 			ReferralCode:            referralCode,
-			DiscountCode:            discountCode,
-			DiscountAmount:          discountAmount,
-			DiscountCodeID:          discountCodeID,
 			GamePassDiscountPercent: pricing.GamePassPercent,
 			GamePassDiscountAmount:  pricing.GamePassAmount,
-			Days:                    ticketDaysFor(sel),
+			Days:                    days,
 		}
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
@@ -503,13 +533,6 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	}
 
 	if ticket.Status == domain.TicketStatusPaid {
-		// A free (or fully discounted) ticket never returns through the payment
-		// callback, so settle the code hold here.
-		if discountCodeID != nil {
-			if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
-				fmt.Printf("⚠️ WARNING: failed to confirm discount on free ticket %s: %s\n", ticket.ID, err.Error())
-			}
-		}
 		s.OnTicketPaid(ctx, ticket)
 	}
 
@@ -527,16 +550,12 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 // email (with the ticket code) is sent, exactly like a normal purchase.
 func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketRequest) (*dto.TicketResponse, error) {
 	ids := uniqueIDs(req.EventDayIDs)
-	purchaseType := domain.PurchaseTypeSingle
-	if len(ids) > 1 {
-		purchaseType = domain.PurchaseTypeGamePass
-	}
 
-	sel, err := s.resolveSelection(ctx, req.ProductID, ids, purchaseType, req.Quantity, "", true)
+	sel, err := s.resolveSelection(ctx, req.ProductID, ids, req.Quantity, "", true)
 	if err != nil {
 		return nil, err
 	}
-	pricing := PriceTicket(sel.dayPrices(), req.Quantity, purchaseType, nil)
+	pricing := PriceTicket(sel.dayPrices(), req.Quantity, nil)
 
 	// Create the ticket as a free, already-paid comp ticket.
 	// Retry on the (extremely unlikely) ticket_code / reference collision.
@@ -552,7 +571,7 @@ func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketReques
 		ticket = &domain.Ticket{
 			ProductID:         &productID,
 			ProductName:       sel.product.Name,
-			PurchaseType:      purchaseType,
+			PurchaseType:      domain.PurchaseTypeGamePass,
 			Email:             req.Email,
 			Phone:             req.Phone,
 			Name:              req.Name,
@@ -593,6 +612,14 @@ func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketReques
 func (s *TicketService) OnTicketPaid(ctx context.Context, ticket *domain.Ticket) {
 	s.sendPurchaseEmail(ticket)
 	s.scheduleReminders(ctx, ticket)
+	rememberBuyerPhone(ctx, s.userPhones, ticket.UserID, ticket.Phone)
+}
+
+// WithUserPhoneSaver wires in where a signed-in buyer's phone is kept. Separate
+// from the constructor because environments that only read tickets do not need it.
+func (s *TicketService) WithUserPhoneSaver(saver UserPhoneSaver) *TicketService {
+	s.userPhones = saver
+	return s
 }
 
 // verifyTicketPayment is the authoritative money check before a ticket is
@@ -801,6 +828,9 @@ func (s *TicketService) Checkin(ctx context.Context, id string, checkedInBy stri
 	if ticket.Status != domain.TicketStatusPaid && ticket.Status != domain.TicketStatusUsed {
 		return fmt.Errorf("ticket is %s, not PAID", ticket.Status)
 	}
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		return s.checkinSeasonPass(ctx, ticket, checkedInBy)
+	}
 	day, err := dayForCheckin(ticket, eventDayID, true, time.Now())
 	if err != nil {
 		return err
@@ -809,6 +839,14 @@ func (s *TicketService) Checkin(ctx context.Context, id string, checkedInBy stri
 		return fmt.Errorf("ticket already checked in for %s", day.Title)
 	}
 	return s.ticketRepo.CheckinDay(ctx, ticket.ID, day.EventDayID, checkedInBy)
+}
+
+// checkinSeasonPass lets a season pass in. It is valid on every day up to its end
+// date, so being let in twice on one day is not an error; the repository records
+// the day once and refuses a pass that has ended or is not paid.
+func (s *TicketService) checkinSeasonPass(ctx context.Context, ticket *domain.Ticket, checkedInBy string) error {
+	_, err := s.ticketRepo.CheckinSeasonPass(ctx, ticket.ID, checkedInBy)
+	return err
 }
 
 // AdminCheckin is the override path: it will first try to confirm an unpaid ticket
@@ -838,6 +876,9 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 		return fmt.Errorf("ticket is %s and payment could not be verified", ticket.Status)
 	}
 
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		return s.checkinSeasonPass(ctx, ticket, checkedInBy)
+	}
 	day, err := dayForCheckin(ticket, eventDayID, false, time.Now())
 	if err != nil {
 		return err
@@ -852,6 +893,14 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// passNameFor is what a purchase is called in emails.
+func passNameFor(ticket *domain.Ticket) string {
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		return "Season Pass"
+	}
+	return "Game Pass"
+}
+
 func formatDay(d domain.TicketDay) email.TicketEmailDay {
 	date := ""
 	if !d.Date.IsZero() {
@@ -861,7 +910,14 @@ func formatDay(d domain.TicketDay) email.TicketEmailDay {
 }
 
 func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
-	if s.email == nil || len(ticket.Days) == 0 {
+	if s.email == nil {
+		return
+	}
+	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+		s.sendSeasonPassEmail(ticket)
+		return
+	}
+	if len(ticket.Days) == 0 {
 		return
 	}
 	days := make([]email.TicketEmailDay, len(ticket.Days))
@@ -869,18 +925,19 @@ func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
 		days[i] = formatDay(d)
 	}
 
-	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Ticket for %s", days[0].Title)
-	if ticket.PurchaseType == domain.PurchaseTypeGamePass {
-		subject = fmt.Sprintf("IT'S SHOWTIME 🏈, Your Game Pass (%d match days)", len(days))
+	passName := passNameFor(ticket)
+	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your %s for %s", passName, days[0].Title)
+	if len(days) > 1 {
+		subject = fmt.Sprintf("IT'S SHOWTIME 🏈, Your %s (%d match days)", passName, len(days))
 	}
 	body := email.PurchaseEmailHTML(email.PurchaseEmailData{
+		PassName:    passName,
 		BuyerName:   ticket.Name,
 		ProductName: ticket.ProductName,
 		Phone:       ticket.Phone,
 		TicketCode:  ticket.TicketCode,
 		Quantity:    ticket.Quantity,
 		TotalAmount: ticket.TotalAmount,
-		IsGamePass:  ticket.PurchaseType == domain.PurchaseTypeGamePass,
 		Days:        days,
 	})
 
@@ -888,6 +945,34 @@ func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
 	_ = SubmitJob(func() {
 		if err := s.email.SendEmail(to, subject, body); err != nil {
 			fmt.Printf("Failed to send purchase email to %s: %v\n", to, err)
+		}
+	})
+}
+
+// sendSeasonPassEmail confirms a season pass: its name, the date it is valid until,
+// and the code to show at the entrance. It has no match days to list.
+func (s *TicketService) sendSeasonPassEmail(ticket *domain.Ticket) {
+	validUntil := ""
+	if ticket.ValidUntil != nil {
+		if d, err := time.Parse("2006-01-02", *ticket.ValidUntil); err == nil {
+			validUntil = d.Format("Mon, Jan 02 2006")
+		}
+	}
+	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your %s", ticket.ProductName)
+	body := email.PurchaseEmailHTML(email.PurchaseEmailData{
+		PassName:    "Season Pass",
+		BuyerName:   ticket.Name,
+		ProductName: ticket.ProductName,
+		Phone:       ticket.Phone,
+		TicketCode:  ticket.TicketCode,
+		Quantity:    ticket.Quantity,
+		TotalAmount: ticket.TotalAmount,
+		ValidUntil:  validUntil,
+	})
+	to := ticket.Email
+	_ = SubmitJob(func() {
+		if err := s.email.SendEmail(to, subject, body); err != nil {
+			fmt.Printf("Failed to send season pass email to %s: %v\n", to, err)
 		}
 	})
 }
@@ -945,6 +1030,12 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 
 	if t.ProductID != nil {
 		res.ProductID = *t.ProductID
+	}
+	if t.SeasonPassID != nil {
+		res.SeasonPassID = *t.SeasonPassID
+	}
+	if t.ValidUntil != nil {
+		res.ValidUntil = *t.ValidUntil
 	}
 	if t.DiscountCode != nil {
 		res.DiscountCode = *t.DiscountCode

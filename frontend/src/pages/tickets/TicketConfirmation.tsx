@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   ArrowLeftIcon,
+  ArrowPathIcon,
   CheckCircleIcon,
   ClockIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { getTicketByReference } from "../../services/api";
-import { Loader, formatDayLong } from "../../components";
+import { getTicketByReference, verifyTicket } from "../../services/api";
+import { Button, Loader, formatDayLong } from "../../components";
+import { getApiErrorMessage } from "../../utils";
 
 export const TicketConfirmation = () => {
   const [searchParams] = useSearchParams();
   const reference = searchParams.get("reference") || searchParams.get("trxref");
+  const queryClient = useQueryClient();
 
   // We use a small delay state for webhook processing before enabling the query
   const [delayComplete, setDelayComplete] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
 
   useEffect(() => {
     if (!reference) return;
@@ -33,6 +38,21 @@ export const TicketConfirmation = () => {
     enabled: !!reference && delayComplete,
     retry: 1, // Retry once if webhook is still processing
   });
+
+  // A buyer stuck on "Payment Pending" if the webhook is slow shouldn't have no
+  // recourse but to keep refreshing the page: re-check with Paystack directly.
+  const handleRecheck = async () => {
+    if (!reference) return;
+    setRechecking(true);
+    try {
+      await verifyTicket(reference);
+      await queryClient.invalidateQueries({ queryKey: ["publicTicket", reference] });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Could not check payment status"));
+    } finally {
+      setRechecking(false);
+    }
+  };
 
   const ticket = ticketData || null;
   const loading = !reference ? false : !delayComplete || isLoading;
@@ -97,6 +117,19 @@ export const TicketConfirmation = () => {
               ? "Your payment is being processed"
               : "Your payment could not be completed"}
         </p>
+        {isPending && (
+          <Button
+            variant="secondary"
+            shape="square"
+            size="sm"
+            className="mt-4 bg-white/10 text-white hover:bg-white/20"
+            icon={ArrowPathIcon}
+            loading={rechecking}
+            onClick={handleRecheck}
+          >
+            Check again
+          </Button>
+        )}
       </div>
 
       {/* Ticket Details */}
@@ -119,41 +152,52 @@ export const TicketConfirmation = () => {
 
           {/* Details */}
           <div className="p-4 sm:p-6 space-y-4">
-            {/* Every match day this ticket covers */}
-            <div>
-              <span className="text-xs text-gray-500 uppercase font-bold">
-                {ticket.days.length > 1
-                  ? `Game Pass · ${ticket.days.length} match days`
-                  : "Match day"}
-              </span>
-              <ul className="mt-2 space-y-2">
-                {ticket.days.map((day) => (
-                  <li
-                    key={day.id}
-                    className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-gray-100 p-3 dark:border-gray-700"
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-bold text-sffl-navy dark:text-white wrap-break-word">
-                        {day.title || "—"}
+            {ticket.purchase_type === "SEASON_PASS" ? (
+              <div>
+                <span className="text-xs text-gray-500 uppercase font-bold">
+                  Season Pass
+                </span>
+                <p className="mt-2 border border-gray-100 p-3 font-bold text-sffl-navy dark:border-gray-700 dark:text-white">
+                  {ticket.valid_until
+                    ? `Valid through ${formatDayLong(ticket.valid_until)}`
+                    : "Valid until the pass's end date"}
+                </p>
+              </div>
+            ) : (
+              /* Every match day this ticket covers */
+              <div>
+                <span className="text-xs text-gray-500 uppercase font-bold">
+                  {`Game Pass · ${ticket.days.length} match day${ticket.days.length === 1 ? "" : "s"}`}
+                </span>
+                <ul className="mt-2 space-y-2">
+                  {ticket.days.map((day) => (
+                    <li
+                      key={day.id}
+                      className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-gray-100 p-3 dark:border-gray-700"
+                    >
+                      <span className="min-w-0">
+                        <span className="block font-bold text-sffl-navy dark:text-white wrap-break-word">
+                          {day.title || "—"}
+                        </span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                          {day.date ? formatDayLong(day.date) : "—"}
+                          {day.venue && ` • ${day.venue}`}
+                        </span>
                       </span>
-                      <span className="block text-xs text-gray-500 dark:text-gray-400">
-                        {day.date ? formatDayLong(day.date) : "—"}
-                        {day.venue && ` • ${day.venue}`}
-                      </span>
-                    </span>
-                    {day.checked_in_at && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400">
-                        <CheckCircleIcon
-                          className="w-4 h-4"
-                          aria-hidden="true"
-                        />
-                        Checked in
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                      {day.checked_in_at && (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400">
+                          <CheckCircleIcon
+                            className="w-4 h-4"
+                            aria-hidden="true"
+                          />
+                          Checked in
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-4">
               <div className="min-w-0">
