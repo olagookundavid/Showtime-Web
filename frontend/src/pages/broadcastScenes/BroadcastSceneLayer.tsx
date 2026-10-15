@@ -1,9 +1,9 @@
-import { useBroadcastScenes } from '../../hooks';
+import { useBroadcastScenes, useMatchComparison } from '../../hooks';
 import type { BroadcastState } from '../../types';
-import { SceneFacts } from './SceneFacts';
 import { SceneLineup } from './SceneLineup';
 import { SceneOpening } from './SceneOpening';
 import { SceneStandings } from './SceneStandings';
+import { SceneStats } from './SceneStats';
 import './BroadcastScenes.css';
 
 /**
@@ -14,13 +14,20 @@ import './BroadcastScenes.css';
 export function BroadcastSceneLayer({ state, clock }: { state: BroadcastState; clock: string }) {
   const scene = state.scene || '';
   const { data } = useBroadcastScenes(state.match_id, !!scene);
+  // 'facts' is the single stats scene from before attack and defence were split.
+  const statsHalf = scene === 'defence' ? 'defence' : scene === 'attack' || scene === 'facts' ? 'attack' : null;
+  const comparison = useMatchComparison(state.match_id, data, !!statsHalf);
   if (!scene || !data || data.match.id !== state.match_id) return null;
+
+  if (statsHalf) {
+    return comparison ? (
+      <SceneStats half={statsHalf} data={data} comparison={comparison} state={state} clock={clock} />
+    ) : null;
+  }
 
   switch (scene) {
     case 'opening':
       return <SceneOpening data={data} />;
-    case 'facts':
-      return <SceneFacts data={data} state={state} clock={clock} />;
     case 'standings':
       return data.standings.length ? <SceneStandings data={data} /> : null;
     case 'lineup':

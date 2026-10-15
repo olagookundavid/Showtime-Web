@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -25,7 +25,13 @@ import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { FootballIcon } from "../icons/FootballIcon";
 import { TeamLink } from "../domain";
 import { Spinner } from "../ui/Spinner";
-import { formatStatNumber, formatStatDecimal } from "../../utils";
+import {
+  attackRows,
+  computeTeamComparison,
+  defenceRows,
+  formatStatNumber,
+  formatStatDecimal,
+} from "../../utils";
 import { calculatePlayerFantasyPoints, getUnifiedMatchMvp } from "./matchMvp";
 
 // A stable empty list, so memos keyed on the stats don't rerun every render.
@@ -148,96 +154,14 @@ export const MatchSummaryTab = ({
       return g === "female" || g === "f";
     };
 
-    const initStats = () => ({
-      plays: 0,
-      yards: 0,
-      catches: 0,
-      drops: 0,
-      passAttempts: 0,
-      completions: 0,
-      punts: 0,
-      turnovers: 0,
-      totalTDs: 0,
-      femaleTDs: 0,
-      flagPulls: 0,
-      interceptions: 0,
-      batDowns: 0,
-      infractions: 0,
-      sacks: 0,
-      pickSix: 0,
+    return computeTeamComparison({
+      playerStats,
+      plays,
+      homeTeamId,
+      awayTeamId,
+      isFemale: (side, playerId) =>
+        isFemale(side === "home" ? homeSheet : awaySheet, playerId),
     });
-
-    const home = initStats();
-    const away = initStats();
-
-    playerStats.forEach((p) => {
-      const isHome = p.team_id === homeTeamId;
-      const target = isHome ? home : away;
-      const sheet = isHome ? homeSheet : awaySheet;
-
-      target.plays += (p.passing_attempts || 0) + (p.rushing_attempts || 0);
-      target.yards += (p.passing_yards || 0) + (p.rushing_yards || 0);
-      target.catches += p.receptions || 0;
-      target.drops += p.drops || 0;
-      target.passAttempts += p.passing_attempts || 0;
-      target.completions += p.completed_passes || 0;
-      target.turnovers += p.interceptions_thrown || 0;
-      target.totalTDs += (p.passing_tds || 0) + (p.rushing_tds || 0);
-      if (isFemale(sheet, p.player_id)) {
-        target.femaleTDs += (p.receiving_tds || 0) + (p.rushing_tds || 0);
-      }
-      target.flagPulls += p.flag_pulls || 0;
-      target.interceptions += p.interceptions || 0;
-      target.batDowns +=
-        (p.batted_down_passes || 0) + (p.pass_deflections || 0);
-      target.sacks += p.def_sacks || 0;
-    });
-
-    // If plays exist, compute precise turnovers (TO on downs, INTs, bad snaps) from play-by-play
-    if (plays.length > 0) {
-      home.turnovers = 0;
-      away.turnovers = 0;
-    }
-
-    // Derive punts, turnovers, penalties (infractions) and pick-sixes from plays
-    plays.forEach((pl) => {
-      if (pl.play_type === "PUNT") {
-        if (pl.offense_team_id === homeTeamId) home.punts += 1;
-        else if (pl.offense_team_id === awayTeamId) away.punts += 1;
-      }
-      const isTO =
-        pl.result === "TO" ||
-        pl.result === "INT" ||
-        pl.play_type === "INT" ||
-        (pl.play_type === "BADSNAP" && pl.result === "TO");
-      if (isTO) {
-        if (pl.offense_team_id === homeTeamId) home.turnovers += 1;
-        else if (pl.offense_team_id === awayTeamId) away.turnovers += 1;
-      }
-      if (pl.penalty) {
-        if (pl.penalty_team_id === homeTeamId) home.infractions += 1;
-        else if (pl.penalty_team_id === awayTeamId) away.infractions += 1;
-      }
-      if (
-        (pl.result === "INT" || pl.play_type === "INT") &&
-        pl.returned_for_td
-      ) {
-        // Defender's team gets the pick 6
-        if (pl.offense_team_id === homeTeamId) away.pickSix += 1;
-        else if (pl.offense_team_id === awayTeamId) home.pickSix += 1;
-      }
-    });
-
-    const homeCompPct =
-      home.passAttempts > 0
-        ? Math.round((home.completions / home.passAttempts) * 100)
-        : 0;
-    const awayCompPct =
-      away.passAttempts > 0
-        ? Math.round((away.completions / away.passAttempts) * 100)
-        : 0;
-
-    return { home, away, homeCompPct, awayCompPct };
   }, [playerStats, plays, homeTeamId, awayTeamId, teamSheet]);
 
   // ── Unified Match MVP & Top Performers ──
@@ -286,7 +210,7 @@ export const MatchSummaryTab = ({
     );
   }
 
-  const { home, away, homeCompPct, awayCompPct } = teamComparison;
+  const { home, away } = teamComparison;
 
   // Helper for rendering horizontal comparison bar
   const renderComparisonRow = (
@@ -641,69 +565,17 @@ export const MatchSummaryTab = ({
               </span>
             </div>
             <div className="divide-y divide-gray-50 dark:divide-gray-700/40">
-              {renderComparisonRow(
-                "Total Plays",
-                home.plays,
-                away.plays,
-                home.plays,
-                away.plays,
-              )}
-              {renderComparisonRow(
-                "Total Yards",
-                home.yards,
-                away.yards,
-                home.yards,
-                away.yards,
-              )}
-              {renderComparisonRow(
-                "Pass Completion %",
-                `${homeCompPct}%`,
-                `${awayCompPct}%`,
-                homeCompPct,
-                awayCompPct,
-              )}
-              {renderComparisonRow(
-                "Catches",
-                home.catches,
-                away.catches,
-                home.catches,
-                away.catches,
-              )}
-              {renderComparisonRow(
-                "Drops",
-                home.drops,
-                away.drops,
-                home.drops,
-                away.drops,
-              )}
-              {renderComparisonRow(
-                "Turnovers",
-                home.turnovers,
-                away.turnovers,
-                home.turnovers,
-                away.turnovers,
-              )}
-              {renderComparisonRow(
-                "Punts",
-                home.punts,
-                away.punts,
-                home.punts,
-                away.punts,
-              )}
-              {renderComparisonRow(
-                "Total Touchdowns",
-                home.totalTDs,
-                away.totalTDs,
-                home.totalTDs,
-                away.totalTDs,
-              )}
-              {renderComparisonRow(
-                "Female Touchdowns",
-                home.femaleTDs,
-                away.femaleTDs,
-                home.femaleTDs,
-                away.femaleTDs,
-              )}
+              {attackRows(teamComparison).map((r) => (
+                <Fragment key={r.label}>
+                  {renderComparisonRow(
+                    r.label,
+                    r.homeText,
+                    r.awayText,
+                    r.homeValue,
+                    r.awayValue,
+                  )}
+                </Fragment>
+              ))}
             </div>
           </div>
 
@@ -722,48 +594,17 @@ export const MatchSummaryTab = ({
               </span>
             </div>
             <div className="divide-y divide-gray-50 dark:divide-gray-700/40">
-              {renderComparisonRow(
-                "Flag Pulls",
-                home.flagPulls,
-                away.flagPulls,
-                home.flagPulls,
-                away.flagPulls,
-              )}
-              {renderComparisonRow(
-                "Interceptions",
-                home.interceptions,
-                away.interceptions,
-                home.interceptions,
-                away.interceptions,
-              )}
-              {renderComparisonRow(
-                "Bat Downs / Deflections",
-                home.batDowns,
-                away.batDowns,
-                home.batDowns,
-                away.batDowns,
-              )}
-              {renderComparisonRow(
-                "QB / Def Sacks",
-                home.sacks,
-                away.sacks,
-                home.sacks,
-                away.sacks,
-              )}
-              {renderComparisonRow(
-                "Infractions (Penalties)",
-                home.infractions,
-                away.infractions,
-                home.infractions,
-                away.infractions,
-              )}
-              {renderComparisonRow(
-                "Pick 6 Scores",
-                home.pickSix,
-                away.pickSix,
-                home.pickSix,
-                away.pickSix,
-              )}
+              {defenceRows(teamComparison).map((r) => (
+                <Fragment key={r.label}>
+                  {renderComparisonRow(
+                    r.label,
+                    r.homeText,
+                    r.awayText,
+                    r.homeValue,
+                    r.awayValue,
+                  )}
+                </Fragment>
+              ))}
             </div>
 
             {/* Discipline Note */}

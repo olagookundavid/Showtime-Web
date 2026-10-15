@@ -66,12 +66,13 @@ The per-match links in section 2 still work, for one-off streams of a single mat
 
 ## 2c. Full-Screen Scenes
 
-Four full-screen graphics are run from the studio's **Full-screen scenes** card. While one is up, the scorebug steps aside (in a scorebug-only input too) and comes back when the scene comes off. Lower-thirds still draw on top.
+Five full-screen graphics are run from the studio's **Full-screen scenes** card. While one is up, the scorebug steps aside (in a scorebug-only input too) and comes back when the scene comes off. Lower-thirds still draw on top.
 
 | Scene | Shows | Data |
 | --- | --- | --- |
-| Opening matchup | Both clubs, their record and table position, venue, kickoff, competition | Match, standings, event day |
-| Match facts | The on-air score and clock over team totals: plays, touchdowns, female touchdowns, completion rate, flag pulls, interceptions, bat downs, infractions | Play-by-play, refreshed every 10 seconds |
+| Opening matchup | Both clubs, their record (e.g. "2 wins · 1 loss · 3rd place"), venue, kickoff, competition | Match, standings, event day |
+| Attack & possession | The on-air score and clock over plays, yards, pass completion, catches, drops, turnovers, punts, touchdowns and female touchdowns | The same numbers as the match page's comparison, refreshed every 10 seconds |
+| Defence & discipline | The on-air score and clock over flag pulls, interceptions, bat downs, sacks, infractions and pick sixes | As above |
 | Standings | The competition table with each side's form; the two teams playing are highlighted | Live standings (in-progress matches count at their current score) |
 | Starting lineup | One team's starting offence against the other's defence on a field, with both benches | Team sheets (projected from the squad when a team hasn't named starters) |
 

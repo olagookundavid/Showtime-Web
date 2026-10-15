@@ -15,11 +15,15 @@ const ordinal = (n: number) => {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 };
 
-/** "2–1 · 3rd place", "2–1–1" with draws, or "Season debut" before a first game. */
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** "2 wins · 1 loss · 3rd place" (draws only when there are any), or "Season debut" before a first game. */
 export function recordText(team: SceneTeam) {
   if (team.won + team.lost + team.drawn === 0) return 'Season debut';
-  const record = team.drawn ? `${team.won}–${team.lost}–${team.drawn}` : `${team.won}–${team.lost}`;
-  return team.position ? `${record} · ${ordinal(team.position)} place` : record;
+  const parts = [count(team.won, 'win', 'wins'), count(team.lost, 'loss', 'losses')];
+  if (team.drawn) parts.push(count(team.drawn, 'draw', 'draws'));
+  if (team.position) parts.push(`${ordinal(team.position)} place`);
+  return parts.join(' · ');
 }
 
 /** "SHOWTIME BOWL XV · MATCH DAY 2 · MATCH 3", leaving out what isn't known. */
