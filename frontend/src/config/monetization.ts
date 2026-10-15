@@ -29,7 +29,6 @@ export const AD_SLOTS = {
     stats: '',          // stats page (Stats)
     playerDetail: '',   // player profile (PlayerDetail)
     teamDetail: '',     // team page (TeamDetail)
-    gallery: '',        // gallery page (Gallery)
     landing: '',        // homepage (Landing) — keep below the fold
 } as const;
 

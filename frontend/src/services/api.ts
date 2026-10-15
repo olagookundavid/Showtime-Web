@@ -11,8 +11,6 @@ import type {
   RelivePlaylist,
   LiveStatus,
   AdminLiveStatus,
-  Gallery,
-  CreateGalleryPayload,
   HeroSlide,
   CreateHeroSlidePayload,
   UpdateHeroSlidePayload,
@@ -340,20 +338,6 @@ export const liveApi = {
   },
 };
 
-// ─── Gallery ──────────────────────────────────────────────────────────────────
-export const getGallery = async (
-  page = 1,
-  limit = 10,
-  competitionId?: string,
-) => {
-  let url = `/gallery?page=${page}&limit=${limit}`;
-  if (competitionId) {
-    url += `&competition_id=${encodeURIComponent(competitionId)}`;
-  }
-  const response = await api.get<PaginatedResponse<Gallery>>(url);
-  return response.data;
-};
-
 // ─── Hero Slides ──────────────────────────────────────────────────────────────
 // Legacy: slides created before `destination_url` existed link to a hidden
 // news article (authored inline, from this admin — not the News admin)
@@ -669,25 +653,6 @@ export const updateNews = async (
 
 export const deleteNews = async (id: string) => {
   const response = await api.delete(`/admin/news/${id}`);
-  return response.data;
-};
-
-// ─── Gallery Mutations ────────────────────────────────────────────────────────
-export const createGallery = async (payload: CreateGalleryPayload) => {
-  const response = await api.post("/admin/gallery", payload);
-  return response.data;
-};
-
-export const updateGallery = async (
-  id: string,
-  payload: Partial<CreateGalleryPayload>,
-) => {
-  const response = await api.put(`/admin/gallery/${id}`, payload);
-  return response.data;
-};
-
-export const deleteGallery = async (id: string) => {
-  const response = await api.delete(`/admin/gallery/${id}`);
   return response.data;
 };
 

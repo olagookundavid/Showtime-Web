@@ -68,7 +68,6 @@ const (
 	FeatureInventory          = "inventory"
 	FeatureNews               = "news"
 	FeatureHeroSlides         = "hero_slides"
-	FeatureGallery            = "gallery"
 	FeatureLiveStream         = "live_stream"
 	FeatureSeasonMVPs         = "season_mvps"
 	FeatureAppSettings        = "app_settings"
@@ -113,7 +112,6 @@ var FeatureCatalog = []FeatureDef{
 
 	{FeatureNews, "News", "Content", "Publish and edit news.", true},
 	{FeatureHeroSlides, "Hero slides", "Content", "The homepage banner slides.", true},
-	{FeatureGallery, "Gallery", "Content", "Photo galleries.", true},
 	{FeatureLiveStream, "Live stream", "Content", "The live stream and replays.", true},
 	{FeatureCommentModeration, "Moderate comments", "Content", "Delete other people's comments.", true},
 

@@ -9,7 +9,6 @@ type Handlers struct {
 	AuthHandler                 transport.IAuthHandler
 	RoleHandler                 transport.IRoleHandler
 	NewsHandler                 transport.INewsHandler
-	GalleryHandler              transport.IGalleryHandler
 	MatchHandler                transport.IMatchHandler
 	PlayerHandler               transport.IPlayerHandler
 	TicketHandler               transport.ITicketHandler
@@ -23,6 +22,7 @@ type Handlers struct {
 	StoreHandler                transport.IStoreHandler
 	ImportHandler               transport.IImportHandler
 	HeroSlideHandler            transport.IHeroSlideHandler
+	SitemapHandler              transport.ISitemapHandler
 	SeasonHandler               transport.ISeasonHandler
 	PlayHandler                 transport.IPlayHandler
 	ReliveHandler               transport.IReliveHandler
@@ -48,7 +48,6 @@ func NewHandlers(
 	authHandler transport.IAuthHandler,
 	roleHandler transport.IRoleHandler,
 	newsHandler transport.INewsHandler,
-	galleryHandler transport.IGalleryHandler,
 	matchHandler transport.IMatchHandler,
 	playerHandler transport.IPlayerHandler,
 	ticketHandler transport.ITicketHandler,
@@ -62,6 +61,7 @@ func NewHandlers(
 	storeHandler transport.IStoreHandler,
 	importHandler transport.IImportHandler,
 	heroSlideHandler transport.IHeroSlideHandler,
+	sitemapHandler transport.ISitemapHandler,
 	seasonHandler transport.ISeasonHandler,
 	playHandler transport.IPlayHandler,
 	reliveHandler transport.IReliveHandler,
@@ -86,7 +86,6 @@ func NewHandlers(
 		AuthHandler:                 authHandler,
 		RoleHandler:                 roleHandler,
 		NewsHandler:                 newsHandler,
-		GalleryHandler:              galleryHandler,
 		MatchHandler:                matchHandler,
 		PlayerHandler:               playerHandler,
 		TicketHandler:               ticketHandler,
@@ -100,6 +99,7 @@ func NewHandlers(
 		StoreHandler:                storeHandler,
 		ImportHandler:               importHandler,
 		HeroSlideHandler:            heroSlideHandler,
+		SitemapHandler:              sitemapHandler,
 		SeasonHandler:               seasonHandler,
 		PlayHandler:                 playHandler,
 		ReliveHandler:               reliveHandler,

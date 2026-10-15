@@ -415,7 +415,6 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	authRepo := ports.NewAuthRepository(pool)
 	roleRepo := ports.NewRoleRepository(pool)
 	newsRepo := ports.NewNewsRepository(pool)
-	galleryRepo := ports.NewGalleryRepository(pool)
 	matchRepo := ports.NewMatchRepository(pool)
 	playerRepo := ports.NewPlayerRepository(pool)
 	eventDayRepo := ports.NewEventDayRepository(pool)
@@ -475,7 +474,6 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	discountService := services.NewDiscountService(discountRepo)
 
 	newsService := services.NewNewsService(newsRepo, storageService)
-	galleryService := services.NewGalleryService(galleryRepo)
 	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
 	ticketService := services.NewTicketService(eventDayRepo, productRepo, ticketRepo, scheduledEmailRepo, matchRepo, paystackClient, emailService, discountService, discountRepo)
@@ -512,7 +510,6 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	authHandler := transport.NewAuthHandler(authService)
 	roleHandler := transport.NewRoleHandler(roleService)
 	newsHandler := transport.NewNewsHandler(newsService)
-	galleryHandler := transport.NewGalleryHandler(galleryService)
 	matchHandler := transport.NewMatchHandler(matchService)
 	playerHandler := transport.NewPlayerHandler(playerService, contractService, authRepo)
 	ticketHandler := transport.NewTicketHandler(ticketService, paystackClient)
@@ -526,6 +523,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeHandler := transport.NewStoreHandler(storeService, paystackClient)
 	importHandler := transport.NewImportHandler(importService)
 	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
+	sitemapHandler := transport.NewSitemapHandler(ports.NewSitemapRepository(pool))
 	seasonHandler := transport.NewSeasonHandler(seasonService)
 	playHandler := transport.NewPlayHandler(playService)
 	contractHandler := transport.NewContractHandler(contractService, authRepo, auditService)
@@ -573,10 +571,10 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService, broadcastRepo)
 
 	h := handlers.NewHandlers(
-		authHandler, roleHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
+		authHandler, roleHandler, newsHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, siteEventsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, storeHandler, importHandler,
-		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
+		heroSlideHandler, sitemapHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,

@@ -117,3 +117,7 @@ Every folder under `src/components/` (plus `utils/`, `hooks/`, `types/`, `contex
 - **Cross-folder imports go through the barrel:** `from '../domain'`, not `from '../domain/seasonStages'`. The top-level `src/components/index.ts` re-aggregates every subfolder's barrel, so pages typically import from `../../components`, `../../utils`, `../../hooks` or `../../types`.
 - **Same-folder sibling imports stay direct** (`./seasonStages` from a file in the same folder) — the rule is about crossing folder boundaries, not internal organization.
 - **`pages/index.ts` covers only eagerly-loaded top-level pages.** Lazily-loaded routes (store, fantasy, admin, account, broadcast) intentionally bypass it via `lazy(() => import('./pages/...'))` for code-splitting — a deliberate second pattern, not a violation.
+
+## 10. Sitemap
+
+`/sitemap.xml` is built by the backend (`sitemapStaticPaths` in `backend/internal/transport/sitemap_handler.go`; `vercel.json` rewrites the URL to it). When you add or remove a **public** route in `App.tsx` (anything a visitor can open without signing in; not `/admin`, `/account`, `/store/cart` or other `robots.txt` disallows), update that list in the same change. A new public detail page backed by a database record (like `/news/:slug`) also needs its query added in `backend/internal/ports/sitemap_repo.go`. Don't recreate `public/sitemap.xml`: a static file there would override the rewrite.
