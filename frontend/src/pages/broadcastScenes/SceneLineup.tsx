@@ -24,7 +24,9 @@ function Bench({ title, players, away }: { title: string; players: ScenePlayer[]
     <aside className={`scn-bench ${away ? 'away' : ''}`}>
       <div className="scn-bench-header">
         <strong>{title}</strong>
-        <span>{players.length} PLAYERS</span>
+        <span>
+          {players.length} {players.length === 1 ? 'PLAYER' : 'PLAYERS'}
+        </span>
       </div>
       {players.length ? (
         <div className="scn-bench-list">
@@ -43,6 +45,9 @@ function Bench({ title, players, away }: { title: string; players: ScenePlayer[]
   );
 }
 
+// Long names step down in size so they show in full beside the stats.
+const spotlightNameSize = (name: string) => (name.length > 22 ? 26 : name.length > 16 ? 31 : 38);
+
 function Spotlight({ node, team, index, total }: { node: LineupNode; team: string; index: number; total: number }) {
   const stats = spotlightStats(node);
   return (
@@ -52,7 +57,9 @@ function Spotlight({ node, team, index, total }: { node: LineupNode; team: strin
       </div>
       <div className="scn-spotlight-copy">
         <small>NOW INTRODUCING · {team}</small>
-        <div className="scn-spotlight-name scn-display">{node.player.name}</div>
+        <div className="scn-spotlight-name scn-display" style={{ fontSize: spotlightNameSize(node.player.name) }}>
+          {node.player.name}
+        </div>
         <div className="scn-spotlight-meta">
           #{node.player.number} · {node.roleLong.toUpperCase()}
         </div>
