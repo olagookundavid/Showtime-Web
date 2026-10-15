@@ -171,6 +171,12 @@ export const Footer = () => {
       </div>
       <div className="text-center text-gray-400 dark:text-gray-500 text-[10px] md:text-xs mt-6 md:mt-8 border-t border-gray-800 dark:border-gray-800/80 pt-3 md:pt-4">
         &copy; 2026 Showtime Flag Football League.
+        <Link
+          to="/sitemap"
+          className="hover:text-white min-h-11 flex items-center justify-center"
+        >
+          Sitemap
+        </Link>
       </div>
     </footer>
   );

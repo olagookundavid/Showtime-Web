@@ -57,8 +57,6 @@ var referencedImageQueries = []string{
 	// Attribute values are HTML-escaped, so a URL with "&" appears as "&amp;".
 	`SELECT replace(m[1], '&amp;', '&') FROM news, regexp_matches(content, '<img[^>]+src="([^"]+)"', 'g') AS m`,
 	`SELECT m[1] FROM news, regexp_matches(content, '\[image:([^|\]]+)', 'g') AS m`,
-	`SELECT players_photo_url FROM gallery WHERE players_photo_url IS NOT NULL AND players_photo_url <> ''`,
-	`SELECT fans_photo_url FROM gallery WHERE fans_photo_url IS NOT NULL AND fans_photo_url <> ''`,
 	`SELECT image FROM players WHERE image IS NOT NULL AND image <> ''`,
 	`SELECT logo FROM teams WHERE logo IS NOT NULL AND logo <> ''`,
 	`SELECT logo FROM competitions WHERE logo IS NOT NULL AND logo <> ''`,

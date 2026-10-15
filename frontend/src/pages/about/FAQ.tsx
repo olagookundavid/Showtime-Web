@@ -5,7 +5,12 @@ import {
   RocketLaunchIcon,
   TicketIcon,
 } from "@heroicons/react/24/outline";
-import { CopyableEmail, FootballIcon, PitchIcon, navLinkClass } from "../../components";
+import {
+  CopyableEmail,
+  FootballIcon,
+  PitchIcon,
+  navLinkClass,
+} from "../../components";
 
 // Heroicons has no handshake, so the partnerships mark is drawn in their
 // outline style: two forearms meeting in a clasp.
@@ -187,7 +192,7 @@ export const FAQ = () => {
 
   return (
     <div className="space-y-4 md:space-y-8">
-      <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-10 lg:items-start">
+      <div className="lg:grid lg:grid-cols-[290px_1fr] lg:gap-10 lg:items-start">
         <div
           role="tablist"
           aria-label="FAQ categories"

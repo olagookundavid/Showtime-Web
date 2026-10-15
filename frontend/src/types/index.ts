@@ -15,7 +15,6 @@ export * from './fantasy/leagues';
 export * from './fantasy/reports';
 export * from './fantasy/squad';
 export * from './fantasy/wallet';
-export * from './gallery';
 export * from './heroSlides';
 export * from './inventory';
 export * from './livestream';

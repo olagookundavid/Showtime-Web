@@ -15,6 +15,7 @@ import {
   OurTeam,
   Sponsorships,
   PrivacyPolicy,
+  Sitemap,
   NewsList,
   NewsDetail,
   MatchHub,
@@ -161,7 +162,6 @@ const BroadcastOverlay = lazy(() =>
 const AdminNews = lazy(() =>
   import("./pages/admin/AdminNews").then((m) => ({ default: m.AdminNews })),
 );
-// const AdminGallery = lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
 const AdminHeroSlides = lazy(() =>
   import("./pages/admin/AdminHeroSlides").then((m) => ({
     default: m.AdminHeroSlides,
@@ -416,7 +416,6 @@ function App() {
                       />
                       <Route path="/news" element={<NewsList />} />
                       <Route path="/news/:slug" element={<NewsDetail />} />
-                      {/* <Route path="/gallery" element={<Gallery />} /> */}
                       <Route
                         path="/tickets/confirm"
                         element={<TicketConfirmation />}
@@ -579,6 +578,7 @@ function App() {
                           element={<PrivacyPolicy />}
                         />
                       </Route>
+                      <Route path="/sitemap" element={<Sitemap />} />
                     </Route>
 
                     {/* Admin Routes (No Layout) */}
@@ -658,7 +658,6 @@ function App() {
                           </FeatureGuard>
                         }
                       />
-                      {/* <Route path="gallery" element={<AdminGallery />} /> */}
                       <Route
                         path="hero-slides"
                         element={

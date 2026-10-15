@@ -138,7 +138,6 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     title: "Content",
     links: [
       { name: "News", path: "/admin/news", icon: NewspaperIcon },
-      // { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
       { name: "Hero Slides", path: "/admin/hero-slides", icon: PhotoIcon },
       { name: "Live Stream", path: "/admin/live-stream", icon: SignalIcon },
     ],

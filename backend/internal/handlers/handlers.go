@@ -9,7 +9,6 @@ type Handlers struct {
 	AuthHandler                 transport.IAuthHandler
 	RoleHandler                 transport.IRoleHandler
 	NewsHandler                 transport.INewsHandler
-	GalleryHandler              transport.IGalleryHandler
 	MatchHandler                transport.IMatchHandler
 	PlayerHandler               transport.IPlayerHandler
 	TicketHandler               transport.ITicketHandler
@@ -48,7 +47,6 @@ func NewHandlers(
 	authHandler transport.IAuthHandler,
 	roleHandler transport.IRoleHandler,
 	newsHandler transport.INewsHandler,
-	galleryHandler transport.IGalleryHandler,
 	matchHandler transport.IMatchHandler,
 	playerHandler transport.IPlayerHandler,
 	ticketHandler transport.ITicketHandler,
@@ -86,7 +84,6 @@ func NewHandlers(
 		AuthHandler:                 authHandler,
 		RoleHandler:                 roleHandler,
 		NewsHandler:                 newsHandler,
-		GalleryHandler:              galleryHandler,
 		MatchHandler:                matchHandler,
 		PlayerHandler:               playerHandler,
 		TicketHandler:               ticketHandler,

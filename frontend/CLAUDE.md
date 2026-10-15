@@ -117,3 +117,7 @@ Every folder under `src/components/` (plus `utils/`, `hooks/`, `types/`, `contex
 - **Cross-folder imports go through the barrel:** `from '../domain'`, not `from '../domain/seasonStages'`. The top-level `src/components/index.ts` re-aggregates every subfolder's barrel, so pages typically import from `../../components`, `../../utils`, `../../hooks` or `../../types`.
 - **Same-folder sibling imports stay direct** (`./seasonStages` from a file in the same folder) — the rule is about crossing folder boundaries, not internal organization.
 - **`pages/index.ts` covers only eagerly-loaded top-level pages.** Lazily-loaded routes (store, fantasy, admin, account, broadcast) intentionally bypass it via `lazy(() => import('./pages/...'))` for code-splitting — a deliberate second pattern, not a violation.
+
+## 10. Sitemap
+
+`public/sitemap.xml` is a hand-kept list of **top-level, evergreen** public pages only (home, standings, teams, players, news, about, ...). When you add or remove such a route in `App.tsx` (anything a visitor can open without signing in; not `/admin`, `/account`, `/store/cart` or other `robots.txt` disallows), update that file and the human-readable `GROUPS` in `src/pages/Sitemap.tsx` (the footer "Sitemap" page) in the same change. Never list detail pages (`/matches/:id`, `/players/:id`, `/news/:slug`...): too many URLs is noise for Google and for people.

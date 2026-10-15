@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Static list of the public hub pages. Detail pages (news articles, matches,
-     players, teams) are reached by crawling links from these hubs. -->
+<!-- Top-level, evergreen pages only. Detail pages (single match, player, team,
+     article) are deliberately left out; crawlers reach them from these hubs. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://www.showtimeflag.football/</loc></url>
   <url><loc>https://www.showtimeflag.football/news</loc></url>
@@ -11,9 +11,9 @@
   <url><loc>https://www.showtimeflag.football/players</loc></url>
   <url><loc>https://www.showtimeflag.football/totw</loc></url>
   <url><loc>https://www.showtimeflag.football/potw</loc></url>
-  <url><loc>https://www.showtimeflag.football/gallery</loc></url>
   <url><loc>https://www.showtimeflag.football/tickets</loc></url>
   <url><loc>https://www.showtimeflag.football/store</loc></url>
+  <url><loc>https://www.showtimeflag.football/fantasy</loc></url>
   <url><loc>https://www.showtimeflag.football/about/showtime-flag</loc></url>
   <url><loc>https://www.showtimeflag.football/about/our-team</loc></url>
   <url><loc>https://www.showtimeflag.football/about/rules</loc></url>

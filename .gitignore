@@ -74,3 +74,5 @@ inject_opening_player_prices.sql
 
 # Local UI mockups (design references, not shipped)
 /Showtime_*_UI.html
+/Showtime_Livestream_Overlay_Package.html
+/Showtime_Starting_Lineup_Overlay.html
