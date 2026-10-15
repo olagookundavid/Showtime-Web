@@ -23,20 +23,23 @@ type IBroadcastHandler interface {
 	SetDayOnAir(c *gin.Context)
 	DayOverlayState(c *gin.Context)
 	DayViewerWS(c *gin.Context)
+	SceneData(c *gin.Context)
 }
 
 type BroadcastHandler struct {
 	hub          *Hub
 	matchService services.IMatchService
 	playService  services.IPlayService
+	statsService services.IStatsService
 	days         ports.IBroadcastStateRepository
 }
 
-func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playService services.IPlayService, days ports.IBroadcastStateRepository) *BroadcastHandler {
+func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playService services.IPlayService, statsService services.IStatsService, days ports.IBroadcastStateRepository) *BroadcastHandler {
 	return &BroadcastHandler{
 		hub:          hub,
 		matchService: matchService,
 		playService:  playService,
+		statsService: statsService,
 		days:         days,
 	}
 }
@@ -488,4 +491,17 @@ func (h *BroadcastHandler) DayViewerWS(c *gin.Context) {
 	h.hub.Register(client)
 	go client.WritePump()
 	client.ReadPump()
+}
+
+// SceneData is the public data for a match's full-screen scenes (opening
+// matchup, match facts, standings, starting lineup). The overlay polls it while
+// a scene is on air.
+func (h *BroadcastHandler) SceneData(c *gin.Context) {
+	matchID := c.Param("matchId")
+	data, err := h.buildSceneData(c.Request.Context(), matchID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "match not found"})
+		return
+	}
+	c.JSON(http.StatusOK, data)
 }

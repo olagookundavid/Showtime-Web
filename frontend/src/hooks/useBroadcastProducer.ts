@@ -128,6 +128,9 @@ export function useBroadcastProducer(matchId: string) {
 
   // Send state update through WS or fallback REST PUT
   const sendState = useCallback(async (newState: BroadcastState) => {
+    // Update the ref now, not after the re-render, so two changes in a row
+    // (quick clicks, or a scene and its cursor) build on each other.
+    stateRef.current = newState;
     setState(newState);
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -151,6 +154,12 @@ export function useBroadcastProducer(matchId: string) {
       updated_at: Date.now(),
     };
     sendState(updated);
+  }, [sendState]);
+
+  /** Changes several fields in one update, so they reach the overlays together. */
+  const updateFields = useCallback((patch: Partial<BroadcastState>) => {
+    if (!stateRef.current) return;
+    sendState({ ...stateRef.current, ...patch, updated_at: Date.now() });
   }, [sendState]);
 
   const updateScore = useCallback((manualHome: number, manualAway: number) => {
@@ -216,6 +225,7 @@ export function useBroadcastProducer(matchId: string) {
     isConnected,
     error,
     updateField,
+    updateFields,
     updateScore,
     toggleClock,
     setClock,

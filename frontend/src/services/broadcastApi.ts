@@ -1,5 +1,7 @@
+import axios from 'axios';
 import api from './api';
-import type { BroadcastDayMatch, BroadcastMatchDay, PaginatedResponse } from '../types';
+import { API_URL } from '../constants';
+import type { BroadcastDayMatch, BroadcastMatchDay, PaginatedResponse, SceneData } from '../types';
 
 // Event-day broadcast channels (admin, broadcast_studio feature).
 
@@ -19,4 +21,14 @@ export const getBroadcastDay = async (
 export const setBroadcastDayOnAir = async (date: string, matchId: string | null) => {
   const res = await api.put(`/admin/broadcast/days/${date}/on-air`, { match_id: matchId ?? '' });
   return res.data as { date: string; on_air_match_id: string };
+};
+
+/**
+ * Data for a match's full-screen scenes. Public, like the overlay itself, and
+ * served from the API host's root rather than /api/v1.
+ */
+export const getBroadcastScenes = async (matchId: string): Promise<SceneData> => {
+  const origin = new URL(API_URL, window.location.origin).origin;
+  const res = await axios.get(`${origin}/broadcast/${matchId}/overlay/scenes`);
+  return res.data;
 };

@@ -36,6 +36,7 @@ import {
   ArrowTopRightOnSquareIcon,
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
+import { BroadcastScenesCard } from "./BroadcastScenesCard";
 
 const CALL_BUTTONS = [
   { label: "Touchdown", call: "TOUCHDOWN", red: true },
@@ -143,6 +144,7 @@ export function BroadcastControlPanel({
     isConnected,
     error,
     updateField,
+    updateFields,
     updateScore,
     toggleClock,
     setClock,
@@ -769,6 +771,9 @@ export function BroadcastControlPanel({
             </div>
           </div>
 
+          {/* Full-screen scenes: opening, facts, standings, starting lineup */}
+          <BroadcastScenesCard state={state} updateFields={updateFields} />
+
           {/* Section 3: Recent play-by-play queue (hidden in manual-only mode) */}
           {!manualOnly && (
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-4">
@@ -894,10 +899,11 @@ export function BroadcastControlPanel({
                 <b>1920 × 1080</b>.
               </p>
               <p>
-                <b>3.</b> For separate layers, add the scorebug and lower-thirds
-                as two inputs, e.g. scorebug on <b>Overlay 1</b> and
-                lower-thirds on <b>Overlay 2</b>, so each can go on and off air
-                by itself. For a single input, use <b>Everything</b>.
+                <b>3.</b> For separate layers, add each part as its own input,
+                e.g. scorebug on <b>Overlay 1</b>, lower-thirds on{" "}
+                <b>Overlay 2</b> and full-screen scenes on <b>Overlay 3</b>, so
+                each can go on and off air by itself. For a single input, use{" "}
+                <b>Everything</b>.
               </p>
               <p className="font-semibold text-gray-700 dark:text-gray-200">
                 {overlayTarget.kind === "day"

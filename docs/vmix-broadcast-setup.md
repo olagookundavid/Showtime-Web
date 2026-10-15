@@ -64,6 +64,23 @@ The per-match links in section 2 still work, for one-off streams of a single mat
 
 ---
 
+## 2c. Full-Screen Scenes
+
+Four full-screen graphics are run from the studio's **Full-screen scenes** card. While one is up, the scorebug steps aside (in a scorebug-only input too) and comes back when the scene comes off. Lower-thirds still draw on top.
+
+| Scene | Shows | Data |
+| --- | --- | --- |
+| Opening matchup | Both clubs, their record and table position, venue, kickoff, competition | Match, standings, event day |
+| Match facts | The on-air score and clock over team totals: plays, touchdowns, female touchdowns, completion rate, flag pulls, interceptions, bat downs, infractions | Play-by-play, refreshed every 10 seconds |
+| Standings | The competition table with each side's form; the two teams playing are highlighted | Live standings (in-progress matches count at their current score) |
+| Starting lineup | One team's starting offence against the other's defence on a field, with both benches | Team sheets (projected from the squad when a team hasn't named starters) |
+
+**vMix:** scenes are part of the **Everything** link. To run them as their own layer, add the scenes link (`…/overlay?layer=scenes`, or the event-day equivalent) as a third Web Browser input on **Overlay 3**.
+
+**Starting lineup introductions:** pick the team attacking, then **Start introductions**. Each starter appears centre stage with their season numbers, and **Next player** moves them to their spot and brings on the next (quarterbacks, center, receivers, then the rusher and defenders). **Auto-play** advances every 4 seconds; **Show full lineup** skips to the end.
+
+---
+
 ## 3. Producer Studio Operation
 
 The broadcast operator/producer controls what appears on air:

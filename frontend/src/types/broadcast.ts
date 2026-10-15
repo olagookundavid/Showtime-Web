@@ -34,6 +34,24 @@ export interface BroadcastState {
   graphic?: GraphicEvent | null;
   graphic_id: number;
   updated_at: number;
+  /** Full-screen scene on air; empty or absent = none. */
+  scene?: BroadcastScene | '';
+  /** Side shown attacking on the lineup scene. */
+  lineup_attack?: 'home' | 'away';
+  /** Starting-lineup introductions; null when not running. */
+  lineup_intro?: LineupIntro | null;
+}
+
+/** Full-screen scenes on the scenes layer. */
+export type BroadcastScene = 'opening' | 'facts' | 'standings' | 'lineup';
+
+/**
+ * Starters are introduced one at a time in a fixed order. `cursor` starters are
+ * already placed; the one at `cursor` is being introduced. Every overlay draws
+ * the same picture from it, so separate vMix inputs stay in step.
+ */
+export interface LineupIntro {
+  cursor: number;
 }
 
 export interface BroadcastPlayer {
@@ -66,16 +84,21 @@ export function formatClock(seconds: number): string {
  * lower-third inputs let the crew put them on different overlay channels and
  * take one off air (e.g. the scorebug during replays) without the other.
  */
-export type OverlayLayer = 'all' | 'scorebug' | 'graphics';
+export type OverlayLayer = 'all' | 'scorebug' | 'graphics' | 'scenes';
 
 export const OVERLAY_LAYERS: { value: OverlayLayer; label: string; hint: string }[] = [
   { value: 'scorebug', label: 'Scorebug only', hint: 'Score, clock, down and possession' },
   { value: 'graphics', label: 'Lower-thirds only', hint: 'Touchdowns, penalties and other callouts' },
-  { value: 'all', label: 'Everything', hint: 'Scorebug and lower-thirds in one input' },
+  {
+    value: 'scenes',
+    label: 'Full-screen scenes only',
+    hint: 'Opening matchup, match facts, standings and starting lineup',
+  },
+  { value: 'all', label: 'Everything', hint: 'Scorebug, lower-thirds and scenes in one input' },
 ];
 
 export function parseOverlayLayer(value: string | null): OverlayLayer {
-  return value === 'scorebug' || value === 'graphics' ? value : 'all';
+  return value === 'scorebug' || value === 'graphics' || value === 'scenes' ? value : 'all';
 }
 
 export function overlayUrl(matchId: string, layer: OverlayLayer = 'all'): string {
@@ -118,4 +141,97 @@ export interface BroadcastDayMatch {
   away_team: { name: string; logo: string };
   home_score: number | null;
   away_score: number | null;
+}
+
+// ── Full-screen scene data (GET /broadcast/:matchId/overlay/scenes) ──
+
+export interface SceneMatch {
+  id: string;
+  competition: string;
+  competition_format: string; // PRESEASON | SEASON | PLAYOFFS | CUP
+  stage: string;
+  event_title?: string;
+  /** Order on its match day, from 1. */
+  match_number?: number;
+  date: string; // YYYY-MM-DD
+  kickoff?: string; // HH:MM
+  venue: string;
+  status: string;
+}
+
+/** A player's totals in this competition, for the lineup introductions. */
+export interface SceneSeasonStats {
+  apps: number;
+  receptions: number;
+  receiving_tds: number;
+  rushing_tds: number;
+  passing_tds: number;
+  passing_attempts: number;
+  completed_passes: number;
+  flag_pulls: number;
+  interceptions: number;
+  sacks: number;
+  bat_downs: number;
+  defensive_tds: number;
+}
+
+export interface ScenePlayer {
+  id: string;
+  name: string;
+  number: number;
+  position: string;
+  gender?: string;
+  image?: string;
+  is_starter: boolean;
+  unit?: 'OFFENSE' | 'DEFENSE';
+  slot?: string;
+  season?: SceneSeasonStats;
+}
+
+export interface SceneTeam {
+  id: string;
+  name: string;
+  short: string;
+  logo: string;
+  won: number;
+  drawn: number;
+  lost: number;
+  /** Table position; absent when the competition has no table. */
+  position?: number;
+  coverage?: number;
+  /** The submitted team sheet; empty when there isn't one yet. */
+  players: ScenePlayer[];
+}
+
+export interface SceneFact {
+  label: string;
+  home: number;
+  away: number;
+  unit?: string;
+}
+
+export interface SceneStanding {
+  position: number;
+  team_id: string;
+  name: string;
+  short: string;
+  logo: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  pf: number;
+  pa: number;
+  pd: number;
+  pct: number;
+  /** Last five results, oldest first, e.g. "WWLWL". */
+  form: string;
+}
+
+export interface SceneData {
+  match: SceneMatch;
+  home: SceneTeam;
+  away: SceneTeam;
+  facts: SceneFact[];
+  standings: SceneStanding[];
 }
