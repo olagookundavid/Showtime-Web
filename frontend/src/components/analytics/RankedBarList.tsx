@@ -1,6 +1,7 @@
 import type { SiteBreakdownRow } from '../../types';
 
 const fullNumber = new Intl.NumberFormat('en-NG');
+const percent = new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 });
 
 interface RankedBarListProps {
     title: string;
@@ -9,6 +10,12 @@ interface RankedBarListProps {
     rows: SiteBreakdownRow[];
     /** Turns a stored value (a country code, an event type) into reader-friendly text. */
     formatName?: (name: string) => string;
+    /** Formats the bold count, e.g. as Naira. Defaults to a plain thousands-delimited number. */
+    formatCount?: (count: number) => string;
+    /** Overrides the bar's fill color (Tailwind class). Defaults to the validated categorical slot-1 blue. */
+    barColorClassName?: string;
+    /** Shows each row's percentage of the list's total next to the count, the top row's picked out in gold. */
+    showShareOfTotal?: boolean;
     emptyMessage?: string;
 }
 
@@ -18,9 +25,13 @@ export const RankedBarList = ({
     countLabel,
     rows,
     formatName = (n) => n,
+    formatCount = (n) => fullNumber.format(n),
+    barColorClassName = 'bg-[#2a78d6] dark:bg-[#3987e5]',
+    showShareOfTotal = false,
     emptyMessage = 'Nothing recorded in this period yet.',
 }: RankedBarListProps) => {
     const max = Math.max(1, ...rows.map((r) => r.count));
+    const total = rows.reduce((sum, r) => sum + r.count, 0);
 
     return (
         <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:p-6">
@@ -31,8 +42,10 @@ export const RankedBarList = ({
                 </p>
             ) : (
                 <ol className="space-y-3">
-                    {rows.map((row) => {
+                    {rows.map((row, index) => {
                         const name = row.label || formatName(row.name);
+                        const isTop = index === 0;
+                        const share = total > 0 ? percent.format((row.count / total) * 100) : '0';
                         return (
                             <li key={row.name} className="min-w-0">
                                 <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -41,18 +54,26 @@ export const RankedBarList = ({
                                     </span>
                                     <span className="shrink-0 text-gray-600 dark:text-gray-300">
                                         <strong className="font-black text-gray-900 dark:text-white">
-                                            {fullNumber.format(row.count)}
+                                            {formatCount(row.count)}
                                         </strong>{' '}
                                         {row.count === 1 ? countLabel.replace(/s$/, '') : countLabel}
-                                        <span className="text-gray-400 dark:text-gray-500">
-                                            {' '}
-                                            · {fullNumber.format(row.visitors)} {row.visitors === 1 ? 'visitor' : 'visitors'}
-                                        </span>
+                                        {row.visitors !== undefined && (
+                                            <span className="text-gray-400 dark:text-gray-500">
+                                                {' '}
+                                                · {fullNumber.format(row.visitors)} {row.visitors === 1 ? 'visitor' : 'visitors'}
+                                            </span>
+                                        )}
+                                        {showShareOfTotal && (
+                                            <span className={isTop ? 'font-bold text-sffl-gold' : 'text-gray-400 dark:text-gray-500'}>
+                                                {' '}
+                                                · {share}%
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                                 <div className="mt-1 h-1.5 rounded-full bg-gray-100 dark:bg-gray-700" aria-hidden="true">
                                     <div
-                                        className="h-full rounded-r-full rounded-l-sm bg-[#2a78d6] dark:bg-[#3987e5]"
+                                        className={`h-full rounded-r-full rounded-l-sm ${barColorClassName}`}
                                         style={{ width: `${Math.max(2, (row.count / max) * 100)}%` }}
                                     />
                                 </div>

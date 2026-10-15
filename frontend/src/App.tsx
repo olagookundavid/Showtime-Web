@@ -219,11 +219,6 @@ const AdminTraffic = lazy(() =>
     default: m.AdminTraffic,
   })),
 );
-const AdminAnalytics = lazy(() =>
-  import("./pages/admin/AdminAnalytics").then((m) => ({
-    default: m.AdminAnalytics,
-  })),
-);
 const AdminInventory = lazy(() =>
   import("./pages/admin/AdminInventory").then((m) => ({
     default: m.AdminInventory,
@@ -603,11 +598,7 @@ function App() {
                       />
                       <Route
                         path="analytics"
-                        element={
-                          <FeatureGuard feature="dashboard">
-                            <AdminAnalytics />
-                          </FeatureGuard>
-                        }
+                        element={<Navigate to="/admin" replace />}
                       />
                       <Route
                         path="traffic"

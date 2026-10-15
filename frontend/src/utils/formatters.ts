@@ -39,6 +39,18 @@ export function formatStatDecimal(
 }
 
 /**
+ * Formats an amount as Nigerian Naira.
+ * e.g., 4820000 -> "₦4,820,000"
+ */
+export function formatNaira(amount: number): string {
+    return new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: 'NGN',
+        minimumFractionDigits: 0,
+    }).format(amount);
+}
+
+/**
  * Avatar initials: the first letters of the first two words, in capitals.
  * e.g., "John Doe" -> "JD", "Madonna" -> "M", "" or null -> "?"
  */

@@ -62,7 +62,8 @@ export interface SiteBreakdownRow {
   /** Readable title when the row is a detail page (news headline, "Home vs Away"). */
   label?: string;
   count: number;
-  visitors: number;
+  /** Omitted for breakdowns with no separate visitor concept (e.g. a role or tier count). */
+  visitors?: number;
 }
 
 export interface SiteConversions {
