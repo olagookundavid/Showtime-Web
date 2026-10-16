@@ -7,6 +7,7 @@ import (
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	"showtime-backend/internal/ports"
 )
 
 // Data for the full-screen scenes (opening matchup, standings and starting
@@ -20,6 +21,35 @@ type SceneData struct {
 	Home      SceneTeam       `json:"home"`
 	Away      SceneTeam       `json:"away"`
 	Standings []SceneStanding `json:"standings"`
+	// HeadToHead is every finished meeting of the two teams before this match,
+	// newest first, scored from this match's home and away sides.
+	HeadToHead []SceneMeeting `json:"head_to_head"`
+}
+
+// SceneMeeting is a past match between the two teams. Home and away are this
+// match's sides, whichever way round the old match was played.
+type SceneMeeting struct {
+	Date        string `json:"date"`
+	Competition string `json:"competition"`
+	HomeScore   int    `json:"home_score"`
+	AwayScore   int    `json:"away_score"`
+	// HostedByHome is whether this match's home side was at home that day.
+	HostedByHome bool `json:"hosted_by_home"`
+}
+
+// sceneMeetings orients past meetings to this match's sides.
+func sceneMeetings(homeID string, meetings []ports.BroadcastMeeting) []SceneMeeting {
+	out := make([]SceneMeeting, 0, len(meetings))
+	for _, m := range meetings {
+		sm := SceneMeeting{Date: m.Date, Competition: m.Competition, HostedByHome: m.HomeTeamID == homeID}
+		if sm.HostedByHome {
+			sm.HomeScore, sm.AwayScore = m.HomeScore, m.AwayScore
+		} else {
+			sm.HomeScore, sm.AwayScore = m.AwayScore, m.HomeScore
+		}
+		out = append(out, sm)
+	}
+	return out
 }
 
 type SceneMatch struct {
@@ -186,9 +216,10 @@ func (h *BroadcastHandler) buildSceneData(ctx context.Context, matchID string) (
 			Status: string(m.Status),
 			Stage:  stageLabel("", m.Round),
 		},
-		Home:      sceneTeam(m.HomeTeam, detail.TeamSheet.HomeTeam, detail.TeamSheet.HomeCoverage),
-		Away:      sceneTeam(m.AwayTeam, detail.TeamSheet.AwayTeam, detail.TeamSheet.AwayCoverage),
-		Standings: []SceneStanding{},
+		Home:       sceneTeam(m.HomeTeam, detail.TeamSheet.HomeTeam, detail.TeamSheet.HomeCoverage),
+		Away:       sceneTeam(m.AwayTeam, detail.TeamSheet.AwayTeam, detail.TeamSheet.AwayCoverage),
+		Standings:  []SceneStanding{},
+		HeadToHead: []SceneMeeting{},
 	}
 	if m.Competition != nil {
 		data.Match.Competition = m.Competition.Name
@@ -227,6 +258,16 @@ func (h *BroadcastHandler) buildSceneData(ctx context.Context, matchID string) (
 					}
 				}
 			}
+		}
+	}
+
+	// Every earlier meeting of the two clubs, in any competition.
+	if h.days != nil && data.Home.ID != "" && data.Away.ID != "" {
+		meetings, err := h.days.ListMeetings(ctx, data.Home.ID, data.Away.ID, matchID)
+		if err != nil {
+			log.Printf("[BroadcastScenes] head to head for match %s: %v", matchID, err)
+		} else {
+			data.HeadToHead = sceneMeetings(data.Home.ID, meetings)
 		}
 	}
 

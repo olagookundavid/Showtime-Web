@@ -1091,3 +1091,85 @@
   text-transform: uppercase;
   color: var(--scn-muted);
 }
+
+/* ── HEAD TO HEAD ── (shares the stats card, rows and title bar) */
+.scn-h2h-hero {
+  grid-template-columns: 1fr 440px 1fr;
+  min-height: 150px;
+}
+
+.scn-h2h-hero .scn-facts-score strong {
+  font-size: 84px;
+}
+
+.scn-h2h-first {
+  font-size: 58px !important;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.scn-h2h-recent {
+  padding: 4px 64px 18px;
+}
+
+.scn-h2h-recent .scn-kicker {
+  margin-bottom: 6px;
+}
+
+.scn-h2h-meeting {
+  display: grid;
+  /* date | home | score | away | spacer: the spacer mirrors the date column so
+     the scores sit centred under the headline record. */
+  grid-template-columns: 240px minmax(0, 1fr) 170px minmax(0, 1fr) 240px;
+  align-items: center;
+  gap: 16px;
+  min-height: 52px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font: 800 22px Arial, sans-serif;
+}
+
+.scn-h2h-when {
+  display: flex;
+  flex-direction: column;
+  font: 800 17px Arial, sans-serif;
+  color: var(--scn-muted);
+}
+
+.scn-h2h-when small {
+  overflow: hidden;
+  font: 700 13px Arial, sans-serif;
+  color: var(--scn-quiet);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scn-h2h-side {
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--scn-muted);
+}
+
+.scn-h2h-side.away {
+  text-align: left;
+}
+
+.scn-h2h-side.won {
+  color: #ffffff;
+}
+
+.scn-h2h-score {
+  padding: 6px 0;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: center;
+  font: 900 26px Arial, sans-serif;
+}
+
+.scn-h2h-empty {
+  padding: 60px 64px;
+  text-align: center;
+  font: 800 30px Arial, sans-serif;
+  color: var(--scn-muted);
+}

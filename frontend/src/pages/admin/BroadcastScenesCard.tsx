@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
 import {
+  ArrowsRightLeftIcon,
   BackwardIcon,
   CheckIcon,
   ExclamationTriangleIcon,
@@ -31,6 +32,7 @@ const SCENES: {
   { value: "attack", label: "Attack & possession", hint: "Plays, yards, completions, catches, drops, turnovers, punts, touchdowns", icon: PresentationChartBarIcon },
   { value: "defence", label: "Defence & discipline", hint: "Flag pulls, interceptions, bat downs, sacks, infractions, pick sixes", icon: ShieldCheckIcon },
   { value: "standings", label: "Standings", hint: "The competition table, counting live scores", icon: TableCellsIcon },
+  { value: "h2h", label: "Head to head", hint: "Every earlier meeting of the two clubs: record, points, biggest wins, latest results", icon: ArrowsRightLeftIcon },
   { value: "lineup", label: "Starting lineup", hint: "Both starting units on the field, with benches", icon: UserGroupIcon },
 ];
 

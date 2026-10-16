@@ -1,5 +1,6 @@
 import { useBroadcastScenes, useMatchComparison } from '../../hooks';
 import type { BroadcastState } from '../../types';
+import { SceneHeadToHead } from './SceneHeadToHead';
 import { SceneLineup } from './SceneLineup';
 import { SceneOpening } from './SceneOpening';
 import { SceneStandings } from './SceneStandings';
@@ -30,6 +31,8 @@ export function BroadcastSceneLayer({ state, clock }: { state: BroadcastState; c
       return <SceneOpening data={data} />;
     case 'standings':
       return data.standings.length ? <SceneStandings data={data} /> : null;
+    case 'h2h':
+      return <SceneHeadToHead data={data} />;
     case 'lineup':
       return <SceneLineup data={data} attackSide={state.lineup_attack ?? 'home'} intro={state.lineup_intro} />;
     default:

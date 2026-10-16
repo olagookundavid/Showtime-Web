@@ -66,7 +66,7 @@ The per-match links in section 2 still work, for one-off streams of a single mat
 
 ## 2c. Full-Screen Scenes
 
-Five full-screen graphics are run from the studio's **Full-screen scenes** card. While one is up, the scorebug steps aside (in a scorebug-only input too) and comes back when the scene comes off. Lower-thirds still draw on top.
+Six full-screen graphics are run from the studio's **Full-screen scenes** card. While one is up, the scorebug steps aside (in a scorebug-only input too) and comes back when the scene comes off. Lower-thirds still draw on top.
 
 | Scene | Shows | Data |
 | --- | --- | --- |
@@ -74,6 +74,7 @@ Five full-screen graphics are run from the studio's **Full-screen scenes** card.
 | Attack & possession | The on-air score and clock over plays, yards, pass completion, catches, drops, turnovers, punts, touchdowns and female touchdowns | The same numbers as the match page's comparison, refreshed every 10 seconds |
 | Defence & discipline | The on-air score and clock over flag pulls, interceptions, bat downs, sacks, infractions and pick sixes | As above |
 | Standings | The competition table with each side's form; the two teams playing are highlighted | Live standings (in-progress matches count at their current score) |
+| Head to head | Every earlier meeting of the two clubs in any competition: overall record, points scored, points per game, each side's biggest win and the last five results (or "First meeting") | Finished matches between the two clubs |
 | Starting lineup | One team's starting offence against the other's defence on a field, with both benches | Team sheets (projected from the squad when a team hasn't named starters) |
 
 **vMix:** scenes are part of the **Everything** link. To run them as their own layer, add the scenes link (`…/overlay?layer=scenes`, or the event-day equivalent) as a third Web Browser input on **Overlay 3**.
