@@ -36,8 +36,8 @@ export interface BroadcastState {
   updated_at: number;
   /** Full-screen scene on air; empty or absent = none. */
   scene?: BroadcastScene | '';
-  /** Side shown attacking on the lineup scene. */
-  lineup_attack?: 'home' | 'away';
+  /** Team whose starting lineup is shown (one team at a time). */
+  lineup_team?: 'home' | 'away';
   /** Starting-lineup introductions; null when not running. */
   lineup_intro?: LineupIntro | null;
 }
