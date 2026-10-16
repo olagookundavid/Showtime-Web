@@ -14,9 +14,10 @@ import {
   TableCellsIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
-import { Button } from "../../components";
+import { Button, Checkbox } from "../../components";
 import { useBroadcastScenes } from "../../hooks";
 import type { BroadcastScene, BroadcastState } from "../../types";
+import { formatMatchTime } from "../../utils";
 import { buildSceneLineup } from "../broadcastScenes";
 
 // Seconds each starter holds the screen when introductions auto-play.
@@ -28,12 +29,12 @@ const SCENES: {
   hint: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }[] = [
-  { value: "opening", label: "Opening matchup", hint: "Both clubs, records, venue and kickoff", icon: SparklesIcon },
+  { value: "opening", label: "Opening matchup", hint: "Both clubs, records, venue and competition", icon: SparklesIcon },
   { value: "attack", label: "Attack & possession", hint: "Plays, yards, completions, catches, drops, turnovers, punts, touchdowns", icon: PresentationChartBarIcon },
   { value: "defence", label: "Defence & discipline", hint: "Flag pulls, interceptions, bat downs, sacks, infractions, pick sixes", icon: ShieldCheckIcon },
   { value: "standings", label: "Standings", hint: "The competition table, counting live scores", icon: TableCellsIcon },
   { value: "h2h", label: "Head to head", hint: "Every earlier meeting of the two clubs: record, points, biggest wins, latest results", icon: ArrowsRightLeftIcon },
-  { value: "lineup", label: "Starting lineup", hint: "Both starting units on the field, with benches", icon: UserGroupIcon },
+  { value: "lineup", label: "Starting lineup", hint: "One team's offence and defence on the field, with its bench", icon: UserGroupIcon },
 ];
 
 interface Props {
@@ -157,6 +158,17 @@ export function BroadcastScenesCard({ state, updateFields }: Props) {
           );
         })}
       </div>
+
+      <Checkbox
+        label="Show kickoff time on the opening matchup"
+        hint={
+          data?.match.kickoff
+            ? `Scheduled for ${formatMatchTime(data.match.kickoff)}. Leave off unless the match will start on time.`
+            : "No kickoff time is set, so it would show as TBD."
+        }
+        checked={!!state.show_kickoff}
+        onChange={(e) => updateFields({ show_kickoff: e.target.checked })}
+      />
 
       {/* Starting lineup */}
       <div className="space-y-3 border-t border-gray-100 dark:border-gray-700 pt-4">

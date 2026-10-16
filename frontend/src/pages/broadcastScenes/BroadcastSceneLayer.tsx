@@ -28,7 +28,7 @@ export function BroadcastSceneLayer({ state, clock }: { state: BroadcastState; c
 
   switch (scene) {
     case 'opening':
-      return <SceneOpening data={data} />;
+      return <SceneOpening data={data} showKickoff={!!state.show_kickoff} />;
     case 'standings':
       return data.standings.length ? <SceneStandings data={data} /> : null;
     case 'h2h':

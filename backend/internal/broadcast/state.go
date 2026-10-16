@@ -30,6 +30,9 @@ type BroadcastState struct {
 	// "defence", "standings" or "lineup" ("facts", from before the stats were
 	// split, shows as "attack"). It shows on the scenes layer and the combined one.
 	Scene string `json:"scene"`
+	// ShowKickoff puts the scheduled kickoff time on the opening matchup. Off
+	// by default: matches rarely start at the time on the fixture list.
+	ShowKickoff bool `json:"show_kickoff"`
 	// LineupTeam is the team whose starting lineup is shown: "home" or "away".
 	// The lineup is one team at a time: its offence, its defence and its bench.
 	LineupTeam string `json:"lineup_team"`

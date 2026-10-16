@@ -206,7 +206,9 @@
 
 .scn-opening-footer {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Two or three equal details: the kickoff is optional. */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   background: var(--scn-navy-0);
   border-top: 1px solid var(--scn-rule);
 }
