@@ -43,7 +43,7 @@ export interface BroadcastState {
 }
 
 /** Full-screen scenes on the scenes layer. */
-export type BroadcastScene = 'opening' | 'attack' | 'defence' | 'standings' | 'lineup' | 'facts';
+export type BroadcastScene = 'opening' | 'attack' | 'defence' | 'standings' | 'h2h' | 'lineup' | 'facts';
 // 'facts' is the single stats scene from before attack and defence were split;
 // a state still holding it shows the attack scene.
 
@@ -94,7 +94,7 @@ export const OVERLAY_LAYERS: { value: OverlayLayer; label: string; hint: string 
   {
     value: 'scenes',
     label: 'Full-screen scenes only',
-    hint: 'Opening matchup, attack and defence stats, standings and starting lineup',
+    hint: 'Opening matchup, attack and defence stats, standings, head to head and starting lineup',
   },
   { value: 'all', label: 'Everything', hint: 'Scorebug, lower-thirds and scenes in one input' },
 ];
@@ -223,9 +223,21 @@ export interface SceneStanding {
   form: string;
 }
 
+/** A past meeting of the two teams, scored from this match's home and away sides. */
+export interface SceneMeeting {
+  date: string; // YYYY-MM-DD
+  competition: string;
+  home_score: number;
+  away_score: number;
+  /** Whether this match's home side was at home that day. */
+  hosted_by_home: boolean;
+}
+
 export interface SceneData {
   match: SceneMatch;
   home: SceneTeam;
   away: SceneTeam;
   standings: SceneStanding[];
+  /** Every earlier meeting, newest first; empty for a first meeting. */
+  head_to_head: SceneMeeting[];
 }

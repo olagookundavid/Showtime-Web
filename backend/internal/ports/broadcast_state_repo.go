@@ -28,6 +28,20 @@ type IBroadcastStateRepository interface {
 	GetMatchDay(ctx context.Context, date string) (BroadcastMatchDay, error)
 	// ListDayMatches returns every match on the date, across competitions.
 	ListDayMatches(ctx context.Context, date string) ([]BroadcastDayMatch, error)
+	// ListMeetings returns finished matches between two teams, in any
+	// competition and either way round, newest first, leaving out one match.
+	ListMeetings(ctx context.Context, teamA, teamB, excludeMatchID string) ([]BroadcastMeeting, error)
+}
+
+// BroadcastMeeting is one finished match between two teams.
+type BroadcastMeeting struct {
+	MatchID     string
+	Date        string // YYYY-MM-DD
+	Competition string
+	HomeTeamID  string
+	AwayTeamID  string
+	HomeScore   int
+	AwayScore   int
 }
 
 // BroadcastMatchDay is a date with matches, titled by its event day when one
@@ -208,4 +222,34 @@ func (r *PostgresBroadcastStateRepository) ListDayMatches(ctx context.Context, d
 		matches = append(matches, m)
 	}
 	return matches, rows.Err()
+}
+
+func (r *PostgresBroadcastStateRepository) ListMeetings(ctx context.Context, teamA, teamB, excludeMatchID string) ([]BroadcastMeeting, error) {
+	query := `
+		SELECT m.id::text, to_char(m.date, 'YYYY-MM-DD'), COALESCE(c.name, ''),
+			m.home_team_id::text, m.away_team_id::text, m.home_score, m.away_score
+		FROM matches m
+		LEFT JOIN competitions c ON c.id = m.competition_id
+		WHERE m.status = 'FINISHED'
+		  AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL
+		  AND ((m.home_team_id::text = $1 AND m.away_team_id::text = $2)
+		    OR (m.home_team_id::text = $2 AND m.away_team_id::text = $1))
+		  AND m.id::text <> $3
+		ORDER BY m.date DESC, m.time DESC
+	`
+	rows, err := r.db.Query(ctx, query, teamA, teamB, excludeMatchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	meetings := make([]BroadcastMeeting, 0)
+	for rows.Next() {
+		var m BroadcastMeeting
+		if err := rows.Scan(&m.MatchID, &m.Date, &m.Competition, &m.HomeTeamID, &m.AwayTeamID, &m.HomeScore, &m.AwayScore); err != nil {
+			return nil, err
+		}
+		meetings = append(meetings, m)
+	}
+	return meetings, rows.Err()
 }
