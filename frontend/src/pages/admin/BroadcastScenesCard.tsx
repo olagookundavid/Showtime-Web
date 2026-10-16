@@ -52,12 +52,15 @@ export function BroadcastScenesCard({ state, updateFields }: Props) {
 
   // 'facts' (the single stats scene before attack and defence were split) is the attack scene.
   const scene = state.scene === "facts" ? "attack" : state.scene || "";
-  const attackSide = state.lineup_attack ?? "home";
+  const lineupSide = state.lineup_team ?? "home";
   const intro = state.lineup_intro ?? null;
-  const lineup = useMemo(() => (data ? buildSceneLineup(data, attackSide) : null), [data, attackSide]);
-  const total = lineup?.nodes.length ?? 0;
+  const lineup = useMemo(() => (data ? buildSceneLineup(data, lineupSide) : null), [data, lineupSide]);
+  // Steps: each starter, then the bench as a whole.
+  const total = lineup?.steps ?? 0;
+  const starters = lineup?.nodes.length ?? 0;
   const introRunning = scene === "lineup" && !!intro && intro.cursor < total;
   const current = introRunning && lineup ? lineup.nodes.at(intro.cursor) : undefined;
+  const benchStep = introRunning && intro?.cursor === starters;
 
   const setCursor = (cursor: number) =>
     updateFields({ scene: "lineup", lineup_intro: { cursor: Math.max(0, Math.min(cursor, total)) } });
@@ -89,12 +92,12 @@ export function BroadcastScenesCard({ state, updateFields }: Props) {
   const unavailable = (value: BroadcastScene): string | undefined => {
     if (!data) return isLoading ? "Loading match data" : "Match data unavailable";
     if (value === "standings" && data.standings.length === 0) return "This competition has no table";
-    if (value === "lineup" && total === 0) return "Neither team has players to show yet";
+    if (value === "lineup" && starters === 0) return "This team has no players to show yet";
     return undefined;
   };
 
   const sheetWarnings = data
-    ? [data.home, data.away].flatMap((team) => {
+    ? [lineupSide === "home" ? data.home : data.away].flatMap((team) => {
         if (team.players.length === 0) return [`${team.name} has no team sheet or squad yet.`];
         const starters = team.players.filter((p) => p.is_starter).length;
         return starters === 0 ? [`${team.name} hasn't named starters: its lineup is projected from the squad.`] : [];
@@ -160,25 +163,25 @@ export function BroadcastScenesCard({ state, updateFields }: Props) {
         <div>
           <h3 className="font-bold text-sm text-gray-900 dark:text-white">Starting lineup</h3>
           <p className="text-xs text-gray-500">
-            Pick the team attacking, then introduce each starter in turn: they appear centre stage, then move to their
-            spot.
+            One team at a time. Introduce each starter in turn (offence, then defence): they appear centre stage, then
+            move to their spot. The bench comes last, as a whole. Then switch team and do the same.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Team attacking">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Team shown">
           {(["home", "away"] as const).map((side) => (
             <Button
               key={side}
               size="sm"
-              variant={attackSide === side ? "navy" : "secondary"}
-              aria-pressed={attackSide === side}
+              variant={lineupSide === side ? "navy" : "secondary"}
+              aria-pressed={lineupSide === side}
               onClick={() => {
                 setAutoPlay(false);
-                // Switching sides restarts any introductions for the new lineup.
-                updateFields({ lineup_attack: side, lineup_intro: introRunning ? { cursor: 0 } : intro });
+                // A new team starts with its full lineup; introductions start from their button.
+                updateFields({ lineup_team: side, lineup_intro: null });
               }}
             >
-              {side === "home" ? homeShort : awayShort} attacking
+              {side === "home" ? homeShort : awayShort} lineup
             </Button>
           ))}
         </div>
@@ -245,10 +248,12 @@ export function BroadcastScenesCard({ state, updateFields }: Props) {
 
         <p className="text-xs text-gray-600 dark:text-gray-300" aria-live="polite">
           {current && intro
-            ? `Introducing ${intro.cursor + 1} of ${total}: ${current.player.name} (${current.roleLong}).`
-            : scene === "lineup"
-              ? "Full lineup on air."
-              : `${total} starters ready.`}
+            ? `Introducing ${intro.cursor + 1} of ${total}: ${current.player.name} (${current.unit}, ${current.roleLong}).`
+            : benchStep
+              ? `Introducing ${total} of ${total}: the bench (${lineup?.bench.length ?? 0} substitutes).`
+              : scene === "lineup"
+                ? "Full lineup on air."
+                : `${starters} starters and the bench ready.`}
         </p>
 
         {sheetWarnings.map((w) => (

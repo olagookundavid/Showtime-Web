@@ -34,7 +34,7 @@ export function BroadcastSceneLayer({ state, clock }: { state: BroadcastState; c
     case 'h2h':
       return <SceneHeadToHead data={data} />;
     case 'lineup':
-      return <SceneLineup data={data} attackSide={state.lineup_attack ?? 'home'} intro={state.lineup_intro} />;
+      return <SceneLineup data={data} side={state.lineup_team ?? 'home'} intro={state.lineup_intro} />;
     default:
       return null;
   }
