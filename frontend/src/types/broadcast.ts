@@ -36,6 +36,8 @@ export interface BroadcastState {
   updated_at: number;
   /** Full-screen scene on air; empty or absent = none. */
   scene?: BroadcastScene | '';
+  /** Show the scheduled kickoff time on the opening matchup; off by default. */
+  show_kickoff?: boolean;
   /** Team whose starting lineup is shown (one team at a time). */
   lineup_team?: 'home' | 'away';
   /** Starting-lineup introductions; null when not running. */

@@ -70,7 +70,7 @@ Six full-screen graphics are run from the studio's **Full-screen scenes** card. 
 
 | Scene | Shows | Data |
 | --- | --- | --- |
-| Opening matchup | Both clubs, their record (e.g. "2 wins · 1 loss · 3rd place"), venue, kickoff, competition | Match, standings, event day |
+| Opening matchup | Both clubs, their record (e.g. "2 wins · 1 loss · 3rd place"), venue and competition. The scheduled kickoff time is hidden unless **Show kickoff time** is ticked under the scene buttons | Match, standings, event day |
 | Attack & possession | The on-air score and clock over plays, yards, pass completion, catches, drops, turnovers, punts, touchdowns and female touchdowns | The same numbers as the match page's comparison, refreshed every 10 seconds |
 | Defence & discipline | The on-air score and clock over flag pulls, interceptions, bat downs, sacks, infractions and pick sixes | As above |
 | Standings | The competition table with each side's form; the two teams playing are highlighted | Live standings (in-progress matches count at their current score) |
