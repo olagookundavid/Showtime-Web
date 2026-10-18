@@ -274,8 +274,9 @@ export const MediaGuidelines = () => {
   return (
     <div className="space-y-4 md:space-y-8">
       {/* Purpose Section */}
-      <section className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-xl border-l-8 border-sffl-red">
-        <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white mb-4">
+      <section className="p-5 sm:p-8">
+        <h2 className="mb-4 flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
+          <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
           PURPOSE
         </h2>
         <div className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium space-y-4">
@@ -297,42 +298,42 @@ export const MediaGuidelines = () => {
 
       {/* Accordion Framework */}
       <section className="space-y-4">
-        <h2 className="text-xl sm:text-3xl font-black text-sffl-navy dark:text-white mb-4 sm:mb-6 wrap-break-word">
+        <h2 className="mb-4 flex items-center gap-3 text-xl sm:text-3xl font-black text-sffl-navy dark:text-white sm:mb-6 wrap-break-word">
+          <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
           MEDIA ACCREDITATION FRAMEWORK
         </h2>
-        {sections.map((section) => (
-          <div
-            key={section.id}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden"
-          >
-            <button
-              type="button"
-              className="w-full min-h-11 flex justify-between items-center gap-3 px-4 sm:px-6 py-4 text-left font-bold text-base sm:text-lg text-sffl-navy dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => toggleSection(section.id)}
-              aria-expanded={openSection === section.id}
-            >
-              <span className="min-w-0">{section.title}</span>
-              <ChevronDownIcon
-                aria-hidden="true"
-                className={`w-6 h-6 shrink-0 transition-transform duration-300 ${openSection === section.id ? "rotate-180 text-sffl-red" : "text-gray-400"}`}
-              />
-            </button>
-            {/* Grows to the section's own height, so long sections are never cut off. */}
-            <div
-              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none ${openSection === section.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-            >
-              <div className="overflow-hidden">
-                <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 leading-relaxed font-medium wrap-break-word">
-                  {section.content}
+        <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+          {sections.map((section) => (
+            <div key={section.id}>
+              <button
+                type="button"
+                className="flex min-h-11 w-full items-center justify-between gap-4 py-4 text-left text-sm font-bold text-sffl-navy dark:text-white"
+                onClick={() => toggleSection(section.id)}
+                aria-expanded={openSection === section.id}
+              >
+                <span className="min-w-0">{section.title}</span>
+                <ChevronDownIcon
+                  aria-hidden="true"
+                  className={`h-4 w-4 shrink-0 transition-transform duration-300 ${openSection === section.id ? "rotate-180" : ""}`}
+                />
+              </button>
+              {/* Grows to the section's own height, so long sections are never cut off. */}
+              <div
+                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none ${openSection === section.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+              >
+                <div className="overflow-hidden">
+                  <div className="pb-4 text-sm text-gray-600 dark:text-gray-300 leading-relaxed wrap-break-word">
+                    {section.content}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </section>
 
       {/* Application CTA */}
-      <div className="bg-sffl-navy text-white p-6 md:p-8 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+      <div className="bg-sffl-navy text-white p-6 md:p-8 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
         <div className="space-y-1 min-w-0">
           <h3 className="font-black text-xl md:text-2xl tracking-tight">
             Ready to Apply?
