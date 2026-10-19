@@ -1,24 +1,4 @@
-import { EyeIcon } from "@heroicons/react/24/outline";
 import { FAQSection } from "./FAQSection";
-
-// Heroicons has no target, so the mission mark is drawn in their outline
-// style: three rings around a centre point.
-const TargetIcon = ({ className }: { className?: string }) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.5}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="9" />
-    <circle cx="12" cy="12" r="5.25" />
-    <circle cx="12" cy="12" r="1.5" />
-  </svg>
-);
 
 export const AboutShowtimeFlag = () => {
   return (
@@ -28,7 +8,6 @@ export const AboutShowtimeFlag = () => {
         <div className="border-l-2 border-sffl-red p-5 sm:p-8">
           <h2 className="mb-4 flex items-center gap-3 text-2xl font-black text-sffl-navy dark:text-white">
             <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-            <TargetIcon className="w-8 h-8 text-sffl-red shrink-0" />
             MISSION
           </h2>
           <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
@@ -42,7 +21,6 @@ export const AboutShowtimeFlag = () => {
         <div className="border-l-2 border-blue-600 p-5 sm:p-8">
           <h2 className="mb-4 flex items-center gap-3 text-2xl font-black text-sffl-navy dark:text-white">
             <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-            <EyeIcon className="w-8 h-8 text-blue-600 shrink-0" aria-hidden="true" />
             VISION
           </h2>
           <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">

@@ -30,18 +30,23 @@ type BroadcastState struct {
 	// "defence", "standings" or "lineup" ("facts", from before the stats were
 	// split, shows as "attack"). It shows on the scenes layer and the combined one.
 	Scene string `json:"scene"`
-	// LineupAttack is the side shown attacking on the lineup scene: "home" or "away".
-	LineupAttack string `json:"lineup_attack"`
+	// ShowKickoff puts the scheduled kickoff time on the opening matchup. Off
+	// by default: matches rarely start at the time on the fixture list.
+	ShowKickoff bool `json:"show_kickoff"`
+	// LineupTeam is the team whose starting lineup is shown: "home" or "away".
+	// The lineup is one team at a time: its offence, its defence and its bench.
+	LineupTeam string `json:"lineup_team"`
 	// LineupIntro drives the starting-lineup introductions; nil when not running.
 	LineupIntro *LineupIntro `json:"lineup_intro"`
 }
 
-// LineupIntro is the starting-lineup introductions sequence. Starters are
-// introduced one at a time in a fixed order; every overlay derives the same
-// picture from Cursor, so separate vMix inputs stay in step.
+// LineupIntro is the starting-lineup introductions sequence for the team
+// shown: its offence, then its defence, one player at a time, then its bench
+// as a whole. Every overlay derives the same picture from Cursor, so separate
+// vMix inputs stay in step.
 type LineupIntro struct {
-	// Cursor is how many starters have been introduced and placed; the starter
-	// at Cursor is the one being introduced now.
+	// Cursor is the step being introduced: each starter in turn, then the
+	// bench; past the last step the full lineup shows.
 	Cursor int `json:"cursor"`
 }
 

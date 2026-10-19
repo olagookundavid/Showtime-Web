@@ -28,13 +28,13 @@ export function BroadcastSceneLayer({ state, clock }: { state: BroadcastState; c
 
   switch (scene) {
     case 'opening':
-      return <SceneOpening data={data} />;
+      return <SceneOpening data={data} showKickoff={!!state.show_kickoff} />;
     case 'standings':
       return data.standings.length ? <SceneStandings data={data} /> : null;
     case 'h2h':
       return <SceneHeadToHead data={data} />;
     case 'lineup':
-      return <SceneLineup data={data} attackSide={state.lineup_attack ?? 'home'} intro={state.lineup_intro} />;
+      return <SceneLineup data={data} side={state.lineup_team ?? 'home'} intro={state.lineup_intro} />;
     default:
       return null;
   }

@@ -1,8 +1,10 @@
 import { useState } from "react";
 
-/** The homepage hero while the channel is live. It deliberately occupies the
- *  exact box MainHeroCarousel uses (same aspect ratio, height and corners) so
- *  the swap in and out is a straight replacement with no layout jump. */
+/** The homepage hero while the channel is live. It matches MainHeroCarousel's
+ *  corners and width for a clean swap, but keeps its own aspect-video box
+ *  throughout (not MainHeroCarousel's 2:1) — the embed is a 16:9 YouTube
+ *  player, and forcing 16:9 content into a 2:1 box makes YouTube scale and
+ *  crop the video to fill it, chopping off the edges. */
 export const LiveHero = ({
   videoId,
   title,
@@ -19,7 +21,7 @@ export const LiveHero = ({
   const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&iv_load_policy=3&modestbranding=1`;
 
   return (
-    <div className="relative aspect-video md:aspect-auto md:h-162.5 w-full overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-black">
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-black">
       {!loaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
           <div className="w-10 h-10 border-4 border-gray-700 border-t-sffl-red rounded-full animate-spin" />

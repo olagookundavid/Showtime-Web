@@ -11,6 +11,8 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 function Portrait({ player, className }: { player: ScenePlayer; className: string }) {
   return player.image ? (
     <img className={className} src={player.image} alt="" />
@@ -19,14 +21,13 @@ function Portrait({ player, className }: { player: ScenePlayer; className: strin
   );
 }
 
-function Bench({ title, players, away }: { title: string; players: ScenePlayer[]; away?: boolean }) {
+/** The bench: dimmed while the starters are introduced, lit up on its own step. */
+function Bench({ title, players, stage }: { title: string; players: ScenePlayer[]; stage: 'waiting' | 'spot' | '' }) {
   return (
-    <aside className={`scn-bench ${away ? 'away' : ''}`}>
+    <aside className={`scn-bench ${stage}`}>
       <div className="scn-bench-header">
         <strong>{title}</strong>
-        <span>
-          {players.length} {players.length === 1 ? 'PLAYER' : 'PLAYERS'}
-        </span>
+        <span>{plural(players.length, 'PLAYER', 'PLAYERS')}</span>
       </div>
       {players.length ? (
         <div className="scn-bench-list">
@@ -48,15 +49,17 @@ function Bench({ title, players, away }: { title: string; players: ScenePlayer[]
 // Long names step down in size so they show in full beside the stats.
 const spotlightNameSize = (name: string) => (name.length > 22 ? 26 : name.length > 16 ? 31 : 38);
 
-function Spotlight({ node, team, index, total }: { node: LineupNode; team: string; index: number; total: number }) {
+function Spotlight({ node, team, step, steps }: { node: LineupNode; team: string; step: number; steps: number }) {
   const stats = spotlightStats(node);
   return (
-    <div className={`scn-spotlight ${node.side}`}>
+    <div className="scn-spotlight">
       <div className="scn-spotlight-portrait">
         <Portrait player={node.player} className="scn-player-photo" />
       </div>
       <div className="scn-spotlight-copy">
-        <small>NOW INTRODUCING · {team}</small>
+        <small>
+          NOW INTRODUCING · {team} {node.unit === 'offense' ? 'OFFENSE' : 'DEFENSE'}
+        </small>
         <div className="scn-spotlight-name scn-display" style={{ fontSize: spotlightNameSize(node.player.name) }}>
           {node.player.name}
         </div>
@@ -77,31 +80,50 @@ function Spotlight({ node, team, index, total }: { node: LineupNode; team: strin
         <div className="scn-spotlight-debut">SEASON DEBUT</div>
       )}
       <div className="scn-spotlight-count">
-        {index + 1} OF {total}
+        {step + 1} OF {steps}
+      </div>
+    </div>
+  );
+}
+
+/** The last introduction step: the bench as a whole. */
+function BenchSpotlight({ team, count, steps }: { team: string; count: number; steps: number }) {
+  return (
+    <div className="scn-spotlight bench">
+      <div className="scn-spotlight-copy">
+        <small>NOW INTRODUCING · {team}</small>
+        <div className="scn-spotlight-name scn-display">The Bench</div>
+        <div className="scn-spotlight-meta">{plural(count, 'SUBSTITUTE', 'SUBSTITUTES')} READY TO COME ON</div>
+      </div>
+      <div className="scn-spotlight-count">
+        {steps} OF {steps}
       </div>
     </div>
   );
 }
 
 /**
- * Starting lineup: the attacking team's offence against the other team's
- * defence, with both benches. During introductions the field starts empty and
- * each starter is presented in turn before moving to their spot.
+ * Starting lineup, one team at a time: its offence and defence on the field
+ * and its bench beside it. During introductions the field starts empty, each
+ * starter is presented centre stage before moving to their spot, and the
+ * bench is introduced last, as a whole.
  */
 export function SceneLineup({
   data,
-  attackSide,
+  side,
   intro,
 }: {
   data: SceneData;
-  attackSide: 'home' | 'away';
+  side: 'home' | 'away';
   intro: LineupIntro | null | undefined;
 }) {
-  const lineup = buildSceneLineup(data, attackSide);
-  const { attack, defend, nodes } = lineup;
-  const running = !!intro && intro.cursor < nodes.length;
-  const cursor = intro ? Math.max(0, intro.cursor) : nodes.length;
+  const lineup = buildSceneLineup(data, side);
+  const { team, nodes, bench, steps } = lineup;
+  const running = !!intro && intro.cursor < steps;
+  const cursor = intro ? Math.max(0, intro.cursor) : steps;
   const current = running ? nodes.at(cursor) : undefined;
+  const benchStep = running && cursor === nodes.length;
+  const teamName = (team.short || team.name).toUpperCase();
 
   const stage = (i: number) => (!running ? '' : i < cursor ? 'placed' : i === cursor ? 'introducing' : 'pending');
   const footer = [data.match.venue, data.match.match_number ? `Match ${data.match.match_number}` : '']
@@ -110,47 +132,37 @@ export function SceneLineup({
     .join(' · ');
 
   return (
-    <section className="scn scn-lineup">
+    <section className={`scn scn-lineup ${side}`}>
       <header className="scn-lineup-top">
         <div className="scn-lineup-heading">
-          <Crest team={attack} away={attackSide === 'away'} />
+          <Crest team={team} away={side === 'away'} />
           <div>
-            <div className="scn-kicker">OFFENSE · STARTING {lineup.perUnit}</div>
-            <strong>{attack.name}</strong>
+            <div className="scn-kicker">
+              STARTING {lineup.perUnit} · OFFENSE & DEFENSE
+            </div>
+            <strong>{team.name}</strong>
           </div>
         </div>
         <div className="scn-lineup-title">
           <div className="scn-kicker">{matchLine(data.match)}</div>
           <strong className="scn-display">Starting Lineup</strong>
         </div>
-        <div className="scn-lineup-heading right">
-          <div>
-            <div className="scn-kicker">DEFENSE · STARTING {lineup.perUnit}</div>
-            <strong>{defend.name}</strong>
-          </div>
-          <Crest team={defend} away={attackSide === 'home'} />
-        </div>
       </header>
 
       <div className="scn-lineup-content">
-        <Bench title={`${attack.short || attack.name} BENCH`} players={lineup.attackBench} away={attackSide === 'away'} />
-
-        <div className={`scn-field-wrap ${running ? 'intro' : ''}`}>
+        <div className={`scn-field-wrap ${running ? 'intro' : ''} ${benchStep ? 'bench-step' : ''}`}>
           <div className="scn-field" />
           <div className="scn-endzone left">
-            <span>{attack.name}</span>
+            <span>Offense</span>
           </div>
           <div className="scn-endzone right">
-            <span>{defend.name}</span>
+            <span>Defense</span>
           </div>
-          <div className="scn-los-tag">LINE OF SCRIMMAGE</div>
-          <div className="scn-direction left scn-display">Attack →</div>
-          <div className="scn-direction right scn-display">← Defend</div>
 
           {nodes.map((n, i) => (
             <div
               key={n.key}
-              className={`scn-player ${n.side} ${stage(i)}`}
+              className={`scn-player ${n.unit} ${stage(i)}`}
               style={{ left: `${n.x}%`, top: `${n.y}%` }}
             >
               <div className="scn-player-marker">
@@ -167,18 +179,15 @@ export function SceneLineup({
           <div className="scn-formation left">{lineup.offenseLabel}</div>
           <div className="scn-formation right">{lineup.defenseLabel}</div>
 
-          {current && (
-            <Spotlight
-              key={current.key}
-              node={current}
-              team={(current.side === 'left' ? attack : defend).short || ''}
-              index={cursor}
-              total={nodes.length}
-            />
-          )}
+          {current && <Spotlight key={current.key} node={current} team={teamName} step={cursor} steps={steps} />}
+          {benchStep && <BenchSpotlight team={teamName} count={bench.length} steps={steps} />}
         </div>
 
-        <Bench title={`${defend.short || defend.name} BENCH`} players={lineup.defendBench} away={attackSide === 'home'} />
+        <Bench
+          title={`${teamName} BENCH`}
+          players={bench}
+          stage={benchStep ? 'spot' : running ? 'waiting' : ''}
+        />
       </div>
 
       <div className="scn-lineup-footer">

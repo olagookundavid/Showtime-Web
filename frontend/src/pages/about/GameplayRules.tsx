@@ -4,7 +4,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export const GameplayRules = () => {
-  const pdfUrl = "/docs/showtime-rulebook-2026-2.pdf";
+  const pdfUrl = "/docs/showtime-rulebook-2026.pdf";
 
   return (
     <div className="space-y-4 md:space-y-8">

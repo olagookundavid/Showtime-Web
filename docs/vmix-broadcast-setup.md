@@ -70,16 +70,16 @@ Six full-screen graphics are run from the studio's **Full-screen scenes** card. 
 
 | Scene | Shows | Data |
 | --- | --- | --- |
-| Opening matchup | Both clubs, their record (e.g. "2 wins · 1 loss · 3rd place"), venue, kickoff, competition | Match, standings, event day |
+| Opening matchup | Both clubs, their record (e.g. "2 wins · 1 loss · 3rd place"), venue and competition. The scheduled kickoff time is hidden unless **Show kickoff time** is ticked under the scene buttons | Match, standings, event day |
 | Attack & possession | The on-air score and clock over plays, yards, pass completion, catches, drops, turnovers, punts, touchdowns and female touchdowns | The same numbers as the match page's comparison, refreshed every 10 seconds |
 | Defence & discipline | The on-air score and clock over flag pulls, interceptions, bat downs, sacks, infractions and pick sixes | As above |
 | Standings | The competition table with each side's form; the two teams playing are highlighted | Live standings (in-progress matches count at their current score) |
 | Head to head | Every earlier meeting of the two clubs in any competition: overall record, points scored, points per game, each side's biggest win and the last five results (or "First meeting") | Finished matches between the two clubs |
-| Starting lineup | One team's starting offence against the other's defence on a field, with both benches | Team sheets (projected from the squad when a team hasn't named starters) |
+| Starting lineup | One team at a time: its starting offence and defence on the field, and its bench beside it | Team sheets (projected from the squad when a team hasn't named starters) |
 
 **vMix:** scenes are part of the **Everything** link. To run them as their own layer, add the scenes link (`…/overlay?layer=scenes`, or the event-day equivalent) as a third Web Browser input on **Overlay 3**.
 
-**Starting lineup introductions:** pick the team attacking, then **Start introductions**. Each starter appears centre stage with their season numbers, and **Next player** moves them to their spot and brings on the next (quarterbacks, center, receivers, then the rusher and defenders). **Auto-play** advances every 4 seconds; **Show full lineup** skips to the end.
+**Starting lineup introductions:** pick the team to show under **Team shown**, then **Start introductions**. Each starter appears centre stage with their season numbers, and **Next player** moves them to their spot and brings on the next: the offence first (quarterbacks, center, receivers), then the defence (rusher and defenders). The last step highlights the bench as a whole, without naming each substitute. **Auto-play** advances every 4 seconds; **Show full lineup** skips to the end. Then switch **Team shown** to the other side and run its introductions the same way.
 
 ---
 
