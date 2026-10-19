@@ -546,6 +546,15 @@ func TestSiteEvents_MatchDayFilter(t *testing.T) {
 		}
 	}
 
+	// The calendar's list: same three match days, with real traffic, never nil.
+	list, err := svc.MatchDays(ctx, from, to)
+	if err != nil || len(list) != 3 || list[0].Date != "2001-08-04" || list[0].PageViews != 2 || list[0].Visitors != 2 {
+		t.Errorf("MatchDays should list Aug 4, 11 and 25 with their traffic: %+v (err %v)", list, err)
+	}
+	if empty, err := svc.MatchDays(ctx, time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(1999, 2, 1, 0, 0, 0, 0, time.UTC)); err != nil || empty == nil || len(empty) != 0 {
+		t.Errorf("a range with no match days must be an empty list, not null: %v (err %v)", empty, err)
+	}
+
 	scope, err := svc.Scope(ctx, from, to, "match")
 	if err != nil {
 		t.Fatal(err)

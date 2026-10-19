@@ -11,21 +11,51 @@ interface CalendarPickerProps {
   value: string; // YYYY-MM-DD
   onChange: (date: string) => void;
   label?: string;
+  /** Dates (YYYY-MM-DD) to mark, each with a short name shown on hover and read by screen readers, e.g. match days. Replaces the Sunday tint. */
+  highlightedDates?: Record<string, string>;
+  /** Legend text for the highlighted dates, e.g. "Match day". */
+  highlightLabel?: string;
+  /** Last pickable date (YYYY-MM-DD). Later days are disabled. */
+  max?: string;
 }
+
+// "YYYY-MM-DD" as a local date. new Date("2026-10-03") would be UTC midnight,
+// which reads as the day before for viewers west of UTC.
+const parseLocalDate = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const toIso = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 export const CalendarPicker = ({
   value,
   onChange,
   label,
+  highlightedDates,
+  highlightLabel = "Highlighted",
+  max,
 }: CalendarPickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Initial view is based on current value or today
-  const initialDate = value ? new Date(value) : new Date();
+  const initialDate = value ? parseLocalDate(value) : new Date();
   const [viewDate, setViewDate] = useState(
     new Date(initialDate.getFullYear(), initialDate.getMonth(), 1),
   );
+
+  // Follow the value when it changes from outside (e.g. "see this day only").
+  useEffect(() => {
+    if (!value) return;
+    const d = parseLocalDate(value);
+    setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
+  }, [value]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -52,18 +82,13 @@ export const CalendarPicker = ({
   };
 
   const handleDateSelect = (day: number) => {
-    const selected = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
-    // Format as YYYY-MM-DD local time
-    const y = selected.getFullYear();
-    const m = String(selected.getMonth() + 1).padStart(2, "0");
-    const d = String(selected.getDate()).padStart(2, "0");
-    onChange(`${y}-${m}-${d}`);
+    onChange(toIso(new Date(viewDate.getFullYear(), viewDate.getMonth(), day)));
     setIsOpen(false);
   };
 
   const isSelected = (day: number) => {
     if (!value) return false;
-    const d = new Date(value);
+    const d = parseLocalDate(value);
     return (
       d.getFullYear() === viewDate.getFullYear() &&
       d.getMonth() === viewDate.getMonth() &&
@@ -111,26 +136,44 @@ export const CalendarPicker = ({
   for (let d = 1; d <= days; d++) {
     const selected = isSelected(d);
     const today = isToday(d);
-    const sunday = isSunday(d);
+    const iso = toIso(new Date(viewDate.getFullYear(), viewDate.getMonth(), d));
+    const highlightName = highlightedDates?.[iso];
+    const highlighted = highlightName !== undefined;
+    const sunday = !highlightedDates && isSunday(d);
+    const disabled = max !== undefined && iso > max;
 
     grid.push(
       <button
         key={d}
         type="button"
+        disabled={disabled}
+        aria-pressed={selected}
+        aria-label={`${d} ${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}${highlighted ? `, ${highlightLabel.toLowerCase()}${highlightName ? `: ${highlightName}` : ""}` : ""}`}
+        title={highlighted ? highlightName || highlightLabel : undefined}
         onClick={() => handleDateSelect(d)}
         className={`
-                    h-10 w-full rounded-lg flex items-center justify-center font-bold text-sm transition-all
+                    relative h-10 w-full rounded-lg flex items-center justify-center font-bold text-sm transition-all
                     ${
-                      selected
-                        ? "bg-sffl-red text-white shadow-md shadow-red-500/20"
-                        : sunday
-                          ? "bg-red-50 dark:bg-red-900/20 text-sffl-red hover:bg-red-100 dark:hover:bg-red-900/40"
-                          : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                      disabled
+                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                        : selected
+                          ? "bg-sffl-red text-white shadow-md shadow-red-500/20"
+                          : highlighted
+                            ? "bg-sffl-navy/10 text-sffl-navy ring-1 ring-sffl-navy/40 hover:bg-sffl-navy/20 dark:bg-white/15 dark:text-white dark:ring-white/40 dark:hover:bg-white/25"
+                            : sunday
+                              ? "bg-red-50 dark:bg-red-900/20 text-sffl-red hover:bg-red-100 dark:hover:bg-red-900/40"
+                              : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                     }
                     ${today && !selected ? "border-2 border-sffl-navy dark:border-white" : ""}
                 `}
       >
         {d}
+        {highlighted && (
+          <span
+            aria-hidden="true"
+            className="absolute bottom-1 h-1 w-1 rounded-full bg-current"
+          />
+        )}
       </button>,
     );
   }
@@ -186,9 +229,18 @@ export const CalendarPicker = ({
 
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/40 rounded shadow-sm"></div>
+              {highlightedDates ? (
+                <div
+                  aria-hidden="true"
+                  className="relative flex h-5 w-5 items-end justify-center rounded-md bg-sffl-navy/10 pb-0.5 text-sffl-navy ring-1 ring-sffl-navy/40 dark:bg-white/15 dark:text-white dark:ring-white/40"
+                >
+                  <span className="h-1 w-1 rounded-full bg-current" />
+                </div>
+              ) : (
+                <div className="w-3 h-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/40 rounded shadow-sm"></div>
+              )}
               <span className="text-[10px] font-bold text-gray-500 uppercase">
-                Sunday
+                {highlightedDates ? highlightLabel : "Sunday"}
               </span>
             </div>
             <Button
@@ -196,11 +248,8 @@ export const CalendarPicker = ({
               size="sm"
               className="uppercase tracking-wider"
               onClick={() => {
-                const today = new Date();
-                const y = today.getFullYear();
-                const m = String(today.getMonth() + 1).padStart(2, "0");
-                const d = String(today.getDate()).padStart(2, "0");
-                onChange(`${y}-${m}-${d}`);
+                const today = toIso(new Date());
+                onChange(max !== undefined && today > max ? max : today);
                 setIsOpen(false);
               }}
             >

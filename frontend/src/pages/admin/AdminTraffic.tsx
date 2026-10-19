@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import {
     Button,
+    CalendarPicker,
     Checkbox,
     DashboardPageHeader,
     DataTable,
@@ -29,9 +30,9 @@ import {
     TrafficHeatmap,
     type Column,
 } from '../../components';
-import { downloadSiteTrafficExport, getSiteEvents, getSiteTrafficSummary } from '../../services/api';
+import { downloadSiteTrafficExport, getSiteEvents, getSiteMatchDays, getSiteTrafficSummary } from '../../services/api';
 import { getApiErrorMessage, lagosToday } from '../../utils';
-import type { SiteBreakdownRow, SiteDailyPoint, SiteDayFilter, SiteEvent, SiteHeatCell, SiteMatchDay, SiteMatchReach, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
+import type { SiteBreakdownRow, SiteDailyPoint, SiteEvent, SiteHeatCell, SiteMatchDay, SiteMatchReach, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
 
 type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 type TrafficTab = 'overview' | 'audience' | 'content' | 'events';
@@ -42,12 +43,6 @@ const PRESETS: { value: RangePreset; label: string; comparison: string }[] = [
     { value: '90d', label: 'Last 90 days', comparison: 'vs previous 90 days' },
     { value: 'all', label: 'All time', comparison: '' },
     { value: 'custom', label: 'Custom range', comparison: 'vs previous period' },
-];
-
-const DAY_OPTIONS: { value: SiteDayFilter; label: string; comparison: string }[] = [
-    { value: 'all', label: 'Every day', comparison: '' },
-    { value: 'match', label: 'Match days only', comparison: ' (match days)' },
-    { value: 'other', label: 'Other days (no match)', comparison: ' (non-match days)' },
 ];
 
 const TABS = [
@@ -103,6 +98,9 @@ const shiftDays = (iso: string, days: number) => {
 
 const formatLagos = (iso: string) =>
     new Date(iso).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', dateStyle: 'medium', timeStyle: 'short' });
+
+const fullDate = (iso: string) =>
+    new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 const monthLabel = (ym: string) =>
     new Date(`${ym}-01T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -262,7 +260,8 @@ const MatchDayCard = ({ summary }: MatchDayCardProps) => {
 
 export const AdminTraffic = () => {
     const [preset, setPreset] = useState<RangePreset>('30d');
-    const [days, setDays] = useState<SiteDayFilter>('all');
+    const [singleDay, setSingleDay] = useState(false);
+    const [day, setDay] = useState('');
     const [customFrom, setCustomFrom] = useState(() => shiftDays(lagosToday(), -29));
     const [customTo, setCustomTo] = useState(() => lagosToday());
     const [tab, setTab] = useState<TrafficTab>('overview');
@@ -272,24 +271,33 @@ export const AdminTraffic = () => {
     const [eventsPage, setEventsPage] = useState(1);
     const [exporting, setExporting] = useState<'summary' | 'events' | null>(null);
 
-    const includesToday = preset !== 'custom' || customTo >= lagosToday();
-    const customInvalid = preset === 'custom' && (!customFrom || !customTo || customFrom > customTo);
-    const dayOption = DAY_OPTIONS.find((o) => o.value === days) ?? DAY_OPTIONS[0];
-    const comparisonLabel = (PRESETS.find((p) => p.value === preset)?.comparison ?? '') + dayOption.comparison;
+    const today = lagosToday();
+    const includesToday = singleDay ? day >= today : preset !== 'custom' || customTo >= today;
+    const customInvalid = singleDay ? !day : preset === 'custom' && (!customFrom || !customTo || customFrom > customTo);
+    const comparisonLabel = PRESETS.find((p) => p.value === preset)?.comparison ?? '';
 
     const range = useMemo<SiteRange>(() => {
-        const today = lagosToday();
-        const dates = ((): SiteRange => {
-            switch (preset) {
-                case '7d': return { from: shiftDays(today, -6), to: today };
-                case '30d': return { from: shiftDays(today, -29), to: today };
-                case '90d': return { from: shiftDays(today, -89), to: today };
-                case 'all': return {};
-                case 'custom': return { from: customFrom, to: customTo };
-            }
-        })();
-        return { ...dates, days };
-    }, [preset, customFrom, customTo, days]);
+        if (singleDay) return { from: day, to: day };
+        const t = lagosToday();
+        switch (preset) {
+            case '7d': return { from: shiftDays(t, -6), to: t };
+            case '30d': return { from: shiftDays(t, -29), to: t };
+            case '90d': return { from: shiftDays(t, -89), to: t };
+            case 'all': return {};
+            case 'custom': return { from: customFrom, to: customTo };
+        }
+    }, [singleDay, day, preset, customFrom, customTo]);
+
+    // Every match day to date, for highlighting on the calendar.
+    const matchDaysQuery = useQuery({
+        queryKey: ['siteMatchDays'],
+        queryFn: async () => (await getSiteMatchDays()).data,
+    });
+    const matchDayNames = useMemo(() => {
+        const names: Record<string, string> = {};
+        for (const d of matchDaysQuery.data ?? NO_MATCH_DAYS) names[d.date] = d.title || d.games || 'Match day';
+        return names;
+    }, [matchDaysQuery.data]);
 
     const summaryQuery = useQuery({
         queryKey: ['siteTraffic', range],
@@ -311,12 +319,21 @@ export const AdminTraffic = () => {
         setEventsPage(1);
     };
 
-    // Drill into one match day: the whole page narrows to that date.
+    // Ticking "Single day" starts on the latest match day so far (the day most
+    // worth looking at), or today when there has been none.
+    const toggleSingleDay = (on: boolean) => {
+        setSingleDay(on);
+        setEventsPage(1);
+        if (on && !day) {
+            const past = (matchDaysQuery.data ?? NO_MATCH_DAYS).filter((d) => d.date <= lagosToday());
+            setDay(past.length > 0 ? past[past.length - 1].date : lagosToday());
+        }
+    };
+
+    // Drill into one match day from the list: the whole page narrows to that date.
     const showDay = useCallback((date: string) => {
-        setPreset('custom');
-        setCustomFrom(date);
-        setCustomTo(date);
-        setDays('all');
+        setSingleDay(true);
+        setDay(date);
         setEventsPage(1);
         setTab('overview');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -337,9 +354,11 @@ export const AdminTraffic = () => {
 
     const summary = summaryQuery.data;
     const totals = summary?.totals;
-    const prev = summary?.previous?.totals ?? null;
+    // A single day has no fair comparison (the day before is rarely a match day).
+    const prev = singleDay ? null : (summary?.previous?.totals ?? null);
     const conv = summary?.conversions;
-    const prevConv = summary?.previous?.conversions ?? null;
+    const prevConv = singleDay ? null : (summary?.previous?.conversions ?? null);
+    const dayInfo = singleDay ? summary?.match_day_list?.find((d) => d.date === day) : undefined;
     const hasTraffic = (totals?.page_views ?? 0) > 0 || (totals?.action_events ?? 0) > 0;
     const refreshing = summaryQuery.isFetching && !summaryQuery.isLoading;
     const totalEventPages = Math.max(1, Math.ceil((eventsQuery.data?.total ?? 0) / EVENTS_PAGE_SIZE));
@@ -374,44 +393,66 @@ export const AdminTraffic = () => {
             />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-                <Field label="Period" htmlFor="traffic-period" className="sm:w-52">
-                    <Select id="traffic-period" value={preset} onChange={(e) => changeRange(e.target.value as RangePreset)}>
-                        {PRESETS.map((p) => (
-                            <option key={p.value} value={p.value}>{p.label}</option>
-                        ))}
-                    </Select>
-                </Field>
-                <Field label="Days" htmlFor="traffic-days" className="sm:w-56">
-                    <Select id="traffic-days" value={days} onChange={(e) => { setDays(e.target.value as SiteDayFilter); setEventsPage(1); }}>
-                        {DAY_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                    </Select>
-                </Field>
-                {preset === 'custom' && (
+                {singleDay ? (
+                    <div className="sm:w-52">
+                        <CalendarPicker
+                            label="Day"
+                            value={day}
+                            onChange={(d) => { setDay(d); setEventsPage(1); }}
+                            highlightedDates={matchDayNames}
+                            highlightLabel="Match day"
+                            max={today}
+                        />
+                    </div>
+                ) : (
                     <>
-                        <Field label="From" htmlFor="traffic-from" className="sm:w-44">
-                            <Input id="traffic-from" type="date" value={customFrom} max={customTo || undefined} onChange={(e) => { setCustomFrom(e.target.value); setEventsPage(1); }} />
+                        <Field label="Period" htmlFor="traffic-period" className="sm:w-52">
+                            <Select id="traffic-period" value={preset} onChange={(e) => changeRange(e.target.value as RangePreset)}>
+                                {PRESETS.map((p) => (
+                                    <option key={p.value} value={p.value}>{p.label}</option>
+                                ))}
+                            </Select>
                         </Field>
-                        <Field
-                            label="To"
-                            htmlFor="traffic-to"
-                            className="sm:w-44"
-                            error={customInvalid ? 'Pick a start date on or before the end date.' : undefined}
-                        >
-                            <Input id="traffic-to" type="date" value={customTo} min={customFrom || undefined} invalid={customInvalid} onChange={(e) => { setCustomTo(e.target.value); setEventsPage(1); }} />
-                        </Field>
+                        {preset === 'custom' && (
+                            <>
+                                <Field label="From" htmlFor="traffic-from" className="sm:w-44">
+                                    <Input id="traffic-from" type="date" value={customFrom} max={customTo || undefined} onChange={(e) => { setCustomFrom(e.target.value); setEventsPage(1); }} />
+                                </Field>
+                                <Field
+                                    label="To"
+                                    htmlFor="traffic-to"
+                                    className="sm:w-44"
+                                    error={customInvalid ? 'Pick a start date on or before the end date.' : undefined}
+                                >
+                                    <Input id="traffic-to" type="date" value={customTo} min={customFrom || undefined} invalid={customInvalid} onChange={(e) => { setCustomTo(e.target.value); setEventsPage(1); }} />
+                                </Field>
+                            </>
+                        )}
                     </>
                 )}
-                {summary && (
+                <Checkbox label="Single day" checked={singleDay} onChange={(e) => toggleSingleDay(e.target.checked)} className="sm:pb-0" />
+                {summary && !singleDay && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 sm:pb-3">
                         Showing {summary.from} to {summary.to}
-                        {days !== 'all' && <> · {dayOption.label.toLowerCase()}</>}
                         {' '}· {summary.match_day_list?.length ?? 0} match {summary.match_day_list?.length === 1 ? 'day' : 'days'} in range
                         {summary.previous && <> · compared with {summary.previous.from} to {summary.previous.to}</>}
                     </p>
                 )}
             </div>
+
+            {singleDay && day && (
+                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+                    <p className="text-lg font-black text-sffl-navy dark:text-white">{fullDate(day)}</p>
+                    {matchDayNames[day] !== undefined ? (
+                        <>
+                            <p className="mt-0.5 text-sm font-bold text-gray-800 dark:text-gray-100">Match day: {matchDayNames[day]}</p>
+                            {dayInfo?.games && dayInfo.title && <p className="text-sm text-gray-600 dark:text-gray-300">{dayInfo.games}</p>}
+                        </>
+                    ) : (
+                        <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">Not a match day. Match days are highlighted in the calendar.</p>
+                    )}
+                </div>
+            )}
 
             <Tabs items={TABS} value={tab} onChange={setTab} aria-label="Traffic sections" />
 
@@ -436,9 +477,11 @@ export const AdminTraffic = () => {
                     <div className="space-y-6 sm:space-y-8">
                         <section aria-label="Audience reach" className="space-y-3">
                             <SectionHeading title="Audience reach" description="How many people the site reaches. Visitors are counted by IP address." />
-                            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                            <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${singleDay ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
                                 <MetricCard label="Unique visitors" value={fullNumber.format(totals.unique_visitors)} current={totals.unique_visitors} previous={prev?.unique_visitors} comparisonLabel={comparisonLabel} />
-                                <MetricCard label={days === 'match' ? 'Average visitors per match day' : 'Average daily visitors'} value={fullNumber.format(Math.round(totals.avg_daily_visitors))} current={totals.avg_daily_visitors} previous={prev?.avg_daily_visitors} comparisonLabel={comparisonLabel} />
+                                {!singleDay && (
+                                  <MetricCard label="Average daily visitors" value={fullNumber.format(Math.round(totals.avg_daily_visitors))} current={totals.avg_daily_visitors} previous={prev?.avg_daily_visitors} comparisonLabel={comparisonLabel} />
+                                )}
                                 <MetricCard label="Page views" value={fullNumber.format(totals.page_views)} current={totals.page_views} previous={prev?.page_views} comparisonLabel={comparisonLabel} />
                                 <MetricCard label="Visits (sessions)" value={fullNumber.format(totals.sessions)} current={totals.sessions} previous={prev?.sessions} comparisonLabel={comparisonLabel} />
                             </div>
@@ -470,49 +513,51 @@ export const AdminTraffic = () => {
                             </div>
                         </section>
 
-                        <Panel
-                            title="Visits over time"
-                            description={includesToday ? "Today's numbers are still filling in." : undefined}
-                            actions={
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={showTable ? ChartBarSquareIcon : TableCellsIcon}
-                                    onClick={() => setShowTable((v) => !v)}
-                                >
-                                    {showTable ? 'Show chart' : 'Show as table'}
-                                </Button>
-                            }
-                        >
-                            {showTable ? (
-                                <DataTable
-                                    data={summary.daily ?? NO_DAYS}
-                                    columns={DAILY_COLUMNS}
-                                    searchable={false}
-                                    itemsPerPage={10}
-                                    compact
-                                    getRowId={(d) => d.date}
-                                    emptyMessage="No days in this period."
-                                />
-                            ) : (summary.daily ?? NO_DAYS).length === 0 ? (
-                                <p className="rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-400">
-                                    No page views to chart in this period.
-                                </p>
-                            ) : (
-                                <TrafficChart data={summary.daily} />
-                            )}
-                        </Panel>
+                        {!singleDay && (
+                            <Panel
+                                title="Visits over time"
+                                description={includesToday ? "Today's numbers are still filling in." : undefined}
+                                actions={
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={showTable ? ChartBarSquareIcon : TableCellsIcon}
+                                        onClick={() => setShowTable((v) => !v)}
+                                    >
+                                        {showTable ? 'Show chart' : 'Show as table'}
+                                    </Button>
+                                }
+                            >
+                                {showTable ? (
+                                    <DataTable
+                                        data={summary.daily ?? NO_DAYS}
+                                        columns={DAILY_COLUMNS}
+                                        searchable={false}
+                                        itemsPerPage={10}
+                                        compact
+                                        getRowId={(d) => d.date}
+                                        emptyMessage="No days in this period."
+                                    />
+                                ) : (summary.daily ?? NO_DAYS).length === 0 ? (
+                                    <p className="rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-400">
+                                        No page views to chart in this period.
+                                    </p>
+                                ) : (
+                                    <TrafficChart data={summary.daily} />
+                                )}
+                            </Panel>
+                        )}
 
-                        {days === 'all' && <MatchDayCard summary={summary} />}
+                        {!singleDay && <MatchDayCard summary={summary} />}
 
-                        {days !== 'other' && (
+                        {!singleDay && (
                             <Panel
                                 title="Match days in this period"
                                 description="Every match day (from Match Days and fixtures), numbered as on the chart. Use the row menu to see one day on its own."
                             >
                                 <MatchDayTable
                                     days={summary.match_day_list ?? NO_MATCH_DAYS}
-                                    typicalVisitors={days === 'all' ? summary.match_days?.avg_visitors_other_day : undefined}
+                                    typicalVisitors={summary.match_days?.avg_visitors_other_day}
                                     onSelectDay={showDay}
                                 />
                             </Panel>
@@ -553,17 +598,19 @@ export const AdminTraffic = () => {
                             </Panel>
                         )}
 
-                        <Panel title="Month by month" description="Monthly reach, ready to quote. The current month is still in progress.">
-                            <DataTable
-                                data={summary.monthly ?? NO_MONTHS}
-                                columns={MONTHLY_COLUMNS}
-                                searchable={false}
-                                paginated={false}
-                                compact
-                                getRowId={(m) => m.month}
-                                emptyMessage="No months with visits in this period."
-                            />
-                        </Panel>
+                        {!singleDay && (
+                            <Panel title="Month by month" description="Monthly reach, ready to quote. The current month is still in progress.">
+                                <DataTable
+                                    data={summary.monthly ?? NO_MONTHS}
+                                    columns={MONTHLY_COLUMNS}
+                                    searchable={false}
+                                    paginated={false}
+                                    compact
+                                    getRowId={(m) => m.month}
+                                    emptyMessage="No months with visits in this period."
+                                />
+                            </Panel>
+                        )}
 
                         {totals.bot_events_excluded > 0 && (
                             <p className="text-xs text-gray-500 dark:text-gray-400">

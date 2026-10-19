@@ -56,6 +56,7 @@ import type {
   AdminAnalyticsResponse,
   SiteTrafficSummary,
   SiteEventsPage,
+  SiteMatchDay,
   SiteRange,
   PlayerStat,
   TeamStat,
@@ -1388,6 +1389,16 @@ export const getSiteTrafficSummary = async (
   const response = await api.get<GenericApiResponse<SiteTrafficSummary>>(
     "/admin/site-analytics/summary",
     { params: range },
+  );
+  return response.data;
+};
+
+/** Every match day up to today (or within a range) with its traffic, for the dashboard's calendar. */
+export const getSiteMatchDays = async (): Promise<
+  GenericApiResponse<SiteMatchDay[]>
+> => {
+  const response = await api.get<GenericApiResponse<SiteMatchDay[]>>(
+    "/admin/site-analytics/match-days",
   );
   return response.data;
 };

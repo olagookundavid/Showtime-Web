@@ -33,9 +33,6 @@ export interface SiteMatchDay {
   visitors: number;
 }
 
-/** Which days a report covers. */
-export type SiteDayFilter = "all" | "match" | "other";
-
 export interface SiteMonthlyPoint {
   month: string;
   page_views: number;
@@ -106,8 +103,7 @@ export interface SitePeriod {
 export interface SiteTrafficSummary {
   from: string;
   to: string;
-  days: SiteDayFilter;
-  /** Every match day in the range with its traffic, whatever the day filter. */
+  /** Every match day in the range with its traffic. */
   match_day_list: SiteMatchDay[];
   totals: SiteTotals;
   /** null for "All time", which has no earlier period. */
@@ -165,5 +161,4 @@ export interface SiteEventsPage {
 export interface SiteRange {
   from?: string;
   to?: string;
-  days?: SiteDayFilter;
 }

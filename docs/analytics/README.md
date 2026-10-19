@@ -77,9 +77,12 @@ All `GET`, all under `/api/v1/admin/site-analytics`, all take `from` and `to` as
 | Endpoint | Returns |
 |---|---|
 | `/summary` | Totals, the previous period (when `from` is given), daily series with match days marked (gaps zero-filled up to ~3 years), monthly series, weekday x hour heatmap, match-day stats, site sections, top pages with titles, sources, campaigns, countries, devices, browsers, OS, actions, conversions |
+| `/match-days` | Every match day up to today (or within `from`/`to`) with its traffic. Feeds the calendar highlights. Always an array, empty when there are none. |
 | `/events?page=&limit=&type=&include_bots=` | Raw rows, newest first, paginated (limit max 200) |
 | `/export?kind=summary` | The **audience report** CSV: headline figures vs the previous period, match-day uplift, monthly and daily tables, busiest times, top pages with titles, sections, sources, geography, devices. Built to paste into a sponsorship deck or hand to an analyst. |
 | `/export?kind=events` | Every raw row in the range as CSV, streamed (safe for very large ranges) |
+
+`/summary`, `/events` and `/export` also accept `days=match` (match days only) or `days=other` (every day except match days). The dashboard no longer exposes this (it uses the Single day checkbox instead), but it is still supported, tested, and useful for scripted reports.
 
 CSV notes: UTF-8 with a byte-order mark so Excel opens it correctly, and any cell starting with `=`, `+`, `-`, `@` is prefixed with `'` so a malicious page path or campaign name cannot run as a spreadsheet formula.
 
@@ -104,12 +107,12 @@ Backend files: `domain/site_event.go`, `dto/site_analytics.go`, `ports/site_even
 
 ## The dashboard (Admin → Traffic)
 
-Admin and app admin only. Two filters at the top drive everything below them, including both CSV downloads:
+Admin and app admin only. The filters at the top drive everything below them, including both CSV downloads:
 
 - **Period**: last 7/30/90 days, all time, or a custom range. Every preset except "All time" is compared with the same-length period just before it.
-- **Days**: every day, **match days only**, or other days (no match). The comparison period uses the same filter, so "match days only" compares this period's match days with the previous period's.
+- **Single day** (checkbox): swaps the period controls for one calendar day, with every match day highlighted in the calendar (hover or screen reader gives its name). Ticking it starts on the latest match day so far. The page then shows that day only: a banner names the day (or says it isn't a match day), and the over-time chart, match-day uplift, match-day list and month-by-month table are hidden because they need more than one day. There is no previous-period comparison for a single day (the day before is rarely a match day). "See this day only" in the match-day list ticks the box and picks that day.
 
-A **match day** is any date with an event day (Admin → Match Days) **or** a fixture that wasn't cancelled or postponed; not every fixture date has an event day and not every event day has fixtures entered. Match days are marked with numbered dashed lines on the visits chart and listed under it ("Match days in this period") with their event-day title (or fixtures), traffic, and how many times a normal day's visitors they drew. Each row's menu narrows the whole page to that single day.
+A **match day** is any date with an event day (Admin → Match Days) **or** a fixture that wasn't cancelled or postponed; not every fixture date has an event day and not every event day has fixtures entered. Match days are marked with numbered dashed lines on the visits chart and listed under it ("Match days in this period") with their event-day title (or fixtures), traffic, and how many times a normal day's visitors they drew. Each row's menu opens that day on its own (see Single day above).
 
 - **Overview**: audience reach, engagement, visits over time (match days marked), match-day uplift, what visitors did (accounts, tickets, store orders), ticket funnel, month by month.
 - **Audience**: new vs returning, when people visit (heatmap), countries, devices, browsers, operating systems.

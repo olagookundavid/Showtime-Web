@@ -236,6 +236,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	siteAnalyticsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "dashboard"))
 	{
 		siteAnalyticsGroup.GET("/summary", app.Handlers.SiteEventsHandler.GetSummary)
+		siteAnalyticsGroup.GET("/match-days", app.Handlers.SiteEventsHandler.ListMatchDays)
 		siteAnalyticsGroup.GET("/events", app.Handlers.SiteEventsHandler.ListEvents)
 		siteAnalyticsGroup.GET("/export", app.Handlers.SiteEventsHandler.Export)
 	}
