@@ -534,7 +534,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	commentHandler := transport.NewCommentHandler(commentService, roleService)
 	discountHandler := transport.NewDiscountHandler(discountService, storeService, productRepo)
 
-	reliveService := services.NewReliveService()
+	reliveService := services.NewReliveService(appSettingRepo)
 	reliveHandler := transport.NewReliveHandler(reliveService)
 
 	liveService := services.NewLiveService(appSettingRepo)

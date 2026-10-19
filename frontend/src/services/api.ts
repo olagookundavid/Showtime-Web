@@ -9,6 +9,7 @@ import type {
   News,
   CreateNewsPayload,
   RelivePlaylist,
+  AdminReliveStatus,
   LiveStatus,
   AdminLiveStatus,
   HeroSlide,
@@ -311,14 +312,23 @@ export const getNewsById = async (id: string) => {
 };
 
 // ─── RELIVE / YouTube Playlist ────────────────────────────────────────────────
-export const getRelivePlaylist = async (
-  playlistId?: string,
-): Promise<RelivePlaylist> => {
-  const url = playlistId
-    ? `/relive?playlist_id=${encodeURIComponent(playlistId)}`
-    : "/relive";
-  const response = await api.get<{ data: RelivePlaylist }>(url);
+// The playlist itself is chosen in the admin panel (reliveApi below).
+export const getRelivePlaylist = async (): Promise<RelivePlaylist> => {
+  const response = await api.get<{ data: RelivePlaylist }>("/relive");
   return response.data.data;
+};
+
+export const reliveApi = {
+  getAdminStatus: async (): Promise<AdminReliveStatus> => {
+    const res = await api.get<AdminReliveStatus>("/admin/relive");
+    return res.data;
+  },
+  setPlaylist: async (playlistId: string): Promise<AdminReliveStatus> => {
+    const res = await api.put<AdminReliveStatus>("/admin/relive", {
+      playlist_id: playlistId,
+    });
+    return res.data;
+  },
 };
 
 // ─── Live stream ──────────────────────────────────────────────────────────────

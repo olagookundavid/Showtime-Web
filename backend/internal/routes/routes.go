@@ -542,6 +542,14 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminLive.PUT("", app.Handlers.LiveHandler.UpdateOverride)
 	}
 
+	// Relive — which YouTube playlist the homepage highlights section shows.
+	adminRelive := adminRoutes.Group("/relive")
+	adminRelive.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "live_stream"))
+	{
+		adminRelive.GET("", app.Handlers.ReliveHandler.GetAdminStatus)
+		adminRelive.PUT("", app.Handlers.ReliveHandler.UpdatePlaylist)
+	}
+
 	adminBudgets := adminRoutes.Group("/team-budgets")
 	adminBudgets.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "team_budgets"))
 	{

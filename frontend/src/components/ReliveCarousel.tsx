@@ -2,15 +2,16 @@ import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getRelivePlaylist } from "../services/api";
 import type { ReliveVideo } from "../types";
-import { Loader } from "./ui/Loader";
-import { Modal } from "./ui";
+import { Modal, Spinner } from "./ui";
 import { buttonClass } from "./ui/buttonStyles";
 import {
   PlayIcon,
   ArrowRightIcon,
+  VideoCameraSlashIcon,
 } from "@heroicons/react/24/outline";
 
-const PLAYLIST_ID = "PLCXiB8nftQ9A";
+// Linked when the backend couldn't say which playlist is configured.
+const CHANNEL_URL = "https://www.youtube.com/@ShowtimeFlagFootball";
 
 export const ReliveCarousel = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -21,12 +22,18 @@ export const ReliveCarousel = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["relivePlaylist", PLAYLIST_ID],
-    queryFn: () => getRelivePlaylist(PLAYLIST_ID),
+    queryKey: ["relivePlaylist"],
+    queryFn: getRelivePlaylist,
     staleTime: 5 * 60_000,
+    // A nice-to-have section: when YouTube is slow the backend fails, and
+    // retrying only keeps the spinner up longer before the section hides.
+    retry: false,
   });
 
   const videos = playlistData?.videos || [];
+  const playlistUrl = playlistData?.playlist_id
+    ? `https://www.youtube.com/playlist?list=${encodeURIComponent(playlistData.playlist_id)}`
+    : CHANNEL_URL;
 
   const scrollLeft = () => {
     scrollContainerRef.current?.scrollBy({ left: -320, behavior: "smooth" });
@@ -36,37 +43,55 @@ export const ReliveCarousel = () => {
     scrollContainerRef.current?.scrollBy({ left: 320, behavior: "smooth" });
   };
 
-  if (isLoading) {
+  const header = (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 mb-4 px-2">
+      <div className="flex items-center gap-2 md:gap-3">
+        <span className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-sffl-red animate-pulse inline-block shadow-[0_0_12px_rgba(227,27,35,0.8)]" />
+        <h2 className="text-xl md:text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase">
+          RELIVE
+        </h2>
+      </div>
+      <a
+        href={playlistUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="min-h-11 text-xs md:text-sm font-bold text-sffl-red hover:underline inline-flex items-center gap-1"
+      >
+        {playlistData?.playlist_id ? "Full Playlist" : "YouTube Channel"} <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
+      </a>
+    </div>
+  );
+
+  // The section keeps its own spot on the page: an inline spinner while the
+  // playlist loads (never the full-screen <Loader />), and an empty state when
+  // YouTube is unreachable or the playlist has no videos.
+  if (isLoading || isError || videos.length === 0) {
     return (
-      <div className="w-full py-8 flex justify-center">
-        <Loader />
+      <div className="w-full my-4 md:my-8">
+        {header}
+        {isLoading ? (
+          <Spinner label="Loading highlights…" className="py-12" />
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 text-center py-12 px-4 bg-gray-50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+            <VideoCameraSlashIcon
+              className="w-8 h-8 text-gray-400 dark:text-gray-500"
+              aria-hidden="true"
+            />
+            <p className="text-gray-500 dark:text-gray-400 font-medium italic">
+              No highlight videos available right now.
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Catch every game on the full playlist on YouTube.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
 
-  if (isError || videos.length === 0) {
-    return null;
-  }
-
   return (
     <div className="w-full relative select-none my-4 md:my-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-2">
-        <div className="flex items-center gap-2 md:gap-3">
-          <span className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-sffl-red animate-pulse inline-block shadow-[0_0_12px_rgba(227,27,35,0.8)]" />
-          <h2 className="text-xl md:text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase">
-            RELIVE
-          </h2>
-        </div>
-        <a
-          href={`https://www.youtube.com/playlist?list=${PLAYLIST_ID}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs md:text-sm font-bold text-sffl-red hover:underline flex items-center gap-1"
-        >
-          Full Playlist <ArrowRightIcon className="w-3.5 h-3.5" />
-        </a>
-      </div>
+      {header}
 
       {/* Carousel Container */}
       <div className="relative group">

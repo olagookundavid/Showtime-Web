@@ -1,4 +1,4 @@
-import { MainHeroCarousel, LiveHero, ReliveCarousel, HeroCarousel, TeamOfTheWeekModule, Loader, LightboxImage } from "../components";
+import { MainHeroCarousel, LiveHero, ReliveCarousel, HeroCarousel, TeamOfTheWeekModule, Spinner, LightboxImage } from "../components";
 import { useLiveStream } from "../hooks";
 import { htmlToPlainText } from "../utils";
 import { Link } from "react-router-dom";
@@ -62,8 +62,8 @@ export const Landing = () => {
         </div>
 
         {loadingTeamNews ? (
-          <Loader />
-        ) : teamNews.length > 0 ? (
+          <Spinner label="Loading news…" />
+        ) :teamNews.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {teamNews.map((item) => (
               <div
