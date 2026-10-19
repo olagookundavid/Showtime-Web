@@ -383,6 +383,13 @@ routine noise.
   (a network-level probe vs. a delayed, unrelated-looking application
   error), which is exactly why the collateral damage tends to go unnoticed
   until something downstream — an email, a payment — quietly stops working.
+- **A firewall fix isn't done until it survives a reboot.** On most Linux
+  setups a rule change takes effect immediately but lives only in memory;
+  at boot the host restores whatever was last *saved*. A fix that was applied
+  but never saved passes every test, then silently reverts the first time
+  the host restarts — and hosting providers do reboot hosts unannounced
+  (e.g. for kernel security patches). Save after every change, and prove it
+  with a deliberate reboot followed by the same two-direction verification.
 
 ---
 
@@ -454,6 +461,15 @@ routine noise.
   completely different (a network probe vs. a delayed application error),
   the collateral damage can go unnoticed for a while. Scope by interface,
   and test both directions after the change, every time.
+- **Applying a firewall fix without persisting it.** The live rules look
+  right and every test passes, but the next reboot restores the previous
+  saved set and the original problem returns, often weeks later and with
+  nothing obviously connecting it to the old fix. Persist every change in
+  the same step that applies it.
+- **Reading firewall rules in a view that hides the interface column.**
+  A rule scoped to the external interface and an unscoped one can look
+  identical in a terse listing. Use the verbose listing whenever direction
+  matters.
 - **Assuming a copy-pasted fix (from a forum, an AI assistant, a
   colleague's unrelated project) matches your actual configuration.**
   Verify its stated root cause against your own observed state before
@@ -589,6 +605,10 @@ Treat each of these as a **trigger to reconsider**, not a fixed timeline:
 - [ ] CORS (or equivalent cross-origin trust configuration) is explicitly
       set, with any "insecure if unconfigured" fallback in the application
       confirmed closed.
+- [ ] Firewall rules are persisted, and a **deliberate reboot test** has
+      been done: after the host comes back, inbound is still restricted
+      (tested from outside) and containers can still make outbound calls
+      (tested from inside a container).
 
 ### 6.3 Deployment
 
@@ -628,7 +648,12 @@ Treat each of these as a **trigger to reconsider**, not a fixed timeline:
 - [ ] Consult the relevant log source for the layer where the failure
       localizes; check timestamps against when the alert fired to correlate.
 - [ ] If the fix involves a firewall/network change, verify it from a
-      genuinely external vantage point, not from the host itself.
+      genuinely external vantage point, not from the host itself — and
+      persist it, so it survives the next reboot.
+- [ ] After any unplanned host reboot (e.g. a provider patch notice),
+      re-verify both firewall directions and check that every service came
+      back, even if monitoring is quiet: a lost egress rule breaks outbound
+      calls without taking the site down.
 - [ ] If the fix involves a rollback, use the documented immutable-tag
       rollback path rather than improvising.
 - [ ] After resolution, record symptom → root cause → fix → prevention
