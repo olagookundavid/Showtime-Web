@@ -15,12 +15,11 @@ type HeroSlideRepository interface {
 	Update(ctx context.Context, id string, imageURL, mobileImageURL, destinationURL *string, displayOrder *int, isActive *bool) error
 	FindAll(ctx context.Context, activeOnly bool) ([]*domain.HeroSlide, error)
 	FindByID(ctx context.Context, id string) (*domain.HeroSlide, error)
-	Count(ctx context.Context) (int, error)
 	// NextDisplayOrder returns one past the highest display_order currently in
-	// use. Create must not use Count for this: once a slide has been deleted,
-	// the row count under-shoots the highest order in use and the new slide
-	// collides with an existing one, leaving two slides on the same order —
-	// which makes a later "move up/down" between them a no-op swap.
+	// use. Create must not use a row count for this: once a slide has been
+	// deleted, the count under-shoots the highest order in use and the new
+	// slide collides with an existing one, leaving two slides on the same
+	// order — which makes a later "move up/down" between them a no-op swap.
 	NextDisplayOrder(ctx context.Context) (int, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -181,18 +180,6 @@ func (r *HeroSlidePGRepository) FindByID(ctx context.Context, id string) (*domai
 		return nil, fmt.Errorf("failed to find hero slide: %w", err)
 	}
 	return s, nil
-}
-
-func (r *HeroSlidePGRepository) Count(ctx context.Context) (int, error) {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-
-	var n int
-	err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM hero_slides`).Scan(&n)
-	if err != nil {
-		return 0, fmt.Errorf("failed to count hero slides: %w", err)
-	}
-	return n, nil
 }
 
 func (r *HeroSlidePGRepository) NextDisplayOrder(ctx context.Context) (int, error) {

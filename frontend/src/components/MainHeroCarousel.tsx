@@ -5,6 +5,10 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { getHeroSlides } from "../services/api";
 import { IconButton } from "./ui";
 
+// Up to this many slides get one dot each; beyond it the row would overflow a
+// phone (each dot is a 44px tap target), so a "3 / 12" counter replaces it.
+const MAX_DOTS = 7;
+
 export const MainHeroCarousel = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -53,23 +57,38 @@ export const MainHeroCarousel = () => {
 
   if (slides.length === 0) return null;
 
+  // The number of slides is unlimited, so only the visible slide and its two
+  // neighbours load their images. The rest stay empty until the carousel
+  // reaches them, instead of every full-size image loading with the homepage.
+  const isNearActive = (index: number) => {
+    const distance = Math.abs(index - activeSlide);
+    return Math.min(distance, slides.length - distance) <= 1;
+  };
+
   return (
     <div className="relative aspect-video md:aspect-2/1 w-full overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
       {slides.map((slide, index) => {
         const className = `absolute inset-0 transition-all duration-1000 ease-in-out ${index === activeSlide ? "opacity-100 scale-100 z-10" : "opacity-0 scale-105 z-0"}`;
+        const load = isNearActive(index);
         const backgrounds = (
           <>
             {/* Mobile: square variant when provided, else the desktop image */}
             <div
               className="md:hidden w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-10000"
-              style={{
-                backgroundImage: `url(${slide.mobile_image_url || slide.image_url})`,
-              }}
+              style={
+                load
+                  ? {
+                      backgroundImage: `url(${slide.mobile_image_url || slide.image_url})`,
+                    }
+                  : undefined
+              }
             />
             {/* Desktop: wide 2:1 image */}
             <div
               className="hidden md:block w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-10000"
-              style={{ backgroundImage: `url(${slide.image_url})` }}
+              style={
+                load ? { backgroundImage: `url(${slide.image_url})` } : undefined
+              }
             />
           </>
         );
@@ -116,23 +135,34 @@ export const MainHeroCarousel = () => {
             }
           />
 
-          {/* Dots: small marks inside 44px tap areas */}
-          <div className="absolute bottom-1 md:bottom-3 left-1/2 -translate-x-1/2 z-20 flex">
-            {slides.map((_, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => setCurrentSlide(index)}
-                aria-label={`Go to slide ${index + 1}`}
-                aria-current={index === currentSlide ? "true" : undefined}
-                className="group min-h-11 min-w-11 flex items-center justify-center"
-              >
-                <span
-                  className={`h-2 md:h-3 rounded-full transition-all ${index === currentSlide ? "bg-sffl-red w-6 md:w-8" : "w-2 md:w-3 bg-white/50 group-hover:bg-white"}`}
-                />
-              </button>
-            ))}
-          </div>
+          {slides.length > MAX_DOTS ? (
+            // Too many for one dot each: a position counter, with the arrows
+            // above to move.
+            <div
+              className="absolute bottom-2 md:bottom-4 left-1/2 -translate-x-1/2 z-20 rounded-full bg-black/50 backdrop-blur-md px-3 py-1 text-xs md:text-sm font-bold text-white"
+              aria-live="polite"
+            >
+              {activeSlide + 1} / {slides.length}
+            </div>
+          ) : (
+            // Dots: small marks inside 44px tap areas
+            <div className="absolute bottom-1 md:bottom-3 left-1/2 -translate-x-1/2 z-20 flex">
+              {slides.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setCurrentSlide(index)}
+                  aria-label={`Go to slide ${index + 1}`}
+                  aria-current={index === activeSlide ? "true" : undefined}
+                  className="group min-h-11 min-w-11 flex items-center justify-center"
+                >
+                  <span
+                    className={`h-2 md:h-3 rounded-full transition-all ${index === activeSlide ? "bg-sffl-red w-6 md:w-8" : "w-2 md:w-3 bg-white/50 group-hover:bg-white"}`}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>
