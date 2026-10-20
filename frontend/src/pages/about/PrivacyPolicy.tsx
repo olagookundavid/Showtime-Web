@@ -4,7 +4,7 @@ import { CopyableEmail } from '../../components';
 export const PrivacyPolicy = () => {
     return (
         <div className="space-y-4 md:space-y-8">
-            <section className="bg-white dark:bg-gray-800 p-4 sm:p-6 md:p-8 rounded-xl shadow-md space-y-6 text-gray-700 dark:text-gray-100 leading-relaxed wrap-break-word">
+            <section className="p-5 sm:p-8 space-y-6 text-gray-700 dark:text-gray-300 leading-relaxed wrap-break-word">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Last updated: 27 June 2026</p>
                 <p>
                     This Privacy Policy explains how the Showtime Flag Football League ("Showtime", "we",
@@ -14,7 +14,10 @@ export const PrivacyPolicy = () => {
                 </p>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">1. Information We Collect</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        1. Information We Collect
+                    </h2>
                     <ul className="list-disc list-inside space-y-2 ml-2">
                         <li><strong>Account information</strong> you provide when registering — such as your name, email address, and phone number.</li>
                         <li><strong>Transaction information</strong> when you buy tickets or store items — such as billing details and shipping address. Payment card details are handled by our payment provider and are not stored by us.</li>
@@ -24,7 +27,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">2. How We Use Your Information</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        2. How We Use Your Information
+                    </h2>
                     <ul className="list-disc list-inside space-y-2 ml-2">
                         <li>To create and manage your account.</li>
                         <li>To process ticket purchases, store orders, and deliver confirmations.</li>
@@ -36,7 +42,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">3. Cookies and Tracking Technologies</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        3. Cookies and Tracking Technologies
+                    </h2>
                     <p>
                         We use cookies and similar technologies to keep you signed in, remember your
                         preferences, understand how the Site is used, and serve advertising. You can disable
@@ -46,8 +55,11 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">4. Advertising and Third-Party Cookies</h2>
-                    <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl space-y-3">
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        4. Advertising and Third-Party Cookies
+                    </h2>
+                    <div className="border border-gray-200 dark:border-gray-700 border-t-4 border-t-sffl-red bg-white dark:bg-gray-800 p-5 sm:p-6 space-y-3">
                         <p>
                             We use <strong>Google AdSense</strong>, a third-party advertising service, to display
                             ads on the Site. Third-party vendors, including Google, use cookies to serve ads based
@@ -75,7 +87,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">5. How We Share Information</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        5. How We Share Information
+                    </h2>
                     <p>
                         We do not sell your personal information. We share it only with service providers who
                         help us operate the Site — such as our payment processor (to complete purchases) and
@@ -84,7 +99,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">6. Data Security</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        6. Data Security
+                    </h2>
                     <p>
                         We take reasonable technical and organisational measures to protect your information.
                         However, no method of transmission or storage is completely secure, and we cannot
@@ -93,7 +111,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">7. Children's Privacy</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        7. Children's Privacy
+                    </h2>
                     <p>
                         The Site is not directed to children under 13, and we do not knowingly collect personal
                         information from them. If you believe a child has provided us with information, please
@@ -102,7 +123,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">8. Your Rights</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        8. Your Rights
+                    </h2>
                     <p>
                         Depending on your location, you may have the right to access, correct, or delete your
                         personal information, or to object to certain processing. To make a request, contact us
@@ -111,7 +135,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">9. Changes to This Policy</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        9. Changes to This Policy
+                    </h2>
                     <p>
                         We may update this Privacy Policy from time to time. Any changes will be posted on this
                         page with an updated "Last updated" date.
@@ -119,7 +146,10 @@ export const PrivacyPolicy = () => {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-sffl-red mb-3">10. Contact Us</h2>
+                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
+                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                        10. Contact Us
+                    </h2>
                     <p className="mb-4">
                         If you have any questions about this Privacy Policy or how we handle your information,
                         please reach out:

@@ -4,25 +4,26 @@ import { CopyableEmail } from "../../components";
 export const Sponsorships = () => {
   return (
     <div className="space-y-4 md:space-y-8">
-      <section className="bg-white dark:bg-gray-800 p-5 sm:p-8 md:p-10 rounded-3xl shadow-xl relative overflow-hidden">
-        <h2 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white mb-6">
-          SPONSORSHIPS
+      <section className="p-5 sm:p-8">
+        <h2 className="mb-6 flex items-center gap-3 text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+          <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+          Sponsorships
         </h2>
 
-        <div className="prose sm:prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-          <p className="font-medium text-lg sm:text-xl text-sffl-navy dark:text-blue-400 mb-6">
+        <div className="space-y-6 text-gray-700 dark:text-gray-300">
+          <p className="font-medium text-lg sm:text-xl text-sffl-navy dark:text-blue-400">
             Showtime offers premium partnership opportunities across live
             events, digital platforms, media integration, and community
             development initiatives.
           </p>
-          <p className="mb-8">
+          <p>
             As The Standard of Co-Ed Flag Football, we provide more than brand
             visibility. What we offer is cultural positioning within a
             fast-growing, youth-forward sports ecosystem.
           </p>
 
-          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 sm:p-8 rounded-2xl border border-gray-100 dark:border-gray-700">
-            <h3 className="font-bold text-lg text-sffl-navy dark:text-white mb-4">
+          <div className="border border-gray-200 dark:border-gray-700 border-t-4 border-t-sffl-red bg-white dark:bg-gray-800 p-5 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-4">
               Partnership opportunities include:
             </h3>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 list-none p-0 m-0">
@@ -49,7 +50,7 @@ export const Sponsorships = () => {
             </ul>
           </div>
 
-          <p className="font-black text-lg sm:text-xl text-center text-sffl-navy dark:text-white mt-8 italic">
+          <p className="font-bold text-lg text-sffl-navy dark:text-white mt-6 pt-6 border-t border-gray-200 dark:border-white/20">
             Showtime is where brands align with competition, culture, and
             credibility.
           </p>
@@ -57,7 +58,7 @@ export const Sponsorships = () => {
             <CopyableEmail
               email="showtime@sffl.football"
               label="Request Deck at:"
-              className="bg-gray-100 dark:bg-gray-800 text-sffl-navy dark:text-white px-4 sm:px-6 py-2 rounded-3xl sm:rounded-full justify-center text-sm border border-gray-200 dark:border-gray-700 shadow-sm"
+              className="bg-gray-100 dark:bg-gray-800 text-sffl-navy dark:text-white px-4 sm:px-6 py-2 justify-center text-sm border border-gray-200 dark:border-gray-700"
             />
           </div>
         </div>

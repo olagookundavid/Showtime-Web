@@ -42,6 +42,7 @@ export const ABOUT_NAV: AboutNavItem[] = [
     title: "SHOWTIME ARENA",
     subtitle: "The Premium Hub of the SFFL",
     backgroundImage: "/images/branding/showtime-arena-main.webp",
+    backgroundFit: "width",
   },
   // Education page taken out of the About nav for now — see
   // pages/about/Education.tsx, App.tsx and Footer.tsx for the rest of it.
@@ -52,12 +53,6 @@ export const ABOUT_NAV: AboutNavItem[] = [
   //   title: "FLAG FOOTBALL EDUCATION",
   //   subtitle: "Master the game",
   // },
-  {
-    to: "/about/sponsorships",
-    label: "Sponsorships",
-    eyebrow: LEAGUE_EYEBROW,
-    title: "PARTNERSHIPS & SPONSORSHIPS",
-  },
   {
     to: "/about/rules",
     label: "Gameplay Rules",
@@ -73,18 +68,18 @@ export const ABOUT_NAV: AboutNavItem[] = [
     subtitle: "League governance and regulations",
   },
   {
-    to: "/about/media-guidelines",
-    label: "Media Guidelines",
-    eyebrow: RULES_EYEBROW,
-    title: "MEDIA ACCREDITATION",
-    subtitle: "Guidelines for Content Creators & Journalists",
-  },
-  {
     to: "/about/faq",
     label: "FAQs",
     eyebrow: "Help Center",
     title: "FREQUENTLY ASKED QUESTIONS",
     subtitle: "Everything you need to know about Showtime Flag Football.",
+  },
+  {
+    to: "/about/media-guidelines",
+    label: "Media Guidelines",
+    eyebrow: RULES_EYEBROW,
+    title: "MEDIA ACCREDITATION",
+    subtitle: "Guidelines for Content Creators & Journalists",
   },
   {
     to: "/about/whistleblower",
@@ -99,5 +94,11 @@ export const ABOUT_NAV: AboutNavItem[] = [
     eyebrow: RULES_EYEBROW,
     title: "PRIVACY POLICY",
     subtitle: "How we collect, use, and protect your information",
+  },
+  {
+    to: "/about/sponsorships",
+    label: "Sponsorships",
+    eyebrow: LEAGUE_EYEBROW,
+    title: "PARTNERSHIPS & SPONSORSHIPS",
   },
 ];
