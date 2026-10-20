@@ -26,6 +26,7 @@ export const AboutLayout = () => {
           title={active.title}
           subtitle={active.subtitle}
           backgroundImage={active.backgroundImage}
+          backgroundFit={active.backgroundFit}
           actions={
             <img
               src="/images/branding/showtime-logo.webp"

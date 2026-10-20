@@ -7,6 +7,10 @@ export type AboutNavItem = {
   subtitle?: string;
   /** Real local photo only — no stock imagery. */
   backgroundImage?: string;
+  /** `width` scales the photo to span the hero's full width instead of
+   * cropping it to fill (the default `cover`) — for photos like a group
+   * shot where cropping cuts people off. */
+  backgroundFit?: "cover" | "width";
 };
 
 const LEAGUE_EYEBROW = "The league";
@@ -29,6 +33,7 @@ export const ABOUT_NAV: AboutNavItem[] = [
     title: "OUR TEAM",
     subtitle: "Showtime Leadership & Sporting Operations",
     backgroundImage: "/images/team/team-photo-1.webp",
+    backgroundFit: "width",
   },
   {
     to: "/about/arena",

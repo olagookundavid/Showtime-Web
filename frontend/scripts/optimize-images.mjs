@@ -71,6 +71,25 @@ const CONVERT_TO_WEBP = [
     quality: 80,
   },
   { src: "images/leadership/kalu_esther.jpg", maxWidth: 800, quality: 80 },
+  // Replacement headshots supplied later — written back over the original
+  // filenames (via `rename`) so src/ references never needed to change.
+  {
+    src: "images/leadership/adebare_adejumo_2.jpg",
+    maxWidth: 800,
+    quality: 80,
+    rename: "adebare_adejumo.webp",
+  },
+  {
+    src: "images/leadership/kalu_esther_2.jpg",
+    maxWidth: 800,
+    quality: 80,
+    rename: "kalu_esther.webp",
+  },
+  // Re-cropped team banner photo — used full-bleed (OurTeam.tsx banner,
+  // the About section's PageHeader background), so kept wider than the
+  // leadership headshots and at a slightly higher quality than the other
+  // low-opacity hero backgrounds since it's shown at full visibility here.
+  { src: "images/team/team-photo-1.jpg", maxWidth: 1920, quality: 80 },
 ];
 
 // Kept as PNG at their existing path — BadgeImage.tsx/AdminBadges.tsx match
@@ -95,9 +114,11 @@ function pct(before, after) {
   return `${Math.round((1 - after / before) * 100)}%`;
 }
 
-async function convertToWebp({ src, maxWidth, quality }) {
+async function convertToWebp({ src, maxWidth, quality, rename }) {
   const srcPath = path.join(PUBLIC_DIR, src);
-  const outPath = srcPath.replace(/\.(png|jpe?g)$/i, ".webp");
+  const outPath = rename
+    ? path.join(path.dirname(srcPath), rename)
+    : srcPath.replace(/\.(png|jpe?g)$/i, ".webp");
   const before = (await stat(srcPath)).size;
   await sharp(srcPath)
     .resize({ width: maxWidth, withoutEnlargement: true })
@@ -137,6 +158,15 @@ async function regenerateFavicon() {
   console.log(`favicon.svg: ${before}B -> ${newSvg.length}B (-${pct(before, newSvg.length)})`);
 }
 
-for (const f of CONVERT_TO_WEBP) await convertToWebp(f);
+// Each entry here is a historical record of a conversion that already ran —
+// its source file is gone afterwards, so a later re-run (with new entries
+// appended) skips the old, already-converted ones instead of throwing.
+for (const f of CONVERT_TO_WEBP) {
+  try {
+    await convertToWebp(f);
+  } catch (e) {
+    console.log(`${f.src}: skipped (${e.message})`);
+  }
+}
 for (const f of COMPRESS_IN_PLACE_PNG) await compressInPlacePng(f);
 await regenerateFavicon();

@@ -63,6 +63,12 @@ export const Footer = () => {
           >
             Sponsorships
           </Link>
+          <Link
+            to="/about/faq"
+            className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
+          >
+            FAQs
+          </Link>
         </div>
 
         {/* Rules & Policy — game rules + conduct + media */}
@@ -87,12 +93,6 @@ export const Footer = () => {
             className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
           >
             Media Guidelines
-          </Link>
-          <Link
-            to="/about/faq"
-            className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
-          >
-            FAQs
           </Link>
           <Link
             to="/about/whistleblower"

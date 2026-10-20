@@ -3,7 +3,7 @@ interface TeamMember {
   role: string;
   image?: string;
   bio: string[];
-  /** Optional pill badge shown above the name (e.g. "Executive Leadership"). */
+  /** Eyebrow label shown above the name (e.g. "Executive Leadership"). */
   badge?: string;
 }
 
@@ -13,12 +13,8 @@ const PRESIDENT: TeamMember = {
   image: "/images/leadership/azeez_amida.webp",
   badge: "Executive Leadership",
   bio: [
-    "Azeez Amida is the Founder and President of Showtime Flag Football League and one of the leading figures behind the growth and professionalisation of flag football in Nigeria.",
-    "Under his leadership, Showtime has evolved into one of the world’s fastest growing coed professional flag football league, creating structured competitive and development opportunities for hundreds of male and female athletes.",
-    "His vision is to build Showtime into a nationally relevant sports and media institution that develops talent, creates sustainable sporting careers, strengthens communities and presents Nigerian flag football to a global audience.",
-    "Beyond sport, Amida is a business executive, investor and author with more than two decades of professional experience. He is the President and Founder of Fusewall Holdings, Chairman of Coloplus Limited, and a former Chief Executive Officer of Pan African Towers and IHS Rwanda. His experience in building and transforming businesses continues to shape Showtime’s commercial strategy, operating discipline and long-term ambition.",
-    "Amida is the author of How to Grow Anything: A 6-Step Guide for Growing People, Businesses and Ideas and EPE Principle: Enter, Perform, Exit. His work explores leadership, organisational transformation, career development and the systems required to achieve sustainable growth.",
-    "Connect with him across social media at @azeezamida.",
+    "Azeez Amida is the Founder and President of Showtime Flag Football League, one of the leading figures behind the growth and professionalisation of flag football in Nigeria. Under his leadership, Showtime has grown into one of the world's fastest-growing coed professional flag football leagues, creating structured competitive and development opportunities for hundreds of male and female athletes.",
+    "His vision is to build Showtime into a nationally relevant sports and media institution — developing talent, creating sustainable sporting careers, strengthening communities, and presenting Nigerian flag football to a global audience. A business executive and investor with more than two decades of experience, he brings that expertise directly to Showtime's commercial strategy, operating discipline, and long-term ambition.",
   ],
 };
 
@@ -28,121 +24,199 @@ const COMMISSIONER: TeamMember = {
   image: "/images/leadership/adebare_adejumo.webp",
   badge: "League Administration",
   bio: [
-    "Adebare Adejumo serves as the League Commissioner of Showtime Flag, where he oversees the governance, competitive integrity, and overall sporting operations of the league.",
-    "As the chief steward of competition, he works closely with teams, officials, and league stakeholders to ensure that Showtime Flag maintains the highest standards of fairness, professionalism, and excellence on and off the field. His leadership is instrumental in shaping league policies, managing competition structures, and supporting the continued growth of flag football across Nigeria and beyond.",
-    "Driven by a passion for sport development and athlete success, he remains committed to creating an environment where players, teams, and communities can thrive while advancing Showtime Flag's vision of becoming a leading force in global flag football.",
+    "Adebare Adejumo serves as the League Commissioner of Showtime Flag, overseeing the governance, competitive integrity, and overall sporting operations of the league. As chief steward of competition, he works closely with teams, officials, and league stakeholders to uphold the highest standards of fairness, professionalism, and excellence on and off the field.",
+    "His leadership shapes league policies, competition structures, and the continued growth of flag football across Nigeria and beyond — driven by a commitment to athlete success and an environment where players, teams, and communities can thrive.",
   ],
 };
 
-const LEADERS: TeamMember[] = [
-  {
-    name: "Kalu Esther",
-    role: "VP, Operations",
-    image: "/images/leadership/kalu_esther.webp",
-    badge: "Vice President",
-    bio: [
-      "Esther Kalu serves as the Vice President of Operations at Showtime Flag, overseeing the administrative and operational systems that support the league's day-to-day activities.",
-      "She plays a critical role in ensuring organizational efficiency, managing internal processes, coordinating logistics, and providing operational support across league functions. Her attention to detail and commitment to excellence help create the structure and stability necessary for Showtime Flag to deliver exceptional experiences for players, partners, and fans.",
-      "With a strong focus on organization and execution, she helps ensure that the league continues to operate smoothly while supporting its long-term growth and development.",
-    ],
-  },
-  {
-    name: "Ivie Okuns",
-    role: "VP, Commercials",
-    badge: "Vice President",
-    bio: [
-      "Ivie Okuns serves as the Vice President of Commercials at Showtime Flag, where she leads the league's commercial strategy, brand development, marketing, partnerships, and audience growth initiatives.",
-      "With a passion for building communities through sport and storytelling, Ivie has played a key role in shaping Showtime Flag's brand identity and expanding its reach among fans, partners, and stakeholders. Her work spans sponsorship acquisition, content strategy, digital marketing, event promotion, and business development, helping to position Showtime Flag as one of Africa's most innovative and fast-growing sports properties.",
-      "She remains committed to advancing Showtime Flag's mission of growing flag football, fostering community, and creating pathways for participation and excellence across the sport.",
-    ],
-  },
-];
+const KALU_ESTHER: TeamMember = {
+  name: "Kalu Esther",
+  role: "VP, Operations",
+  image: "/images/leadership/kalu_esther.webp",
+  badge: "Vice President",
+  bio: [
+    "Esther Kalu serves as Vice President of Operations at Showtime Flag, overseeing the administrative and operational systems that support the league's day-to-day activities.",
+    "She ensures organizational efficiency, manages internal processes, and coordinates logistics across league functions — the structure and stability behind every exceptional experience Showtime delivers for players, partners, and fans.",
+  ],
+};
 
-// Horizontal card with the picture on the left (top on mobile) and the
-// bio block on the right.
-const TeamMemberCard = ({ member }: { member: TeamMember }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden group">
-    <div className="flex flex-col md:flex-row items-stretch">
-      {/* Image Container */}
-      <div className="w-full md:w-2/5 min-h-72 sm:min-h-90 md:min-h-115 relative overflow-hidden bg-gray-100 dark:bg-gray-900">
+const IVIE_OKUNS: TeamMember = {
+  name: "Ivie Okuns",
+  role: "VP, Commercials",
+  badge: "Vice President",
+  bio: [
+    "Ivie Okuns serves as Vice President of Commercials at Showtime Flag, leading the league's commercial strategy, brand development, marketing, partnerships, and audience growth.",
+    "Her work spans sponsorship, content strategy, digital marketing, and event promotion — shaping Showtime's brand identity and positioning it as one of Africa's most innovative, fast-growing sports properties.",
+  ],
+};
+
+const LEADERSHIP_TEAM: TeamMember[] = [COMMISSIONER, KALU_ESTHER, IVIE_OKUNS];
+
+// Flat navy feature band for the founder, reusing the Incubator section's
+// visual language (AboutShowtimeFlag.tsx) so top billing comes from scale
+// and color, not a different card style.
+const PresidentBand = ({ member }: { member: TeamMember }) => {
+  const initials = member.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("");
+
+  return (
+    <section className="relative overflow-hidden bg-linear-to-r from-gray-900 to-sffl-navy text-white group">
+      <div className="flex flex-col md:flex-row items-stretch">
+        {/* Photo */}
+        <div className="relative w-full md:w-2/5 min-h-80 sm:min-h-96 overflow-hidden bg-black/20">
+          {member.image ? (
+            <img
+              src={member.image}
+              alt={member.name}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/5 border border-white/10">
+              <span className="text-6xl font-black text-white/30">
+                {initials}
+              </span>
+              <span className="mt-3 text-[10px] font-black uppercase tracking-widest text-white/50">
+                Photo Coming Soon
+              </span>
+            </div>
+          )}
+          <div
+            className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* Content */}
+        <div className="w-full md:w-3/5 p-5 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-center gap-5 min-w-0">
+          {member.badge && (
+            <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
+              <span
+                className="h-px w-8 shrink-0 bg-sffl-red"
+                aria-hidden="true"
+              />
+              {member.badge}
+            </p>
+          )}
+          <div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase leading-[0.95] tracking-tight text-white wrap-break-word">
+              {member.name}
+            </h2>
+            <p className="mt-2 text-base md:text-lg font-bold uppercase tracking-wide text-sffl-gold">
+              {member.role}
+            </p>
+          </div>
+          <span className="h-1 w-12 bg-sffl-red" aria-hidden="true" />
+          <div className="space-y-4">
+            {member.bio.map((para, index) => (
+              <p
+                key={index}
+                className="text-sm md:text-base text-gray-200 leading-relaxed font-medium"
+              >
+                {para}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// Compact vertical card for the league-leadership grid.
+const LeadershipCard = ({ member }: { member: TeamMember }) => {
+  const initials = member.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("");
+
+  return (
+    <article className="group flex flex-col border border-gray-200 dark:border-gray-700 border-t-4 border-t-sffl-red bg-white dark:bg-gray-800">
+      <div className="relative w-full aspect-4/5 overflow-hidden bg-gray-100 dark:bg-gray-900">
         {member.image ? (
           <img
             src={member.image}
             alt={member.name}
             loading="lazy"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}
           />
         ) : (
           <div className="absolute inset-0 bg-linear-to-br from-sffl-navy to-gray-900 flex flex-col items-center justify-center text-white">
-            <span className="text-5xl font-black opacity-40">
-              {member.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-widest mt-3 opacity-60">
+            <span className="text-4xl font-black opacity-40">{initials}</span>
+            <span className="mt-3 text-[10px] font-black uppercase tracking-widest opacity-60">
               Photo Coming Soon
             </span>
           </div>
         )}
-        <div className="absolute inset-0 bg-linear-to-t from-gray-900/50 via-transparent to-transparent" />
       </div>
-      {/* Content */}
-      <div className="w-full md:w-3/5 p-4 sm:p-6 md:p-10 flex flex-col justify-center space-y-4 min-w-0">
+
+      <div className="flex flex-1 flex-col gap-3 p-5 sm:p-6 min-w-0">
+        {member.badge && (
+          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+            <span
+              className="h-px w-6 shrink-0 bg-sffl-red"
+              aria-hidden="true"
+            />
+            {member.badge}
+          </p>
+        )}
         <div>
-          {member.badge && (
-            <span className="px-3 py-1 bg-sffl-red text-white text-[10px] md:text-xs font-black uppercase rounded-full tracking-wider">
-              {member.badge}
-            </span>
-          )}
-          <h2
-            className={`text-2xl md:text-4xl font-black text-sffl-navy dark:text-white uppercase tracking-tight wrap-break-word ${member.badge ? "mt-3" : ""}`}
-          >
+          <h3 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight wrap-break-word">
             {member.name}
-          </h2>
-          <p className="text-base md:text-lg text-sffl-red font-bold uppercase tracking-wide mt-1">
+          </h3>
+          <p className="mt-1 text-sm font-bold uppercase tracking-wide text-sffl-red">
             {member.role}
           </p>
         </div>
-        <div className="w-12 h-1 bg-sffl-red rounded" />
+        <span className="h-1 w-10 bg-sffl-red" aria-hidden="true" />
         <div className="space-y-3">
           {member.bio.map((para, index) => (
             <p
               key={index}
-              className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium"
+              className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium"
             >
               {para}
             </p>
           ))}
         </div>
       </div>
-    </div>
-  </div>
-);
+    </article>
+  );
+};
 
 export const OurTeam = () => {
   return (
     <div className="space-y-8 md:space-y-12">
-      {/* Founder & President */}
-      <TeamMemberCard member={PRESIDENT} />
+      <div className="h-44 sm:h-56 md:h-72 lg:h-125 w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <img
+          src="/images/team/team-photo-1.webp"
+          alt="The Showtime Flag Football team"
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover object-top"
+        />
+      </div>
 
-      {/* Commissioner Highlight */}
-      <TeamMemberCard member={COMMISSIONER} />
+      <PresidentBand member={PRESIDENT} />
 
-      {/* Vice Presidents */}
       <div className="space-y-6">
-        <div className="text-center md:text-left border-b border-gray-100 dark:border-gray-700 pb-3">
-          <h3 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
-            Vice Presidents
-          </h3>
-        </div>
-        <div className="space-y-6 md:space-y-8">
-          {LEADERS.map((leader, i) => (
-            <TeamMemberCard key={i} member={leader} />
+        <h2 className="mb-6 flex items-center gap-3 text-xl md:text-2xl font-black uppercase text-sffl-navy dark:text-white tracking-tight">
+          <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+          League Leadership
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          {LEADERSHIP_TEAM.map((member, i) => (
+            <LeadershipCard key={i} member={member} />
           ))}
         </div>
       </div>
