@@ -44,7 +44,7 @@ const GROUPS: SitemapGroup[] = [
       { name: "About Showtime Flag", path: "/about/showtime-flag" },
       { name: "Our Team", path: "/about/our-team" },
       { name: "Showtime Arena", path: "/about/arena" },
-      { name: "Education", path: "/about/education" },
+      // { name: "Education", path: "/about/education" }, // page taken out for now
       { name: "Sponsorships", path: "/about/sponsorships" },
     ],
   },

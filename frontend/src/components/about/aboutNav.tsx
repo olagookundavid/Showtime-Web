@@ -38,13 +38,15 @@ export const ABOUT_NAV: AboutNavItem[] = [
     subtitle: "The Premium Hub of the SFFL",
     backgroundImage: "/images/branding/showtime-arena-main.webp",
   },
-  {
-    to: "/about/education",
-    label: "Education",
-    eyebrow: LEAGUE_EYEBROW,
-    title: "FLAG FOOTBALL EDUCATION",
-    subtitle: "Master the game",
-  },
+  // Education page taken out of the About nav for now — see
+  // pages/about/Education.tsx, App.tsx and Footer.tsx for the rest of it.
+  // {
+  //   to: "/about/education",
+  //   label: "Education",
+  //   eyebrow: LEAGUE_EYEBROW,
+  //   title: "FLAG FOOTBALL EDUCATION",
+  //   subtitle: "Master the game",
+  // },
   {
     to: "/about/sponsorships",
     label: "Sponsorships",

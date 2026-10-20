@@ -24,7 +24,7 @@ import {
   ChevronLeftIcon,
   ShieldCheckIcon,
   WrenchIcon,
-  AcademicCapIcon,
+  // AcademicCapIcon, // only used by the Education link, taken out for now
   BookOpenIcon,
   ScaleIcon,
   MapPinIcon,
@@ -753,6 +753,7 @@ export const Layout = () => {
                   <ChevronRightIcon className="w-4 h-4 text-gray-400" />
                 </Link>
 
+                {/* Education page taken out for now — see pages/about/Education.tsx
                 <Link
                   to="/about/education"
                   onClick={() => setIsMoreMenuOpen(false)}
@@ -766,6 +767,7 @@ export const Layout = () => {
                   </div>
                   <ChevronRightIcon className="w-4 h-4 text-gray-400" />
                 </Link>
+                */}
 
                 <Link
                   to="/about/media-guidelines"

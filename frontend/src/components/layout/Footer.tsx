@@ -49,12 +49,14 @@ export const Footer = () => {
           >
             Showtime Arena
           </Link>
+          {/* Education page taken out for now — see pages/about/Education.tsx
           <Link
             to="/about/education"
             className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
           >
             Education
           </Link>
+          */}
           <Link
             to="/about/sponsorships"
             className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"

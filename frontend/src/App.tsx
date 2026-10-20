@@ -9,7 +9,7 @@ import {
   GameplayRules,
   ShowtimeByelaws,
   ShowtimeArena,
-  Education,
+  // Education, // page taken out for now — see pages/about/Education.tsx
   FAQ,
   Whistleblower,
   OurTeam,
@@ -575,7 +575,7 @@ function App() {
                           element={<ShowtimeByelaws />}
                         />
                         <Route path="/about/arena" element={<ShowtimeArena />} />
-                        <Route path="/about/education" element={<Education />} />
+                        {/* <Route path="/about/education" element={<Education />} /> */}
                         <Route path="/about/faq" element={<FAQ />} />
                         <Route
                           path="/about/whistleblower"
