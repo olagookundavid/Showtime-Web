@@ -212,9 +212,13 @@ select option {
   scrollbar-width: none;
 }
 
-/* Custom premium thin scrollbar */
+/* Custom premium thin scrollbar. Both dimensions are set (not just `height`)
+   so a horizontal and a vertical scrollbar on this class render at the same
+   thickness - e.g. DataTable's three scrollbars (top strip, native bottom,
+   native right) all need to look identical. */
 .custom-scrollbar::-webkit-scrollbar {
   height: 6px;
+  width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(0, 31, 63, 0.1);
@@ -229,6 +233,13 @@ select option {
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #c62828;
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #c62828 rgba(0, 31, 63, 0.1);
+}
+.dark .custom-scrollbar {
+  scrollbar-color: #c62828 rgba(255, 255, 255, 0.1);
 }
 
 /* The page's own scrollbar: a red thumb on a light track in light mode, and on

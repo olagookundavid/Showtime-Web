@@ -1,4 +1,14 @@
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   columnFilteringFeature,
   createFilteredRowModel,
@@ -70,6 +80,8 @@ interface DataTableProps<T> {
   stickyHeader?: boolean;
   /** Tailwind max-height class for the scrolling area, e.g. "max-h-[70dvh]". */
   maxHeight?: string;
+  /** Draws our own scrollbars (a bar above the header, one below the table, and one on the right when `maxHeight` is set) instead of each browser's native ones, so all three are pixel-identical. On by default; pass false to fall back to native scrollbars for this table. */
+  customScrollbars?: boolean;
 }
 
 // TanStack Table (v9) does the sorting, searching and paging; this file owns the markup and styling.
@@ -137,6 +149,47 @@ const ROW_HOVER =
 const ROW_DIVIDER =
   "border-b border-gray-200 dark:border-gray-700 group-last:border-b-0";
 
+// Our own scrollbars, so the top strip, the bottom bar and the right-hand bar are byte-for-byte
+// the same component in three places, instead of three different native renderers (Chrome, Edge
+// and Firefox each draw a native/`scrollbar-width:thin` scrollbar slightly differently). Their
+// thickness (6px) lives in the h-1.5 / w-1.5 classes below, on the track divs and MIN_THUMB_PX.
+const MIN_THUMB_PX = 24;
+// No `position` utility here - the horizontal bars need `relative` (plain block, positions
+// their own thumb), the vertical bar needs `absolute` (anchors to the scroll area's wrapper);
+// baking either one in would conflict with the other at the call site.
+const TRACK_CLASS = "shrink-0 bg-gray-100 dark:bg-gray-900/50";
+const THUMB_CLASS =
+  "absolute rounded-full bg-sffl-red hover:bg-red-700 active:bg-red-800 transition-colors cursor-pointer touch-none";
+
+type ScrollAxis = "x" | "y";
+
+interface ThumbGeometry {
+  thumbPx: number;
+  offsetPx: number;
+  valueNow: number;
+}
+
+// null means "no overflow on this axis" - the caller hides the bar entirely, matching how a
+// native scrollbar disappears when its content already fits.
+function computeThumbGeometry(
+  scrollPos: number,
+  contentSize: number,
+  viewportSize: number,
+  trackSize: number,
+): ThumbGeometry | null {
+  if (contentSize <= viewportSize + 1 || trackSize <= 0) return null;
+  const rawThumb = (viewportSize / contentSize) * trackSize;
+  const thumbPx = Math.max(MIN_THUMB_PX, Math.min(trackSize, rawThumb));
+  const scrollRange = contentSize - viewportSize;
+  const trackRange = trackSize - thumbPx;
+  const ratio = scrollRange > 0 ? scrollPos / scrollRange : 0;
+  return {
+    thumbPx,
+    offsetPx: Math.max(0, Math.min(trackRange, ratio * trackRange)),
+    valueNow: Math.round(ratio * 100),
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function DataTable<T extends Record<string, any>>({
   data,
@@ -158,9 +211,198 @@ export function DataTable<T extends Record<string, any>>({
   onRowClick,
   stickyHeader = false,
   maxHeight,
+  customScrollbars = true,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [internalPage, setInternalPage] = useState(1);
+
+  const scrollRegionId = useId();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const topTrackRef = useRef<HTMLDivElement>(null);
+  const topThumbRef = useRef<HTMLDivElement>(null);
+  const bottomTrackRef = useRef<HTMLDivElement>(null);
+  const bottomThumbRef = useRef<HTMLDivElement>(null);
+  const vTrackRef = useRef<HTMLDivElement>(null);
+  const vThumbRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    axis: ScrollAxis;
+    startClient: number;
+    startScroll: number;
+    scrollRange: number;
+    trackRange: number;
+  } | null>(null);
+
+  const setHorizontalBar = (
+    trackRef: RefObject<HTMLDivElement | null>,
+    thumbRef: RefObject<HTMLDivElement | null>,
+    geo: ThumbGeometry | null,
+  ) => {
+    const track = trackRef.current;
+    const thumb = thumbRef.current;
+    if (!track || !thumb) return;
+    track.style.display = geo ? "" : "none";
+    if (!geo) return;
+    thumb.style.width = `${geo.thumbPx}px`;
+    thumb.style.left = `${geo.offsetPx}px`;
+    thumb.setAttribute("aria-valuenow", String(geo.valueNow));
+  };
+
+  const updateThumbs = () => {
+    const container = scrollContainerRef.current;
+    if (!container || !customScrollbars) return;
+    const { scrollLeft, scrollWidth, clientWidth, scrollTop, scrollHeight, clientHeight } =
+      container;
+
+    const hTrackSize = topTrackRef.current?.clientWidth ?? clientWidth;
+    const hGeo = computeThumbGeometry(scrollLeft, scrollWidth, clientWidth, hTrackSize);
+    setHorizontalBar(topTrackRef, topThumbRef, hGeo);
+    setHorizontalBar(bottomTrackRef, bottomThumbRef, hGeo);
+
+    if (maxHeight) {
+      const vTrackSize = vTrackRef.current?.clientHeight ?? clientHeight;
+      const vGeo = computeThumbGeometry(scrollTop, scrollHeight, clientHeight, vTrackSize);
+      const track = vTrackRef.current;
+      const thumb = vThumbRef.current;
+      if (track && thumb) {
+        track.style.display = vGeo ? "" : "none";
+        if (vGeo) {
+          thumb.style.height = `${vGeo.thumbPx}px`;
+          thumb.style.top = `${vGeo.offsetPx}px`;
+          thumb.setAttribute("aria-valuenow", String(vGeo.valueNow));
+        }
+      }
+    }
+  };
+
+  // Measured and applied imperatively (never setState), so neither a data change that alters
+  // column widths nor a window resize can trigger a render loop through this effect.
+  useLayoutEffect(() => {
+    if (!customScrollbars) return;
+    const container = scrollContainerRef.current;
+    const tableEl = tableRef.current;
+    if (!container || !tableEl) return;
+
+    updateThumbs();
+    const observer = new ResizeObserver(updateThumbs);
+    observer.observe(container);
+    observer.observe(tableEl);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customScrollbars, maxHeight]);
+
+  const handleScroll = () => {
+    if (customScrollbars) updateThumbs();
+  };
+
+  const onDragMove = (e: PointerEvent) => {
+    const state = dragRef.current;
+    const container = scrollContainerRef.current;
+    if (!state || !container) return;
+    const clientPos = state.axis === "x" ? e.clientX : e.clientY;
+    const delta = clientPos - state.startClient;
+    const scrollDelta =
+      state.trackRange > 0 ? (delta / state.trackRange) * state.scrollRange : 0;
+    if (state.axis === "x") {
+      container.scrollLeft = state.startScroll + scrollDelta;
+    } else {
+      container.scrollTop = state.startScroll + scrollDelta;
+    }
+  };
+
+  const endDrag = () => {
+    dragRef.current = null;
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", endDrag);
+  };
+
+  const onThumbPointerDown =
+    (axis: ScrollAxis) => (e: ReactPointerEvent<HTMLDivElement>) => {
+      const container = scrollContainerRef.current;
+      const track = axis === "x" ? topTrackRef.current : vTrackRef.current;
+      if (!container || !track) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const trackSize = axis === "x" ? track.clientWidth : track.clientHeight;
+      const thumbSize =
+        axis === "x" ? e.currentTarget.offsetWidth : e.currentTarget.offsetHeight;
+      const contentSize = axis === "x" ? container.scrollWidth : container.scrollHeight;
+      const viewportSize = axis === "x" ? container.clientWidth : container.clientHeight;
+      dragRef.current = {
+        axis,
+        startClient: axis === "x" ? e.clientX : e.clientY,
+        startScroll: axis === "x" ? container.scrollLeft : container.scrollTop,
+        scrollRange: contentSize - viewportSize,
+        trackRange: trackSize - thumbSize,
+      };
+      window.addEventListener("pointermove", onDragMove);
+      window.addEventListener("pointerup", endDrag);
+    };
+
+  // Clicking the bare track (not the thumb, which stops propagation before this fires) jumps
+  // toward that point, centering the thumb under the pointer - the common scrollbar convention.
+  const onTrackPointerDown =
+    (axis: ScrollAxis) => (e: ReactPointerEvent<HTMLDivElement>) => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickPos = axis === "x" ? e.clientX - rect.left : e.clientY - rect.top;
+      const trackSize = axis === "x" ? rect.width : rect.height;
+      const contentSize = axis === "x" ? container.scrollWidth : container.scrollHeight;
+      const viewportSize = axis === "x" ? container.clientWidth : container.clientHeight;
+      const target = (clickPos / trackSize) * contentSize - viewportSize / 2;
+      if (axis === "x") container.scrollLeft = target;
+      else container.scrollTop = target;
+    };
+
+  const onThumbKeyDown = (axis: ScrollAxis) => (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const step = axis === "x" ? container.clientWidth : container.clientHeight;
+    const key = e.key;
+    const forwardKey = axis === "x" ? "ArrowRight" : "ArrowDown";
+    const backKey = axis === "x" ? "ArrowLeft" : "ArrowUp";
+    if (key === forwardKey || key === backKey) {
+      const delta = (key === forwardKey ? 1 : -1) * step * 0.1;
+      if (axis === "x") container.scrollLeft += delta;
+      else container.scrollTop += delta;
+      e.preventDefault();
+    } else if (key === "Home") {
+      if (axis === "x") container.scrollLeft = 0;
+      else container.scrollTop = 0;
+      e.preventDefault();
+    } else if (key === "End") {
+      if (axis === "x") container.scrollLeft = container.scrollWidth;
+      else container.scrollTop = container.scrollHeight;
+      e.preventDefault();
+    }
+  };
+
+  const renderHorizontalBar = (
+    trackRef: RefObject<HTMLDivElement | null>,
+    thumbRef: RefObject<HTMLDivElement | null>,
+    rounding: string,
+  ) => (
+    <div
+      ref={trackRef}
+      onPointerDown={onTrackPointerDown("x")}
+      className={`${TRACK_CLASS} relative h-1.5 ${rounding}`}
+    >
+      <div
+        ref={thumbRef}
+        role="scrollbar"
+        aria-orientation="horizontal"
+        aria-controls={scrollRegionId}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        tabIndex={0}
+        onPointerDown={onThumbPointerDown("x")}
+        onKeyDown={onThumbKeyDown("x")}
+        className={`${THUMB_CLASS} inset-y-0`}
+        style={{ width: 0, left: 0 }}
+      />
+    </div>
+  );
 
   const isServerPaginated =
     serverPage !== undefined &&
@@ -285,138 +527,174 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        {/* The same table on every screen: on a phone it scrolls sideways and the first column
-                    stays frozen. `isolate` keeps the frozen cells' z-index inside the table.
-                    Borders sit on the cells (border-separate), because with border-collapse a sticky
-                    cell's borders scroll away and the row lines vanish under the frozen column. */}
-        <div className={`relative isolate overflow-x-auto${maxHeight ? ` overflow-y-auto ${maxHeight}` : ""}`}>
-          <table
-            className={`w-full text-left border-separate border-spacing-0 ${compact ? "" : "min-w-200"}`}
+        {/* Our own top/bottom/right scrollbars (identical thickness and colour) replace the
+            native ones (hidden via `no-scrollbar`) so they render the same in every browser. */}
+        {customScrollbars && renderHorizontalBar(topTrackRef, topThumbRef, "rounded-t-xl")}
+
+        <div className="relative">
+          {/* The same table on every screen: on a phone it scrolls sideways and the first column
+                      stays frozen. `isolate` keeps the frozen cells' z-index inside the table.
+                      Borders sit on the cells (border-separate), because with border-collapse a sticky
+                      cell's borders scroll away and the row lines vanish under the frozen column. */}
+          <div
+            ref={scrollContainerRef}
+            id={scrollRegionId}
+            onScroll={handleScroll}
+            className={`relative isolate overflow-x-auto${customScrollbars ? " no-scrollbar" : ""}${maxHeight ? ` overflow-y-auto ${maxHeight}` : ""}`}
           >
-            <thead>
-              {table.getHeaderGroups().map((group) => (
-                <tr key={group.id} className="bg-gray-50 dark:bg-gray-800/50">
-                  {group.headers.map((header, i) => {
-                    const col = columns[Number(header.column.id)];
-                    const align = col?.align ?? "left";
-                    const canSort = header.column.getCanSort();
-                    const sorted = header.column.getIsSorted();
-                    const labelClass = `flex items-center gap-1.5 w-full min-h-11 ${col?.headerClassName ?? "px-4 py-2"} ${ALIGN_FLEX[align]}`;
-                    // A sticky header needs an opaque background; the frozen first header is also above the frozen cells.
-                    const headerSticky = stickyHeader ? " sticky top-0 z-20 bg-gray-50 dark:bg-gray-800" : "";
-                    const frozenHeader = i === 0 ? ` ${STICKY_CELL} bg-gray-50 dark:bg-gray-800${stickyHeader ? " z-30" : ""}` : "";
-                    return (
-                      <th
-                        key={header.id}
-                        scope="col"
-                        aria-sort={
-                          sorted === "asc"
-                            ? "ascending"
-                            : sorted === "desc"
-                              ? "descending"
-                              : canSort
-                                ? "none"
-                                : undefined
-                        }
-                        className={`p-0 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 ${ALIGN_TEXT[align]}${frozenHeader}${headerSticky}`}
-                      >
-                        {col?.onSort ? (
-                          <button
-                            type="button"
-                            onClick={col.onSort}
-                            className={`${labelClass} uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition ${col.sortActive ? "text-sffl-red" : ""}`}
-                          >
-                            <table.FlexRender header={header} />
-                            {col.sortActive ? (
-                              <ChevronDownIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                            ) : (
-                              <ChevronUpDownIcon className="w-4 h-4 opacity-40 shrink-0" aria-hidden="true" />
-                            )}
-                          </button>
-                        ) : canSort ? (
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className={`${labelClass} uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition`}
-                          >
-                            <table.FlexRender header={header} />
-                            {sorted === "asc" ? (
-                              <ChevronUpIcon
-                                className="w-4 h-4 text-sffl-red"
-                                aria-hidden="true"
-                              />
-                            ) : sorted === "desc" ? (
-                              <ChevronDownIcon
-                                className="w-4 h-4 text-sffl-red"
-                                aria-hidden="true"
-                              />
-                            ) : (
-                              <ChevronUpDownIcon
-                                className="w-4 h-4 opacity-40"
-                                aria-hidden="true"
-                              />
-                            )}
-                          </button>
-                        ) : (
-                          <div className={labelClass}>
-                            <table.FlexRender header={header} />
-                          </div>
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length}>
-                    <Spinner />
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                    className={`group ${rowClassName ? rowClassName(row.original) : "bg-white dark:bg-gray-800"}${onRowClick ? " cursor-pointer" : ""}`}
-                  >
-                    {row.getAllCells().map((cell, i) => (
-                      <td
-                        key={cell.id}
-                        className={cellClass(
-                          columns[Number(cell.column.id)],
-                          i === 0,
-                        )}
-                      >
-                        {i === 0 ? (
-                          // Table cells ignore max-width, so the cap goes on a wrapper. It stops a
-                          // long name from covering most of a phone screen.
-                          <div className="max-w-[45vw] md:max-w-none">
-                            <table.FlexRender cell={cell} />
-                          </div>
-                        ) : (
-                          <table.FlexRender cell={cell} />
-                        )}
-                      </td>
-                    ))}
+            <table
+              ref={tableRef}
+              className={`w-full text-left border-separate border-spacing-0 ${compact ? "" : "min-w-200"}`}
+            >
+              <thead>
+                {table.getHeaderGroups().map((group) => (
+                  <tr key={group.id} className="bg-gray-50 dark:bg-gray-800/50">
+                    {group.headers.map((header, i) => {
+                      const col = columns[Number(header.column.id)];
+                      const align = col?.align ?? "left";
+                      const canSort = header.column.getCanSort();
+                      const sorted = header.column.getIsSorted();
+                      const labelClass = `flex items-center gap-1.5 w-full min-h-11 ${col?.headerClassName ?? "px-4 py-2"} ${ALIGN_FLEX[align]}`;
+                      // A sticky header needs an opaque background; the frozen first header is also above the frozen cells.
+                      const headerSticky = stickyHeader ? " sticky top-0 z-20 bg-gray-50 dark:bg-gray-800" : "";
+                      const frozenHeader = i === 0 ? ` ${STICKY_CELL} bg-gray-50 dark:bg-gray-800${stickyHeader ? " z-30" : ""}` : "";
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          aria-sort={
+                            sorted === "asc"
+                              ? "ascending"
+                              : sorted === "desc"
+                                ? "descending"
+                                : canSort
+                                  ? "none"
+                                  : undefined
+                          }
+                          className={`p-0 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 ${ALIGN_TEXT[align]}${frozenHeader}${headerSticky}`}
+                        >
+                          {col?.onSort ? (
+                            <button
+                              type="button"
+                              onClick={col.onSort}
+                              className={`${labelClass} uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition ${col.sortActive ? "text-sffl-red" : ""}`}
+                            >
+                              <table.FlexRender header={header} />
+                              {col.sortActive ? (
+                                <ChevronDownIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                              ) : (
+                                <ChevronUpDownIcon className="w-4 h-4 opacity-40 shrink-0" aria-hidden="true" />
+                              )}
+                            </button>
+                          ) : canSort ? (
+                            <button
+                              type="button"
+                              onClick={header.column.getToggleSortingHandler()}
+                              className={`${labelClass} uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition`}
+                            >
+                              <table.FlexRender header={header} />
+                              {sorted === "asc" ? (
+                                <ChevronUpIcon
+                                  className="w-4 h-4 text-sffl-red"
+                                  aria-hidden="true"
+                                />
+                              ) : sorted === "desc" ? (
+                                <ChevronDownIcon
+                                  className="w-4 h-4 text-sffl-red"
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <ChevronUpDownIcon
+                                  className="w-4 h-4 opacity-40"
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </button>
+                          ) : (
+                            <div className={labelClass}>
+                              <table.FlexRender header={header} />
+                            </div>
+                          )}
+                        </th>
+                      );
+                    })}
                   </tr>
-                ))
-              )}
-              {!loading && rows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="px-4 py-12 text-center text-gray-400 dark:text-gray-500"
-                  >
-                    {emptyMessage}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                ))}
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={columns.length}>
+                      <Spinner />
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                      className={`group ${rowClassName ? rowClassName(row.original) : "bg-white dark:bg-gray-800"}${onRowClick ? " cursor-pointer" : ""}`}
+                    >
+                      {row.getAllCells().map((cell, i) => (
+                        <td
+                          key={cell.id}
+                          className={cellClass(
+                            columns[Number(cell.column.id)],
+                            i === 0,
+                          )}
+                        >
+                          {i === 0 ? (
+                            // Table cells ignore max-width, so the cap goes on a wrapper. It stops a
+                            // long name from covering most of a phone screen.
+                            <div className="max-w-[45vw] md:max-w-none">
+                              <table.FlexRender cell={cell} />
+                            </div>
+                          ) : (
+                            <table.FlexRender cell={cell} />
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+                {!loading && rows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="px-4 py-12 text-center text-gray-400 dark:text-gray-500"
+                    >
+                      {emptyMessage}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {customScrollbars && maxHeight && (
+            <div
+              ref={vTrackRef}
+              onPointerDown={onTrackPointerDown("y")}
+              className={`${TRACK_CLASS} absolute top-0 right-0 bottom-0 w-1.5 z-40`}
+            >
+              <div
+                ref={vThumbRef}
+                role="scrollbar"
+                aria-orientation="vertical"
+                aria-controls={scrollRegionId}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                tabIndex={0}
+                onPointerDown={onThumbPointerDown("y")}
+                onKeyDown={onThumbKeyDown("y")}
+                className={`${THUMB_CLASS} inset-x-0`}
+                style={{ height: 0, top: 0 }}
+              />
+            </div>
+          )}
         </div>
+
+        {customScrollbars && renderHorizontalBar(bottomTrackRef, bottomThumbRef, "rounded-b-xl")}
       </div>
 
       {/* Pagination Controls - Condensed */}
