@@ -21,7 +21,7 @@ const PRESIDENT: TeamMember = {
 const COMMISSIONER: TeamMember = {
   name: "Adebare Adejumo",
   role: "League Commissioner",
-  image: "/images/leadership/adebare_adejumo.webp",
+  image: "/images/leadership/adebare_adejumo_2.webp",
   badge: "League Administration",
   bio: [
     "Adebare Adejumo serves as the League Commissioner of Showtime Flag, overseeing the governance, competitive integrity, and overall sporting operations of the league. As chief steward of competition, he works closely with teams, officials, and league stakeholders to uphold the highest standards of fairness, professionalism, and excellence on and off the field.",
@@ -32,7 +32,7 @@ const COMMISSIONER: TeamMember = {
 const KALU_ESTHER: TeamMember = {
   name: "Kalu Esther",
   role: "VP, Operations",
-  image: "/images/leadership/kalu_esther.webp",
+  image: "/images/leadership/kalu_esther_2.webp",
   badge: "Vice President",
   bio: [
     "Esther Kalu serves as Vice President of Operations at Showtime Flag, overseeing the administrative and operational systems that support the league's day-to-day activities.",

@@ -131,7 +131,7 @@ export const Landing = () => {
             {/* Commissioner background image */}
             <div className="absolute inset-0 z-0 overflow-hidden">
               <img
-                src="/images/leadership/adebare_adejumo.webp"
+                src="/images/leadership/adebare_adejumo_2.webp"
                 alt="Adebare Adejumo - League Commissioner"
                 loading="lazy"
                 decoding="async"

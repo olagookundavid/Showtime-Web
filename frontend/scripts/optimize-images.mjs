@@ -71,19 +71,21 @@ const CONVERT_TO_WEBP = [
     quality: 80,
   },
   { src: "images/leadership/kalu_esther.jpg", maxWidth: 800, quality: 80 },
-  // Replacement headshots supplied later — written back over the original
-  // filenames (via `rename`) so src/ references never needed to change.
+  // Replacement headshots supplied later. First written back over the
+  // original filenames, but a CDN kept serving the old cached bytes at
+  // those same URLs — renamed (again, via `rename`) to bust that cache,
+  // same fix as the team banner photo below.
   {
     src: "images/leadership/adebare_adejumo_2.jpg",
     maxWidth: 800,
     quality: 80,
-    rename: "adebare_adejumo.webp",
+    rename: "adebare_adejumo_2.webp",
   },
   {
     src: "images/leadership/kalu_esther_2.jpg",
     maxWidth: 800,
     quality: 80,
-    rename: "kalu_esther.webp",
+    rename: "kalu_esther_2.webp",
   },
   // Re-cropped team banner photo — used full-bleed (OurTeam.tsx banner,
   // the About section's PageHeader background), so kept wider than the
