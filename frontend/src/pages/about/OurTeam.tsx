@@ -199,7 +199,7 @@ export const OurTeam = () => {
     <div className="space-y-8 md:space-y-12">
       <div className="aspect-1920/1082 w-full overflow-hidden border border-sffl-navy bg-gray-100 dark:bg-gray-900">
         <img
-          src="/images/team/team-photo-1.webp"
+          src="/images/team/team-photo-cropped.webp"
           alt="The Showtime Flag Football team"
           loading="lazy"
           decoding="async"

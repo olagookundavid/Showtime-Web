@@ -32,7 +32,7 @@ export const ABOUT_NAV: AboutNavItem[] = [
     eyebrow: LEAGUE_EYEBROW,
     title: "OUR TEAM",
     subtitle: "Showtime Leadership & Sporting Operations",
-    backgroundImage: "/images/team/team-photo-1.webp",
+    backgroundImage: "/images/team/team-photo-cropped.webp",
     backgroundFit: "width",
   },
   {

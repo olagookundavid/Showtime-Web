@@ -89,7 +89,15 @@ const CONVERT_TO_WEBP = [
   // the About section's PageHeader background), so kept wider than the
   // leadership headshots and at a slightly higher quality than the other
   // low-opacity hero backgrounds since it's shown at full visibility here.
-  { src: "images/team/team-photo-1.jpg", maxWidth: 1920, quality: 80 },
+  // Renamed off "team-photo-1" so its URL differs from the old uncropped
+  // file — same filename + new bytes let a CDN keep serving the stale
+  // cached copy under its old long-lived Cache-Control.
+  {
+    src: "images/team/team-photo-1.jpg",
+    maxWidth: 1920,
+    quality: 80,
+    rename: "team-photo-cropped.webp",
+  },
 ];
 
 // Kept as PNG at their existing path — BadgeImage.tsx/AdminBadges.tsx match
