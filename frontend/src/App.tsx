@@ -167,6 +167,9 @@ const AdminHeroSlides = lazy(() =>
     default: m.AdminHeroSlides,
   })),
 );
+const AdminFaqs = lazy(() =>
+  import("./pages/admin/AdminFaqs").then((m) => ({ default: m.AdminFaqs })),
+);
 const AdminLiveStream = lazy(() =>
   import("./pages/admin/AdminLiveStream").then((m) => ({
     default: m.AdminLiveStream,
@@ -676,6 +679,14 @@ function App() {
                         element={
                           <FeatureGuard feature="hero_slides">
                             <AdminHeroSlides />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="faqs"
+                        element={
+                          <FeatureGuard feature="faqs">
+                            <AdminFaqs />
                           </FeatureGuard>
                         }
                       />

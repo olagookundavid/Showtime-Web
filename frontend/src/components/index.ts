@@ -6,6 +6,7 @@ export * from './comments';
 export * from './dashboard';
 export * from './discounts';
 export * from './domain';
+export * from './faq';
 export * from './fantasy';
 export * from './icons';
 export * from './layout';

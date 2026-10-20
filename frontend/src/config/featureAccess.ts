@@ -38,6 +38,7 @@ export type FeatureKey =
   | "inventory"
   | "news"
   | "hero_slides"
+  | "faqs"
   | "live_stream"
   | "comment_moderation"
   | "season_mvps"

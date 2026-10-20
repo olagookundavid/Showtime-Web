@@ -80,6 +80,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
 	SetupHeroSlideRoutes(v1_api, app)
+	SetupFAQRoutes(v1_api, app)
 	SetupSeasonRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
 	SetupPlayerRoutes(v1_api, app)
@@ -259,6 +260,24 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		heroSlideGroup.POST("", app.Handlers.HeroSlideHandler.Create)
 		heroSlideGroup.PUT("/:id", app.Handlers.HeroSlideHandler.Update)
 		heroSlideGroup.DELETE("/:id", app.Handlers.HeroSlideHandler.Delete)
+	}
+
+	// FAQs for every page that shows them, edited from one admin page.
+	faqGroup := adminRoutes.Group("/faqs")
+	faqGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "faqs"))
+	{
+		faqGroup.GET("/pages", app.Handlers.FAQHandler.ListPages)
+		faqGroup.POST("/pages", app.Handlers.FAQHandler.CreatePage)
+		faqGroup.GET("/pages/:pageKey", app.Handlers.FAQHandler.GetAdminPage)
+		faqGroup.PUT("/pages/:pageKey", app.Handlers.FAQHandler.UpdatePage)
+		faqGroup.DELETE("/pages/:pageKey", app.Handlers.FAQHandler.DeletePage)
+		faqGroup.POST("/pages/:pageKey/categories", app.Handlers.FAQHandler.CreateCategory)
+		faqGroup.POST("/pages/:pageKey/items", app.Handlers.FAQHandler.CreateItem)
+		faqGroup.PUT("/categories/:id", app.Handlers.FAQHandler.UpdateCategory)
+		faqGroup.DELETE("/categories/:id", app.Handlers.FAQHandler.DeleteCategory)
+		faqGroup.PUT("/items/:id", app.Handlers.FAQHandler.UpdateItem)
+		faqGroup.DELETE("/items/:id", app.Handlers.FAQHandler.DeleteItem)
+		faqGroup.PUT("/reorder", app.Handlers.FAQHandler.Reorder)
 	}
 
 	// Team of the Season graphics + MVPs — admin/app_admin managed content.
@@ -685,6 +704,14 @@ func SetupHeroSlideRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		// Public: only active slides for the homepage carousel.
 		heroSlideRoutes.GET("", app.Handlers.HeroSlideHandler.ListPublic)
+	}
+}
+
+func SetupFAQRoutes(r *gin.RouterGroup, app *api.Application) {
+	faqRoutes := r.Group("/faqs")
+	{
+		// Public: one page's active FAQs, e.g. /faqs/game-pass.
+		faqRoutes.GET("/:pageKey", app.Handlers.FAQHandler.GetPublicPage)
 	}
 }
 

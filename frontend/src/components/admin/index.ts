@@ -6,6 +6,7 @@ export { BadgeArtworkPicker } from './BadgeArtworkPicker';
 export { BadgeLibraryPanel } from './BadgeLibraryPanel';
 export { BADGE_ICONS_KEY } from './badgeLibrary';
 export { DiscountCodesPanel } from './DiscountCodesPanel';
+export { FaqCategoryModal, FaqItemModal, FaqPageModal } from './FaqForms';
 export { FeatureGuard } from './FeatureGuard';
 export { TeamActionDialogs } from './TeamActionDialogs';
 export { TeamStatusBadge } from './TeamStatusBadge';
