@@ -197,13 +197,13 @@ const LeadershipCard = ({ member }: { member: TeamMember }) => {
 export const OurTeam = () => {
   return (
     <div className="space-y-8 md:space-y-12">
-      <div className="h-44 sm:h-56 md:h-72 lg:h-125 w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+      <div className="aspect-1920/1082 w-full overflow-hidden border border-sffl-navy bg-gray-100 dark:bg-gray-900">
         <img
           src="/images/team/team-photo-1.webp"
           alt="The Showtime Flag Football team"
           loading="lazy"
           decoding="async"
-          className="h-full w-full object-cover object-top"
+          className="h-full w-full object-contain"
         />
       </div>
 

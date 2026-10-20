@@ -11,9 +11,10 @@ interface PageHeaderProps {
     /** Decorative low-opacity background image behind the navy fill. */
     backgroundImage?: string;
     /** `width` scales the image to span the hero's full width (height follows
-     * its own aspect ratio, cropped top/bottom only if it overflows) instead
-     * of the default `cover`, which crops whichever dimension overflows —
-     * including the sides, which can cut a group photo awkwardly narrow. */
+     * its own aspect ratio; only trimmed symmetrically top/bottom if it still
+     * overflows the hero's height) instead of the default `cover`, which
+     * crops whichever dimension overflows — including the sides, which can
+     * cut a group photo awkwardly narrow. */
     backgroundFit?: 'cover' | 'width';
     /** Extra content inside the hero band, below the title row (e.g. a section nav). */
     children?: ReactNode;
@@ -26,7 +27,7 @@ export const PageHeader = ({ eyebrow, title, subtitle, actions, backgroundImage,
         <section className={`relative overflow-hidden bg-sffl-navy text-white ${className}`}>
             {backgroundImage && (
                 <div
-                    className={`absolute inset-0 bg-no-repeat opacity-10 ${backgroundFit === 'width' ? 'bg-top bg-size-[100%_auto]' : 'bg-cover bg-center'}`}
+                    className={`absolute inset-0 bg-center bg-no-repeat opacity-10 ${backgroundFit === 'width' ? 'bg-size-[100%_auto]' : 'bg-cover'}`}
                     style={{ backgroundImage: `url('${backgroundImage}')` }}
                     aria-hidden="true"
                 />
