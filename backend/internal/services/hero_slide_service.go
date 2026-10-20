@@ -2,17 +2,11 @@ package services
 
 import (
 	"context"
-	"errors"
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
 )
-
-// MaxHeroSlides caps how many slides the homepage carousel can hold. Five is
-// plenty for a hero carousel — beyond that the auto-rotate cadence makes the
-// later slides effectively invisible.
-const MaxHeroSlides = 5
 
 type IHeroSlideService interface {
 	List(ctx context.Context, activeOnly bool) ([]dto.HeroSlideResponse, error)
@@ -75,22 +69,13 @@ func (s *HeroSlideService) List(ctx context.Context, activeOnly bool) ([]dto.Her
 }
 
 func (s *HeroSlideService) Create(ctx context.Context, req dto.CreateHeroSlideRequest) (*dto.HeroSlideResponse, error) {
-	// Enforce the 5-slide cap at the service layer so the admin UI gets a
-	// clear 4xx error rather than silently dropping rows in the DB.
-	count, err := s.repo.Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if count >= MaxHeroSlides {
-		return nil, errors.New("hero slide limit reached (max 5) — delete one before adding another")
-	}
-
-	displayOrder := count // default: append to the end
+	var displayOrder int
 	if req.DisplayOrder != nil {
 		displayOrder = *req.DisplayOrder
 	} else {
-		// count under-shoots once any slide has ever been deleted, colliding
-		// with an existing display_order and silently breaking later moves.
+		// Append after the highest existing order. A slide count would
+		// under-shoot once any slide has been deleted, colliding with an
+		// existing display_order and silently breaking later moves.
 		next, err := s.repo.NextDisplayOrder(ctx)
 		if err != nil {
 			return nil, err

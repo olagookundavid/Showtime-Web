@@ -48,10 +48,6 @@ func (m *mockHeroSlideRepo) FindByID(ctx context.Context, id string) (*domain.He
 	return m.slides[id], nil
 }
 
-func (m *mockHeroSlideRepo) Count(ctx context.Context) (int, error) {
-	return len(m.slides), nil
-}
-
 func (m *mockHeroSlideRepo) NextDisplayOrder(ctx context.Context) (int, error) {
 	max := -1
 	for _, s := range m.slides {
@@ -98,5 +94,28 @@ func TestCreateHeroSlide_AfterDelete_DoesNotCollideWithSurvivingOrder(t *testing
 
 	if third.DisplayOrder == second.DisplayOrder {
 		t.Fatalf("new slide's display_order %d collides with surviving slide's %d", third.DisplayOrder, second.DisplayOrder)
+	}
+}
+
+// There is no cap on the number of slides: well past the old limit of five,
+// every create succeeds and each slide gets its own display_order.
+func TestCreateHeroSlide_NoSlideLimit(t *testing.T) {
+	repo := newMockHeroSlideRepo()
+	svc := NewHeroSlideService(repo, nil)
+	ctx := context.Background()
+
+	seen := map[int]bool{}
+	for i := 0; i < 20; i++ {
+		slide, err := svc.Create(ctx, dto.CreateHeroSlideRequest{ImageURL: "slide.png"})
+		if err != nil {
+			t.Fatalf("create slide %d: %v", i+1, err)
+		}
+		if seen[slide.DisplayOrder] {
+			t.Fatalf("slide %d reused display_order %d", i+1, slide.DisplayOrder)
+		}
+		seen[slide.DisplayOrder] = true
+	}
+	if len(repo.slides) != 20 {
+		t.Fatalf("expected 20 slides stored, got %d", len(repo.slides))
 	}
 }

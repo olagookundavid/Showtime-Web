@@ -34,6 +34,9 @@ func (f *fakeSiteEventsService) RecordServerEvent(eventType, _ string, _ service
 	f.serverSeen = append(f.serverSeen, eventType)
 }
 func (f *fakeSiteEventsService) Close() {}
+func (f *fakeSiteEventsService) MatchDays(context.Context, time.Time, time.Time) ([]dto.SiteMatchDay, error) {
+	return []dto.SiteMatchDay{}, nil
+}
 func (f *fakeSiteEventsService) Scope(_ context.Context, from, to time.Time, _ string) (ports.SiteScope, error) {
 	return ports.SiteScope{From: from, To: to}, nil
 }

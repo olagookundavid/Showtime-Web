@@ -4,14 +4,16 @@ import toast from 'react-hot-toast';
 import {
     ArrowPathIcon,
     ArrowTopRightOnSquareIcon,
+    CheckCircleIcon,
+    ExclamationTriangleIcon,
     NoSymbolIcon,
     PlayCircleIcon,
     SignalIcon,
     VideoCameraIcon,
 } from '@heroicons/react/24/outline';
-import { liveApi } from '../../services/api';
-import type { AdminLiveStatus } from '../../types';
-import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, DashboardPageHeader } from '../../components';
+import { liveApi, reliveApi } from '../../services/api';
+import type { AdminLiveStatus, AdminReliveStatus } from '../../types';
+import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, DashboardPageHeader, Spinner } from '../../components';
 import { getApiErrorMessage } from '../../utils';
 
 type Mode = 'auto' | 'on' | 'off' | 'video';
@@ -60,7 +62,7 @@ export const AdminLiveStream = () => {
         <div className="space-y-8 pb-36 md:pb-12">
             <DashboardPageHeader
                 title="Live Stream"
-                subtitle="Control what visitors see at the top of the homepage: live stream, featured video or carousel."
+                subtitle="Control what visitors see at the top of the homepage (live stream, featured video or carousel) and which playlist the Relive section shows."
             />
             <StatusCards status={status} />
             {/* Keying on the saved values makes the form re-seed itself whenever
@@ -71,6 +73,149 @@ export const AdminLiveStream = () => {
                 key={`${status.mode}|${status.override_video_id}|${status.override_title}`}
                 status={status}
             />
+            <RelivePlaylistSettings />
+        </div>
+    );
+};
+
+const formatWhen = (iso?: string) =>
+    iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+
+/** Which YouTube playlist the homepage Relive section shows. */
+const RelivePlaylistSettings = () => {
+    const queryClient = useQueryClient();
+    const { data: relive, isLoading } = useQuery({
+        queryKey: ['adminRelive'],
+        queryFn: reliveApi.getAdminStatus,
+    });
+    // null until the admin types, so the field shows the saved playlist.
+    const [input, setInput] = useState<string | null>(null);
+    const value = input ?? relive?.playlist_id ?? '';
+
+    const save = useMutation({
+        mutationFn: () => reliveApi.setPlaylist(value.trim()),
+        onSuccess: (updated: AdminReliveStatus) => {
+            queryClient.setQueryData(['adminRelive'], updated);
+            queryClient.invalidateQueries({ queryKey: ['relivePlaylist'] });
+            setInput(null);
+            if (updated.last_error) {
+                toast.error("Saved, but YouTube didn't answer. The homepage shows \"no videos\" until it does.");
+            } else {
+                toast.success(`Saved — Relive now shows ${updated.video_count} videos from "${updated.title || updated.playlist_id}".`);
+            }
+        },
+        onError: (err: unknown) => {
+            toast.error(getApiErrorMessage(err, 'Could not save the playlist.'));
+        },
+    });
+
+    const unchanged = value.trim() === '' || value.trim() === relive?.playlist_id;
+
+    return (
+        <section className="space-y-4" aria-labelledby="relive-heading">
+            <div>
+                <h2 id="relive-heading" className="text-lg font-black uppercase tracking-tight text-sffl-navy dark:text-white">
+                    Relive playlist
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    The YouTube playlist shown in the Relive highlights section on the homepage.
+                </p>
+            </div>
+
+            <div className="p-4 sm:p-6 md:p-8 rounded-3xl bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 space-y-5">
+                {isLoading || !relive ? (
+                    <Spinner label="Checking the playlist…" />
+                ) : (
+                    <>
+                        <ReliveStatusSummary relive={relive} />
+
+                        <form
+                            className="flex flex-col sm:flex-row sm:items-end gap-3"
+                            onSubmit={e => {
+                                e.preventDefault();
+                                if (!unchanged) save.mutate();
+                            }}
+                        >
+                            <Field
+                                label="YouTube playlist link or ID"
+                                htmlFor="relive-playlist-input"
+                                hint="Paste the playlist's link from YouTube (it contains list=…), or just the ID."
+                                className="flex-1 min-w-0"
+                            >
+                                <Input
+                                    id="relive-playlist-input"
+                                    value={value}
+                                    onChange={e => setInput(e.target.value)}
+                                    placeholder="https://www.youtube.com/playlist?list=…"
+                                />
+                            </Field>
+                            <Button
+                                type="submit"
+                                loading={save.isPending}
+                                disabled={unchanged}
+                                className="w-full sm:w-auto sm:mb-6"
+                            >
+                                Save playlist
+                            </Button>
+                        </form>
+                        <p className="text-xs text-gray-400">
+                            Visitors see a new playlist within about 5 minutes.
+                        </p>
+                    </>
+                )}
+            </div>
+        </section>
+    );
+};
+
+const ReliveStatusSummary = ({ relive }: { relive: AdminReliveStatus }) => {
+    const link = (
+        <a
+            href={relive.playlist_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 min-h-11 max-w-full text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+            <span className="truncate">{relive.playlist_id}</span>
+            <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+        </a>
+    );
+
+    if (relive.last_error) {
+        return (
+            <div className="flex items-start gap-3">
+                <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
+                <div className="min-w-0 space-y-1">
+                    <p className="font-bold text-sffl-navy dark:text-white">
+                        YouTube isn't answering the server right now
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {relive.fetched_at
+                            ? `Visitors still see the ${relive.video_count} videos fetched ${formatWhen(relive.fetched_at)}.`
+                            : 'Visitors see "No highlight videos available right now" until it does.'}
+                        {' '}The server tries again every 2 minutes.
+                    </p>
+                    <p className="text-xs text-gray-400 break-words">{relive.last_error}</p>
+                    {link}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex items-start gap-3">
+            <CheckCircleIcon className="w-5 h-5 text-green-600 shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="min-w-0 space-y-1">
+                <p className="font-bold text-sffl-navy dark:text-white break-words">
+                    {relive.title || 'Playlist'}: {relive.video_count} {relive.video_count === 1 ? 'video' : 'videos'}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {relive.video_count === 0
+                        ? 'The playlist is empty, so visitors see "No highlight videos available right now".'
+                        : `Checked ${formatWhen(relive.fetched_at)}${relive.is_default ? ' · default playlist' : ''}.`}
+                </p>
+                {link}
+            </div>
         </div>
     );
 };

@@ -20,12 +20,6 @@ import type { HeroSlide } from '../../types';
 import { Loader, Button, Field, ImageUploadField, Input, Modal, ConfirmDialog, ConfirmSummary, DashboardPageHeader } from '../../components';
 import { getApiErrorMessage } from '../../utils';
 
-// Mirrors the backend's MaxHeroSlides constant. Keep these in sync — the
-// server is the source of truth (it returns a 400 if exceeded), but matching
-// it here lets us disable the "Add" button instead of letting the user start
-// an upload that will be rejected.
-const MAX_SLIDES = 5;
-
 // A slide is just an image plus where it links to when clicked. To feature a
 // news article, create it in the News admin first, then paste its link here.
 interface SlideFormState {
@@ -67,7 +61,6 @@ export const AdminHeroSlides = () => {
     const [busy, setBusy] = useState(false);
 
     const sortedSlides = [...slides].sort((a, b) => a.display_order - b.display_order);
-    const atCap = sortedSlides.length >= MAX_SLIDES;
 
     const set = <K extends keyof SlideFormState>(field: K, value: SlideFormState[K]) =>
         setForm(p => ({ ...p, [field]: value }));
@@ -90,7 +83,7 @@ export const AdminHeroSlides = () => {
     };
 
     // Swap display_order between this slide and its neighbour. Cheap and
-    // predictable — no drag-library needed for a 5-item list.
+    // predictable — no drag-library needed.
     const requestMove = (slide: HeroSlide, direction: 'up' | 'down') => {
         const index = sortedSlides.findIndex(s => s.id === slide.id);
         const swapIndex = direction === 'up' ? index - 1 : index + 1;
@@ -118,7 +111,9 @@ export const AdminHeroSlides = () => {
                             image_url: form.imageUrl,
                             mobile_image_url: form.mobileImageUrl || undefined,
                             destination_url: form.destinationUrl.trim() || undefined,
-                            display_order: sortedSlides.length, // append to end
+                            // No display_order: the server appends after the
+                            // highest one. A slide count would collide with an
+                            // existing order once any slide has been deleted.
                             is_active: true,
                         });
                     }
@@ -237,7 +232,7 @@ export const AdminHeroSlides = () => {
                 title="Hero Slides"
                 subtitle={
                     <>
-                        Up to {MAX_SLIDES} slides. {sortedSlides.length}/{MAX_SLIDES} used.
+                        {sortedSlides.length} {sortedSlides.length === 1 ? 'slide' : 'slides'}, in the order visitors see them.
                         Each slide can link to a page or URL of your choice.
                     </>
                 }
@@ -245,9 +240,7 @@ export const AdminHeroSlides = () => {
                     <Button
                         icon={PlusIcon}
                         onClick={openCreate}
-                        disabled={atCap}
                         className="w-full sm:w-auto"
-                        title={atCap ? `Limit of ${MAX_SLIDES} reached — delete a slide to add another` : 'Add a new slide'}
                     >
                         Add Slide
                     </Button>

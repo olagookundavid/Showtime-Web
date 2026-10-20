@@ -825,6 +825,50 @@ a new Access application for this hostname restores the previous protection
 with no other changes needed — see §4 Configuration Reference for exact
 steps.
 
+### Phase 22 — The Phase 20 fix was never saved, and a provider reboot undid it
+
+On 2026-10-19 the homepage started taking ~45 seconds to load while the admin
+panel was fine. The visible cause was the Relive section waiting on YouTube
+(fixed separately in the app). The real cause was the firewall: the backend
+container could not make **any** outbound HTTP/HTTPS connection, to YouTube,
+email, R2 or Paystack.
+
+**What happened.** Contabo rebooted the host that morning to patch a kernel
+vulnerability, as their notice said they would. At boot, `netfilter-persistent`
+restored the rules saved in `/etc/iptables/rules.v4`. Those saved rules were
+the **pre-Phase-20** ones: catch-all `DROP tcp dpt:80/443` with no `-i eth0`.
+The Phase 20 fix had been applied to the live rules but never saved with
+`netfilter-persistent save`, so it lived only in memory and was lost on the
+first reboot. From then on every outbound call from a container was silently
+dropped, exactly as in Phase 20.
+
+**How it was confirmed.**
+- `sudo iptables -L DOCKER-USER -n -v --line-numbers` showed `*` in the `in`
+  column of the `DROP` rules. Use `-v`: plain `-L -n` hides the interface
+  column, so a scoped and an unscoped rule look identical. The `DROP dpt:443`
+  counter had 172 dropped packets.
+- `docker exec showtime-backend wget -T 10 https://www.google.com` hung,
+  while the same request from the host worked (host traffic uses `OUTPUT`,
+  never `DOCKER-USER`).
+- The `MASQUERADE` rules in `iptables -t nat -L POSTROUTING -n -v` were
+  present but at **0 packets**: nothing from the containers was getting out.
+
+**The fix.** One rule at the top of the chain, then save:
+```bash
+sudo iptables -I DOCKER-USER 1 ! -i eth0 -j RETURN
+sudo netfilter-persistent save
+```
+Traffic that doesn't arrive on the public interface (container egress,
+container-to-container) now skips the Cloudflare filter entirely, which
+has the same effect as adding `-i eth0` to every rule. The container
+reached the internet at once.
+
+**The lesson.** On this host, a firewall change is not done until it has
+been saved with `netfilter-persistent save`. A rule that only exists in the
+live table looks fixed and passes every test, then disappears on the next
+reboot. On a new server, the reboot test in §5.10 catches this before real
+traffic arrives.
+
 ---
 
 ## 3. Current Infrastructure
@@ -909,14 +953,19 @@ IPv4 and IPv6) for ports 80 and 443, an `ACCEPT` for already-established
 connections, and a catch-all `DROP` for ports 80 and 443 from any other
 source. These rules are persisted across reboots via `iptables-persistent`.
 
-**Every one of these rules (the Cloudflare allow-list and the catch-all
-`DROP`) is scoped with `-i eth0`** — matched only against traffic arriving
-via the server's external network interface. This is not optional detail:
-without the interface scope, the same rules also match **outbound** traffic
-a container sends to the internet (e.g., the backend calling Resend's or
-Paystack's API), since `DOCKER-USER` is consulted for that traffic too — see
-Journey Phase 20 for the real incident this caused and why the fix has to be
-interface-scoped, not just port-scoped.
+**Rule 1 of the chain is `! -i eth0 -j RETURN`**, so only traffic arriving
+via the server's external interface is ever checked against the Cloudflare
+allow-list and the catch-all `DROP`. This is not optional detail: without it,
+the same rules also match **outbound** traffic a container sends to the
+internet (e.g., the backend calling Resend's, Paystack's or YouTube's API),
+since `DOCKER-USER` is consulted for that traffic too — see Journey Phase 20
+for the incident this caused, and Phase 22 for how it came back after a
+reboot because the fix had not been saved. A chain rebuilt with §5.10 also
+puts `-i eth0` on each allow/`DROP` rule; the current production chain gets
+the same effect from the `RETURN` rule alone.
+
+**Every change to these rules must be followed by `sudo netfilter-persistent
+save`**, or the next reboot restores the previous saved set (Phase 22).
 
 ### 3.5 TLS/SSL
 
@@ -1070,7 +1119,7 @@ immediate email alert.
 | `COOKIE_DOMAIN`                                                                                 | Sets the `Domain` attribute on the auth cookie                                          | Left unset deliberately — produces a host-only cookie scoped to the API's own hostname                                                                      | `~/apps/showtime/.env` (currently absent)                                | Only set this if multiple subdomains need to share one auth cookie                                                                                               | Setting it incorrectly can silently break login (browsers reject cookies whose domain doesn't match)                                                |
 | Docker `log-opts` (`max-size`, `max-file`)                                                      | Caps container log file size                                                            | Prevents unbounded container logs from filling the disk                                                                                                     | `/etc/docker/daemon.json`                                                | Edit, then `sudo systemctl restart docker` (brief downtime for all containers) followed by recreating each Compose stack                                         | Applies only to containers created *after* the change — existing containers must be recreated                                                       |
 | `logrotate` config for script logs                                                              | Rotates/compresses/expires `deploy.log`, `backup.log`, `monitor.log`                    | Prevents these growing unbounded                                                                                                                            | `/etc/logrotate.d/showtime`                                              | Edit `rotate N` (count) and/or `weekly`/`daily` (frequency); test with `sudo logrotate -d <file>` before trusting it                                             | Requires `su <user> <user>` if the log directory isn't root-owned, or rotation silently skips those files                                           |
-| `DOCKER-USER` iptables rules | Restricts *inbound* 80/443 to Cloudflare's IP ranges | The only enforcement point that actually applies to Docker-published ports (UFW alone does not) | Applied via `iptables`/`ip6tables`, **every Cloudflare-allow and catch-all-DROP rule scoped with `-i eth0`** (or your server's actual external interface — confirm with `ip route get 1.1.1.1`, don't assume the name), persisted with `iptables-persistent` | Re-run the Cloudflare-range allow-list loop if Cloudflare's published ranges change; always keep the RELATED,ESTABLISHED accept rule and the SSH port unaffected | Omitting the `-i <interface>` scope silently blocks *outbound* container traffic too (see Phase 20) — always re-test an outbound call (e.g. the Resend `/domains` check) after touching these rules, not just the inbound restriction |
+| `DOCKER-USER` iptables rules | Restricts *inbound* 80/443 to Cloudflare's IP ranges | The only enforcement point that actually applies to Docker-published ports (UFW alone does not) | Applied via `iptables`/`ip6tables` with the §5.10 procedure: **rule 1 is `! -i eth0 -j RETURN`** and the Cloudflare-allow and catch-all-DROP rules are scoped with `-i eth0` (or your server's actual external interface — confirm with `ip route get 1.1.1.1`, don't assume the name). **Saved with `sudo netfilter-persistent save` after every change** | Re-run §5.10 if Cloudflare's published ranges change (it rebuilds the whole chain, so the `RETURN` rule can't be forgotten); always keep the RELATED,ESTABLISHED accept rule and the SSH port unaffected | Omitting the interface scope silently blocks *outbound* container traffic too (Phase 20). Forgetting to save reverts the chain on the next reboot (Phase 22). Always re-test an outbound call from inside the container after touching these rules, not just the inbound restriction |
 | Cloudflare SSL/TLS mode                                                                         | Controls how Cloudflare validates the origin's certificate                              | Must be `Full (strict)` to match the Origin Certificate                                                                                                     | Cloudflare dashboard → SSL/TLS → Overview                                | Only change together with a matching certificate strategy on the origin                                                                                          | Mismatching this with what the origin actually presents can cause an SSL error loop for all visitors                                                |
 | `pg-backup.sh` retention (`RETENTION_DAYS`)                                                     | Local backup retention                                                                  | Offsite retention is handled separately by an R2 lifecycle rule                                                                                             | `~/scripts/pg-backup.sh`                                                 | Change the local retention window; confirm disk space accommodates it                                                                                            | Longer retention costs local disk space, not R2 cost                                                                                                |
 | R2 lifecycle rule (30 days)                                                                     | Offsite backup retention                                                                | Avoids the backup script itself needing delete permission                                                                                                   | Cloudflare R2 dashboard → bucket → Settings → Object lifecycle rules     | Adjust the day count in the dashboard                                                                                                                            | Shorter windows reduce disaster-recovery lookback; the script's local copies are a separate, shorter-lived safety net                               |
@@ -1204,6 +1253,62 @@ du -sh ~/backups/postgres/*    # check local backup sizes
 Start with §7 (Troubleshooting) below for a symptom-indexed table. General
 first steps: check the relevant `docker compose ps` for health status, then
 the relevant log source from §5.3.
+
+### 5.10 Firewall: build, refresh and verify the `DOCKER-USER` rules
+
+Use this to set the firewall up on a **new server**, to **refresh
+Cloudflare's IP ranges**, or whenever the chain looks wrong. It rebuilds the
+whole chain from scratch, so it's safe to run any number of times. Phases 16,
+20 and 22 explain why each rule exists.
+
+**1. Rebuild the chain and save it.** Paste as one block. It fetches the
+interface name and Cloudflare's ranges first, and changes nothing if either
+lookup fails. During the few seconds between the flush and the last rule,
+the origin briefly accepts traffic from anywhere.
+```bash
+EXT=$(ip route get 1.1.1.1 | grep -o 'dev [^ ]*' | cut -d' ' -f2)
+CF4=$(curl -fsS https://www.cloudflare.com/ips-v4)
+CF6=$(curl -fsS https://www.cloudflare.com/ips-v6)
+echo "public interface: $EXT | IPv4 ranges: $(echo "$CF4" | wc -l) | IPv6 ranges: $(echo "$CF6" | wc -l)"
+
+if [ -n "$EXT" ] && [ -n "$CF4" ] && [ -n "$CF6" ]; then
+  for T in iptables ip6tables; do
+    if ! sudo $T -L DOCKER-USER -n >/dev/null 2>&1; then echo "$T: no DOCKER-USER chain, skipped"; continue; fi
+    if [ "$T" = iptables ]; then RANGES="$CF4"; else RANGES="$CF6"; fi
+    sudo $T -F DOCKER-USER
+    # Anything not arriving from the internet (container egress, container-to-container) skips this filter.
+    sudo $T -A DOCKER-USER ! -i "$EXT" -j RETURN
+    for ip in $RANGES; do
+      sudo $T -A DOCKER-USER -i "$EXT" -p tcp -s "$ip" -m multiport --dports 80,443 -j ACCEPT
+    done
+    sudo $T -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    sudo $T -A DOCKER-USER -i "$EXT" -p tcp -m multiport --dports 80,443 -j DROP
+  done
+  # Without this, the next reboot restores the old rules (Phase 22).
+  sudo netfilter-persistent save
+else
+  echo "Stopped: missing interface or Cloudflare ranges. Nothing was changed."
+fi
+```
+
+**2. Verify both directions.** Every time, not just on a new server.
+```bash
+# On the server: rule 1 must be RETURN with "!eth0" in the "in" column.
+sudo iptables -L DOCKER-USER -n -v --line-numbers | head -4
+# On the server: the backend can reach the internet (expect OUT-OK).
+docker exec showtime-backend sh -c 'wget -q -O /dev/null -T 10 https://www.google.com && echo OUT-OK || echo OUT-FAIL'
+# On the server: the saved file matches (expect the RETURN line).
+sudo grep -- '-A DOCKER-USER ! -i' /etc/iptables/rules.v4
+
+# From your laptop, NOT the server (Phase 16's hairpin gotcha):
+curl -sk --connect-timeout 8 -o /dev/null -w "%{http_code}\n" https://<origin-ip>/   # must time out
+curl -s https://<api-domain>/api/v1/healthcheck                                       # must answer
+```
+
+**3. On a new server, do a reboot test** before real traffic: `sudo reboot`,
+wait for it to come back, then run step 2 again. It's the only test that
+proves the rules were saved, not just applied. Repeat step 2 after any
+unplanned provider reboot, too.
 
 ---
 
@@ -1550,6 +1655,19 @@ restrict. Here, only "is inbound correctly blocked?" was tested after Phase
 looked nothing alike (a network-level probe vs. an application-level email
 failure), which is exactly why it went unnoticed for a while.
 
+**Symptom:** After a host reboot, outbound calls from the backend time out
+again (`dial tcp … i/o timeout`, `Client.Timeout exceeded while awaiting
+headers`), even though the Phase 20 fix was applied. In October 2026 it
+showed up first as a ~45-second homepage load.
+**Root cause:** the fix was applied to the live rules but never saved, so
+`netfilter-persistent` restored the old, unscoped rules at boot (Phase 22).
+**Resolution:** `sudo iptables -I DOCKER-USER 1 ! -i eth0 -j RETURN`, then
+`sudo netfilter-persistent save`. Or rebuild the chain with §5.10.
+**Prevention:** save after every firewall change; run §5.10 step 2 after any
+reboot; on a new server, do the §5.10 reboot test before going live. Check
+with `iptables -L … -v`: without `-v` the interface column is hidden and the
+broken rules look correct.
+
 ---
 
 ## 8. Future Improvements
@@ -1560,8 +1678,13 @@ Open items, deliberately deferred rather than forgotten:
   published ranges rarely change, but there is currently no automation to
   detect and re-sync them in the `DOCKER-USER` chain — a stale allow-list
   could eventually cause legitimate traffic to be dropped without an obvious
-  cause. A small monthly cron re-running the allow-list loop would close
-  this.
+  cause. A small monthly cron running the §5.10 rebuild would close this.
+  Use §5.10, not a bare allow-list loop: it recreates the `RETURN` rule and
+  saves the result, so a refresh can't reintroduce Phase 20 or Phase 22.
+- **An automatic outbound check.** Nothing alerts when the backend loses
+  outbound internet (Phase 22 was found through a slow homepage). A cron that
+  runs the §5.10 `OUT-OK` check every few minutes and calls `alert.sh` on
+  failure would catch this within minutes of a reboot.
 - **R2 Object Lock (true backup immutability).** The current backup token
   can still delete objects (mitigated by using an R2 lifecycle rule instead
   of script-side deletion, and by scoping the token to a single bucket).

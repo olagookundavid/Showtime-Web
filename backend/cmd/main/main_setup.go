@@ -431,6 +431,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeRepo := ports.NewStoreRepository(pool)
 	importRepo := ports.NewImportRepository(pool)
 	heroSlideRepo := ports.NewHeroSlideRepository(pool)
+	faqRepo := ports.NewFAQRepository(pool)
 	seasonRepo := ports.NewSeasonRepository(pool)
 	playRepo := ports.NewPlayRepository(pool)
 	appSettingRepo := ports.NewAppSettingRepository(pool)
@@ -487,6 +488,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService, discountService, discountRepo, authRepo)
 	importService := services.NewImportService(importRepo, matchRepo)
 	heroSlideService := services.NewHeroSlideService(heroSlideRepo, newsRepo)
+	faqService := services.NewFAQService(faqRepo)
 	seasonService := services.NewSeasonService(seasonRepo)
 	playService := services.NewPlayService(playRepo, matchRepo, statsRepo)
 	appSettingService := services.NewAppSettingService(appSettingRepo)
@@ -524,6 +526,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeHandler := transport.NewStoreHandler(storeService, paystackClient)
 	importHandler := transport.NewImportHandler(importService)
 	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
+	faqHandler := transport.NewFAQHandler(faqService)
 	seasonHandler := transport.NewSeasonHandler(seasonService)
 	playHandler := transport.NewPlayHandler(playService)
 	contractHandler := transport.NewContractHandler(contractService, authRepo, auditService)
@@ -534,7 +537,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	commentHandler := transport.NewCommentHandler(commentService, roleService)
 	discountHandler := transport.NewDiscountHandler(discountService, storeService, productRepo)
 
-	reliveService := services.NewReliveService()
+	reliveService := services.NewReliveService(appSettingRepo)
 	reliveHandler := transport.NewReliveHandler(reliveService)
 
 	liveService := services.NewLiveService(appSettingRepo)
@@ -574,7 +577,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		authHandler, roleHandler, newsHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, siteEventsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, storeHandler, importHandler,
-		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
+		heroSlideHandler, faqHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,

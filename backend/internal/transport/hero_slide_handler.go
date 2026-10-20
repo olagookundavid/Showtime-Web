@@ -55,7 +55,7 @@ func (h *HeroSlideHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": slides})
 }
 
-// Create adds a new hero slide. Rejected with 400 if the cap (5) is reached.
+// Create adds a new hero slide. There is no limit on how many slides exist.
 // @Summary Create a hero slide (admin)
 // @Tags hero-slides
 // @Accept json

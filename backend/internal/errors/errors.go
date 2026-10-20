@@ -61,3 +61,17 @@ var (
 	ErrExampleNotFound  = errors.New("example not found")
 	ErrDuplicateExample = errors.New("example already exists")
 )
+
+// FAQ errors, worded for the admin who hit them. ErrFAQPageNotFound and friends
+// map to a 404; FAQValidationError to a 400.
+var (
+	ErrFAQPageNotFound     = errors.New("that FAQ page doesn't exist")
+	ErrFAQCategoryNotFound = errors.New("that FAQ category doesn't exist")
+	ErrFAQItemNotFound     = errors.New("that FAQ doesn't exist")
+	ErrFAQPageExists       = errors.New("an FAQ page with that key already exists")
+)
+
+// FAQValidationError is a problem with what the admin typed.
+type FAQValidationError string
+
+func (e FAQValidationError) Error() string { return string(e) }

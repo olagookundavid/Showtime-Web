@@ -21,6 +21,7 @@ type ISiteEventsHandler interface {
 	Track(c *gin.Context)
 	TrackOnSuccess(eventType string) gin.HandlerFunc
 	GetSummary(c *gin.Context)
+	ListMatchDays(c *gin.Context)
 	ListEvents(c *gin.Context)
 	Export(c *gin.Context)
 }
@@ -126,6 +127,28 @@ func (h *SiteEventsHandler) GetSummary(c *gin.Context) {
 		return
 	}
 	helpers.SuccessOK(c, "Site traffic retrieved successfully", sum)
+}
+
+// ListMatchDays godoc
+// @Summary      Match days
+// @Description  Every match day (a date with an event day or a fixture that wasn't called off) with its traffic. With no dates, everything up to today.
+// @Tags         SiteAnalytics
+// @Produce      json
+// @Param        from query string false "YYYY-MM-DD (inclusive)"
+// @Param        to   query string false "YYYY-MM-DD (inclusive)"
+// @Success      200  {array}  dto.SiteMatchDay
+// @Router       /admin/site-analytics/match-days [get]
+func (h *SiteEventsHandler) ListMatchDays(c *gin.Context) {
+	from, to, _, ok := parseReport(c)
+	if !ok {
+		return
+	}
+	days, err := h.service.MatchDays(c.Request.Context(), from, to)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	helpers.SuccessOK(c, "Match days retrieved successfully", days)
 }
 
 func (h *SiteEventsHandler) eventFilter(c *gin.Context, from, to time.Time, days string) (ports.SiteEventFilter, error) {

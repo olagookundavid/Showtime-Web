@@ -41,6 +41,9 @@ type ISiteEventsService interface {
 	// same-length period just before, for "vs previous period" figures.
 	// days is dto.SiteDaysAll, SiteDaysMatch or SiteDaysOther.
 	Summary(ctx context.Context, from, to time.Time, days string, compare bool) (*dto.SiteTrafficSummary, error)
+	// MatchDays lists every match day in [from, to) with its traffic, for
+	// highlighting on the dashboard's calendar.
+	MatchDays(ctx context.Context, from, to time.Time) ([]dto.SiteMatchDay, error)
 	// Scope turns a date range and day filter into the scope raw-event
 	// queries use, so the events list and export follow the same filter.
 	Scope(ctx context.Context, from, to time.Time, days string) (ports.SiteScope, error)
@@ -340,6 +343,19 @@ func (s *SiteEventsService) scope(ctx context.Context, from, to time.Time, days 
 		}
 	}
 	return sc, matchDays, nil
+}
+
+func (s *SiteEventsService) MatchDays(ctx context.Context, from, to time.Time) ([]dto.SiteMatchDay, error) {
+	matchDays, err := s.repo.MatchDays(ctx, from, to)
+	if err != nil {
+		return nil, err
+	}
+	sc := ports.SiteScope{From: from, To: to}
+	daily, err := s.repo.Daily(ctx, sc)
+	if err != nil {
+		return nil, err
+	}
+	return s.matchDayList(ctx, sc, matchDays, daily)
 }
 
 func (s *SiteEventsService) Scope(ctx context.Context, from, to time.Time, days string) (ports.SiteScope, error) {

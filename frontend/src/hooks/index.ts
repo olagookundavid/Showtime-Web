@@ -3,6 +3,7 @@ export { useHideOnScrollDown } from './useHideOnScrollDown';
 export { useIsScrolled } from './useIsScrolled';
 export { useNewsletterPrompt } from './useNewsletterPrompt';
 export { useReturnUrl, withReturnUrl } from './useReturnUrl';
+export { useFaqPage } from './useFaqPage';
 export { useLiveStream } from './useLiveStream';
 export { usePermissions } from './usePermissions';
 export { useImageUpload } from './useImageUpload';

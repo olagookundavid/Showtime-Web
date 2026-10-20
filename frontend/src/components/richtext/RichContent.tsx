@@ -26,6 +26,8 @@ const MENTION_STYLES: Record<string, string> = {
 
 const VARIANT_STYLES = {
     article: 'prose prose-gray sm:prose-lg dark:prose-invert max-w-none wrap-break-word prose-headings:font-black prose-a:text-sffl-red dark:prose-a:text-red-300 prose-blockquote:border-l-sffl-red prose-th:bg-gray-100 dark:prose-th:bg-gray-800 prose-th:px-3 prose-td:px-3 prose-th:border prose-td:border prose-th:border-gray-200 prose-td:border-gray-200 dark:prose-th:border-gray-700 dark:prose-td:border-gray-700 prose-table:my-0',
+    // Small text at every width, flush with its container: an answer inside an FAQ row.
+    compact: 'prose prose-gray prose-sm dark:prose-invert max-w-none wrap-break-word prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-a:text-sffl-red dark:prose-a:text-red-300 [&>:first-child]:mt-0 [&>:last-child]:mb-0',
     basic: 'prose prose-gray prose-sm sm:prose-base dark:prose-invert max-w-none wrap-break-word prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-a:text-sffl-red dark:prose-a:text-red-300',
 };
 
@@ -154,8 +156,8 @@ const options: HTMLReactParserOptions = {
 
 interface RichContentProps {
     html: string | null | undefined;
-    /** `article` for news bodies, `basic` for descriptions and bios. */
-    variant?: 'article' | 'basic';
+    /** `article` for news bodies, `basic` for descriptions and bios, `compact` for an FAQ answer. */
+    variant?: 'article' | 'basic' | 'compact';
     className?: string;
 }
 
