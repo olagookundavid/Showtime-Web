@@ -5,7 +5,7 @@ import {
 import { buttonClass } from "../../components";
 
 export const PlayerConductRulebook = () => {
-  const pdfUrl = "/docs/showtime-standard-player-conduct-rule-book.pdf";
+  const pdfUrl = "/docs/showtime-player-conduct-rulebook-v2.pdf";
 
   return (
     <div className="space-y-4 md:space-y-8">
