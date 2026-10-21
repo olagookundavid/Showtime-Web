@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
+  /** Public host for files in R2, matching the backend's R2_PUBLIC_URL. Defaults to cdn.showtimeflag.football. */
+  readonly VITE_CDN_URL?: string;
   /** Google AdSense publisher ID, e.g. ca-pub-1234567890123456. Empty = ads off. */
   readonly VITE_ADSENSE_CLIENT_ID: string;
   /** Master ad switch. Ads only render when this is the string "true". */

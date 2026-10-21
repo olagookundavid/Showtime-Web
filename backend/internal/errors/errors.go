@@ -75,3 +75,16 @@ var (
 type FAQValidationError string
 
 func (e FAQValidationError) Error() string { return string(e) }
+
+// Media library errors, worded for the admin who hit them. ErrMediaFileNotFound
+// maps to a 404; the rest, and MediaValidationError, to a 400.
+var (
+	ErrMediaFileNotFound  = errors.New("that file doesn't exist")
+	ErrMediaSlugTaken     = errors.New("a file with that name already exists — pick another, or replace the existing file")
+	ErrMediaUploadMissing = errors.New("the upload didn't arrive — try uploading the file again")
+)
+
+// MediaValidationError is a problem with the file or what the admin typed.
+type MediaValidationError string
+
+func (e MediaValidationError) Error() string { return string(e) }

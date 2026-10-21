@@ -432,6 +432,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	importRepo := ports.NewImportRepository(pool)
 	heroSlideRepo := ports.NewHeroSlideRepository(pool)
 	faqRepo := ports.NewFAQRepository(pool)
+	mediaRepo := ports.NewMediaRepository(pool)
 	seasonRepo := ports.NewSeasonRepository(pool)
 	playRepo := ports.NewPlayRepository(pool)
 	appSettingRepo := ports.NewAppSettingRepository(pool)
@@ -489,6 +490,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	importService := services.NewImportService(importRepo, matchRepo)
 	heroSlideService := services.NewHeroSlideService(heroSlideRepo, newsRepo)
 	faqService := services.NewFAQService(faqRepo)
+	mediaService := services.NewMediaService(mediaRepo, storageService)
 	seasonService := services.NewSeasonService(seasonRepo)
 	playService := services.NewPlayService(playRepo, matchRepo, statsRepo)
 	appSettingService := services.NewAppSettingService(appSettingRepo)
@@ -527,6 +529,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	importHandler := transport.NewImportHandler(importService)
 	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
 	faqHandler := transport.NewFAQHandler(faqService)
+	mediaHandler := transport.NewMediaHandler(mediaService)
 	seasonHandler := transport.NewSeasonHandler(seasonService)
 	playHandler := transport.NewPlayHandler(playService)
 	contractHandler := transport.NewContractHandler(contractService, authRepo, auditService)
@@ -577,7 +580,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		authHandler, roleHandler, newsHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, siteEventsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, storeHandler, importHandler,
-		heroSlideHandler, faqHandler, seasonHandler, playHandler, reliveHandler,
+		heroSlideHandler, faqHandler, mediaHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,

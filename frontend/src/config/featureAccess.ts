@@ -39,6 +39,7 @@ export type FeatureKey =
   | "news"
   | "hero_slides"
   | "faqs"
+  | "media"
   | "live_stream"
   | "comment_moderation"
   | "season_mvps"

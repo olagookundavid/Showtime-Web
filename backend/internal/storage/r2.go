@@ -2,16 +2,20 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"showtime-backend/internal/ports"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 )
 
@@ -163,4 +167,68 @@ func (s *R2StorageService) ListObjects(ctx context.Context) ([]ports.StorageObje
 		}
 	}
 	return objects, nil
+}
+
+// PresignPutKey presigns a PUT to an exact key. Content type and length are part
+// of the signature, so R2 rejects an upload of any other type or size. The
+// browser sets Content-Length itself, so this needs no CORS change.
+func (s *R2StorageService) PresignPutKey(ctx context.Context, key, contentType string, size int64) (string, error) {
+	request, err := s.presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:        aws.String(s.bucketName),
+		Key:           aws.String(key),
+		ContentType:   aws.String(contentType),
+		ContentLength: aws.Int64(size),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = 15 * time.Minute
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to presign put object %s: %w", key, err)
+	}
+	return request.URL, nil
+}
+
+// HeadObject reports an object's size and content type; found is false when
+// there is no object at key.
+func (s *R2StorageService) HeadObject(ctx context.Context, key string) (int64, string, bool, error) {
+	out, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		var notFound *types.NotFound
+		var respErr *awshttp.ResponseError
+		if errors.As(err, &notFound) || (errors.As(err, &respErr) && respErr.HTTPStatusCode() == http.StatusNotFound) {
+			return 0, "", false, nil
+		}
+		return 0, "", false, fmt.Errorf("failed to head object %s: %w", key, err)
+	}
+	return aws.ToInt64(out.ContentLength), aws.ToString(out.ContentType), true, nil
+}
+
+// CopyObject copies src to dst within the bucket and replaces the headers dst is
+// served with. dst is overwritten if it exists, so a replace never leaves a
+// moment where the public URL has no file behind it.
+func (s *R2StorageService) CopyObject(ctx context.Context, srcKey, dstKey string, meta ports.ObjectMeta) error {
+	input := &s3.CopyObjectInput{
+		Bucket:            aws.String(s.bucketName),
+		Key:               aws.String(dstKey),
+		CopySource:        aws.String(s.bucketName + "/" + srcKey),
+		MetadataDirective: types.MetadataDirectiveReplace,
+		ContentType:       aws.String(meta.ContentType),
+	}
+	if meta.CacheControl != "" {
+		input.CacheControl = aws.String(meta.CacheControl)
+	}
+	if meta.ContentDisposition != "" {
+		input.ContentDisposition = aws.String(meta.ContentDisposition)
+	}
+	if _, err := s.client.CopyObject(ctx, input); err != nil {
+		return fmt.Errorf("failed to copy object %s to %s: %w", srcKey, dstKey, err)
+	}
+	return nil
+}
+
+// PublicURL is the public CDN URL an object key is served at.
+func (s *R2StorageService) PublicURL(key string) string {
+	return fmt.Sprintf("%s/%s", s.publicURL, key)
 }

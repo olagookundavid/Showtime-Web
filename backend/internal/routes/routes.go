@@ -280,6 +280,18 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		faqGroup.PUT("/reorder", app.Handlers.FAQHandler.Reorder)
 	}
 
+	// Media library: files uploaded to R2 at fixed URLs, to link to from anywhere.
+	mediaGroup := adminRoutes.Group("/media")
+	mediaGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureMedia))
+	{
+		mediaGroup.GET("", app.Handlers.MediaHandler.List)
+		mediaGroup.POST("/presign", app.Handlers.MediaHandler.Presign)
+		mediaGroup.POST("", app.Handlers.MediaHandler.Create)
+		mediaGroup.PUT("/:id", app.Handlers.MediaHandler.UpdateTitle)
+		mediaGroup.PUT("/:id/file", app.Handlers.MediaHandler.Replace)
+		mediaGroup.DELETE("/:id", app.Handlers.MediaHandler.Delete)
+	}
+
 	// Team of the Season graphics + MVPs — admin/app_admin managed content.
 	seasonGroup := adminRoutes.Group("/season")
 	seasonGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "season_mvps"))

@@ -9,6 +9,7 @@ export * from './common';
 export * from './contracts';
 export * from './discounts';
 export * from './faqs';
+export * from './media';
 export * from './fantasy/admin';
 export * from './fantasy/core';
 export * from './fantasy/dashboard';

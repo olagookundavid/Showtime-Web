@@ -30,6 +30,7 @@ import {
   GlobeAltIcon,
   KeyIcon,
   QuestionMarkCircleIcon,
+  FolderOpenIcon,
 } from "@heroicons/react/24/outline";
 import {
   Squares2X2Icon as SquaresSolid,
@@ -141,6 +142,7 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
       { name: "News", path: "/admin/news", icon: NewspaperIcon },
       { name: "Hero Slides", path: "/admin/hero-slides", icon: PhotoIcon },
       { name: "FAQs", path: "/admin/faqs", icon: QuestionMarkCircleIcon },
+      { name: "Media Library", path: "/admin/media", icon: FolderOpenIcon },
       { name: "Live Stream", path: "/admin/live-stream", icon: SignalIcon },
     ],
   },
@@ -183,6 +185,7 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   News: "news",
   "Hero Slides": "hero_slides",
   FAQs: "faqs",
+  "Media Library": "media",
   "Live Stream": "live_stream",
   Users: "user_management",
   "Roles & Permissions": "roles",

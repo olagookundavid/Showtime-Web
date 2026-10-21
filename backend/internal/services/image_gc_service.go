@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"pkg-common/logger"
@@ -68,6 +69,30 @@ var referencedImageQueries = []string{
 	`SELECT mobile_image_url FROM hero_slides WHERE mobile_image_url IS NOT NULL AND mobile_image_url <> ''`,
 	`SELECT image_url FROM season_graphics WHERE image_url IS NOT NULL AND image_url <> ''`,
 	`SELECT mobile_image_url FROM season_graphics WHERE mobile_image_url IS NOT NULL AND mobile_image_url <> ''`,
+	`SELECT icon FROM badges WHERE icon IS NOT NULL AND icon <> ''`,
+	`SELECT image_url FROM badge_icons WHERE image_url IS NOT NULL AND image_url <> ''`,
+	`SELECT claimed_photo FROM player_claims WHERE claimed_photo <> ''`,
+	`SELECT url FROM media_files`,
+}
+
+// protectedPrefixes are never swept, referenced or not:
+//   - files/ is the media library. Its keys are fixed and its rows are the
+//     reference, but a file mid-replace or mid-create must never be collected.
+//   - pdfs/ and badges/ hold files uploaded by hand or by cmd/upload_badges, which
+//     the site links to from code (or from seeded rows on an older CDN host that
+//     ObjectKeyFromURL can't match), so no query can see them.
+//
+// uploads-tmp/ is deliberately NOT protected: abandoned media uploads land there
+// and are collected once older than the TTL.
+var protectedPrefixes = []string{"files/", "pdfs/", "badges/"}
+
+func isProtectedKey(key string) bool {
+	for _, p := range protectedPrefixes {
+		if strings.HasPrefix(key, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // collectReferencedKeys returns the set of object keys still referenced by the
@@ -124,7 +149,7 @@ func (s *ImageGCService) SweepOrphans(ctx context.Context) error {
 	var orphans, deleted, skippedRecent int
 
 	for _, obj := range objects {
-		if _, isReferenced := referenced[obj.Key]; isReferenced {
+		if _, isReferenced := referenced[obj.Key]; isReferenced || isProtectedKey(obj.Key) {
 			continue
 		}
 		// Don't touch freshly uploaded objects — they may belong to an entity

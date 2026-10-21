@@ -7,6 +7,7 @@ export { useFaqPage } from './useFaqPage';
 export { useLiveStream } from './useLiveStream';
 export { usePermissions } from './usePermissions';
 export { useImageUpload } from './useImageUpload';
+export { fileExtension, mediaTypeForFile, useMediaUpload } from './useMediaUpload';
 export { getWebSocketURL, useBroadcastProducer } from './useBroadcastProducer';
 export { useBroadcastViewer } from './useBroadcastViewer';
 export { useBroadcastScenes } from './useBroadcastScenes';

@@ -23,6 +23,7 @@ type Handlers struct {
 	ImportHandler               transport.IImportHandler
 	HeroSlideHandler            transport.IHeroSlideHandler
 	FAQHandler                  transport.IFAQHandler
+	MediaHandler                transport.IMediaHandler
 	SeasonHandler               transport.ISeasonHandler
 	PlayHandler                 transport.IPlayHandler
 	ReliveHandler               transport.IReliveHandler
@@ -62,6 +63,7 @@ func NewHandlers(
 	importHandler transport.IImportHandler,
 	heroSlideHandler transport.IHeroSlideHandler,
 	faqHandler transport.IFAQHandler,
+	mediaHandler transport.IMediaHandler,
 	seasonHandler transport.ISeasonHandler,
 	playHandler transport.IPlayHandler,
 	reliveHandler transport.IReliveHandler,
@@ -100,6 +102,7 @@ func NewHandlers(
 		ImportHandler:               importHandler,
 		HeroSlideHandler:            heroSlideHandler,
 		FAQHandler:                  faqHandler,
+		MediaHandler:                mediaHandler,
 		SeasonHandler:               seasonHandler,
 		PlayHandler:                 playHandler,
 		ReliveHandler:               reliveHandler,
