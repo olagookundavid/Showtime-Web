@@ -21,7 +21,8 @@ import {
   MatchHub,
   MatchDetail,
   Standings,
-  Stats,
+  PlayerStats,
+  TeamStats,
   GamePass,
   SeasonPass,
   TicketConfirmation,
@@ -31,6 +32,7 @@ import {
   ForgotPassword,
   Players,
   PlayerDetail,
+  PlayerComparison,
   Teams,
   TeamDetail,
 } from "./pages";
@@ -417,7 +419,8 @@ function App() {
                       <Route path="/matches" element={<MatchHub />} />
                       <Route path="/matches/:id" element={<MatchDetail />} />
                       <Route path="/standings" element={<Standings />} />
-                      <Route path="/stats" element={<Stats />} />
+                      <Route path="/stats" element={<PlayerStats />} />
+                      <Route path="/stats/teams" element={<TeamStats />} />
                       <Route path="/totw" element={<TeamOfTheWeek />} />
                       <Route path="/totw/:id" element={<TeamOfTheWeek />} />
                       <Route path="/potw" element={<PlayerOfTheWeek />} />
@@ -439,6 +442,10 @@ function App() {
 
                       {/* Player Profiles */}
                       <Route path="/players" element={<Players />} />
+                      <Route
+                        path="/players/compare"
+                        element={<PlayerComparison />}
+                      />
                       <Route path="/players/:id" element={<PlayerDetail />} />
 
                       {/* Teams */}

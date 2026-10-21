@@ -1,5 +1,6 @@
 import type { Competition } from "../../types";
 import { Button } from "../ui";
+import type { Shape } from "../ui/buttonStyles";
 import { STAGES, seasonIdOf } from "./seasonStages";
 
 interface SeasonStageTabsProps {
@@ -7,6 +8,8 @@ interface SeasonStageTabsProps {
   currentId: string;
   onChange: (id: string) => void;
   className?: string;
+  /** `square` for sharp corners (store/stats/comparison pages). */
+  shape?: Shape;
 }
 
 // Up to four tabs (Preseason | Season | Playoffs | Cup) that switch the
@@ -21,6 +24,7 @@ export const SeasonStageTabs = ({
   currentId,
   onChange,
   className = "",
+  shape = "round",
 }: SeasonStageTabsProps) => {
   const current = competitions.find((c) => c.id === currentId);
   if (!current) return null; // e.g. "All Competitions" / nothing selected — no context for tabs
@@ -49,6 +53,7 @@ export const SeasonStageTabs = ({
             key={format}
             size="lg"
             variant={isActive ? "primary" : "secondary"}
+            shape={shape}
             className="flex-1 sm:flex-none md:px-10 uppercase tracking-wide"
             icon={Icon}
             disabled={!comp}

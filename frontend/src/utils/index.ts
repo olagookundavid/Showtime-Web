@@ -78,3 +78,4 @@ export type {
   AutoFillResult,
 } from './autoFillLineup';
 export { isConfirmSkipped, setConfirmSkipped } from './confirmPreferences';
+export { sortStatRows } from './sortStatRows';

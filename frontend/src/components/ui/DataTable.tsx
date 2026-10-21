@@ -33,6 +33,7 @@ import {
 import { Spinner } from "./Spinner";
 import { Button } from "./Button";
 import { Input } from "./Input";
+import type { Shape } from "./buttonStyles";
 
 export interface Column<T> {
   /** Header text, or a node for a two-line label. */
@@ -82,6 +83,8 @@ interface DataTableProps<T> {
   maxHeight?: string;
   /** Draws our own scrollbars (a bar above the header, one below the table, and one on the right when `maxHeight` is set) instead of each browser's native ones, so all three are pixel-identical. On by default; pass false to fall back to native scrollbars for this table. */
   customScrollbars?: boolean;
+  /** `square` for sharp corners (store/stats pages), passed through to the search box and page buttons. */
+  shape?: Shape;
 }
 
 // TanStack Table (v9) does the sorting, searching and paging; this file owns the markup and styling.
@@ -212,7 +215,9 @@ export function DataTable<T extends Record<string, any>>({
   stickyHeader = false,
   maxHeight,
   customScrollbars = true,
+  shape = "round",
 }: DataTableProps<T>) {
+  const square = shape === "square";
   const [searchTerm, setSearchTerm] = useState("");
   const [internalPage, setInternalPage] = useState(1);
 
@@ -526,10 +531,10 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className={`bg-white dark:bg-gray-800 ${square ? "rounded-none" : "rounded-xl"} shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden`}>
         {/* Our own top/bottom/right scrollbars (identical thickness and colour) replace the
             native ones (hidden via `no-scrollbar`) so they render the same in every browser. */}
-        {customScrollbars && renderHorizontalBar(topTrackRef, topThumbRef, "rounded-t-xl")}
+        {customScrollbars && renderHorizontalBar(topTrackRef, topThumbRef, square ? "" : "rounded-t-xl")}
 
         <div className="relative">
           {/* The same table on every screen: on a phone it scrolls sideways and the first column
@@ -694,7 +699,7 @@ export function DataTable<T extends Record<string, any>>({
           )}
         </div>
 
-        {customScrollbars && renderHorizontalBar(bottomTrackRef, bottomThumbRef, "rounded-b-xl")}
+        {customScrollbars && renderHorizontalBar(bottomTrackRef, bottomThumbRef, square ? "" : "rounded-b-xl")}
       </div>
 
       {/* Pagination Controls - Condensed */}

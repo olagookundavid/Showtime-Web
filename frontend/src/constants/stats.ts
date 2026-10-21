@@ -121,3 +121,37 @@ export const POSITION_STAT_KEYS: Record<NormalizedPosition, string[]> = {
     ALLROUNDER: ALL_STAT_DEFINITIONS.filter(s => !s.teamOnly).map(s => s.key),
     ALL: ALL_STAT_DEFINITIONS.filter(s => !s.teamOnly).map(s => s.key)
 };
+
+/**
+ * ALL_STAT_DEFINITIONS reshaped for DataTable column building — shared by
+ * PlayerStatsTable and TeamStatsTable so both read the exact same metadata.
+ */
+export const STAT_COLS = ALL_STAT_DEFINITIONS.map((def) => ({
+    key: def.key,
+    top: def.topHeader ?? '',
+    bottom: def.bottomHeader,
+    title: def.title,
+    bg: def.bg ?? '',
+    playerOnly: def.playerOnly,
+    teamOnly: def.teamOnly,
+    divider: def.divider,
+}));
+
+/** A thicker left border marks the boundary where team-only stats begin. */
+export const dividerClass = (col: { divider?: boolean }) =>
+    col.divider ? 'border-l-2 border-l-amber-400 dark:border-l-amber-600' : '';
+
+/**
+ * Distinct stat categories a position's stats actually use (General excluded —
+ * it's just the pinned Appearances row), e.g. QBs get Passing/Rushing/Extra
+ * Points/Safety. Used to build the player-comparison page's category filter pills.
+ */
+export const categoriesForPosition = (position: NormalizedPosition): string[] => {
+    const keys = POSITION_STAT_KEYS[position] ?? [];
+    const categories = new Set<string>();
+    keys.forEach((key) => {
+        const def = ALL_STAT_DEFINITIONS.find((d) => d.key === key);
+        if (def && def.category !== 'General') categories.add(def.category);
+    });
+    return Array.from(categories);
+};

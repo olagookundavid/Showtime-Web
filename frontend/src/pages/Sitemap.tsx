@@ -14,7 +14,8 @@ const GROUPS: SitemapGroup[] = [
       { name: "Home", path: "/" },
       { name: "Matches", path: "/matches" },
       { name: "Standings", path: "/standings" },
-      { name: "Stats", path: "/stats" },
+      { name: "Player Stats", path: "/stats" },
+      { name: "Team Stats", path: "/stats/teams" },
       { name: "Team of the Week", path: "/totw" },
       { name: "Player of the Week", path: "/potw" },
     ],
@@ -24,6 +25,7 @@ const GROUPS: SitemapGroup[] = [
     links: [
       { name: "Teams", path: "/teams" },
       { name: "Players", path: "/players" },
+      { name: "Compare Players", path: "/players/compare" },
     ],
   },
   {

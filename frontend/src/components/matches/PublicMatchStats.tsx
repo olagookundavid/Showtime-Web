@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicMatchStats } from '../../services/api';
 import type { PlayerStat, TeamStat } from '../../types';
-import { StatsTable } from '../stats/StatsTable';
+import { PlayerStatsTable, TeamStatsTable } from '../stats';
 import { Button, Select, Spinner } from '../ui';
 
 // A stable empty list, so memos keyed on the stats don't rerun every render.
@@ -247,9 +247,9 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
 
             {/* Render Stats Table */}
             {activeTab === 'players' ? (
-                <StatsTable type="players" playerStats={filteredPlayerStats} sortBy={sortBy} onSortChange={setSortBy} positionFilter={positionFilter} />
+                <PlayerStatsTable stats={filteredPlayerStats} sortBy={sortBy} onSortChange={setSortBy} positionFilter={positionFilter} />
             ) : (
-                <StatsTable type="teams" teamStats={derivedTeamStats} sortBy={sortBy} onSortChange={setSortBy} />
+                <TeamStatsTable stats={derivedTeamStats} sortBy={sortBy} onSortChange={setSortBy} />
             )}
         </div>
     );

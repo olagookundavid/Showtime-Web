@@ -15,3 +15,4 @@ export { LEADERBOARD_LIMIT, num, rankBadgeClass, useFantasyLeaderboard } from '.
 export { useReserveDrag } from './useReserveDrag';
 export type { ReserveDragState } from './useReserveDrag';
 export { useLiveMatchScore } from './useLiveMatchScore';
+export { useStatsCompetitionFilter } from './useStatsCompetitionFilter';

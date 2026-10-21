@@ -6,7 +6,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { isDeletedPlayer, DELETED_TITLE, StatsTable, ConfirmDialog, ConfirmSummary, DataTable, type Column, Spinner, FootballIcon, RunnerIcon, DashboardPageHeader, Button, Field, IconButton, Input, Select } from "../../components";
+import { isDeletedPlayer, DELETED_TITLE, PlayerStatsTable, TeamStatsTable, ConfirmDialog, ConfirmSummary, DataTable, type Column, Spinner, FootballIcon, RunnerIcon, DashboardPageHeader, Button, Field, IconButton, Input, Select } from "../../components";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -4669,16 +4669,14 @@ const StatsCompare = ({
 
               {/* Render Active View */}
               {activeTab === "players" ? (
-                <StatsTable
-                  type="players"
-                  playerStats={filteredPlayerStats}
+                <PlayerStatsTable
+                  stats={filteredPlayerStats}
                   sortBy={sortBy}
                   onSortChange={setSortBy}
                 />
               ) : activeTab === "teams" ? (
-                <StatsTable
-                  type="teams"
-                  teamStats={derivedTeamStats}
+                <TeamStatsTable
+                  stats={derivedTeamStats}
                   sortBy={sortBy}
                   onSortChange={setSortBy}
                 />

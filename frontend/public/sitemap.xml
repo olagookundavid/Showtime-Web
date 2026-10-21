@@ -7,8 +7,10 @@
   <url><loc>https://www.showtimeflag.football/matches</loc></url>
   <url><loc>https://www.showtimeflag.football/standings</loc></url>
   <url><loc>https://www.showtimeflag.football/stats</loc></url>
+  <url><loc>https://www.showtimeflag.football/stats/teams</loc></url>
   <url><loc>https://www.showtimeflag.football/teams</loc></url>
   <url><loc>https://www.showtimeflag.football/players</loc></url>
+  <url><loc>https://www.showtimeflag.football/players/compare</loc></url>
   <url><loc>https://www.showtimeflag.football/totw</loc></url>
   <url><loc>https://www.showtimeflag.football/potw</loc></url>
   <url><loc>https://www.showtimeflag.football/tickets</loc></url>

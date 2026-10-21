@@ -33,7 +33,6 @@ import {
   CalendarIcon,
   UserGroupIcon,
   TableCellsIcon,
-  ChartBarIcon,
   ChartPieIcon,
   TrophyIcon,
   UserCircleIcon,
@@ -460,7 +459,7 @@ export const Layout = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <Link
-                    to="/stats?tab=players"
+                    to="/stats"
                     onClick={() => setIsMoreMenuOpen(false)}
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
@@ -478,7 +477,7 @@ export const Layout = () => {
                   </Link>
 
                   <Link
-                    to="/stats?tab=teams"
+                    to="/stats/teams"
                     onClick={() => setIsMoreMenuOpen(false)}
                     className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
@@ -493,27 +492,6 @@ export const Layout = () => {
                         Efficiency & Drives
                       </p>
                     </div>
-                  </Link>
-
-                  <Link
-                    to="/stats"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="col-span-2 flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                        <ChartBarIcon className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
-                          Full Stats Hub
-                        </span>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                          All-time & Season Records
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
                   </Link>
                 </div>
               </div>

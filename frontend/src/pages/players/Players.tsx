@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isDeletedPlayer, DELETED_TITLE, Loader, Field, LightboxImage, Select, Spinner, FootballIcon, CrownIcon } from "../../components";
+import { isDeletedPlayer, DELETED_TITLE, Loader, Field, LightboxImage, Select, Spinner, FootballIcon, CrownIcon, ButtonLink } from "../../components";
 import { htmlToPlainText } from "../../utils";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
@@ -10,6 +10,7 @@ import {
 import type { PaginatedResponse, Player, PublicTeam } from "../../types";
 import {
   ArrowRightIcon,
+  ArrowsRightLeftIcon,
   ShieldCheckIcon,
   TrophyIcon,
 } from "@heroicons/react/24/outline";
@@ -112,9 +113,19 @@ export const Players = () => {
           </p>
         </div>
 
-        {/* Team Filter - Condensed */}
-        {teams.length > 0 && (
-          <div className="w-full md:w-auto">
+        <div className="w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+          <ButtonLink
+            to="/players/compare"
+            tone="dark"
+            variant="secondary"
+            icon={ArrowsRightLeftIcon}
+            className="shrink-0"
+          >
+            Compare Players
+          </ButtonLink>
+
+          {/* Team Filter - Condensed */}
+          {teams.length > 0 && (
             <Field label="Filter by Team" htmlFor="players-team-filter" tone="dark">
               <Select
                 id="players-team-filter"
@@ -137,8 +148,8 @@ export const Players = () => {
                 ))}
               </Select>
             </Field>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Initial-load Indicator */}

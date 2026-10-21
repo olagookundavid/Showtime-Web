@@ -15,6 +15,7 @@ export * from './monetization';
 export * from './news';
 export * from './newsletter';
 export * from './player-portal';
+export * from './players';
 export * from './potw';
 export * from './richtext';
 export * from './seller';

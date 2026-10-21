@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FemaleIcon } from '../icons/FemaleIcon';
 import { MaleIcon } from '../icons/MaleIcon';
 import { ImageLightbox } from '../ui';
+import type { Shape } from '../ui/buttonStyles';
 
 interface Props {
     name: string;
@@ -12,6 +13,8 @@ interface Props {
     className?: string;
     /** Tap the photo to open it full size, as player photos do elsewhere on the site. */
     zoomable?: boolean;
+    /** `square` for sharp corners (store/stats/comparison pages). Defaults to the usual soft-rounded square. */
+    shape?: Shape;
 }
 
 const SIZES = {
@@ -41,18 +44,19 @@ function initials(name: string): string {
  * are drawn rather than fetched, so there is nothing left to 404. onError covers
  * the other half: a URL that exists but fails to load.
  */
-export function PlayerAvatar({ name, image, gender, size = 'md', className = '', zoomable = false }: Props) {
+export function PlayerAvatar({ name, image, gender, size = 'md', className = '', zoomable = false, shape = 'round' }: Props) {
     const [failed, setFailed] = useState(false);
     const [zoomed, setZoomed] = useState(false);
     const showImage = !!image && !failed;
     const female = (gender || '').toUpperCase().startsWith('F');
+    const radius = shape === 'square' ? 'rounded-none' : 'rounded-xl';
 
     const photo = showImage ? (
         <img
             src={image as string}
             alt=""
             onError={() => setFailed(true)}
-            className={`${SIZES[size]} rounded-xl object-cover bg-gray-100 dark:bg-gray-700`}
+            className={`${SIZES[size]} ${radius} object-cover bg-gray-100 dark:bg-gray-700`}
         />
     ) : null;
 
@@ -68,7 +72,7 @@ export function PlayerAvatar({ name, image, gender, size = 'md', className = '',
                         e.stopPropagation();
                         setZoomed(true);
                     }}
-                    className="rounded-xl cursor-zoom-in transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red"
+                    className={`${radius} cursor-zoom-in transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red`}
                 >
                     {photo}
                 </button>
@@ -77,7 +81,7 @@ export function PlayerAvatar({ name, image, gender, size = 'md', className = '',
             ) : (
                 <span
                     aria-hidden
-                    className={`${SIZES[size]} rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-black text-gray-400 dark:text-gray-500 select-none`}
+                    className={`${SIZES[size]} ${radius} bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-black text-gray-400 dark:text-gray-500 select-none`}
                 >
                     {initials(name)}
                 </span>

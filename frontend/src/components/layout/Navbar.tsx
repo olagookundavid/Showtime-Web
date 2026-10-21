@@ -55,7 +55,6 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(`${path}/`);
   const query = new URLSearchParams(search);
-  const tab = query.get("tab");
   const stage = query.get("stage");
 
   const leagueActive = ["/matches", "/standings", "/teams"].some(isActive);
@@ -210,20 +209,18 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 <div className="absolute top-full left-0 w-48 z-50 pt-2">
                   <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
                     <Link
-                      to="/stats?tab=players"
-                      aria-current={
-                        statsActive && tab === "players" ? "page" : undefined
-                      }
-                      className={dropdownItem(statsActive && tab === "players")}
+                      to="/stats"
+                      aria-current={pathname === "/stats" ? "page" : undefined}
+                      className={dropdownItem(pathname === "/stats")}
                     >
                       Player Stats
                     </Link>
                     <Link
-                      to="/stats?tab=teams"
+                      to="/stats/teams"
                       aria-current={
-                        statsActive && tab === "teams" ? "page" : undefined
+                        pathname === "/stats/teams" ? "page" : undefined
                       }
-                      className={dropdownItem(statsActive && tab === "teams")}
+                      className={dropdownItem(pathname === "/stats/teams")}
                     >
                       Team Stats
                     </Link>

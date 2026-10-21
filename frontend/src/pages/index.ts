@@ -29,7 +29,8 @@ export { MatchDetail } from "./matches/MatchDetail";
 export { Standings } from "./matches/Standings";
 
 // Stats
-export { Stats } from "./stats/Stats";
+export { PlayerStats } from "./stats/PlayerStats";
+export { TeamStats } from "./stats/TeamStats";
 
 // Tickets
 export { GamePass } from "./tickets/GamePass";
@@ -40,6 +41,7 @@ export { ReferralGenerator } from "./tickets/ReferralGenerator";
 // Players
 export { Players } from "./players/Players";
 export { PlayerDetail } from "./players/PlayerDetail";
+export { PlayerComparison } from "./players/PlayerComparison";
 
 // Teams
 export { Teams } from "./teams/Teams";
