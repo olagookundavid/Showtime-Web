@@ -24,7 +24,7 @@ type IAuthRepository interface {
 	ResetPassword(ctx context.Context, user domain.User) error
 	ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]domain.User, int, error)
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
-	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
+	UpdateUserInfo(ctx context.Context, userID, firstName, lastName, fullName, phone string) error
 	// SetPhoneIfEmpty fills a profile's phone only when it has none; it never
 	// replaces one that is there.
 	SetPhoneIfEmpty(ctx context.Context, userID, phone string) error
@@ -50,10 +50,10 @@ func NewAuthRepository(Db *pgxpool.Pool) IAuthRepository {
 }
 
 func (m AuthRepository) Register(ctx context.Context, user domain.User) (*string, error) {
-	query := ` INSERT INTO users (full_name, email, password_hash, role, phone) 
-		VALUES ($1, $2, $3, $4, $5) 
+	query := ` INSERT INTO users (full_name, first_name, last_name, email, password_hash, role, phone)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id`
-	args := []any{user.FullName, user.Email, user.Password.Hash, user.Role, user.Phone}
+	args := []any{user.FullName, user.FirstName, user.LastName, user.Email, user.Password.Hash, user.Role, user.Phone}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	var id string
@@ -70,9 +70,9 @@ func (m AuthRepository) Register(ctx context.Context, user domain.User) (*string
 }
 
 func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE LOWER(email) = LOWER($1)`
+	query := `SELECT id, full_name, first_name, last_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE LOWER(email) = LOWER($1)`
 	var user domain.User
-	var phone sql.NullString
+	var phone, firstName, lastName sql.NullString
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -80,6 +80,8 @@ func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*doma
 	err := m.Db.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.FullName,
+		&firstName,
+		&lastName,
 		&user.Email,
 		&user.Password.Hash,
 		&user.Role,
@@ -99,6 +101,12 @@ func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*doma
 
 	if phone.Valid {
 		user.Phone = phone.String
+	}
+	if firstName.Valid {
+		user.FirstName = firstName.String
+	}
+	if lastName.Valid {
+		user.LastName = lastName.String
 	}
 
 	return &user, nil
@@ -120,9 +128,9 @@ func (m AuthRepository) GetUserRole(ctx context.Context, id string) (string, err
 }
 
 func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
-	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE id = $1`
+	query := `SELECT id, full_name, first_name, last_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE id = $1`
 	var user domain.User
-	var phone sql.NullString
+	var phone, firstName, lastName sql.NullString
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -130,6 +138,8 @@ func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.Use
 	err := m.Db.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.FullName,
+		&firstName,
+		&lastName,
 		&user.Email,
 		&user.Password.Hash,
 		&user.Role,
@@ -149,6 +159,12 @@ func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.Use
 
 	if phone.Valid {
 		user.Phone = phone.String
+	}
+	if firstName.Valid {
+		user.FirstName = firstName.String
+	}
+	if lastName.Valid {
+		user.LastName = lastName.String
 	}
 
 	return &user, nil
@@ -176,7 +192,7 @@ func (m AuthRepository) ListUsers(ctx context.Context, page, limit int, searchFi
 	var users []domain.User
 
 	countQuery := `SELECT COUNT(*) FROM users WHERE 1=1`
-	query := `SELECT id, full_name, email, role, phone, created_at, updated_at FROM users WHERE 1=1`
+	query := `SELECT id, full_name, first_name, last_name, email, role, phone, created_at, updated_at FROM users WHERE 1=1`
 
 	args := []interface{}{}
 	argIndex := 1
@@ -215,11 +231,13 @@ func (m AuthRepository) ListUsers(ctx context.Context, page, limit int, searchFi
 
 	for rows.Next() {
 		var user domain.User
-		var phone sql.NullString
+		var phone, firstName, lastName sql.NullString
 
 		err := rows.Scan(
 			&user.ID,
 			&user.FullName,
+			&firstName,
+			&lastName,
 			&user.Email,
 			&user.Role,
 			&phone,
@@ -232,6 +250,12 @@ func (m AuthRepository) ListUsers(ctx context.Context, page, limit int, searchFi
 
 		if phone.Valid {
 			user.Phone = phone.String
+		}
+		if firstName.Valid {
+			user.FirstName = firstName.String
+		}
+		if lastName.Valid {
+			user.LastName = lastName.String
 		}
 
 		users = append(users, user)
@@ -270,13 +294,13 @@ func (m AuthRepository) SetPhoneIfEmpty(ctx context.Context, userID, phone strin
 	return err
 }
 
-func (m AuthRepository) UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error {
-	query := `UPDATE users SET full_name = $1, phone = $2, updated_at = NOW() WHERE id = $3`
+func (m AuthRepository) UpdateUserInfo(ctx context.Context, userID, firstName, lastName, fullName, phone string) error {
+	query := `UPDATE users SET first_name = $1, last_name = $2, full_name = $3, phone = $4, updated_at = NOW() WHERE id = $5`
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	result, err := m.Db.Exec(ctx, query, fullName, phone, userID)
+	result, err := m.Db.Exec(ctx, query, firstName, lastName, fullName, phone, userID)
 	if err != nil {
 		return err
 	}

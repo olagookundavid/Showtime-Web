@@ -5,6 +5,8 @@ import type { AuthUser } from '../types';
 export interface User {
     id: string;
     name: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     phone?: string;
     /** Confirmed with a code; needed to vote in fan polls. */
@@ -32,7 +34,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string; mustReset?: boolean }>;
-    signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    signup: (firstName: string, lastName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
     forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
     resetPasswordWithOTP: (email: string, otp: string, new_password: string) => Promise<{ success: boolean; error?: string }>;
@@ -46,6 +48,8 @@ function mapAuthUser(authUser: AuthUser): User {
     return {
         id: authUser.id,
         name: authUser.full_name || 'User',
+        firstName: authUser.first_name,
+        lastName: authUser.last_name,
         email: authUser.email,
         phone: authUser.phone,
         emailVerified: Boolean(authUser.email_verified),
@@ -94,9 +98,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const signup = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const signup = async (firstName: string, lastName: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
         try {
-            await registerUser(name, email, password);
+            await registerUser(firstName, lastName, email, password);
             // Auto-login after registration
             return await login(email, password);
         } catch (err: any) {

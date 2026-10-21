@@ -1,6 +1,8 @@
 export interface AuthUser {
     id: string;
     full_name: string;
+    first_name?: string;
+    last_name?: string;
     email: string;
     phone?: string;
     /** The role's permanent key (e.g. 'admin', 'content_creator', or one created in the Roles page). */

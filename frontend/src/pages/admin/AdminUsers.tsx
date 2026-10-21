@@ -50,7 +50,7 @@ const AdminUsers = () => {
 
     // Edit modal
     const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
-    const [editForm, setEditForm] = useState({ fullname: '', phone: '' });
+    const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '' });
 
     // Every write waits here for the confirm dialog
     const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -58,8 +58,8 @@ const AdminUsers = () => {
 
     const requestInfoSave = () => {
         if (!editingUser) return;
-        if (!editForm.fullname.trim()) {
-            toast.error('Full name is required.');
+        if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
+            toast.error('First and last name are required.');
             return;
         }
         setPendingAction({ kind: 'info' });
@@ -150,7 +150,11 @@ const AdminUsers = () => {
                         icon: PencilSquareIcon,
                         onSelect: () => {
                             setEditingUser(u);
-                            setEditForm({ fullname: u.fullname || '', phone: u.phone || '' });
+                            setEditForm({
+                                firstName: u.first_name || '',
+                                lastName: u.last_name || '',
+                                phone: u.phone || '',
+                            });
                         },
                     }]}
                 />
@@ -181,7 +185,8 @@ const AdminUsers = () => {
             body: (
                 <ConfirmSummary rows={[
                     ['Email', editingUser?.email],
-                    ['Full name', editForm.fullname.trim()],
+                    ['First name', editForm.firstName.trim()],
+                    ['Last name', editForm.lastName.trim()],
                     ['Phone', editForm.phone.trim()],
                 ]} />
             ),
@@ -248,22 +253,33 @@ const AdminUsers = () => {
                     footer={
                         <>
                             <Button variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
-                            <Button onClick={requestInfoSave} disabled={busy || !editForm.fullname.trim()}>
+                            <Button onClick={requestInfoSave} disabled={busy || !editForm.firstName.trim() || !editForm.lastName.trim()}>
                                 Save Changes
                             </Button>
                         </>
                     }
                 >
                     <div className="space-y-4">
-                        <Field label="Full Name *" htmlFor="edit-user-fullname">
-                            <Input
-                                id="edit-user-fullname"
-                                type="text"
-                                value={editForm.fullname}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, fullname: e.target.value }))}
-                                placeholder="Full Name"
-                            />
-                        </Field>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <Field label="First Name *" htmlFor="edit-user-first-name" className="flex-1">
+                                <Input
+                                    id="edit-user-first-name"
+                                    type="text"
+                                    value={editForm.firstName}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                                    placeholder="First Name"
+                                />
+                            </Field>
+                            <Field label="Last Name *" htmlFor="edit-user-last-name" className="flex-1">
+                                <Input
+                                    id="edit-user-last-name"
+                                    type="text"
+                                    value={editForm.lastName}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                                    placeholder="Last Name"
+                                />
+                            </Field>
+                        </div>
                         <Field label="Phone" htmlFor="edit-user-phone">
                             <Input
                                 id="edit-user-phone"

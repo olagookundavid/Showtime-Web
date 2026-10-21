@@ -23,6 +23,8 @@ const (
 type User struct {
 	ID        string
 	FullName  string
+	FirstName string
+	LastName  string
 	Email     string
 	Password  password
 	Role      string

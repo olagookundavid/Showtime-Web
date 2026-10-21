@@ -286,7 +286,7 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 		return
 	}
 
-	err := h.AuthService.UpdateUserInfo(c.Request.Context(), id, req.FullName, req.Phone)
+	err := h.AuthService.UpdateUserInfo(c.Request.Context(), id, req.FirstName, req.LastName, req.Phone)
 	if err != nil {
 		switch {
 		case errors.Is(err, appErrors.ErrNoUserRecordExist):
@@ -321,7 +321,7 @@ func (h *AuthHandler) UpdateOwnProfile(c *gin.Context) {
 		return
 	}
 
-	err = h.AuthService.UpdateUserInfo(c.Request.Context(), tokenPayload.UserId, req.FullName, req.Phone)
+	err = h.AuthService.UpdateUserInfo(c.Request.Context(), tokenPayload.UserId, req.FirstName, req.LastName, req.Phone)
 	if err != nil {
 		switch {
 		case errors.Is(err, appErrors.ErrNoUserRecordExist):

@@ -6,7 +6,8 @@ import { useReturnUrl, withReturnUrl } from "../../hooks";
 import { Button, Field, Input } from "../../components";
 
 export const Signup = () => {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -38,7 +39,7 @@ export const Signup = () => {
     }
 
     setLoading(true);
-    const result = await signup(name, email, password);
+    const result = await signup(firstName, lastName, email, password);
 
     if (result.success) {
       navigate(returnUrl, { replace: true });
@@ -76,16 +77,29 @@ export const Signup = () => {
 
         {/* Signup Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Full Name" htmlFor="signup-name">
-            <Input
-              id="signup-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="John Doe"
-            />
-          </Field>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Field label="First Name" htmlFor="signup-first-name" className="flex-1">
+              <Input
+                id="signup-first-name"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                placeholder="John"
+              />
+            </Field>
+
+            <Field label="Last Name" htmlFor="signup-last-name" className="flex-1">
+              <Input
+                id="signup-last-name"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                placeholder="Doe"
+              />
+            </Field>
+          </div>
 
           <Field label="Email Address" htmlFor="signup-email">
             <Input

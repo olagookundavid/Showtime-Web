@@ -23,7 +23,7 @@ type IAuthService interface {
 	ReturnUserProfile(ctx context.Context, id string) (*dto.LoginResponse, error)
 	ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]dto.UserResponse, int, error)
 	UpdateUserRole(ctx context.Context, actorID, userID, newRole string) error
-	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
+	UpdateUserInfo(ctx context.Context, userID, firstName, lastName, phone string) error
 	SendPasswordResetOTP(ctx context.Context, email string) error
 	CleanupExpiredOTPs(ctx context.Context) error
 	SendEmailVerificationCode(ctx context.Context, userID string) error
@@ -52,8 +52,8 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 
 	emailAddr := strings.ToLower(strings.TrimSpace(req.Email))
 
-	if req.FullName == "" {
-		return errors.New("full Name must be filled")
+	if strings.TrimSpace(req.FirstName) == "" || strings.TrimSpace(req.LastName) == "" {
+		return errors.New("first and last name must be filled")
 	}
 
 	err := domain.IsValidEmail(&req.Email)
@@ -79,11 +79,14 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 	// into the roster register themselves straight into a player account, bypassing the
 	// team manager's approval. Player accounts are minted only by an approved claim —
 	// see ClaimService.ApproveClaim.
+	fullName := strings.TrimSpace(req.FirstName + " " + req.LastName)
 	user := domain.User{
-		FullName: req.FullName,
-		Email:    emailAddr,
-		Role:     "user",
-		Phone:    req.Phone,
+		FullName:  fullName,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Email:     emailAddr,
+		Role:      "user",
+		Phone:     req.Phone,
 	}
 
 	err = user.Password.Set(req.Password)
@@ -294,6 +297,8 @@ func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.Lo
 	resp := &dto.LoginResponse{
 		ID:            user.ID,
 		FullName:      user.FullName,
+		FirstName:     user.FirstName,
+		LastName:      user.LastName,
 		Email:         user.Email,
 		Phone:         user.Phone,
 		UserType:      user.Role,
@@ -334,6 +339,8 @@ func loginUserWithTokens(s *AuthService, user *domain.User) (*dto.LoginResponse,
 	return &dto.LoginResponse{
 		ID:          user.ID,
 		FullName:    user.FullName,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
 		Email:       user.Email,
 		Phone:       user.Phone,
 		CreatedAt:   user.CreatedAt,
@@ -384,6 +391,8 @@ func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilt
 		responses[i] = dto.UserResponse{
 			ID:        u.ID,
 			FullName:  u.FullName,
+			FirstName: u.FirstName,
+			LastName:  u.LastName,
 			Email:     u.Email,
 			Phone:     u.Phone,
 			Role:      u.Role,
@@ -428,11 +437,14 @@ func (s *AuthService) UpdateUserRole(ctx context.Context, actorID, userID, newRo
 	return s.AuthRepository.UpdateUserRole(ctx, userID, newRole)
 }
 
-func (s *AuthService) UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error {
-	if fullName == "" {
-		return fmt.Errorf("full name must not be empty")
+func (s *AuthService) UpdateUserInfo(ctx context.Context, userID, firstName, lastName, phone string) error {
+	firstName = strings.TrimSpace(firstName)
+	lastName = strings.TrimSpace(lastName)
+	if firstName == "" || lastName == "" {
+		return fmt.Errorf("first and last name must not be empty")
 	}
-	return s.AuthRepository.UpdateUserInfo(ctx, userID, fullName, phone)
+	fullName := strings.TrimSpace(firstName + " " + lastName)
+	return s.AuthRepository.UpdateUserInfo(ctx, userID, firstName, lastName, fullName, phone)
 }
 
 func generateOTP(length int) (string, error) {

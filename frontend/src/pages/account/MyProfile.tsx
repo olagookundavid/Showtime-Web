@@ -9,7 +9,8 @@ import { ConfirmDialog, ConfirmSummary, Button, Field, Input } from '../../compo
 
 export const MyProfile = () => {
     const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
-    const [fullName, setFullName] = useState(user?.name ?? '');
+    const [firstName, setFirstName] = useState(user?.firstName ?? '');
+    const [lastName, setLastName] = useState(user?.lastName ?? '');
     const [phone, setPhone] = useState(user?.phone ?? '');
     const [confirming, setConfirming] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -17,12 +18,15 @@ export const MyProfile = () => {
     if (isLoading) return null;
     if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-    const dirty = fullName.trim() !== (user?.name ?? '') || phone.trim() !== (user?.phone ?? '');
+    const dirty =
+        firstName.trim() !== (user?.firstName ?? '') ||
+        lastName.trim() !== (user?.lastName ?? '') ||
+        phone.trim() !== (user?.phone ?? '');
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await updateOwnProfile(fullName.trim(), phone.trim());
+            await updateOwnProfile(firstName.trim(), lastName.trim(), phone.trim());
             await refreshUser();
             toast.success('Profile updated');
             setConfirming(false);
@@ -59,15 +63,27 @@ export const MyProfile = () => {
                     <Input id="profile-email" type="email" value={user?.email ?? ''} disabled />
                 </Field>
 
-                <Field label="Full Name *" htmlFor="profile-fullname">
-                    <Input
-                        id="profile-fullname"
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Full Name"
-                    />
-                </Field>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <Field label="First Name *" htmlFor="profile-first-name" className="flex-1">
+                        <Input
+                            id="profile-first-name"
+                            type="text"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="First Name"
+                        />
+                    </Field>
+
+                    <Field label="Last Name *" htmlFor="profile-last-name" className="flex-1">
+                        <Input
+                            id="profile-last-name"
+                            type="text"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            placeholder="Last Name"
+                        />
+                    </Field>
+                </div>
 
                 <Field label="Phone" htmlFor="profile-phone">
                     <Input
@@ -81,7 +97,7 @@ export const MyProfile = () => {
 
                 <div className="flex justify-end">
                     <Button
-                        disabled={!dirty || !fullName.trim()}
+                        disabled={!dirty || !firstName.trim() || !lastName.trim()}
                         onClick={() => setConfirming(true)}
                     >
                         Save Changes
@@ -115,7 +131,8 @@ export const MyProfile = () => {
                 body={
                     <ConfirmSummary
                         rows={[
-                            ['Full name', fullName.trim()],
+                            ['First name', firstName.trim()],
+                            ['Last name', lastName.trim()],
                             ['Phone', phone.trim()],
                         ]}
                     />

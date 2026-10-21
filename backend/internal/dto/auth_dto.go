@@ -3,10 +3,11 @@ package dto
 import "time"
 
 type RegisterRequest struct {
-	Email    string  `json:"email"`
-	Password *string `json:"password"`
-	FullName string  `json:"fullname"`
-	Phone    string  `json:"phone,omitempty"`
+	Email     string  `json:"email"`
+	Password  *string `json:"password"`
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Phone     string  `json:"phone,omitempty"`
 }
 
 type LoginRequest struct {
@@ -25,9 +26,11 @@ type ResetPasswordRequest struct {
 }
 
 type LoginResponse struct {
-	ID       string `json:"id"`
-	FullName string `json:"full_name"`
-	Email    string `json:"email"`
+	ID        string `json:"id"`
+	FullName  string `json:"full_name"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+	Email     string `json:"email"`
 	Phone    string `json:"phone,omitempty"`
 	UserType string `json:"user_type"`
 	// RoleName is the role's display name; UserType is its permanent key.
@@ -48,13 +51,16 @@ type UpdateUserRoleRequest struct {
 }
 
 type UpdateUserInfoRequest struct {
-	FullName string `json:"fullname" binding:"required"`
-	Phone    string `json:"phone"`
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name" binding:"required"`
+	Phone     string `json:"phone"`
 }
 
 type UserResponse struct {
 	ID        string    `json:"id"`
 	FullName  string    `json:"fullname"`
+	FirstName string    `json:"first_name,omitempty"`
+	LastName  string    `json:"last_name,omitempty"`
 	Email     string    `json:"email"`
 	Phone     string    `json:"phone,omitempty"`
 	Role      string    `json:"role"`

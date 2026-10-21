@@ -243,11 +243,17 @@ export const loginUser = async (
 };
 
 export const registerUser = async (
-  fullname: string,
+  firstName: string,
+  lastName: string,
   email: string,
   password: string,
 ): Promise<void> => {
-  await api.post("/auth/register", { fullname, email, password: password });
+  await api.post("/auth/register", {
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    password: password,
+  });
 };
 
 export const logoutUser = async (): Promise<void> => {
@@ -270,10 +276,15 @@ export const confirmEmailVerification = async (code: string): Promise<void> => {
 };
 
 export const updateOwnProfile = async (
-  fullName: string,
+  firstName: string,
+  lastName: string,
   phone: string,
 ): Promise<void> => {
-  await api.put("/auth/profile", { fullname: fullName, phone });
+  await api.put("/auth/profile", {
+    first_name: firstName,
+    last_name: lastName,
+    phone,
+  });
 };
 
 export const forgotPassword = async (email: string): Promise<void> => {
@@ -1198,9 +1209,13 @@ export const updateUserRole = async (userId: string, role: string) => {
 
 export const updateUserInfo = async (
   userId: string,
-  payload: { fullname: string; phone: string },
+  payload: { firstName: string; lastName: string; phone: string },
 ) => {
-  const response = await api.put(`/admin/users/${userId}`, payload);
+  const response = await api.put(`/admin/users/${userId}`, {
+    first_name: payload.firstName,
+    last_name: payload.lastName,
+    phone: payload.phone,
+  });
   return response.data;
 };
 
