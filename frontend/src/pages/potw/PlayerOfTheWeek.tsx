@@ -103,10 +103,10 @@ const NomineeCard = ({
             src={nominee.image}
             alt=""
             loading="lazy"
-            className="w-2/5 shrink-0 h-full object-cover"
+            className="w-3/5 shrink-0 h-full object-cover"
           />
         ) : (
-          <div className="w-2/5 shrink-0 h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl font-black text-gray-400 dark:text-gray-500">
+          <div className="w-3/5 shrink-0 h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl font-black text-gray-400 dark:text-gray-500">
             {getInitials(nominee.name)}
           </div>
         )}
