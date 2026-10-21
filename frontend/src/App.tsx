@@ -7,6 +7,7 @@ import {
   AboutShowtimeFlag,
   MediaGuidelines,
   GameplayRules,
+  PlayerConductRulebook,
   ShowtimeByelaws,
   ShowtimeArena,
   // Education, // page taken out for now — see pages/about/Education.tsx
@@ -580,6 +581,10 @@ function App() {
                           element={<MediaGuidelines />}
                         />
                         <Route path="/about/rules" element={<GameplayRules />} />
+                        <Route
+                          path="/about/player-conduct"
+                          element={<PlayerConductRulebook />}
+                        />
                         <Route
                           path="/about/byelaws"
                           element={<ShowtimeByelaws />}

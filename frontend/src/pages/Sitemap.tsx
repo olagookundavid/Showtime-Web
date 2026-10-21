@@ -54,6 +54,7 @@ const GROUPS: SitemapGroup[] = [
     title: "Rules & Policy",
     links: [
       { name: "Gameplay Rules", path: "/about/rules" },
+      { name: "Player Conduct", path: "/about/player-conduct" },
       { name: "Byelaws", path: "/about/byelaws" },
       { name: "Media Guidelines", path: "/about/media-guidelines" },
       { name: "FAQ", path: "/about/faq" },

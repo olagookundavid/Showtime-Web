@@ -8,7 +8,7 @@ interface AboutNavCarouselProps {
   activeTo: string;
 }
 
-/** The hero's section nav as a slider: arrow buttons page through the 11 About links, which also scroll natively (touch/trackpad). */
+/** The hero's section nav as a slider: arrow buttons page through the 12 About links, which also scroll natively (touch/trackpad). */
 export const AboutNavCarousel = ({ activeTo }: AboutNavCarouselProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);

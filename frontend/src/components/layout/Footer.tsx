@@ -83,6 +83,12 @@ export const Footer = () => {
             Gameplay Rules
           </Link>
           <Link
+            to="/about/player-conduct"
+            className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
+          >
+            Player Conduct
+          </Link>
+          <Link
             to="/about/byelaws"
             className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
           >

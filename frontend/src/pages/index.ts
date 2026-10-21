@@ -10,6 +10,7 @@ export { ForgotPassword } from "./auth/ForgotPassword";
 export { AboutShowtimeFlag } from "./about/AboutShowtimeFlag";
 export { MediaGuidelines } from "./about/MediaGuidelines";
 export { GameplayRules } from "./about/GameplayRules";
+export { PlayerConductRulebook } from "./about/PlayerConductRulebook";
 export { ShowtimeByelaws } from "./about/ShowtimeByelaws";
 export { ShowtimeArena } from "./about/ShowtimeArena";
 export { Education } from "./about/Education";

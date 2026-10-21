@@ -61,6 +61,13 @@ export const ABOUT_NAV: AboutNavItem[] = [
     subtitle: "Official Showtime Flag Football League rules",
   },
   {
+    to: "/about/player-conduct",
+    label: "Player Conduct",
+    eyebrow: RULES_EYEBROW,
+    title: "PLAYER CONDUCT RULEBOOK",
+    subtitle: "Standards of conduct expected of every Showtime player",
+  },
+  {
     to: "/about/byelaws",
     label: "Showtime Byelaws",
     eyebrow: RULES_EYEBROW,

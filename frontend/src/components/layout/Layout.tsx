@@ -24,6 +24,7 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon,
   ShieldCheckIcon,
+  HandRaisedIcon,
   WrenchIcon,
   // AcademicCapIcon, // only used by the Education link, taken out for now
   BookOpenIcon,
@@ -693,6 +694,20 @@ export const Layout = () => {
                     <ScaleIcon className="w-5 h-5 text-gray-400" />
                     <span className="font-bold text-xs text-gray-900 dark:text-white">
                       Gameplay Rules
+                    </span>
+                  </div>
+                  <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                </Link>
+
+                <Link
+                  to="/about/player-conduct"
+                  onClick={() => setIsMoreMenuOpen(false)}
+                  className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <HandRaisedIcon className="w-5 h-5 text-gray-400" />
+                    <span className="font-bold text-xs text-gray-900 dark:text-white">
+                      Player Conduct
                     </span>
                   </div>
                   <ChevronRightIcon className="w-4 h-4 text-gray-400" />
