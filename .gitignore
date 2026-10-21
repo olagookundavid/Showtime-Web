@@ -36,7 +36,7 @@ scripts/historical-import/
 
 # Updated league rulebook — self-hosted and committed, unlike other PDFs above.
 !frontend/public/docs/showtime-rulebook-2026.pdf
-!frontend/public/docs/showtime-player-conduct-rulebook-v2.pdf
+!frontend/public/docs/showtime-player-conduct-rulebook.pdf
 
 # Ignore scratch folders and their contents
 scratch/
