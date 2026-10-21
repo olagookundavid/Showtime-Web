@@ -1,6 +1,7 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { useScrollLock } from "../../hooks";
 import { IconButton } from "./IconButton";
 
 interface ImageLightboxProps {
@@ -16,17 +17,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   isOpen,
   onClose,
 }) => {
-  // Prevent scrolling while open, then put back whatever was there. Resetting
-  // to "unset" instead would unlock the page under a Modal the lightbox was
-  // opened from, which locks scrolling the same way (see Modal.tsx).
-  useEffect(() => {
-    if (!isOpen) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [isOpen]);
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 

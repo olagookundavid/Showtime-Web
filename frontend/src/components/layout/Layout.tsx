@@ -8,8 +8,9 @@ import {
   LatestMatchesCarousel,
   LatestMatchesInfoStrip,
 } from "./LatestMatchesCarousel";
-import { useHideOnScrollDown } from "../../hooks";
+import { useHideOnScrollDown, useScrollLock } from "../../hooks";
 import { NewsletterPopup } from "../newsletter/NewsletterPopup";
+import { CompleteProfileModal } from "../auth";
 import { portalLinkFor, type PortalKind } from "./portalLink";
 import { Button, IconButton } from "../ui";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -122,17 +123,7 @@ export const Layout = () => {
     return () => cancelAnimationFrame(frame);
   }, [location.pathname]);
 
-  // Prevent background scrolling when more drawer is open on mobile
-  useEffect(() => {
-    if (isMoreMenuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isMoreMenuOpen]);
+  useScrollLock(isMoreMenuOpen);
 
   return (
     <div
@@ -199,6 +190,10 @@ export const Layout = () => {
       />
 
       <NewsletterPopup />
+
+      {isAuthenticated && user && (!user.firstName || !user.lastName) && (
+        <CompleteProfileModal />
+      )}
 
       {/* "More" Mobile Drawer */}
       <div

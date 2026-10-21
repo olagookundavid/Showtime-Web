@@ -1,6 +1,7 @@
 import { useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { useScrollLock } from "../../hooks";
 import { IconButton } from "./IconButton";
 import type { Shape } from "./Button";
 
@@ -48,16 +49,14 @@ export const Modal = ({
 }: Props) => {
   const id = useId();
 
+  useScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     openModals.push(id);
-    // Prevent background scroll while the modal is up.
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       const index = openModals.indexOf(id);
       if (index >= 0) openModals.splice(index, 1);
-      document.body.style.overflow = prevOverflow;
     };
   }, [open, id]);
 

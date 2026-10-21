@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { useState, useEffect, useId, useRef, type ReactNode } from "react";
 import { useAuth, useTheme } from "../../contexts";
+import { useScrollLock } from "../../hooks";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DashboardBottomNav } from "./DashboardBottomNav";
 import { DashboardBrand } from "./DashboardBrand";
@@ -85,17 +86,7 @@ export const DashboardShell = ({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
 
-  // Prevent body scroll when sidebar is open on mobile
-  useEffect(() => {
-    if (isSidebarOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isSidebarOpen]);
+  useScrollLock(isSidebarOpen);
 
   // While the drawer is open: focus its close button and let Escape close it.
   // When it closes, focus goes back to whatever opened it.
