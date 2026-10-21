@@ -16,5 +16,6 @@ export {
     dayLabel,
     sortDaysByDate,
     seatsLabel,
+    stripCompetitionName,
     taglineOf,
 } from './ticketFormat';

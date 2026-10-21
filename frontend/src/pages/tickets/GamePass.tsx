@@ -47,10 +47,6 @@ const FAQS = [
     a: "Yes. Any combination of match days that are on sale, from today onwards. They don't need to be back to back.",
   },
   {
-    q: "What are the names in brackets?",
-    a: "The tournament each match day belongs to, for example (Regular Season) before the game day. Filter by tournament to see only its match days.",
-  },
-  {
     q: "How do I get in?",
     a: "Show your code at the entrance on each match day. You will also get an email reminder the day before each one.",
   },

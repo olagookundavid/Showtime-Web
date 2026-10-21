@@ -49,9 +49,33 @@ export const gamePassPercentFor = (days: number, rules: GamePassRule[]): number 
     return percent;
 };
 
-/** "(Regular Season) Game Week 3": the tournament in brackets, then the match day. */
+/**
+ * `event_title` with a leading, exact repeat of the competition's own name cut
+ * off — some titles are written as "{competition name} · Match Day 3" or
+ * "{competition name} Wildcard Weekend". Strips only a match at the very
+ * start, and only on a word boundary (" · " or a single space), so a name
+ * like "Series" can't eat into a title that happens to start "Series14 ...".
+ * Anything else is returned untouched, and an all-consumed match falls back
+ * to the original title rather than ever showing a blank label.
+ */
+export const stripCompetitionName = (title: string, competitionName: string): string => {
+    if (!competitionName || !title.startsWith(competitionName)) return title;
+
+    const rest = title.slice(competitionName.length);
+    const afterSeparator = rest.startsWith(' · ') ? rest.slice(3) : rest.startsWith(' ') ? rest.slice(1) : null;
+    if (afterSeparator === null) return title;
+
+    const stripped = afterSeparator.trim();
+    return stripped || title;
+};
+
+/**
+ * "Match Day 3": the match day/round alone, never the tournament. Only one
+ * Showtime competition of a kind is ever active at a time, so the day alone
+ * is enough to tell match days apart.
+ */
 export const dayLabel = (day: TicketProductDayResponse) =>
-    day.competition_name ? `(${day.competition_name}) ${day.event_title}` : day.event_title;
+    stripCompetitionName(day.event_title, day.competition_name);
 
 /**
  * Match days in the order they are played, earliest first. Never the order they
