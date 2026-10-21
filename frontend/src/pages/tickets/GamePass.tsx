@@ -119,15 +119,26 @@ export const GamePass = () => {
     staleTime: 60_000,
   });
 
-  // Every tournament that has a match day on sale, for the filter.
+  // Every tournament with a match day still open, for the filter. One that
+  // has sold out everywhere would only lead to an empty list if picked.
   const tournaments = useMemo(() => {
     const byId = new Map<string, string>();
     for (const p of products ?? []) {
-      for (const d of p.days) byId.set(d.competition_id, d.competition_name);
+      for (const d of p.days) {
+        if (!isSoldOut(d)) byId.set(d.competition_id, d.competition_name);
+      }
     }
     return [...byId]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  // The unfiltered match days for each ticket, so a day picked under one
+  // tournament filter still counts once the view narrows to another.
+  const allProductsById = useMemo(() => {
+    const map = new Map<string, TicketProductResponse>();
+    for (const p of products ?? []) map.set(p.id, p);
+    return map;
   }, [products]);
 
   // Each ticket with the match days still open for the chosen tournament,
@@ -147,11 +158,12 @@ export const GamePass = () => {
   );
 
   // What is picked for a ticket: the buyer's own choice, else the day from the
-  // link, else nothing.
-  const selectionFor = (product: TicketProductResponse): string[] => {
-    const chosen = picked[product.id];
+  // link, else nothing. Resolved against every day the ticket covers, not
+  // just the ones the current tournament filter is showing.
+  const selectionFor = (productId: string, fullDays: TicketProductDayResponse[]): string[] => {
+    const chosen = picked[productId];
     if (chosen) return chosen;
-    const fromLink = product.days.find(
+    const fromLink = fullDays.find(
       (d) => d.event_date === dateParam && !isSoldOut(d),
     );
     return fromLink ? [fromLink.event_day_id] : [];
@@ -177,12 +189,16 @@ export const GamePass = () => {
     return Math.min(...list.map((p) => Math.min(...p.days.map((d) => d.price))));
   }, [list]);
 
-  const toggleAll = (product: TicketProductResponse) => {
-    const open = product.days.filter((d) => !isSoldOut(d)).map((d) => d.event_day_id);
-    const current = selectionFor(product);
+  // Selects or clears every open day in the current tournament view, without
+  // touching a pick made under a different tournament filter.
+  const toggleAll = (viewProduct: TicketProductResponse, fullProduct: TicketProductResponse) => {
+    const openInView = viewProduct.days.filter((d) => !isSoldOut(d)).map((d) => d.event_day_id);
+    const current = selectionFor(viewProduct.id, fullProduct.days);
+    const allSelected = openInView.length > 0 && openInView.every((id) => current.includes(id));
+    const outsideView = current.filter((id) => !openInView.includes(id));
     setPicked((prev) => ({
       ...prev,
-      [product.id]: current.length === open.length ? [] : open,
+      [viewProduct.id]: allSelected ? outsideView : [...outsideView, ...openInView],
     }));
   };
 
@@ -351,16 +367,25 @@ export const GamePass = () => {
             const selectedProduct = list.find((p) => p.id === selectedProductId);
             if (!selectedProduct) return null;
 
+            // The same ticket's full, unfiltered day list, so a day picked
+            // under another tournament filter isn't lost from the total.
+            const fullProduct = allProductsById.get(selectedProduct.id) ?? selectedProduct;
+
             const cheapest = Math.min(...selectedProduct.days.map((d) => d.price));
             const isHighlight = topPrice !== null && cheapest === topPrice;
             const isLowest = cheapestPrice !== null && cheapest === cheapestPrice;
             const variant = isHighlight ? "gold" : isLowest ? "outline" : "navy";
 
-            const selectedIds = selectionFor(selectedProduct);
-            const selected = selectedProduct.days.filter((d) =>
+            const selectedIds = selectionFor(selectedProduct.id, fullProduct.days);
+            const selected = fullProduct.days.filter((d) =>
               selectedIds.includes(d.event_day_id),
             );
-            const openCount = selectedProduct.days.filter((d) => !isSoldOut(d)).length;
+            const viewOpenIds = selectedProduct.days
+              .filter((d) => !isSoldOut(d))
+              .map((d) => d.event_day_id);
+            const allViewSelected =
+              viewOpenIds.length > 0 && viewOpenIds.every((id) => selectedIds.includes(id));
+            const fullOpenCount = fullProduct.days.filter((d) => !isSoldOut(d)).length;
 
             // A preview of the saving while choosing. The server prices the
             // purchase itself.
@@ -378,9 +403,13 @@ export const GamePass = () => {
                   <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
                     Pick your match days for {selectedProduct.name}
                   </h3>
-                  {openCount > 1 && (
-                    <Button variant="link" size="sm" onClick={() => toggleAll(selectedProduct)}>
-                      {selectedIds.length === openCount ? "Clear all" : "Select all"}
+                  {viewOpenIds.length > 1 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => toggleAll(selectedProduct, fullProduct)}
+                    >
+                      {allViewSelected ? "Clear all" : "Select all"}
                     </Button>
                   )}
                 </div>
@@ -412,7 +441,7 @@ export const GamePass = () => {
                   </div>
                 )}
 
-                {more && openCount > selected.length && (
+                {more && fullOpenCount > selected.length && (
                   <p className="mt-3 flex items-start gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
                     <TagIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>
