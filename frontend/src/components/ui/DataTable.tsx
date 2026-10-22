@@ -27,6 +27,8 @@ import {
 } from "@tanstack/react-table";
 import {
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ChevronUpDownIcon,
   ChevronUpIcon,
 } from "@heroicons/react/24/outline";
@@ -83,6 +85,8 @@ interface DataTableProps<T> {
   maxHeight?: string;
   /** Draws our own scrollbars (a bar above the header, one below the table, and one on the right when `maxHeight` is set) instead of each browser's native ones, so all three are pixel-identical. On by default; pass false to fall back to native scrollbars for this table. */
   customScrollbars?: boolean;
+  /** For a wide table people might not realise scrolls sideways: makes the bars above and below thicker and adds a "swipe sideways" strip beside each, whose arrows dim at either end. Both disappear when the table fits. Needs `customScrollbars`. */
+  scrollHint?: boolean;
   /** `square` for sharp corners (store/stats pages), passed through to the search box and page buttons. */
   shape?: Shape;
 }
@@ -215,6 +219,7 @@ export function DataTable<T extends Record<string, any>>({
   stickyHeader = false,
   maxHeight,
   customScrollbars = true,
+  scrollHint = false,
   shape = "round",
 }: DataTableProps<T>) {
   const square = shape === "square";
@@ -228,6 +233,8 @@ export function DataTable<T extends Record<string, any>>({
   const topThumbRef = useRef<HTMLDivElement>(null);
   const bottomTrackRef = useRef<HTMLDivElement>(null);
   const bottomThumbRef = useRef<HTMLDivElement>(null);
+  const topHintRef = useRef<HTMLDivElement>(null);
+  const bottomHintRef = useRef<HTMLDivElement>(null);
   const vTrackRef = useRef<HTMLDivElement>(null);
   const vThumbRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -263,6 +270,14 @@ export function DataTable<T extends Record<string, any>>({
     const hGeo = computeThumbGeometry(scrollLeft, scrollWidth, clientWidth, hTrackSize);
     setHorizontalBar(topTrackRef, topThumbRef, hGeo);
     setHorizontalBar(bottomTrackRef, bottomThumbRef, hGeo);
+    for (const hint of [topHintRef.current, bottomHintRef.current]) {
+      if (!hint) continue;
+      hint.style.display = hGeo ? "" : "none";
+      if (hGeo) {
+        hint.dataset.at =
+          hGeo.valueNow <= 0 ? "start" : hGeo.valueNow >= 100 ? "end" : "middle";
+      }
+    }
 
     if (maxHeight) {
       const vTrackSize = vTrackRef.current?.clientHeight ?? clientHeight;
@@ -383,6 +398,22 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
+  // "Swipe sideways" strip. Hidden until the table is measured as wider than its box, and the
+  // arrow on a side dims once there is nothing more to see that way (data-at on the strip).
+  const renderScrollHint = (hintRef: RefObject<HTMLDivElement | null>) => (
+    <div
+      ref={hintRef}
+      style={{ display: "none" }}
+      data-at="start"
+      aria-hidden="true"
+      className="group/hint flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-900/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+    >
+      <ChevronLeftIcon className="w-4 h-4 text-sffl-red transition-opacity group-data-[at=start]/hint:opacity-25" />
+      <span>Swipe sideways for more</span>
+      <ChevronRightIcon className="w-4 h-4 text-sffl-red transition-opacity group-data-[at=end]/hint:opacity-25" />
+    </div>
+  );
+
   const renderHorizontalBar = (
     trackRef: RefObject<HTMLDivElement | null>,
     thumbRef: RefObject<HTMLDivElement | null>,
@@ -391,7 +422,7 @@ export function DataTable<T extends Record<string, any>>({
     <div
       ref={trackRef}
       onPointerDown={onTrackPointerDown("x")}
-      className={`${TRACK_CLASS} relative h-1.5 ${rounding}`}
+      className={`${TRACK_CLASS} relative ${scrollHint ? "h-2.5" : "h-1.5"} ${rounding}`}
     >
       <div
         ref={thumbRef}
@@ -534,7 +565,8 @@ export function DataTable<T extends Record<string, any>>({
       <div className={`bg-white dark:bg-gray-800 ${square ? "rounded-none" : "rounded-xl"} shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden`}>
         {/* Our own top/bottom/right scrollbars (identical thickness and colour) replace the
             native ones (hidden via `no-scrollbar`) so they render the same in every browser. */}
-        {customScrollbars && renderHorizontalBar(topTrackRef, topThumbRef, square ? "" : "rounded-t-xl")}
+        {customScrollbars && scrollHint && renderScrollHint(topHintRef)}
+        {customScrollbars && renderHorizontalBar(topTrackRef, topThumbRef, square ? "" : scrollHint ? "" : "rounded-t-xl")}
 
         <div className="relative">
           {/* The same table on every screen: on a phone it scrolls sideways and the first column
@@ -699,7 +731,8 @@ export function DataTable<T extends Record<string, any>>({
           )}
         </div>
 
-        {customScrollbars && renderHorizontalBar(bottomTrackRef, bottomThumbRef, square ? "" : "rounded-b-xl")}
+        {customScrollbars && renderHorizontalBar(bottomTrackRef, bottomThumbRef, square ? "" : scrollHint ? "" : "rounded-b-xl")}
+        {customScrollbars && scrollHint && renderScrollHint(bottomHintRef)}
       </div>
 
       {/* Pagination Controls - Condensed */}
