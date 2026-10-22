@@ -5,7 +5,8 @@ import {
 import { buttonClass } from "../../components";
 
 export const PlayerConductRulebook = () => {
-  const pdfUrl = "/docs/showtime-player-conduct-rulebook.pdf";
+  const pdfUrl =
+    "https://cdn.showtimeflag.football/files/showtime-standard-player-conduct-rule-book.pdf";
 
   return (
     <div className="space-y-4 md:space-y-8">
@@ -14,7 +15,10 @@ export const PlayerConductRulebook = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 dark:border-gray-700 pb-4 gap-4">
           <div>
             <h2 className="flex items-center gap-3 text-2xl font-black text-sffl-navy dark:text-white uppercase">
-              <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+              <span
+                className="h-px w-8 shrink-0 bg-sffl-red"
+                aria-hidden="true"
+              />
               Standard Player Conduct Rulebook
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -59,8 +63,8 @@ export const PlayerConductRulebook = () => {
             Player Conduct Rulebook
           </h2>
           <p className="text-gray-200 text-sm leading-relaxed">
-            Access the complete, official Showtime Flag Football League
-            standard of player conduct directly on your device.
+            Access the complete, official Showtime Flag Football League standard
+            of player conduct directly on your device.
           </p>
 
           <div className="flex flex-col gap-3 pt-2">
@@ -78,7 +82,10 @@ export const PlayerConductRulebook = () => {
               download="Showtime Player Conduct Rulebook.pdf"
               className={buttonClass("outline", "lg", true, "", "dark")}
             >
-              <DocumentArrowDownIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+              <DocumentArrowDownIcon
+                className="w-5 h-5 shrink-0"
+                aria-hidden="true"
+              />
               <span>Download PDF</span>
             </a>
           </div>

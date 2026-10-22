@@ -5,7 +5,8 @@ import {
 import { buttonClass } from "../../components";
 
 export const GameplayRules = () => {
-  const pdfUrl = "/docs/showtime-rulebook-2026.pdf";
+  const pdfUrl =
+    "https://cdn.showtimeflag.football/files/showtime-rulebook-2026.pdf";
 
   return (
     <div className="space-y-4 md:space-y-8">
@@ -14,7 +15,10 @@ export const GameplayRules = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 dark:border-gray-700 pb-4 gap-4">
           <div>
             <h2 className="flex items-center gap-3 text-2xl font-black text-sffl-navy dark:text-white uppercase">
-              <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+              <span
+                className="h-px w-8 shrink-0 bg-sffl-red"
+                aria-hidden="true"
+              />
               Official Rule Book
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -78,7 +82,10 @@ export const GameplayRules = () => {
               download="Showtime Rulebook 2026.pdf"
               className={buttonClass("outline", "lg", true, "", "dark")}
             >
-              <DocumentArrowDownIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+              <DocumentArrowDownIcon
+                className="w-5 h-5 shrink-0"
+                aria-hidden="true"
+              />
               <span>Download PDF</span>
             </a>
           </div>
