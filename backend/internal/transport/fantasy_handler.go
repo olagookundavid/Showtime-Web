@@ -19,6 +19,7 @@ type IFantasyHandler interface {
 	GetGameweeks(c *gin.Context)
 	ListPlayerMarket(c *gin.Context)
 	ListMarketFilters(c *gin.Context)
+	GetPlayerLeaderboard(c *gin.Context)
 	GetPlayerBreakdown(c *gin.Context)
 	GetPlayerPriceHistory(c *gin.Context)
 	EnterSeason(c *gin.Context)
@@ -73,6 +74,31 @@ func (h *FantasyHandler) GetGameweeks(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": list})
+}
+
+// GetPlayerLeaderboard ranks the season's players by fantasy points.
+func (h *FantasyHandler) GetPlayerLeaderboard(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "25"))
+	resp, err := h.service.GetPlayerLeaderboard(c.Request.Context(), c.Param("id"), dto.PlayerLeaderboardQuery{
+		GameweekID: c.Query("gameweek_id"),
+		Search:     c.Query("search"),
+		Position:   c.Query("position"),
+		TeamID:     c.Query("team_id"),
+		Gender:     c.Query("gender"),
+		Sort:       c.Query("sort"),
+		Page:       page,
+		Limit:      limit,
+	})
+	if err != nil {
+		if errors.Is(err, services.ErrGameweekNotInSeason) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *FantasyHandler) ListMarketFilters(c *gin.Context) {

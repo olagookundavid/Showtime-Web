@@ -127,6 +127,8 @@ import type {
   FantasySeason,
   FantasyGameweek,
   FantasyPlayerListItem,
+  PlayerLeaderboardResponse,
+  PlayerLeaderboardSort,
   MarketSort,
   FantasyLineupResponse,
   FantasyTeamLineupDetailResponse,
@@ -2954,6 +2956,26 @@ export const fantasyApi = {
       total: number;
       total_pages: number;
     }>(`/fantasy/season/${seasonId}/market`, { params });
+    return res.data;
+  },
+  /** Every player in the season ranked by fantasy points, with picking and transfer figures. */
+  getPlayerLeaderboard: async (
+    seasonId: string,
+    params?: {
+      gameweek_id?: string;
+      search?: string;
+      position?: string;
+      team_id?: string;
+      gender?: "M" | "F";
+      sort?: PlayerLeaderboardSort;
+      page?: number;
+      limit?: number;
+    },
+  ): Promise<PlayerLeaderboardResponse> => {
+    const res = await api.get<PlayerLeaderboardResponse>(
+      `/fantasy/season/${seasonId}/players/leaderboard`,
+      { params },
+    );
     return res.data;
   },
   /** Clubs and positions present in the season's market, for the filter chips. */

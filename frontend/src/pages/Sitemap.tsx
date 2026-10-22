@@ -38,6 +38,7 @@ const GROUPS: SitemapGroup[] = [
       { name: "Tickets", path: "/tickets" },
       { name: "Store", path: "/store" },
       { name: "Fantasy", path: "/fantasy" },
+      { name: "Fantasy Player Stats", path: "/fantasy/players" },
     ],
   },
   {

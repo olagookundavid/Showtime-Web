@@ -14,6 +14,7 @@ export * from './fantasy/admin';
 export * from './fantasy/core';
 export * from './fantasy/dashboard';
 export * from './fantasy/leagues';
+export * from './fantasy/playerLeaderboard';
 export * from './fantasy/reports';
 export * from './fantasy/squad';
 export * from './fantasy/wallet';

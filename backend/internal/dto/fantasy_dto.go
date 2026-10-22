@@ -406,3 +406,87 @@ type MarketFiltersResponse struct {
 	Teams     []MarketFilterTeam `json:"teams"`
 	Positions []string           `json:"positions"`
 }
+
+// PlayerLeaderboardQuery is the player leaderboard's filters, sort and page.
+// GameweekID empty means the whole season.
+type PlayerLeaderboardQuery struct {
+	GameweekID string
+	Search     string
+	Position   string
+	TeamID     string
+	Gender     string
+	Sort       string
+	Page       int
+	Limit      int
+}
+
+// PlayerLeaderboardItem is one player's fantasy season, scored from their own
+// match stats whether or not any manager picked them.
+type PlayerLeaderboardItem struct {
+	// Rank is by Points (season, or the selected gameweek), with ties sharing
+	// a rank, over the whole pool — a search does not renumber anyone.
+	Rank          int    `json:"rank"`
+	PlayerID      string `json:"player_id"`
+	PlayerName    string `json:"player_name"`
+	PlayerImage   string `json:"player_image"`
+	Position      string `json:"position"`
+	Gender        string `json:"gender"`
+	TeamID        string `json:"team_id"`
+	TeamName      string `json:"team_name"`
+	TeamShortName string `json:"team_short_name"`
+	TeamLogo      string `json:"team_logo"`
+	// Available is false for a club reserve, an inactive club or a deactivated
+	// player: they still rank, but cannot be started.
+	Available         bool   `json:"available"`
+	UnavailableReason string `json:"unavailable_reason,omitempty"`
+
+	Points         float64 `json:"points"`          // season, or the selected gameweek
+	SeasonPoints   float64 `json:"season_points"`   // always the season
+	GameweekPoints float64 `json:"gameweek_points"` // the selected / latest played gameweek
+	Form           float64 `json:"form"`            // average over the last 3 played gameweeks
+	PointsPerGame  float64 `json:"points_per_game"`
+	Appearances    int     `json:"appearances"`
+	BestGameweek   float64 `json:"best_gameweek_points"`
+	Value          float64 `json:"value"` // season points per ₦1m of current price
+
+	Price       float64 `json:"price"`
+	PriceChange float64 `json:"price_change"` // current price minus opening price
+
+	OwnedBy       int     `json:"owned_by"`
+	SelectedByPct float64 `json:"selected_by_pct"` // squads holding them now
+	StartedBy     int     `json:"started_by"`      // locked lineups starting them in the gameweek
+	StartedByPct  float64 `json:"started_by_pct"`
+	SeasonStarts  int     `json:"season_starts"` // lineup starts across the season
+	TransfersIn   int     `json:"transfers_in"`
+	TransfersOut  int     `json:"transfers_out"`
+}
+
+// PlayerLeaderboardHighlight is one headline card ("Top scorer").
+type PlayerLeaderboardHighlight struct {
+	Key    string                 `json:"key"`
+	Label  string                 `json:"label"`
+	Value  float64                `json:"value"`
+	Player *PlayerLeaderboardItem `json:"player"`
+}
+
+type PlayerLeaderboardGameweek struct {
+	ID     string `json:"id"`
+	Number int    `json:"number"`
+}
+
+type PlayerLeaderboardResponse struct {
+	Data       []PlayerLeaderboardItem `json:"data"`
+	Total      int                     `json:"total"`
+	Page       int                     `json:"page"`
+	Limit      int                     `json:"limit"`
+	TotalPages int                     `json:"total_pages"`
+	// Gameweek is the one GameweekPoints and StartedBy refer to: the selected
+	// one, or the latest played when the view is the season.
+	Gameweek *PlayerLeaderboardGameweek `json:"gameweek"`
+	// PlayedGameweeks lists the gameweeks with stats, for the picker.
+	PlayedGameweeks []PlayerLeaderboardGameweek  `json:"played_gameweeks"`
+	SquadCount      int                          `json:"squad_count"`
+	Highlights      []PlayerLeaderboardHighlight `json:"highlights"`
+	Teams           []MarketFilterTeam           `json:"teams"`
+	Positions       []string                     `json:"positions"`
+}

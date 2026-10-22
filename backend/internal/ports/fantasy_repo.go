@@ -68,6 +68,11 @@ type IFantasyRepository interface {
 	GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
 	ListMarketFilters(ctx context.Context, seasonID string) (*dto.MarketFiltersResponse, error)
+	// Player leaderboard
+	ListLeaderboardPlayers(ctx context.Context, seasonID string) ([]LeaderboardPlayerRow, error)
+	GetSeasonGameweekStats(ctx context.Context, seasonID string) ([]GameweekPlayerStat, error)
+	GetSeasonLineupStarts(ctx context.Context, seasonID string) ([]GameweekStarts, error)
+	CountSeasonTeams(ctx context.Context, seasonID string) (int, error)
 	// GetSeasonRatingLines aggregates every rateable player's season-to-date
 	// stat totals for a competition, so prices can be recomputed from ratings.
 	GetSeasonRatingLines(ctx context.Context, competitionID string) ([]PlayerRatingLine, error)
@@ -127,6 +132,34 @@ type PlayerRatingLine struct {
 }
 
 // PlayerPricingLine is one player's season as the pricing model sees them.
+// LeaderboardPlayerRow is one player in the leaderboard pool, with what the
+// database knows directly: identity, club, availability, prices and the squad
+// ledger's ownership and transfer counts.
+type LeaderboardPlayerRow struct {
+	PlayerID, Name, Image, Position, Gender   string
+	TeamID, TeamName, TeamShortName, TeamLogo string
+	TeamActive                                bool
+	PlayerStatus                              string
+	IsReserve                                 bool
+	Price, OpeningPrice                       float64
+	OwnedNow, BoughtTotal, SoldTotal          int
+}
+
+// GameweekPlayerStat is one match stat line, tagged with the gameweek it
+// belongs to.
+type GameweekPlayerStat struct {
+	GameweekID string
+	Stat       domain.PlayerStat
+}
+
+// GameweekStarts counts a gameweek's locked lineups and how many of them start
+// each player.
+type GameweekStarts struct {
+	GameweekID string
+	Locked     int
+	ByPlayer   map[string]int
+}
+
 type PlayerPricingLine struct {
 	PlayerID string
 	Position string
@@ -797,7 +830,7 @@ func (r *FantasyRepository) BulkUpsertPlayerPrices(ctx context.Context, prices [
 }
 
 // The market's price is the live one: the newest gameweek row, else the opening
-// row — the same rule ListSquad and GetMarketPlayer use, and
+// row — the same rule ListSquad, GetMarketPlayer and the leaderboard use, and
 // the price a purchase is actually charged. Joining the opening row alone showed
 // a stale price once any gameweek had repriced the player, so the list, its
 // price sort and the rating disagreed with what buying cost.
@@ -3264,4 +3297,218 @@ func (r *FantasyRepository) ListMarketFilters(ctx context.Context, seasonID stri
 	})
 	sort.Strings(resp.Positions)
 	return resp, nil
+}
+
+// seasonMatchesCTE resolves a season's matches to its gameweeks the same way
+// GetPlayerStatsByEventDay does for one gameweek: a match on the gameweek's
+// event day, or a competition match on that day's date. DISTINCT keeps a match
+// that satisfies both conditions from being counted twice.
+const seasonMatchesCTE = `
+	season_matches AS (
+		SELECT DISTINCT g.id AS gameweek_id, m.id AS match_id
+		FROM fantasy_gameweeks g
+		JOIN event_days ed ON ed.id = g.event_day_id
+		JOIN fantasy_seasons s ON s.id = g.season_id
+		JOIN matches m ON (m.event_day_id = ed.id OR (m.competition_id = s.competition_id AND m.date = ed.date))
+		WHERE g.season_id = $1
+	)`
+
+// ListLeaderboardPlayers returns every player priced for the season or with a
+// stat line in one of its matches. Unlike the market it keeps reserves,
+// inactive clubs and deactivated players: they still scored, so they still
+// rank. Price is the live one (the newest gameweek row, else the opening row),
+// the same price buying and selling use.
+func (r *FantasyRepository) ListLeaderboardPlayers(ctx context.Context, seasonID string) ([]LeaderboardPlayerRow, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		WITH `+seasonMatchesCTE+`,
+		pool AS (
+			SELECT player_id FROM fantasy_player_prices WHERE season_id = $1 AND gameweek_id IS NULL
+			UNION
+			SELECT ps.player_id FROM player_stats ps JOIN season_matches sm ON sm.match_id = ps.match_id
+		)
+		SELECT p.id::text, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       (p.team_id IS NOT NULL AND COALESCE(t.status, 'active') = 'active') AS team_active,
+		       COALESCE(p.status, 'active'),
+		       EXISTS (SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id),
+		       COALESCE((
+		           SELECT pp.price FROM fantasy_player_prices pp
+		           WHERE pp.player_id = p.id AND pp.season_id = $1
+		           ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
+		           LIMIT 1
+		       ), 0)::float8,
+		       COALESCE((
+		           SELECT pp.price FROM fantasy_player_prices pp
+		           WHERE pp.player_id = p.id AND pp.season_id = $1 AND pp.gameweek_id IS NULL
+		           LIMIT 1
+		       ), 0)::float8,
+		       COALESCE(sel.owned_now, 0), COALESCE(sel.bought_total, 0), COALESCE(sel.sold_total, 0)
+		FROM pool
+		JOIN players p ON p.id = pool.player_id
+		LEFT JOIN teams t ON t.id = p.team_id
+		LEFT JOIN (
+			SELECT sp.player_id,
+			       COUNT(*) FILTER (WHERE sp.sold_at IS NULL)     AS owned_now,
+			       COUNT(*)                                       AS bought_total,
+			       COUNT(*) FILTER (WHERE sp.sold_at IS NOT NULL) AS sold_total
+			FROM fantasy_squad_players sp
+			JOIN fantasy_teams ft ON ft.id = sp.team_id
+			WHERE ft.season_id = $1
+			GROUP BY sp.player_id
+		) sel ON sel.player_id = p.id
+	`, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list leaderboard players: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]LeaderboardPlayerRow, 0)
+	for rows.Next() {
+		var p LeaderboardPlayerRow
+		if err := rows.Scan(&p.PlayerID, &p.Name, &p.Image, &p.Position, &p.Gender,
+			&p.TeamID, &p.TeamName, &p.TeamShortName, &p.TeamLogo,
+			&p.TeamActive, &p.PlayerStatus, &p.IsReserve,
+			&p.Price, &p.OpeningPrice,
+			&p.OwnedNow, &p.BoughtTotal, &p.SoldTotal); err != nil {
+			return nil, fmt.Errorf("failed to scan leaderboard player: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// GetSeasonGameweekStats returns every stat line in the season's matches,
+// tagged with the gameweek each match belongs to.
+func (r *FantasyRepository) GetSeasonGameweekStats(ctx context.Context, seasonID string) ([]GameweekPlayerStat, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		WITH `+seasonMatchesCTE+`
+		SELECT sm.gameweek_id::text,
+		       ps.id, ps.player_id, ps.team_id, ps.match_id, ps.competition_id, ps.match_date,
+		       ps.passing_attempts, ps.rushing_attempts, ps.completed_passes, ps.incomplete_passes,
+		       ps.uncatchable_passes, ps.thrown_away_passes, ps.batted_down_passes, ps.targets,
+		       ps.passing_yards, ps.rushing_yards, ps.receiving_yards, ps.passing_tds, ps.rushing_tds,
+		       ps.interceptions_thrown, ps.receptions, ps.receiving_tds, ps.extra_points_tds,
+		       ps.xp_attempts, ps.xp_good, ps.xp_fail, ps.drops, ps.flag_pulls, ps.pass_deflections,
+		       ps.interceptions, ps.defensive_tds, ps.safety, ps.safety_conceded, ps.qb_sacks,
+		       ps.def_sacks, ps.defensive_xp_tds, ps.qb_drives, ps.qb_turnovers, ps.qb_punts,
+		       ps.snaps, ps.bad_snaps, ps.created_at, ps.updated_at
+		FROM season_matches sm
+		JOIN player_stats ps ON ps.match_id = sm.match_id
+	`, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query season stats: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]GameweekPlayerStat, 0)
+	for rows.Next() {
+		var g GameweekPlayerStat
+		s := &g.Stat
+		if err := rows.Scan(&g.GameweekID,
+			&s.ID, &s.PlayerID, &s.TeamID, &s.MatchID, &s.CompetitionID, &s.MatchDate,
+			&s.PassingAttempts, &s.RushingAttempts, &s.CompletedPasses, &s.IncompletePasses,
+			&s.UncatchablePasses, &s.ThrownAwayPasses, &s.BattedDownPasses, &s.Targets,
+			&s.PassingYards, &s.RushingYards, &s.ReceivingYards, &s.PassingTDs, &s.RushingTDs,
+			&s.InterceptionsThrown, &s.Receptions, &s.ReceivingTDs, &s.ExtraPointsTDs,
+			&s.XPAttempts, &s.XPGood, &s.XPFail, &s.Drops, &s.FlagPulls, &s.PassDeflections,
+			&s.Interceptions, &s.DefensiveTDs, &s.Safety, &s.SafetyConceded, &s.QBSacks,
+			&s.DefSacks, &s.DefensiveXPTDs, &s.QBDrives, &s.QBTurnovers, &s.QBPunts,
+			&s.Snaps, &s.BadSnaps, &s.CreatedAt, &s.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan season stat: %w", err)
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+// GetSeasonLineupStarts counts, per gameweek, the locked lineups and how many
+// start each player. Only LOCKED lineups count: they are the ones that score.
+func (r *FantasyRepository) GetSeasonLineupStarts(ctx context.Context, seasonID string) ([]GameweekStarts, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	byGW := map[string]*GameweekStarts{}
+	order := []string{}
+	get := func(id string) *GameweekStarts {
+		if gs, ok := byGW[id]; ok {
+			return gs
+		}
+		gs := &GameweekStarts{GameweekID: id, ByPlayer: map[string]int{}}
+		byGW[id] = gs
+		order = append(order, id)
+		return gs
+	}
+
+	locked, err := r.pool.Query(ctx, `
+		SELECT fl.gameweek_id::text, COUNT(*)
+		FROM fantasy_lineups fl
+		JOIN fantasy_gameweeks g ON g.id = fl.gameweek_id
+		WHERE g.season_id = $1 AND fl.status = 'LOCKED'
+		GROUP BY fl.gameweek_id
+	`, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count locked lineups: %w", err)
+	}
+	for locked.Next() {
+		var id string
+		var n int
+		if err := locked.Scan(&id, &n); err != nil {
+			locked.Close()
+			return nil, err
+		}
+		get(id).Locked = n
+	}
+	locked.Close()
+	if err := locked.Err(); err != nil {
+		return nil, err
+	}
+
+	picks, err := r.pool.Query(ctx, `
+		SELECT fl.gameweek_id::text, flp.player_id::text, COUNT(*)
+		FROM fantasy_lineup_picks flp
+		JOIN fantasy_lineups fl ON fl.id = flp.lineup_id
+		JOIN fantasy_gameweeks g ON g.id = fl.gameweek_id
+		WHERE g.season_id = $1 AND fl.status = 'LOCKED'
+		GROUP BY fl.gameweek_id, flp.player_id
+	`, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count lineup starts: %w", err)
+	}
+	defer picks.Close()
+	for picks.Next() {
+		var gwID, playerID string
+		var n int
+		if err := picks.Scan(&gwID, &playerID, &n); err != nil {
+			return nil, err
+		}
+		get(gwID).ByPlayer[playerID] = n
+	}
+	if err := picks.Err(); err != nil {
+		return nil, err
+	}
+
+	out := make([]GameweekStarts, 0, len(order))
+	for _, id := range order {
+		out = append(out, *byGW[id])
+	}
+	return out, nil
+}
+
+// CountSeasonTeams is the ownership denominator the market also uses: every
+// fantasy team entered in the season.
+func (r *FantasyRepository) CountSeasonTeams(ctx context.Context, seasonID string) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	var n int
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(id) FROM fantasy_teams WHERE season_id = $1`, seasonID).Scan(&n); err != nil {
+		return 0, fmt.Errorf("failed to count fantasy teams: %w", err)
+	}
+	return n, nil
 }

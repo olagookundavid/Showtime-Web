@@ -114,6 +114,11 @@ const FantasyAnalytics = lazy(() =>
     default: m.FantasyAnalytics,
   })),
 );
+const FantasyPlayerLeaderboard = lazy(() =>
+  import("./pages/fantasy/FantasyPlayerLeaderboard").then((m) => ({
+    default: m.FantasyPlayerLeaderboard,
+  })),
+);
 const TeamOfTheWeek = lazy(() =>
   import("./pages/totw/TeamOfTheWeek").then((m) => ({
     default: m.TeamOfTheWeek,
@@ -557,6 +562,10 @@ function App() {
                       <Route
                         path="/fantasy/analytics"
                         element={<FantasyAnalytics />}
+                      />
+                      <Route
+                        path="/fantasy/players"
+                        element={<FantasyPlayerLeaderboard />}
                       />
                       <Route
                         path="/fantasy/reports"

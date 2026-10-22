@@ -11,6 +11,7 @@ import {
   CheckBadgeIcon,
   LockClosedIcon,
   ChartBarIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 import { fantasySeasonApi } from "../../services/api";
 import type { LeaderboardEntry } from "../../types";
@@ -237,6 +238,9 @@ export function FantasyHub() {
                 >
                   <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
                 </ButtonLink>
+                <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
+                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
+                </ButtonLink>
                 <ButtonLink to="/fantasy/my-team" variant="secondary" tone="dark">
                   <ShieldCheckIcon className="w-4 h-4 text-emerald-400" aria-hidden="true" /> My Active Squad
                 </ButtonLink>
@@ -275,6 +279,9 @@ export function FantasyHub() {
                   tone="dark"
                 >
                   <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
+                </ButtonLink>
+                <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
+                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
                 </ButtonLink>
               </>
             )}

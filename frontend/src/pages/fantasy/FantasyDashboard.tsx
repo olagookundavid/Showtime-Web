@@ -18,6 +18,7 @@ import {
   ChevronDoubleRightIcon,
   MapPinIcon,
   BanknotesIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 import {
   fantasySeasonApi,
@@ -528,6 +529,13 @@ export function FantasyDashboard() {
             >
               <ChartBarIcon className="w-3.5 h-3.5 text-yellow-400" /> Weekly
               Report
+            </Link>
+            <Link
+              to="/fantasy/players"
+              className="min-h-11 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+            >
+              <StarIcon className="w-3.5 h-3.5 text-yellow-400" aria-hidden="true" /> Player
+              Stats
             </Link>
             <Link
               to="/fantasy/wallet"
