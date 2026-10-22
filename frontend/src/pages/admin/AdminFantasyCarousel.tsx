@@ -38,7 +38,7 @@ import {
     Textarea,
 } from '../../components';
 import { getApiErrorMessage, isRichTextEmpty, parseYouTubeId, youTubeThumbnailUrl } from '../../utils';
-import { FANTASY_CAROUSEL_MAX, FANTASY_NEWS_CATEGORIES } from '../../constants';
+import { FANTASY_CAROUSEL_MAX, FANTASY_NEWS_CATEGORIES, NEWS_CATEGORIES } from '../../constants';
 
 const NO_SLIDES: FantasyCarouselSlide[] = [];
 const NO_RESULTS: News[] = [];
@@ -110,11 +110,17 @@ export const AdminFantasyCarousel = () => {
     const [showPicker, setShowPicker] = useState(false);
     const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
+    const [pickerCategory, setPickerCategory] = useState('');
     const { data: results, isFetching: searching } = useQuery({
-        queryKey: ['fantasyCarouselPicker', search],
-        queryFn: () => getNews(1, 10, search || undefined),
+        queryKey: ['fantasyCarouselPicker', search, pickerCategory],
+        queryFn: () => getNews(1, 10, search || undefined, pickerCategory || undefined),
         enabled: showPicker,
     });
+    // Fantasy and Fantasy News first, since they are what usually goes here.
+    const pickerCategories = [
+        ...FANTASY_NEWS_CATEGORIES,
+        ...NEWS_CATEGORIES.filter((c) => !FANTASY_NEWS_CATEGORIES.includes(c)),
+    ];
     const pickerArticles = results?.data ?? NO_RESULTS;
 
     // Quick add. The key remounts the image field after a successful publish,
@@ -289,7 +295,7 @@ export const AdminFantasyCarousel = () => {
                 actions={
                     <Button
                         icon={PlusIcon}
-                        onClick={() => { setSearchInput(''); setSearch(''); setShowPicker(true); }}
+                        onClick={() => { setSearchInput(''); setSearch(''); setPickerCategory(''); setShowPicker(true); }}
                         disabled={isFull}
                         title={isFull ? `The carousel holds up to ${FANTASY_CAROUSEL_MAX}. Remove a slide first.` : undefined}
                         className="w-full sm:w-auto"
@@ -466,18 +472,27 @@ export const AdminFantasyCarousel = () => {
                 open={showPicker}
                 onClose={() => setShowPicker(false)}
                 title="Add an existing article"
-                subtitle="Search every published article. Any category can go on the Fantasy carousel."
+                subtitle="Search published articles, or filter by category. Any category can go on the Fantasy carousel."
                 maxWidth="2xl"
             >
                 <form
                     className="flex flex-col sm:flex-row gap-2"
                     onSubmit={(e) => { e.preventDefault(); setSearch(searchInput.trim()); }}
                 >
+                    <Select
+                        aria-label="Filter by category"
+                        value={pickerCategory}
+                        onChange={(e) => setPickerCategory(e.target.value)}
+                        className="sm:w-56"
+                    >
+                        <option value="">All categories</option>
+                        {pickerCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </Select>
                     <Input
                         aria-label="Search articles"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        placeholder="Search by title, author or category"
+                        placeholder="Search by title or author"
                         className="flex-1"
                     />
                     <Button type="submit" variant="secondary" icon={MagnifyingGlassIcon}>Search</Button>
@@ -487,7 +502,9 @@ export const AdminFantasyCarousel = () => {
                         <Loader />
                     ) : pickerArticles.length === 0 ? (
                         <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                            {search ? `No articles match "${search}".` : 'No articles published yet.'}
+                            {search || pickerCategory
+                                ? `No ${pickerCategory ? `${pickerCategory} ` : ''}articles${search ? ` match "${search}"` : ' found'}.`
+                                : 'No articles published yet.'}
                         </p>
                     ) : (
                         pickerArticles.map((a) => {
