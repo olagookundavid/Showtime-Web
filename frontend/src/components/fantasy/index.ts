@@ -5,4 +5,7 @@ export type { PitchPlayerItem, FantasyPlayerModalData } from '../../types';
 export { FantasyPlayerModal } from './FantasyPlayerModal';
 export { FantasyTeamModal } from './FantasyTeamModal';
 export { PlayerAvatar } from './PlayerAvatar';
+export { PlayerLeaderboardLegend } from './PlayerLeaderboardLegend';
+export { playerLeaderboardGuide } from './playerLeaderboardGuide';
+export type { LeaderboardGuideEntry, LeaderboardGuideKey } from './playerLeaderboardGuide';
 export { PlayerPriceHistoryModal } from './PlayerPriceHistoryModal';

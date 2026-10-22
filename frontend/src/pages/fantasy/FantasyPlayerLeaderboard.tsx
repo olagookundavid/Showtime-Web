@@ -11,6 +11,7 @@ import {
   UserGroupIcon,
   ArrowsRightLeftIcon,
   BanknotesIcon,
+  InformationCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import type { ComponentType, SVGProps } from "react";
@@ -21,8 +22,10 @@ import {
   FantasyBackLink,
   FantasyPlayerModal,
   PlayerAvatar,
+  PlayerLeaderboardLegend,
   PlayerLink,
   Select,
+  playerLeaderboardGuide,
   type Column,
 } from "../../components";
 import { fantasyApi, formatFantasyPrice } from "../../services/api";
@@ -176,10 +179,15 @@ export function FantasyPlayerLeaderboard() {
     });
     const num =
       "px-2 py-3 text-xs sm:text-sm font-bold tabular-nums text-gray-700 dark:text-gray-200 whitespace-nowrap";
+    // A heading whose hover hint is the legend's one-line summary.
+    const guide = playerLeaderboardGuide(gwLabel, isGameweekView);
+    const head = (key: keyof typeof guide, label: string) => (
+      <span title={guide[key].summary}>{label}</span>
+    );
 
     const cols: Column<PlayerLeaderboardItem>[] = [
       {
-        header: "Player",
+        header: head("player", "Player"),
         className: "px-2 py-3 sm:px-4 min-w-56",
         cell: (p) => (
           <div className="flex items-center gap-2.5 min-w-0">
@@ -233,7 +241,7 @@ export function FantasyPlayerLeaderboard() {
         ),
       },
       {
-        header: isGameweekView ? `${gwLabel} pts` : "Pts",
+        header: head("points", isGameweekView ? `${gwLabel} pts` : "Pts"),
         align: "right",
         className: `${num} text-gray-900! dark:text-white! font-black`,
         ...sortable("points"),
@@ -243,7 +251,7 @@ export function FantasyPlayerLeaderboard() {
 
     if (!isGameweekView) {
       cols.push({
-        header: `${gwLabel} pts`,
+        header: head("gameweekPoints", `${gwLabel} pts`),
         align: "right",
         className: num,
         ...sortable("gameweek_points"),
@@ -253,35 +261,35 @@ export function FantasyPlayerLeaderboard() {
 
     cols.push(
       {
-        header: "Form",
+        header: head("form", "Form"),
         align: "right",
         className: num,
         ...sortable("form"),
         cell: (p) => pts(p.form),
       },
       {
-        header: "PPG",
+        header: head("ppg", "PPG"),
         align: "right",
         className: num,
         ...sortable("ppg"),
         cell: (p) => pts(p.points_per_game),
       },
       {
-        header: "Apps",
+        header: head("apps", "Apps"),
         align: "right",
         className: num,
         ...sortable("appearances"),
         cell: (p) => p.appearances,
       },
       {
-        header: "Value",
+        header: head("value", "Value"),
         align: "right",
         className: num,
         ...sortable("value"),
         cell: (p) => pts(p.value),
       },
       {
-        header: "Price",
+        header: head("price", "Price"),
         align: "right",
         className: num,
         ...sortable("price"),
@@ -309,7 +317,7 @@ export function FantasyPlayerLeaderboard() {
         ),
       },
       {
-        header: "Selected",
+        header: head("selected", "Selected"),
         align: "right",
         className: num,
         ...sortable("selected"),
@@ -320,7 +328,7 @@ export function FantasyPlayerLeaderboard() {
         ),
       },
       {
-        header: `Started ${gwLabel}`,
+        header: head("started", `Started ${gwLabel}`),
         align: "right",
         className: num,
         ...sortable("started"),
@@ -333,14 +341,14 @@ export function FantasyPlayerLeaderboard() {
         ),
       },
       {
-        header: "In",
+        header: head("in", "In"),
         align: "right",
         className: `${num} text-emerald-700! dark:text-emerald-400!`,
         ...sortable("transfers_in"),
         cell: (p) => p.transfers_in.toLocaleString(),
       },
       {
-        header: "Out",
+        header: head("out", "Out"),
         align: "right",
         className: `${num} text-red-700! dark:text-red-400!`,
         ...sortable("transfers_out"),
@@ -539,6 +547,23 @@ export function FantasyPlayerLeaderboard() {
       </section>
 
       {/* Table */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Click a heading to sort. Tap a player to see their fantasy card.
+        </p>
+        <Button
+          variant="link"
+          size="sm"
+          icon={InformationCircleIcon}
+          onClick={() =>
+            document
+              .getElementById("plb-legend")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+        >
+          What do these columns mean?
+        </Button>
+      </div>
       {isError ? (
         <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-6 text-sm text-red-800 dark:text-red-200">
           The player leaderboard could not be loaded. Try again in a moment.
@@ -584,17 +609,7 @@ export function FantasyPlayerLeaderboard() {
         </div>
       )}
 
-      <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-        <strong>Pts</strong> are scored from each player's match stats with the
-        same rules as your lineup, so they count whether or not anyone picked
-        them (an All-Rounder's full game is shown). <strong>Form</strong> is the
-        average over the last three played gameweeks. <strong>Value</strong> is
-        season points per ₦1m of today's price. <strong>Selected</strong> is
-        the share of squads that own them now; <strong>Started</strong> is the
-        share of locked lineups that started them in {gwLabel}.{" "}
-        <strong>In</strong> and <strong>Out</strong> count this season's
-        signings and sales.
-      </p>
+      <PlayerLeaderboardLegend gwLabel={gwLabel} isGameweekView={isGameweekView} />
 
       <FantasyPlayerModal
         isOpen={!!inspecting}
