@@ -647,7 +647,7 @@ export function FantasyPitch({
   const activeStyle = styleFor(activePick?.position, activeSpot.unit);
 
   return (
-    <div className="rounded-2xl md:rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-sffl-navy">
+    <div className="rounded-none overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-sffl-navy">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 bg-linear-to-br from-[#102447] to-[#07162b] border-b border-white/15">
         <div className="min-w-0 flex-1">
@@ -672,11 +672,12 @@ export function FantasyPitch({
 
       {/* Filter Controls & Formation Info */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
-        <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-stretch gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
+        <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-stretch gap-1.5 p-1 rounded-none bg-white/5 border border-white/10">
           <Button
             size="sm"
             variant={currentUnitTab === "ALL" ? "navy" : "ghost"}
             tone={currentUnitTab === "ALL" ? "light" : "dark"}
+            shape="square"
             className="flex-wrap gap-x-1 leading-tight text-center"
             aria-pressed={currentUnitTab === "ALL"}
             onClick={() => handleUnitChange("ALL")}
@@ -690,6 +691,7 @@ export function FantasyPitch({
             size="sm"
             variant={currentUnitTab === "OFFENSE" ? "primary" : "ghost"}
             tone="dark"
+            shape="square"
             className="flex-wrap gap-x-1.5 leading-tight text-center"
             aria-pressed={currentUnitTab === "OFFENSE"}
             onClick={() => handleUnitChange("OFFENSE")}
@@ -702,6 +704,7 @@ export function FantasyPitch({
             size="sm"
             variant={currentUnitTab === "DEFENSE" ? "info" : "ghost"}
             tone="dark"
+            shape="square"
             className="flex-wrap gap-x-1.5 leading-tight text-center"
             aria-pressed={currentUnitTab === "DEFENSE"}
             onClick={() => handleUnitChange("DEFENSE")}
@@ -724,7 +727,7 @@ export function FantasyPitch({
       {/* Field */}
       <div className="p-2 sm:p-3 bg-[#102746]">
         <div
-          className="relative h-160 sm:h-180 overflow-hidden rounded-xl border-2 border-[#d1ebd15c]"
+          className="relative h-160 sm:h-180 overflow-hidden rounded-none border-2 border-[#d1ebd15c]"
           style={{
             backgroundImage:
               "repeating-linear-gradient(to bottom, transparent 0, transparent calc(20% - 2px), #e3f6d222 calc(20% - 1px), #e3f6d222 20%), repeating-linear-gradient(to bottom, #194b3b 0, #194b3b 20%, #164535 20%, #164535 40%)",
@@ -755,7 +758,7 @@ export function FantasyPitch({
 
           {/* Line of scrimmage */}
           <div className="absolute left-[3%] right-[3%] top-[49%] border-t-2 border-dashed border-[#efede6ac] pointer-events-none" />
-          <span className="absolute top-[49%] right-[2.5%] -translate-y-1/2 bg-[#f5f1e8] text-[#123b31] rounded px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black tracking-[0.12em] pointer-events-none shadow-sm z-2">
+          <span className="absolute top-[49%] right-[2.5%] -translate-y-1/2 bg-[#f5f1e8] text-[#123b31] rounded-none px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black tracking-[0.12em] pointer-events-none shadow-sm z-2">
             LINE OF SCRIMMAGE
           </span>
 
@@ -912,7 +915,7 @@ export function FantasyPitch({
 
                 {/* Position, Price or Inactive status in brackets */}
                 {isSpotInvalid ? (
-                  <span className="block max-w-full truncate px-1 py-0.5 rounded bg-red-600 text-white text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow leading-none border border-red-400/50 mt-0.5">
+                  <span className="block max-w-full truncate px-1 py-0.5 rounded-none bg-red-600 text-white text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow leading-none border border-red-400/50 mt-0.5">
                     {pick.invalidReason
                       ? pick.invalidReason.replace(/player/i, "").trim()
                       : "Cannot start"}
@@ -959,7 +962,7 @@ export function FantasyPitch({
         aria-live="polite"
       >
         <span
-          className={`flex items-center justify-center min-w-11.5 h-9 px-1.5 rounded text-[11px] font-black shrink-0 ${activeStyle.chipBg} ${activeStyle.chipText}`}
+          className={`flex items-center justify-center min-w-11.5 h-9 px-1.5 rounded-none text-[11px] font-black shrink-0 ${activeStyle.chipBg} ${activeStyle.chipText}`}
         >
           <SpotCode spot={activeSpot} />
         </span>
@@ -970,7 +973,7 @@ export function FantasyPitch({
               {activePick?.player_name ?? activeSpot.role}
             </strong>
             {activePick?.isInvalid && (
-              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-600 text-white shadow shrink-0">
+              <span className="px-2 py-0.5 rounded-none text-[9px] font-black uppercase tracking-wider bg-red-600 text-white shadow shrink-0">
                 {activePick.invalidReason || "Inactive"}
               </span>
             )}
@@ -1024,6 +1027,7 @@ export function FantasyPitch({
               size="sm"
               variant={activePick.isInvalid ? "danger" : "primary"}
               icon={activePick.isInvalid ? ExclamationTriangleIcon : ArrowsRightLeftIcon}
+              shape="square"
               className={`ml-auto shrink-0 uppercase tracking-wider ${activePick.isInvalid ? "animate-pulse" : ""}`}
               onClick={() => onSlotClick?.(activeSpot.slot, activePick)}
             >
@@ -1034,6 +1038,7 @@ export function FantasyPitch({
               size="sm"
               variant="primary"
               icon={PlusIcon}
+              shape="square"
               className="ml-auto shrink-0 uppercase tracking-wider"
               onClick={() => onSlotClick?.(activeSpot.slot, null)}
             >
@@ -1046,6 +1051,7 @@ export function FantasyPitch({
               size="sm"
               variant="secondary"
               tone="dark"
+              shape="square"
               className="ml-auto shrink-0 uppercase tracking-wider"
               onClick={() => handleSpotClick(activeSpot)}
             >

@@ -8,15 +8,12 @@ import {
   BoltIcon,
   ArrowRightIcon,
   SparklesIcon,
-  CheckBadgeIcon,
   LockClosedIcon,
-  ChartBarIcon,
-  StarIcon,
 } from "@heroicons/react/24/outline";
 import { fantasySeasonApi } from "../../services/api";
 import type { LeaderboardEntry } from "../../types";
 import { useAuth } from "../../contexts";
-import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
+import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyLinksCarousel, FantasyPitch, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input, PageHeader, navLinkClass } from "../../components";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -162,102 +159,86 @@ export function FantasyHub() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      {/* Fantasy news: the articles chosen on the Fantasy Carousel admin page.
-          Renders nothing until one has been added. The team sheet lives on the
-          dashboard, one click away. */}
-      <FantasyNewsCarousel />
-
-      {/* Lean, compact Season Dashboard card */}
-      <div className="relative overflow-hidden bg-sffl-navy text-white rounded-xl md:rounded-2xl shadow-xl p-5 sm:p-6 md:p-8">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-sffl-red/20 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 text-center md:text-left">
-          <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black italic uppercase tracking-tighter text-white">
-              {season.name}
-            </h1>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 sm:gap-3">
+      {/* Full-bleed to the real viewport edges, mirroring the About page's
+          top banner — see AboutLayout.tsx for the same technique. -mt
+          cancels <main>'s own top padding so this sits flush under
+          whatever chrome precedes it (navbar / scores strip). */}
+      <div className="relative -mt-3 w-[var(--viewport-w)] ml-[calc(50%_-_var(--viewport-w)/2)] md:-mt-8">
+        <PageHeader
+          eyebrow="Fantasy Football"
+          title={season.name}
+          subtitle="Pick your squad, score points every gameweek and chase the podium."
+        >
+          {/* Plain text links, replicating the About page's bottom nav
+              treatment (navLinkClass) — one consistent look for every
+              link, no per-item accent colors. */}
+          <FantasyLinksCarousel>
             {entered ? (
               <>
-                <ButtonLink
-                  to="/fantasy/dashboard"
-                  variant="primary"
-                  icon={CheckBadgeIcon}
-                  className="uppercase tracking-wider shadow-md shadow-sffl-red/30"
-                >
-                  Go To My Dashboard
-                </ButtonLink>
-                <Link
-                  to="/fantasy/leagues"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
-                >
-                  <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse
-                  Leagues
+                <Link to="/fantasy/dashboard" className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}>
+                  My Dashboard
                 </Link>
-                <ButtonLink
+                <Link to="/fantasy/leagues" className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}>
+                  Browse Leagues
+                </Link>
+                <Link
                   to={
                     gameweek?.id
                       ? `/fantasy/analytics?gw=${gameweek.id}`
                       : "/fantasy/analytics"
                   }
-                  variant="secondary"
-                  tone="dark"
+                  className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}
                 >
-                  <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
-                </ButtonLink>
-                <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
-                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
-                </ButtonLink>
-                <ButtonLink to="/fantasy/my-team" variant="secondary" tone="dark">
-                  <ShieldCheckIcon className="w-4 h-4 text-emerald-400" aria-hidden="true" /> My Active Squad
-                </ButtonLink>
-                <ButtonLink to="/fantasy/wallet" variant="secondary" tone="dark">
-                  <SparklesIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Prize Wallet
-                </ButtonLink>
+                  Weekly Report
+                </Link>
+                <Link to="/fantasy/players" className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}>
+                  Player Leaderboards
+                </Link>
+                <Link to="/fantasy/my-team" className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}>
+                  My Active Squad
+                </Link>
+                <Link to="/fantasy/wallet" className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}>
+                  Prize Wallet
+                </Link>
               </>
             ) : (
               <>
-                <Button
-                  variant="primary"
-                  className="uppercase tracking-wider shadow-md shadow-sffl-red/30"
-                  icon={ArrowRightIcon}
-                  iconPosition="right"
+                <button
+                  type="button"
+                  className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}
                   onClick={() => {
                     setTeamNameInput(getDefaultTeamName(user?.name));
                     setShowJoinModal(true);
                   }}
                 >
                   Join This Season
-                </Button>
-                <Link
-                  to="/fantasy/leagues"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
-                >
-                  <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse
-                  Leagues
+                </button>
+                <Link to="/fantasy/leagues" className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}>
+                  Browse Leagues
                 </Link>
-                <ButtonLink
+                <Link
                   to={
                     gameweek?.id
                       ? `/fantasy/analytics?gw=${gameweek.id}`
                       : "/fantasy/analytics"
                   }
-                  variant="secondary"
-                  tone="dark"
+                  className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}
                 >
-                  <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
-                </ButtonLink>
-                <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
-                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
-                </ButtonLink>
+                  Weekly Report
+                </Link>
+                <Link to="/fantasy/players" className={`shrink-0 text-xs uppercase tracking-wide ${navLinkClass(false)}`}>
+                  Player Leaderboards
+                </Link>
               </>
             )}
-          </div>
-        </div>
+          </FantasyLinksCarousel>
+        </PageHeader>
       </div>
+
+      {/* Fantasy news: the articles chosen on the Fantasy Carousel admin page.
+          Renders nothing until one has been added. The team sheet lives on the
+          dashboard, one click away. */}
+      <FantasyNewsCarousel />
 
       {/* How Showtime Fantasy Works — for first-timers deciding whether to join */}
       {!entered && (
@@ -325,9 +306,9 @@ export function FantasyHub() {
         </div>
       )}
 
-      {/* Global Standings Preview Card */}
+      {/* Global Standings Preview Card — just the top three; Full Table has the rest */}
       {topManagers && topManagers.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
             <div>
               <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2">
@@ -347,14 +328,14 @@ export function FantasyHub() {
           </div>
 
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
-            {topManagers.map((entry, idx) => (
+            {topManagers.slice(0, 3).map((entry, idx) => (
               <button
                 key={entry.team_id ?? idx}
                 type="button"
                 onClick={() =>
                   entry.team_id && setInspectingTeamId(entry.team_id)
                 }
-                className="w-full min-h-11 text-left py-3.5 flex items-center justify-between gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 rounded-xl transition cursor-pointer"
+                className="w-full min-h-11 text-left py-3.5 flex items-center justify-between gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 rounded-none transition cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
@@ -388,6 +369,16 @@ export function FantasyHub() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Fantasy pitch — the manager's own current lineup, right under the leaders */}
+      {entered && dashboard.lineup && (
+        <FantasyPitch
+          picks={dashboard.lineup.picks}
+          gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
+          gameweekId={dashboard.lineup.gameweek_id || gameweek?.id}
+          showPoints={dashboard.deadline_passed === true}
+        />
       )}
 
       {/* Join Season Modal — the deliberate opt-in */}
