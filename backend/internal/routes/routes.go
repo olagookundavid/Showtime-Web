@@ -262,6 +262,20 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		heroSlideGroup.DELETE("/:id", app.Handlers.HeroSlideHandler.Delete)
 	}
 
+	// The Fantasy page carousel: news articles an editor chose to feature.
+	fantasyCarouselGroup := adminRoutes.Group("/fantasy-carousel")
+	fantasyCarouselGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "fantasy_carousel"))
+	{
+		fantasyCarouselGroup.GET("", app.Handlers.FantasyCarouselHandler.List)
+		fantasyCarouselGroup.POST("", app.Handlers.FantasyCarouselHandler.Add)
+		// Quick add publishes a news article too, so it also needs News access.
+		fantasyCarouselGroup.POST("/quick-add",
+			middlewares.FeatureAccessMiddleware(app.RoleService, "news"),
+			app.Handlers.FantasyCarouselHandler.QuickAdd)
+		fantasyCarouselGroup.PUT("/:id", app.Handlers.FantasyCarouselHandler.Update)
+		fantasyCarouselGroup.DELETE("/:id", app.Handlers.FantasyCarouselHandler.Remove)
+	}
+
 	// FAQs for every page that shows them, edited from one admin page.
 	faqGroup := adminRoutes.Group("/faqs")
 	faqGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "faqs"))
@@ -995,6 +1009,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
 		fantasyRoutes.GET("/season/:id/market/filters", app.Handlers.FantasyHandler.ListMarketFilters)
 		fantasyRoutes.GET("/season/:id/players/leaderboard", app.Handlers.FantasyHandler.GetPlayerLeaderboard)
+		fantasyRoutes.GET("/carousel", app.Handlers.FantasyCarouselHandler.ListPublic)
 		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
 		fantasyRoutes.GET("/players/:id/price-history", app.Handlers.FantasyHandler.GetPlayerPriceHistory)
 		fantasyRoutes.GET("/leagues/public", app.Handlers.FantasyLeagueHandler.ListPublicLeagues)

@@ -11,6 +11,7 @@ export * from './discounts';
 export * from './faqs';
 export * from './media';
 export * from './fantasy/admin';
+export * from './fantasy/carousel';
 export * from './fantasy/core';
 export * from './fantasy/dashboard';
 export * from './fantasy/leagues';

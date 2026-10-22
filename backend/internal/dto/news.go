@@ -49,3 +49,36 @@ type PaginatedResponse struct {
 	Limit      int         `json:"limit"`
 	TotalPages int         `json:"total_pages"`
 }
+
+// FantasyCarouselArticle is the article a Fantasy carousel slide features.
+type FantasyCarouselArticle struct {
+	ID    string `json:"id"`
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+	// Summary is the article's excerpt, or the start of its text when it has
+	// none, so the carousel never has to ship or parse the full body.
+	Summary            string    `json:"summary"`
+	FeaturedImage      string    `json:"featured_image"`
+	FeaturedMediaType  string    `json:"featured_media_type"`
+	FeaturedYoutubeURL string    `json:"featured_youtube_url"`
+	Category           string    `json:"category"`
+	PublishedAt        time.Time `json:"published_at"`
+}
+
+type FantasyCarouselSlideResponse struct {
+	ID           string                 `json:"id"`
+	DisplayOrder int                    `json:"display_order"`
+	IsActive     bool                   `json:"is_active"`
+	CreatedAt    time.Time              `json:"created_at"`
+	Article      FantasyCarouselArticle `json:"article"`
+}
+
+type AddFantasyCarouselSlideRequest struct {
+	NewsID   string `json:"news_id" binding:"required,uuid"`
+	IsActive *bool  `json:"is_active"`
+}
+
+type UpdateFantasyCarouselSlideRequest struct {
+	DisplayOrder *int  `json:"display_order" binding:"omitempty,min=0"`
+	IsActive     *bool `json:"is_active"`
+}

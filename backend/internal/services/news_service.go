@@ -19,6 +19,8 @@ import (
 
 type INewsService interface {
 	CreateNews(ctx context.Context, req dto.CreateNewsRequest) error
+	// CreateArticle is CreateNews returning the article it published.
+	CreateArticle(ctx context.Context, req dto.CreateNewsRequest) (*domain.News, error)
 	GetNews(ctx context.Context, query dto.PaginationQuery) (*dto.PaginatedResponse, error)
 	GetNewsByID(ctx context.Context, id string) (*dto.NewsResponse, error)
 	GetNewsBySlug(ctx context.Context, slug string) (*dto.NewsResponse, error)
@@ -88,8 +90,13 @@ func validateFeaturedMedia(req *dto.CreateNewsRequest) error {
 }
 
 func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest) error {
+	_, err := s.CreateArticle(ctx, req)
+	return err
+}
+
+func (s *NewsService) CreateArticle(ctx context.Context, req dto.CreateNewsRequest) (*domain.News, error) {
 	if err := validateFeaturedMedia(&req); err != nil {
-		return err
+		return nil, err
 	}
 	// Comments are on unless the admin explicitly turned them off, matching the
 	// column default — a create request that omits the field must not produce an
@@ -114,7 +121,10 @@ func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest)
 		CreatedAt:          time.Now(),
 		UpdatedAt:          time.Now(),
 	}
-	return s.repo.Create(ctx, news)
+	if err := s.repo.Create(ctx, news); err != nil {
+		return nil, err
+	}
+	return news, nil
 }
 
 func (s *NewsService) GetNews(ctx context.Context, query dto.PaginationQuery) (*dto.PaginatedResponse, error) {

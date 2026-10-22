@@ -16,7 +16,7 @@ import {
 import { fantasySeasonApi } from "../../services/api";
 import type { LeaderboardEntry } from "../../types";
 import { useAuth } from "../../contexts";
-import { AuthRequiredDialog, Loader, FantasyPitch, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
+import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyPitch, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -163,6 +163,10 @@ export function FantasyHub() {
 
   return (
     <div className="space-y-6 md:space-y-8">
+      {/* Fantasy news: fed by News articles filed under the Fantasy category.
+          Renders nothing until one has been published. */}
+      <FantasyNewsCarousel />
+
       {/* My Starting Lineup — positioned ABOVE the dashboard card when entered */}
       {entered && (
         <div>

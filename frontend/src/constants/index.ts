@@ -5,5 +5,6 @@ export * from './matches';
 export * from './players';
 export * from './teams';
 export * from './fantasy';
+export * from './news';
 export * from './store';
 export * from './stats';

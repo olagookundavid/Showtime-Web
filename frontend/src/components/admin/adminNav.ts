@@ -22,6 +22,7 @@ import {
   ArchiveBoxIcon,
   NewspaperIcon,
   PhotoIcon,
+  RectangleStackIcon,
   SignalIcon,
   UsersIcon,
   Cog6ToothIcon,
@@ -141,6 +142,11 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     links: [
       { name: "News", path: "/admin/news", icon: NewspaperIcon },
       { name: "Hero Slides", path: "/admin/hero-slides", icon: PhotoIcon },
+      {
+        name: "Fantasy Carousel",
+        path: "/admin/fantasy-carousel",
+        icon: RectangleStackIcon,
+      },
       { name: "FAQs", path: "/admin/faqs", icon: QuestionMarkCircleIcon },
       { name: "Media Library", path: "/admin/media", icon: FolderOpenIcon },
       { name: "Live Stream", path: "/admin/live-stream", icon: SignalIcon },
@@ -184,6 +190,7 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   Inventory: "inventory",
   News: "news",
   "Hero Slides": "hero_slides",
+  "Fantasy Carousel": "fantasy_carousel",
   FAQs: "faqs",
   "Media Library": "media",
   "Live Stream": "live_stream",

@@ -170,6 +170,11 @@ const BroadcastOverlay = lazy(() =>
 const AdminNews = lazy(() =>
   import("./pages/admin/AdminNews").then((m) => ({ default: m.AdminNews })),
 );
+const AdminFantasyCarousel = lazy(() =>
+  import("./pages/admin/AdminFantasyCarousel").then((m) => ({
+    default: m.AdminFantasyCarousel,
+  })),
+);
 const AdminHeroSlides = lazy(() =>
   import("./pages/admin/AdminHeroSlides").then((m) => ({
     default: m.AdminHeroSlides,
@@ -704,6 +709,14 @@ function App() {
                         element={
                           <FeatureGuard feature="hero_slides">
                             <AdminHeroSlides />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="fantasy-carousel"
+                        element={
+                          <FeatureGuard feature="fantasy_carousel">
+                            <AdminFantasyCarousel />
                           </FeatureGuard>
                         }
                       />
