@@ -1,4 +1,5 @@
 export { BottomNav } from './BottomNav';
+export { CanonicalLink } from './CanonicalLink';
 export { ErrorBoundary } from './ErrorBoundary';
 export { Footer } from './Footer';
 export { LatestMatchesCarousel, LatestMatchesInfoStrip } from './LatestMatchesCarousel';

@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, StoreLayout, TicketsLayout, ScrollToTop, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, StoreLayout, TicketsLayout, ScrollToTop, CanonicalLink, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -382,6 +382,7 @@ function App() {
             />
             <BrowserRouter>
               <ScrollToTop />
+              <CanonicalLink />
               <AdSenseScript />
               {/* Visitor analytics. All render null. Vercel and Brevo are third-party
                   (see config/analytics.ts); PageViewTracker feeds our own database
