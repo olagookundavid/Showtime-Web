@@ -260,27 +260,17 @@ export const ReigningWinner = ({
   );
 };
 
-/** Alternates the left accent bar red/navy, the same as PlayerCompareSlot's comparison cards. */
-const CARD_ACCENT_CLASSES = ["bg-sffl-red", "bg-sffl-navy"];
-
 /** One past award in the honours list. */
 export const WinnerCard = ({
   winner,
   wins,
-  index,
 }: {
   winner: POTWWinner;
   wins: number;
-  index: number;
 }) => {
   const p = winner.player;
-  const accent = CARD_ACCENT_CLASSES[index % CARD_ACCENT_CLASSES.length];
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm transition-shadow hover:shadow-lg">
-      <span
-        className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${accent}`}
-        aria-hidden="true"
-      />
+    <article className="group flex h-full flex-col overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm transition-shadow hover:shadow-lg">
       <div className="relative">
         <PlayerPhoto player={p} className="aspect-4/3 sm:aspect-4/5 w-full" />
         <div

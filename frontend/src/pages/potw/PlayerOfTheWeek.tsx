@@ -23,7 +23,6 @@ import {
 import type { POTWNominee, POTWPoll, POTWWinner } from "../../types";
 import { useAuth } from "../../contexts";
 import { withReturnUrl } from "../../hooks";
-import { getInitials } from "../../utils";
 import {
   Button,
   ButtonLink,
@@ -65,113 +64,72 @@ const HeroFigure = ({ value, label }: { value: number; label: string }) => (
   </div>
 );
 
-/** Alternates the left accent bar red/navy, the same as PlayerCompareSlot's comparison cards. */
-const CARD_ACCENT_CLASSES = ["bg-sffl-red", "bg-sffl-navy"];
-
-/** A ballot card: the nominee's photo, details, week stats and the vote button. */
+/** A ballot card: the nominee's photo, team, week stats and the vote button. */
 const NomineeCard = ({
   nominee,
-  index,
   mine,
   children,
 }: {
   nominee: POTWNominee;
-  index: number;
   mine: boolean;
   children: React.ReactNode;
-}) => {
-  const [firstName, ...restName] = nominee.name.split(" ");
-  const lastName = restName.join(" ");
-  const positionLabel = nominee.totw_position || nominee.position;
-  const accent = CARD_ACCENT_CLASSES[index % CARD_ACCENT_CLASSES.length];
-
-  return (
-    <li
-      className={`relative flex flex-col overflow-hidden border bg-white dark:bg-gray-800 transition-shadow ${
-        mine
-          ? "border-emerald-500 ring-2 ring-emerald-500/40 shadow-md"
-          : "border-gray-200 dark:border-gray-700 hover:shadow-lg"
-      }`}
-    >
-      <span
-        className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${accent}`}
+}) => (
+  <li
+    className={`flex flex-col overflow-hidden border bg-white dark:bg-gray-800 transition-shadow ${
+      mine
+        ? "border-emerald-500 ring-2 ring-emerald-500/40 shadow-md"
+        : "border-gray-200 dark:border-gray-700 hover:shadow-lg"
+    }`}
+  >
+    <div className="relative">
+      <PlayerPhoto
+        player={nominee}
+        className="aspect-3/4 sm:aspect-2/3 w-full"
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-black/85 via-black/40 to-transparent"
         aria-hidden="true"
       />
-      <div className="flex flex-1 min-h-44 md:min-h-52">
-        {nominee.image ? (
-          <img
-            src={nominee.image}
-            alt=""
-            loading="lazy"
-            className="w-3/5 shrink-0 h-full object-cover"
-          />
-        ) : (
-          <div className="w-3/5 shrink-0 h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl font-black text-gray-400 dark:text-gray-500">
-            {getInitials(nominee.name)}
-          </div>
-        )}
-
-        <div className="flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-center gap-1.5 md:gap-2">
-          {mine && (
-            <span className="inline-flex items-center gap-1 self-start rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow">
-              <CheckBadgeIcon className="w-3.5 h-3.5" aria-hidden="true" />
-              Your pick
-            </span>
+      {mine && (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow">
+          <CheckBadgeIcon className="w-3.5 h-3.5" aria-hidden="true" />
+          Your pick
+        </span>
+      )}
+      <div className="absolute inset-x-0 bottom-0 p-4 min-w-0">
+        <Link
+          to={`/players/${nominee.player_id}`}
+          className="block text-lg font-black leading-tight text-white truncate underline-offset-4 hover:underline"
+        >
+          {nominee.name}
+        </Link>
+        <p className="text-xs text-gray-200 truncate">
+          {nominee.totw_position || nominee.position}
+          {(nominee.totw_position || nominee.position) &&
+            nominee.team_name &&
+            " · "}
+          {nominee.team_name && (
+            <TeamLink id={nominee.team_id}>{nominee.team_name}</TeamLink>
           )}
-
-          <PlayerLink id={nominee.player_id} className="block min-w-0">
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-tight truncate">
-              {firstName}
-            </p>
-            <p className="text-lg md:text-xl font-black text-sffl-navy dark:text-white leading-tight truncate">
-              {lastName || firstName}
-            </p>
-          </PlayerLink>
-
-          <img
-            src={nominee.team_logo || "/images/default_football.webp"}
-            alt=""
-            className="w-7 h-7 md:w-8 md:h-8 object-contain"
-          />
-
-          <p className="text-xs font-black uppercase tracking-wide text-gray-700 dark:text-gray-300 truncate">
-            {nominee.team_name ? (
-              <TeamLink id={nominee.team_id}>{nominee.team_name}</TeamLink>
-            ) : (
-              "Team unavailable"
-            )}
-          </p>
-
-          <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
-            <span>#{nominee.jersey_number || "?"}</span>
-            <span
-              className="text-gray-300 dark:text-gray-600"
-              aria-hidden="true"
-            >
-              |
-            </span>
-            <span>{positionLabel}</span>
-          </p>
-        </div>
+        </p>
       </div>
-
-      <div className="flex flex-col gap-3 p-3 md:p-4 border-t border-gray-200 dark:border-gray-700">
-        {nominee.rating > 0 && (
-          <p className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-gray-500 dark:text-gray-400">
-              Match rating
-            </span>
-            <span className="text-base font-black text-gray-900 dark:text-white">
-              {nominee.rating.toFixed(1)}
-            </span>
-          </p>
-        )}
-        <StatBoxes player={nominee} />
-        <div>{children}</div>
-      </div>
-    </li>
-  );
-};
+    </div>
+    <div className="flex flex-1 flex-col gap-3 p-4">
+      {nominee.rating > 0 && (
+        <p className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-gray-500 dark:text-gray-400">
+            Match rating
+          </span>
+          <span className="text-base font-black text-gray-900 dark:text-white">
+            {nominee.rating.toFixed(1)}
+          </span>
+        </p>
+      )}
+      <StatBoxes player={nominee} />
+      <div className="mt-auto pt-1">{children}</div>
+    </div>
+  </li>
+);
 
 export const PlayerOfTheWeek = () => {
   const { id: routePollId } = useParams<{ id?: string }>();
@@ -483,11 +441,15 @@ export const PlayerOfTheWeek = () => {
                 </p>
               )}
 
-              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {poll.nominees.map((n, i) => {
+              <ul
+                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${
+                  poll.nominees.length >= 5 ? "xl:grid-cols-5" : "xl:grid-cols-4"
+                }`}
+              >
+                {poll.nominees.map((n) => {
                   const mine = poll.my_vote === n.player_id;
                   return (
-                    <NomineeCard key={n.player_id} nominee={n} index={i} mine={mine}>
+                    <NomineeCard key={n.player_id} nominee={n} mine={mine}>
                       {!user ? (
                         <ButtonLink
                           to={loginHref}
@@ -663,12 +625,11 @@ export const PlayerOfTheWeek = () => {
                 </p>
               </div>
               <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
-                {honours.map((w, i) => (
+                {honours.map((w) => (
                   <li key={w.totw_id}>
                     <WinnerCard
                       winner={w}
                       wins={winsByPlayer.get(w.player.player_id) ?? 1}
-                      index={i}
                     />
                   </li>
                 ))}
