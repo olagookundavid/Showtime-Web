@@ -16,7 +16,7 @@ import {
 import { fantasySeasonApi } from "../../services/api";
 import type { LeaderboardEntry } from "../../types";
 import { useAuth } from "../../contexts";
-import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
+import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyPitch, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -209,7 +209,7 @@ export function FantasyHub() {
                   <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
                 </ButtonLink>
                 <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
-                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
+                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Leaderboard
                 </ButtonLink>
                 <ButtonLink to="/fantasy/my-team" variant="secondary" tone="dark">
                   <ShieldCheckIcon className="w-4 h-4 text-emerald-400" aria-hidden="true" /> My Active Squad
@@ -251,7 +251,7 @@ export function FantasyHub() {
                   <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
                 </ButtonLink>
                 <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
-                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
+                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Leaderboard
                 </ButtonLink>
               </>
             )}
@@ -347,7 +347,7 @@ export function FantasyHub() {
           </div>
 
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
-            {topManagers.map((entry, idx) => (
+            {topManagers.slice(0, 3).map((entry, idx) => (
               <button
                 key={entry.team_id ?? idx}
                 type="button"
@@ -388,6 +388,16 @@ export function FantasyHub() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Fantasy pitch — the manager's own current lineup, right under the leaders */}
+      {entered && dashboard.lineup && (
+        <FantasyPitch
+          picks={dashboard.lineup.picks}
+          gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
+          gameweekId={dashboard.lineup.gameweek_id || gameweek?.id}
+          showPoints={dashboard.deadline_passed === true}
+        />
       )}
 
       {/* Join Season Modal — the deliberate opt-in */}
