@@ -796,6 +796,24 @@ func (r *FantasyRepository) BulkUpsertPlayerPrices(ctx context.Context, prices [
 	return tx.Commit(ctx)
 }
 
+// The market's price is the live one: the newest gameweek row, else the opening
+// row — the same rule ListSquad and GetMarketPlayer use, and
+// the price a purchase is actually charged. Joining the opening row alone showed
+// a stale price once any gameweek had repriced the player, so the list, its
+// price sort and the rating disagreed with what buying cost.
+
+// marketLivePriceJoin joins a player to their live price row as fpp, and drops
+// anyone without a positive price. Expects the aliases p (players) and $1 as the
+// season id.
+const marketLivePriceJoin = `
+		JOIN LATERAL (
+			SELECT pp.price, pp.rating FROM fantasy_player_prices pp
+			WHERE pp.player_id = p.id AND pp.season_id = $1
+			ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
+			LIMIT 1
+		) fpp ON fpp.price > 0
+`
+
 // marketPoolWhere is the eligibility rule for the transfer market, shared by
 // the player list and the filter options so a club or position chip can never
 // offer a filter that lists nobody. Expects the aliases p (players), t (teams)
@@ -847,13 +865,22 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 	baseQuery := `
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
-		JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL AND fpp.price > 0
+		` + marketLivePriceJoin + `
 		LEFT JOIN (
-			SELECT fgp.player_id, SUM(fgp.points) AS total_pts
-			FROM fantasy_gw_points fgp
-			JOIN fantasy_gameweeks fgw ON fgp.gameweek_id = fgw.id
-			WHERE fgw.season_id = $1
-			GROUP BY fgp.player_id
+			-- fantasy_gw_points has one row per team that started the player, so
+			-- summing it straight multiplied a player's score by how many teams
+			-- picked them. Collapse to one value per match first (MAX, as
+			-- GetPlayerFantasySummary does: an All-Rounder can score differently per
+			-- team by slot), then total.
+			SELECT player_id, SUM(match_pts) AS total_pts
+			FROM (
+				SELECT fgp.player_id, fgp.gameweek_id, fgp.match_id, MAX(fgp.points) AS match_pts
+				FROM fantasy_gw_points fgp
+				JOIN fantasy_gameweeks fgw ON fgp.gameweek_id = fgw.id
+				WHERE fgw.season_id = $1
+				GROUP BY fgp.player_id, fgp.gameweek_id, fgp.match_id
+			) per_match
+			GROUP BY player_id
 		) pts ON pts.player_id = p.id
 		LEFT JOIN (
 			-- Ownership reads from the squad ledger rather than from lineups: a
@@ -2122,6 +2149,22 @@ func (r *FantasyRepository) GetOverriddenPrices(ctx context.Context, seasonID st
 	return overrides, rows.Err()
 }
 
+// adminLivePriceJoin adds the player's live price row as live, beside the
+// opening row the query already joins as fpp. The admin price page shows what
+// buyers are actually charged (live: newest gameweek row, else the opening row,
+// as ListSquad and GetMarketPlayer read it), while the override flag and the
+// overridden/calculated filter stay on the opening row, which is where an
+// override is written and where repricing reads it back (GetOverriddenPrices).
+// Expects the aliases p (players) and $1 as the season id.
+const adminLivePriceJoin = `
+		LEFT JOIN LATERAL (
+			SELECT pp.price, pp.calculated_price, pp.rating FROM fantasy_player_prices pp
+			WHERE pp.player_id = p.id AND pp.season_id = $1
+			ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
+			LIMIT 1
+		) live ON true
+`
+
 // ListPlayerPricesForAdmin returns all eligible players for a season's competition with their current and calculated prices.
 func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error) {
 	if page < 1 {
@@ -2142,6 +2185,7 @@ func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, season
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL
+		`+adminLivePriceJoin+`
 		WHERE p.team_id IS NOT NULL
 		  AND COALESCE(t.status, 'active') = 'active'
 		  -- Deactivated players (migration 088) keep their history but cannot be
@@ -2201,8 +2245,10 @@ func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, season
 		       -- Default to 3.00 (the base floor) for any eligible active player,
 		       -- so newly registered players immediately reflect the 3.00 baseline
 		       -- on fantasy.
-		       COALESCE(fpp.price, 3.00), COALESCE(fpp.calculated_price, fpp.price, 3.00), COALESCE(fpp.is_overridden, false),
-		       COALESCE(fpp.rating, 5.00)
+		       COALESCE(live.price, fpp.price, 3.00),
+		       COALESCE(live.calculated_price, live.price, fpp.calculated_price, fpp.price, 3.00),
+		       COALESCE(fpp.is_overridden, false),
+		       COALESCE(live.rating, fpp.rating, 5.00)
 	` + baseQuery + orderClause + fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
@@ -2323,11 +2369,14 @@ func (r *FantasyRepository) OverridePlayerPrice(ctx context.Context, seasonID, p
 		       -- otherwise guaranteed by migration 101 / ensureFantasyPrice.
 		       -- 5.00 for rating is the engine's own default for an unrated
 		       -- player (see repriceSeason), so it is the real value.
-		       COALESCE(fpp.price, 3.00), COALESCE(fpp.calculated_price, fpp.price, 3.00), COALESCE(fpp.is_overridden, false),
-		       COALESCE(fpp.rating, 5.00)
+		       COALESCE(live.price, fpp.price, 3.00),
+		       COALESCE(live.calculated_price, live.price, fpp.calculated_price, fpp.price, 3.00),
+		       COALESCE(fpp.is_overridden, false),
+		       COALESCE(live.rating, fpp.rating, 5.00)
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL
+		`+adminLivePriceJoin+`
 		WHERE p.id = $2
 	`
 	var item dto.AdminPlayerPriceItem
@@ -3160,7 +3209,6 @@ func BuildDreamTeamForTest(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLin
 	return buildDreamTeam(scorers)
 }
 
-
 // ListMarketFilters returns the clubs and positions present in the season's
 // market pool, so the picker's filter chips do not depend on paging through
 // the whole player list.
@@ -3173,8 +3221,7 @@ func (r *FantasyRepository) ListMarketFilters(ctx context.Context, seasonID stri
 		       COALESCE(p.position, '')
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
-		JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL AND fpp.price > 0
-	`+marketPoolWhere, seasonID)
+		`+marketLivePriceJoin+marketPoolWhere, seasonID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query market filters: %w", err)
 	}
