@@ -70,7 +70,10 @@ type TicketService struct {
 	seasonRepo    ports.SeasonPassRepository
 	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
 	// profile after they pay.
-	userPhones      UserPhoneSaver
+	userPhones UserPhoneSaver
+	// playerHolders is optional: when set, a player ticket looked up at the gate
+	// says which player it admits.
+	playerHolders   playerHolderSource
 	matchRepo       ports.MatchRepository
 	paystack        *PaystackClient
 	email           ports.EmailService
@@ -696,7 +699,9 @@ func (s *TicketService) GetByCode(ctx context.Context, code string) (*dto.Ticket
 	if err != nil {
 		return nil, err
 	}
-	return ticketToResponse(ticket), nil
+	res := ticketToResponse(ticket)
+	s.attachPlayer(ctx, ticket, res)
+	return res, nil
 }
 
 func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (*dto.TicketResponse, error) {
@@ -895,8 +900,11 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 
 // passNameFor is what a purchase is called in emails.
 func passNameFor(ticket *domain.Ticket) string {
-	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+	switch ticket.PurchaseType {
+	case domain.PurchaseTypeSeasonPass:
 		return "Season Pass"
+	case domain.PurchaseTypePlayer:
+		return "Player Ticket"
 	}
 	return "Game Pass"
 }

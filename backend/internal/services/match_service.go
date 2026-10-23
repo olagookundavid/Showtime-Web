@@ -62,6 +62,21 @@ type MatchService struct {
 	// fantasy is not wired up, and a nil one simply means no resync.
 	fantasyService IFantasyService
 	logger         *logger.Logger
+	// playerTickets is optional: when set, saving a team sheet issues a ticket to
+	// every player named on it.
+	playerTickets PlayerTicketIssuer
+}
+
+// PlayerTicketIssuer turns a saved team sheet into player tickets.
+type PlayerTicketIssuer interface {
+	SyncSheet(ctx context.Context, matchID, teamID string) (*dto.PlayerTicketSyncResponse, error)
+}
+
+// WithPlayerTickets wires in player tickets, so a saved team sheet hands every
+// player named on it a ticket for the match.
+func (s *MatchService) WithPlayerTickets(issuer PlayerTicketIssuer) *MatchService {
+	s.playerTickets = issuer
+	return s
 }
 
 func NewMatchService(repo ports.MatchRepository, storage ports.StorageService, contractService IContractService) IMatchService {
@@ -995,7 +1010,17 @@ func (s *MatchService) DeleteCompetition(ctx context.Context, id string) error {
 }
 
 func (s *MatchService) SaveTeamSheet(ctx context.Context, matchID string, req dto.SaveTeamSheetRequest) error {
-	return s.repo.SaveTeamSheet(ctx, matchID, req)
+	if err := s.repo.SaveTeamSheet(ctx, matchID, req); err != nil {
+		return err
+	}
+	// The sheet is saved whatever happens to the tickets: a failure here leaves
+	// players without a code, which the sheet shows and issuing again fixes.
+	if s.playerTickets != nil {
+		if _, err := s.playerTickets.SyncSheet(ctx, matchID, req.TeamID); err != nil {
+			fmt.Printf("⚠️ WARNING: player tickets for match %s team %s: %s\n", matchID, req.TeamID, err.Error())
+		}
+	}
+	return nil
 }
 
 func (s *MatchService) GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error) {

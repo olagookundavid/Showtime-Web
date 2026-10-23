@@ -115,19 +115,22 @@ type PurchaseType string
 const (
 	PurchaseTypeSingle   PurchaseType = "SINGLE"
 	PurchaseTypeGamePass PurchaseType = "GAME_PASS"
-	// PurchaseTypeSeasonPass is a Game Pass sold as one offer: every match day
-	// still to be played, at the season pass's percentage off.
+	// PurchaseTypeSeasonPass is a standalone pass: one price, valid on every match
+	// day up to its end date.
 	PurchaseTypeSeasonPass PurchaseType = "SEASON_PASS"
+	// PurchaseTypePlayer is a free ticket for a player named on a team sheet. It
+	// covers that match's game day and takes no seat from any ticket product.
+	PurchaseTypePlayer PurchaseType = "PLAYER"
 )
 
 // Ticket is one purchase: one code, one payment, covering one or more match days.
 type Ticket struct {
-	ID           string       `json:"id"`
-	ProductID    *string      `json:"product_id,omitempty"`
-	SeasonPassID *string      `json:"season_pass_id,omitempty"`
+	ID           string  `json:"id"`
+	ProductID    *string `json:"product_id,omitempty"`
+	SeasonPassID *string `json:"season_pass_id,omitempty"`
 	// ValidUntil is a season pass's end date (YYYY-MM-DD), read from the pass. Nil
 	// for every other kind of ticket.
-	ValidUntil *string `json:"valid_until,omitempty"`
+	ValidUntil   *string      `json:"valid_until,omitempty"`
 	ProductName  string       `json:"product_name"`
 	PurchaseType PurchaseType `json:"purchase_type"`
 	Email        string       `json:"email"`
@@ -152,16 +155,40 @@ type Ticket struct {
 	DiscountCodeID *string `json:"-"`
 	// Game Pass percentage off, snapshotted so a later change to the ladder does
 	// not rewrite what this buyer was charged.
-	GamePassDiscountPercent float64   `json:"game_pass_discount_percent"`
-	GamePassDiscountAmount  int       `json:"game_pass_discount_amount"`
-	TeamID                  *string   `json:"team_id,omitempty"`
-	ReferralCode            *string   `json:"referral_code,omitempty"`
-	CreatedAt               time.Time `json:"created_at"`
-	UpdatedAt               time.Time `json:"updated_at"`
+	GamePassDiscountPercent float64 `json:"game_pass_discount_percent"`
+	GamePassDiscountAmount  int     `json:"game_pass_discount_amount"`
+	TeamID                  *string `json:"team_id,omitempty"`
+	// PlayerID and MatchID are set on a player ticket: who it admits and the match
+	// they were named for.
+	PlayerID     *string   `json:"player_id,omitempty"`
+	MatchID      *string   `json:"match_id,omitempty"`
+	ReferralCode *string   `json:"referral_code,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 
 	// Relations
 	Days []TicketDay `json:"days,omitempty"`
 	Team *Team       `json:"team,omitempty"`
+	// Player is who a player ticket admits, loaded where the gate needs it.
+	Player *PlayerTicketHolder `json:"player,omitempty"`
+}
+
+// PlayerTicketHolder is the player a player ticket belongs to and the match they
+// are named for: what the gate shows so a scanner knows who is in front of them.
+type PlayerTicketHolder struct {
+	PlayerID     string    `json:"player_id"`
+	Name         string    `json:"name"`
+	JerseyNumber int       `json:"jersey_number"`
+	Position     string    `json:"position"`
+	Image        string    `json:"image"`
+	TeamID       string    `json:"team_id"`
+	TeamName     string    `json:"team_name"`
+	MatchID      string    `json:"match_id"`
+	HomeTeam     string    `json:"home_team"`
+	AwayTeam     string    `json:"away_team"`
+	Competition  string    `json:"competition"`
+	MatchDate    time.Time `json:"match_date"`
+	Kickoff      string    `json:"kickoff"` // HH:MM, empty when not set
 }
 
 // TicketDay is one match day a ticket covers, and whether it has been used.

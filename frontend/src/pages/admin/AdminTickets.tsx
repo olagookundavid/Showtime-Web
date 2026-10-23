@@ -23,7 +23,7 @@ import {
   getEventDays,
   getAllEventDays,
 } from "../../services/api";
-import type { TicketResponse, TicketDayResponse, EventDayResponse } from "../../types";
+import type { TicketResponse, TicketDayResponse, EventDayResponse, PlayerTicketHolder } from "../../types";
 import { useAuth } from "../../contexts";
 import { usePermissions } from "../../hooks";
 import { formatMatchDate } from "../../utils";
@@ -166,6 +166,36 @@ const TicketDays = ({ ticket }: { ticket: TicketResponse }) =>
   </ul>
   );
 
+// A player ticket says who it admits, so the gate can match the person in front
+// of them to the team sheet.
+const PlayerHolderRows = ({ player }: { player: PlayerTicketHolder }) => (
+  <>
+    <dt className="text-gray-500 dark:text-gray-400">Player</dt>
+    <dd className="font-bold dark:text-white">
+      {player.jersey_number ? `#${player.jersey_number} ` : ""}
+      {player.name}
+      {player.position && player.position !== "-" && (
+        <span className="font-normal text-gray-500 dark:text-gray-400">
+          {" "}
+          · {player.position}
+        </span>
+      )}
+    </dd>
+    <dt className="text-gray-500 dark:text-gray-400">Team</dt>
+    <dd className="dark:text-white">{player.team_name || "—"}</dd>
+    <dt className="text-gray-500 dark:text-gray-400">Match</dt>
+    <dd className="dark:text-white">
+      {player.home_team} vs {player.away_team}
+      {(player.competition || player.kickoff) && (
+        <span className="text-gray-500 dark:text-gray-400">
+          {" "}
+          · {[player.competition, player.kickoff].filter(Boolean).join(" · ")}
+        </span>
+      )}
+    </dd>
+  </>
+);
+
 const TicketSummary = ({
   t,
   showReference,
@@ -178,14 +208,18 @@ const TicketSummary = ({
     <dd className="font-mono font-bold text-sffl-navy dark:text-white">
       {t.ticket_code || "—"}
     </dd>
-    {t.name && (
-      <>
-        <dt className="text-gray-500 dark:text-gray-400">Name</dt>
-        <dd className="dark:text-white">{t.name}</dd>
-      </>
+    {t.player ? (
+      <PlayerHolderRows player={t.player} />
+    ) : (
+      t.name && (
+        <>
+          <dt className="text-gray-500 dark:text-gray-400">Name</dt>
+          <dd className="dark:text-white">{t.name}</dd>
+        </>
+      )
     )}
     <dt className="text-gray-500 dark:text-gray-400">Email</dt>
-    <dd className="break-all dark:text-white">{t.email}</dd>
+    <dd className="break-all dark:text-white">{t.email || "—"}</dd>
     <dt className="text-gray-500 dark:text-gray-400">
       {t.days.length > 1 ? "Match days" : "Match day"}
     </dt>

@@ -1,7 +1,8 @@
 import type { Team } from './matches';
+import type { PlayerTicketHolder } from './playerTickets';
 
 /** A Game Pass (one match day or several under one code) or a Season Pass (valid until an end date). */
-export type PurchaseType = 'GAME_PASS' | 'SEASON_PASS';
+export type PurchaseType = 'GAME_PASS' | 'SEASON_PASS' | 'PLAYER';
 
 /** A match day a ticket is on sale for, because it has a match in a competition the ticket is linked to. */
 export interface TicketProductDayResponse {
@@ -142,6 +143,8 @@ export interface TicketResponse {
     /** Set for a Season Pass: the last day it lets people in (YYYY-MM-DD). It has no match days. */
     season_pass_id?: string;
     valid_until?: string;
+    /** Set on a player ticket looked up by code: who it admits and for which match. */
+    player?: PlayerTicketHolder;
     days: TicketDayResponse[];
     created_at: string;
 }

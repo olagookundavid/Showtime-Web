@@ -28,6 +28,7 @@ export * from './news';
 export * from './notifications';
 export * from './playByPlay';
 export * from './players';
+export * from './playerTickets';
 export * from './potw';
 export * from './relive';
 export * from './settings';

@@ -7,6 +7,7 @@ import {
   ArrowsRightLeftIcon,
   BanknotesIcon,
   TicketIcon,
+  ClipboardDocumentCheckIcon,
 } from "@heroicons/react/24/outline";
 import {
   Squares2X2Icon as SquaresSolid,
@@ -48,6 +49,7 @@ export const TEAM_HEAD_NAV_SECTIONS: DashboardNavSection[] = [
   {
     title: "Match Day",
     links: [
+      { name: "Game Day Tickets", path: "/team-head/player-tickets", icon: ClipboardDocumentCheckIcon, description: "Print your team sheet with every player's ticket code." },
       { name: "Match Tickets", path: "/team-head/tickets", icon: TicketIcon, description: "Send your team's complimentary tickets." },
     ],
   },

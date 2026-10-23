@@ -485,6 +485,15 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 	siteEventsService := services.NewSiteEventsService(siteEventsRepo)
 	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, productRepo, ticketService)
+
+	// Player tickets: saving a team sheet hands every player named on it a ticket,
+	// and the gate shows which player a code belongs to.
+	playerTicketRepo := ports.NewPlayerTicketRepository(pool)
+	playerTicketService := services.NewPlayerTicketService(playerTicketRepo, ticketRepo, ticketService)
+	ticketService.WithPlayerHolders(playerTicketRepo)
+	if ms, ok := matchService.(*services.MatchService); ok {
+		ms.WithPlayerTickets(playerTicketService)
+	}
 	statsService := services.NewStatsService(statsRepo, matchRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo)
 	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService, discountService, discountRepo, authRepo)
@@ -589,5 +598,6 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
 		badgeHandler, totwHandler, potwHandler, broadcastHandler,
 	)
+	h.PlayerTicketHandler = transport.NewPlayerTicketHandler(playerTicketService)
 	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService
 }

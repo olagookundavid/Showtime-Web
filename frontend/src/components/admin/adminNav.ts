@@ -16,6 +16,7 @@ import {
   ClockIcon,
   TicketIcon,
   TagIcon,
+  ClipboardDocumentCheckIcon,
   CalendarDaysIcon,
   UserPlusIcon,
   BuildingStorefrontIcon,
@@ -118,6 +119,11 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     links: [
       { name: "Tickets", path: "/admin/tickets", icon: TicketIcon },
       {
+        name: "Player Tickets",
+        path: "/admin/player-tickets",
+        icon: ClipboardDocumentCheckIcon,
+      },
+      {
         name: "Ticket Products",
         path: "/admin/ticket-products",
         icon: TagIcon,
@@ -184,6 +190,7 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   "Transfer Windows": "transfer_windows",
   Tickets: "tickets",
   "Ticket Products": "tickets",
+  "Player Tickets": "tickets",
   "Match Days": "event_days",
   Referrals: "referrals",
   "Online Store": "store",

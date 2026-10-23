@@ -521,6 +521,16 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		allocationsGroup.DELETE("/:id", app.Handlers.TeamTicketAllocationHandler.DeleteAllocation)
 	}
 
+	// Player tickets for every team, by match day: ticketers print them for the gate.
+	playerTicketsGroup := adminRoutes.Group("/player-tickets")
+	playerTicketsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
+	{
+		playerTicketsGroup.GET("/days", app.Handlers.PlayerTicketHandler.ListSheetDays)
+		playerTicketsGroup.GET("/days/:id", app.Handlers.PlayerTicketHandler.GetDaySheets)
+		playerTicketsGroup.GET("/matches/:matchId/teams/:teamId", app.Handlers.PlayerTicketHandler.GetSheet)
+		playerTicketsGroup.POST("/matches/:matchId/teams/:teamId/issue", app.Handlers.PlayerTicketHandler.IssueSheet)
+	}
+
 	ticketsGroup := adminRoutes.Group("/tickets")
 	ticketsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
 	{
@@ -646,6 +656,12 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes.GET("/roster-summary", app.Handlers.PlayerHandler.GetRosterSummary)
 
 	// Allocations
+	// Player tickets: the team's sheets with every player's ticket code, to print
+	// and hand to the gate. Codes are issued when a sheet is saved; issue fills gaps.
+	thRoutes.GET("/player-tickets", app.Handlers.PlayerTicketHandler.ListMySheets)
+	thRoutes.GET("/player-tickets/:matchId", app.Handlers.PlayerTicketHandler.GetMySheet)
+	thRoutes.POST("/player-tickets/:matchId/issue", app.Handlers.PlayerTicketHandler.IssueMySheet)
+
 	thRoutes.GET("/allocations", app.Handlers.TeamTicketAllocationHandler.GetTeamAllocations)
 	thRoutes.POST("/allocations/issue", app.Handlers.TeamTicketAllocationHandler.IssueTeamTicket)
 
@@ -953,6 +969,8 @@ func SetupPlayerPortalRoutes(r *gin.RouterGroup, app *api.Application) {
 		ppGroup.GET("/contracts/:id", app.Handlers.ContractHandler.GetContractByID)
 		ppGroup.PUT("/contracts/:id/respond", app.Handlers.ContractHandler.RespondToContract)
 		ppGroup.GET("/transfers", app.Handlers.TransferHandler.GetMyTransfers)
+		// The player's own ticket code for each match they are named for.
+		ppGroup.GET("/tickets", app.Handlers.PlayerTicketHandler.GetMyTickets)
 	}
 }
 

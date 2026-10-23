@@ -63,6 +63,11 @@ import type {
   PurchaseTicketPayload,
   GiftTicketPayload,
   TeamTicketAllocation,
+  PlayerTicketSheet,
+  PlayerTicketDay,
+  PlayerTicketDaySheets,
+  PlayerTicketIssueResult,
+  MyPlayerTicket,
   CreateReferralPayload,
   ReferralResponse,
   ReferralStatsResponse,
@@ -1669,6 +1674,69 @@ export const issueTeamTicket = async (payload: {
   return response.data;
 };
 
+// ─── Player tickets ──────────────────────────────────────────────────────────
+// Every player named on a team sheet gets a ticket with their own code. A team
+// head's calls are scoped to their team; team-portal admins pass the team.
+
+export const getMyPlayerTicketSheets = async (
+  teamId?: string,
+): Promise<PlayerTicketSheet[]> => {
+  const response = await api.get<{ data: PlayerTicketSheet[] }>(
+    "/team-head/player-tickets",
+    { params: { team_id: teamId } },
+  );
+  return response.data.data || [];
+};
+
+export const getMyPlayerTicketSheet = async (
+  matchId: string,
+  teamId?: string,
+): Promise<PlayerTicketSheet> => {
+  const response = await api.get<PlayerTicketSheet>(
+    `/team-head/player-tickets/${matchId}`,
+    { params: { team_id: teamId } },
+  );
+  return response.data;
+};
+
+export const issueMyPlayerTickets = async (
+  matchId: string,
+  teamId?: string,
+): Promise<PlayerTicketIssueResult> => {
+  const response = await api.post<PlayerTicketIssueResult>(
+    `/team-head/player-tickets/${matchId}/issue`,
+    null,
+    { params: { team_id: teamId } },
+  );
+  return response.data;
+};
+
+export const adminGetPlayerTicketDays = async (): Promise<PlayerTicketDay[]> => {
+  const response = await api.get<{ data: PlayerTicketDay[] }>(
+    "/admin/player-tickets/days",
+  );
+  return response.data.data || [];
+};
+
+export const adminGetPlayerTicketDaySheets = async (
+  dayId: string,
+): Promise<PlayerTicketDaySheets> => {
+  const response = await api.get<PlayerTicketDaySheets>(
+    `/admin/player-tickets/days/${dayId}`,
+  );
+  return response.data;
+};
+
+export const adminIssuePlayerTickets = async (
+  matchId: string,
+  teamId: string,
+): Promise<PlayerTicketIssueResult> => {
+  const response = await api.post<PlayerTicketIssueResult>(
+    `/admin/player-tickets/matches/${matchId}/teams/${teamId}/issue`,
+  );
+  return response.data;
+};
+
 // ─── Stats ───────────────────────────────────────────────────────────────────
 export const getPlayerStats = async (
   compId?: string,
@@ -2573,6 +2641,12 @@ export const playerPortalApi = {
     notes?: string,
   ): Promise<void> => {
     await api.put(`/player-portal/contracts/${id}/respond`, { action, notes });
+  },
+  getMyTickets: async (): Promise<MyPlayerTicket[]> => {
+    const res = await api.get<{ data: MyPlayerTicket[] }>(
+      "/player-portal/tickets",
+    );
+    return res.data.data || [];
   },
   getMyTransfers: async (params?: {
     page?: number;
