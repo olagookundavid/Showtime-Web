@@ -170,10 +170,10 @@ export function FantasyPlayerModal({
       footer={
         <>
           <Link
-            to={`/players/${player.playerId}`}
+            to={`/fantasy/players/${player.playerId}`}
             className="inline-flex items-center gap-1.5 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:text-sffl-red transition sm:mr-auto"
           >
-            View Full Season Stats{" "}
+            Full Fantasy Page{" "}
             <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" aria-hidden="true" />
           </Link>
           <Button variant="secondary" className="uppercase tracking-wider" onClick={onClose}>

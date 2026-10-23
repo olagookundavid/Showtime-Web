@@ -23,7 +23,7 @@ import {
   FantasyPlayerModal,
   PlayerAvatar,
   PlayerLeaderboardLegend,
-  PlayerLink,
+  FantasyPlayerLink,
   Select,
   playerLeaderboardGuide,
   type Column,
@@ -216,13 +216,13 @@ export function FantasyPlayerLeaderboard() {
               zoomable
             />
             <div className="min-w-0">
-              <PlayerLink
+              <FantasyPlayerLink
                 id={p.player_id}
                 className="block text-sm font-black text-gray-900 dark:text-white truncate"
                 title={`View ${p.player_name}'s profile`}
               >
                 {p.player_name}
-              </PlayerLink>
+              </FantasyPlayerLink>
               <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500 dark:text-gray-400">
                 <span className="font-bold text-gray-700 dark:text-gray-300">
                   {p.position}

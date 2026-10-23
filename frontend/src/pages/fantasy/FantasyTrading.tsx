@@ -478,7 +478,7 @@ function MarketRow({
     return (
         <div className="p-3 sm:p-4 flex items-center gap-3">
             {/* Face. Falls back to initials rather than a broken image box. */}
-            <Link to={`/players/${player.player_id}`} className="shrink-0">
+            <Link to={`/fantasy/players/${player.player_id}`} className="shrink-0">
                 {player.player_image ? (
                     <img
                         src={player.player_image}
@@ -494,7 +494,7 @@ function MarketRow({
 
             <div className="min-w-0 flex-1">
                 <Link
-                    to={`/players/${player.player_id}`}
+                    to={`/fantasy/players/${player.player_id}`}
                     className="text-sm font-bold text-gray-900 dark:text-white hover:text-sffl-red transition truncate block"
                 >
                     {player.player_name}

@@ -2,6 +2,7 @@ package tests_integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"testing"
@@ -148,4 +149,44 @@ func TestPlayerLeaderboardAgainstTheSchema(t *testing.T) {
 		}
 	})
 
+
+	t.Run("player detail reads the games, the club on each side, and the price history", func(t *testing.T) {
+		games, err := repo.GetPlayerMatchStats(ctx, f.seasonID, f.playerID)
+		if err != nil {
+			t.Fatalf("GetPlayerMatchStats: %v", err)
+		}
+		if len(games) != 1 || games[0].GameweekID != f.gameweekID || games[0].Stat.PlayerID != f.playerID {
+			t.Fatalf("games = %+v, want the receiver's one game tagged with its gameweek", games)
+		}
+		if games[0].HomeShort != "ITC" || games[0].AwayShort != "ITC" {
+			t.Errorf("the match's clubs = %q v %q, want the fixture club on both sides", games[0].HomeShort, games[0].AwayShort)
+		}
+		if other, _ := repo.GetPlayerMatchStats(ctx, f.seasonID, unpickedID); len(other) != 1 {
+			t.Errorf("each player only gets their own stat lines, got %d for the other player", len(other))
+		}
+
+		svc := services.NewFantasyService(repo, nil, nil, nil, nil)
+		d, err := svc.GetFantasyPlayerDetail(ctx, f.seasonID, f.playerID, "")
+		if err != nil {
+			t.Fatalf("GetFantasyPlayerDetail: %v", err)
+		}
+		want := domain.FantasyWeights{}.Calculate(domain.PlayerStat{Receptions: 5, ReceivingYards: 80, ReceivingTDs: 1}).NetTotal
+		if len(d.Matches) != 1 || math.Abs(d.Matches[0].Points-want) > 0.01 || d.Matches[0].GameNumber != 1 {
+			t.Errorf("games = %+v, want one game of %v pts", d.Matches, want)
+		}
+		if d.Player.Club.ShortName != "ITC" || d.Summary.Price != 11.5 {
+			t.Errorf("club %q, price %v; want ITC and the live 11.5", d.Player.Club.ShortName, d.Summary.Price)
+		}
+		// The repriced gameweek row (11.5) and the opening price (10), newest first.
+		if len(d.PriceHistory) != 2 || d.PriceHistory[0].Price != 11.5 || d.PriceHistory[1].Price != 10 {
+			t.Errorf("price history = %+v", d.PriceHistory)
+		}
+		if len(d.Gameweeks) != 1 || d.Gameweeks[0].Price != 11.5 || d.Gameweeks[0].StartedBy != 1 {
+			t.Errorf("gameweeks = %+v", d.Gameweeks)
+		}
+
+		if _, err := svc.GetFantasyPlayerDetail(ctx, f.seasonID, "00000000-0000-0000-0000-000000000000", ""); !errors.Is(err, services.ErrFantasyPlayerNotFound) {
+			t.Errorf("unknown player = %v, want ErrFantasyPlayerNotFound", err)
+		}
+	})
 }

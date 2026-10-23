@@ -13,7 +13,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { fantasyApi } from "../../services/api";
 import type { FantasyLineupPick } from "../../types";
-import { FantasyBackLink, Button, Select, DataTable } from "../../components";
+import { FantasyBackLink, FantasyPlayerLink, Button, Select, DataTable } from "../../components";
 
 type AnalyticsTab =
   | "ownership"
@@ -397,7 +397,7 @@ export function FantasyAnalytics() {
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
-                                <span className="truncate">{p.player_name}</span>
+                                <FantasyPlayerLink id={p.player_id} className="truncate">{p.player_name}</FantasyPlayerLink>
                                 <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                                   {p.gender}
                                 </span>
@@ -531,7 +531,7 @@ export function FantasyAnalytics() {
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
-                                <span className="truncate">{p.player_name}</span>
+                                <FantasyPlayerLink id={p.player_id} className="truncate">{p.player_name}</FantasyPlayerLink>
                                 <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                                   {p.gender}
                                 </span>
@@ -803,7 +803,7 @@ export function FantasyAnalytics() {
 
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-sm text-gray-900 dark:text-white truncate">
-                              {p.player_name}
+                              <FantasyPlayerLink id={p.player_id}>{p.player_name}</FantasyPlayerLink>
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
                               <span>{p.team_short_name || p.team_name}</span>
@@ -856,7 +856,7 @@ function DreamTeamRow({ pick }: { pick: FantasyLineupPick }) {
         </span>
         <div className="min-w-0">
           <p className="font-bold text-gray-900 dark:text-white truncate flex items-center gap-1">
-            <span>{pick.player_name}</span>
+            <FantasyPlayerLink id={pick.player_id}>{pick.player_name}</FantasyPlayerLink>
             <span className="text-[10px] font-bold text-gray-500">
               ({pick.gender})
             </span>

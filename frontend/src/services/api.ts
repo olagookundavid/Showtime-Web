@@ -129,6 +129,7 @@ import type {
   FantasySeason,
   FantasyGameweek,
   FantasyPlayerListItem,
+  FantasyPlayerDetail,
   PlayerLeaderboardResponse,
   PlayerLeaderboardSort,
   MarketSort,
@@ -3013,6 +3014,18 @@ export const fantasyApi = {
     const res = await api.get<PlayerLeaderboardResponse>(
       `/fantasy/season/${seasonId}/players/leaderboard`,
       { params },
+    );
+    return res.data;
+  },
+  /** One player's fantasy season: ranked figures, games, gameweeks, price history and facts. */
+  getFantasyPlayerDetail: async (
+    seasonId: string,
+    playerId: string,
+    gameweekId?: string,
+  ): Promise<FantasyPlayerDetail> => {
+    const res = await api.get<FantasyPlayerDetail>(
+      `/fantasy/season/${seasonId}/players/${playerId}`,
+      { params: gameweekId ? { gameweek_id: gameweekId } : undefined },
     );
     return res.data;
   },

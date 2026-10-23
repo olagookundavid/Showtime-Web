@@ -73,6 +73,7 @@ type IFantasyRepository interface {
 	GetSeasonGameweekStats(ctx context.Context, seasonID string) ([]GameweekPlayerStat, error)
 	GetSeasonLineupStarts(ctx context.Context, seasonID string) ([]GameweekStarts, error)
 	CountSeasonTeams(ctx context.Context, seasonID string) (int, error)
+	GetPlayerMatchStats(ctx context.Context, seasonID, playerID string) ([]PlayerMatchStat, error)
 	// GetSeasonRatingLines aggregates every rateable player's season-to-date
 	// stat totals for a competition, so prices can be recomputed from ratings.
 	GetSeasonRatingLines(ctx context.Context, competitionID string) ([]PlayerRatingLine, error)
@@ -150,6 +151,17 @@ type LeaderboardPlayerRow struct {
 type GameweekPlayerStat struct {
 	GameweekID string
 	Stat       domain.PlayerStat
+}
+
+// PlayerMatchStat is one of a player's stat lines with the match it came from,
+// so the detail page can show the opponent and the result beside the points.
+type PlayerMatchStat struct {
+	GameweekID                                string
+	Stat                                      domain.PlayerStat
+	HomeTeamID, HomeName, HomeShort, HomeLogo string
+	AwayTeamID, AwayName, AwayShort, AwayLogo string
+	HomeScore, AwayScore                      *int
+	MatchStatus                               string
 }
 
 // GameweekStarts counts a gameweek's locked lineups and how many of them start
@@ -3511,4 +3523,62 @@ func (r *FantasyRepository) CountSeasonTeams(ctx context.Context, seasonID strin
 		return 0, fmt.Errorf("failed to count fantasy teams: %w", err)
 	}
 	return n, nil
+}
+
+// GetPlayerMatchStats returns the player's stat line for every game they played
+// in the season, with the match, both clubs and the score, oldest first.
+func (r *FantasyRepository) GetPlayerMatchStats(ctx context.Context, seasonID, playerID string) ([]PlayerMatchStat, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		WITH `+seasonMatchesCTE+`
+		SELECT sm.gameweek_id::text,
+		       ps.id, ps.player_id, ps.team_id, ps.match_id, ps.competition_id, ps.match_date,
+		       ps.passing_attempts, ps.rushing_attempts, ps.completed_passes, ps.incomplete_passes,
+		       ps.uncatchable_passes, ps.thrown_away_passes, ps.batted_down_passes, ps.targets,
+		       ps.passing_yards, ps.rushing_yards, ps.receiving_yards, ps.passing_tds, ps.rushing_tds,
+		       ps.interceptions_thrown, ps.receptions, ps.receiving_tds, ps.extra_points_tds,
+		       ps.xp_attempts, ps.xp_good, ps.xp_fail, ps.drops, ps.flag_pulls, ps.pass_deflections,
+		       ps.interceptions, ps.defensive_tds, ps.safety, ps.safety_conceded, ps.qb_sacks,
+		       ps.def_sacks, ps.defensive_xp_tds, ps.qb_drives, ps.qb_turnovers, ps.qb_punts,
+		       ps.snaps, ps.bad_snaps, ps.created_at, ps.updated_at,
+		       COALESCE(m.home_team_id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
+		       COALESCE(m.away_team_id::text, ''), COALESCE(at.name, ''), COALESCE(at.short_name, ''), COALESCE(at.logo, ''),
+		       m.home_score, m.away_score, COALESCE(m.status, '')
+		FROM season_matches sm
+		JOIN player_stats ps ON ps.match_id = sm.match_id AND ps.player_id = $2
+		JOIN matches m ON m.id = sm.match_id
+		LEFT JOIN teams ht ON ht.id = m.home_team_id
+		LEFT JOIN teams at ON at.id = m.away_team_id
+		ORDER BY m.date ASC, m.time ASC, m.id ASC
+	`, seasonID, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query player match stats: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]PlayerMatchStat, 0)
+	for rows.Next() {
+		var g PlayerMatchStat
+		s := &g.Stat
+		if err := rows.Scan(&g.GameweekID,
+			&s.ID, &s.PlayerID, &s.TeamID, &s.MatchID, &s.CompetitionID, &s.MatchDate,
+			&s.PassingAttempts, &s.RushingAttempts, &s.CompletedPasses, &s.IncompletePasses,
+			&s.UncatchablePasses, &s.ThrownAwayPasses, &s.BattedDownPasses, &s.Targets,
+			&s.PassingYards, &s.RushingYards, &s.ReceivingYards, &s.PassingTDs, &s.RushingTDs,
+			&s.InterceptionsThrown, &s.Receptions, &s.ReceivingTDs, &s.ExtraPointsTDs,
+			&s.XPAttempts, &s.XPGood, &s.XPFail, &s.Drops, &s.FlagPulls, &s.PassDeflections,
+			&s.Interceptions, &s.DefensiveTDs, &s.Safety, &s.SafetyConceded, &s.QBSacks,
+			&s.DefSacks, &s.DefensiveXPTDs, &s.QBDrives, &s.QBTurnovers, &s.QBPunts,
+			&s.Snaps, &s.BadSnaps, &s.CreatedAt, &s.UpdatedAt,
+			&g.HomeTeamID, &g.HomeName, &g.HomeShort, &g.HomeLogo,
+			&g.AwayTeamID, &g.AwayName, &g.AwayShort, &g.AwayLogo,
+			&g.HomeScore, &g.AwayScore, &g.MatchStatus,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan player match stat: %w", err)
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
 }

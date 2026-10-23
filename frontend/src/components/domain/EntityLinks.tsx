@@ -30,6 +30,13 @@ const EntityLink = ({ to, id, children, className = '', title }: EntityLinkProps
 export const PlayerLink = (props: EntityLinkProps) => <EntityLink to="/players" {...props} />;
 
 /**
+ * A player's name that opens their fantasy page (/fantasy/players/:id): their
+ * fantasy season, with a link on to the real player profile. Use it wherever a
+ * name appears inside fantasy, so people stay in fantasy as they click around.
+ */
+export const FantasyPlayerLink = (props: EntityLinkProps) => <EntityLink to="/fantasy/players" {...props} />;
+
+/**
  * A team's name that opens its page: the public team page (/teams/:id), or with
  * `admin` the admin team page (/admin/teams/:id) so admins stay in the dashboard.
  */

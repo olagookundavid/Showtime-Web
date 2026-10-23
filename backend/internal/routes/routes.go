@@ -1009,6 +1009,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
 		fantasyRoutes.GET("/season/:id/market/filters", app.Handlers.FantasyHandler.ListMarketFilters)
 		fantasyRoutes.GET("/season/:id/players/leaderboard", app.Handlers.FantasyHandler.GetPlayerLeaderboard)
+		fantasyRoutes.GET("/season/:id/players/:player_id", app.Handlers.FantasyHandler.GetFantasyPlayerDetail)
 		fantasyRoutes.GET("/carousel", app.Handlers.FantasyCarouselHandler.ListPublic)
 		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
 		fantasyRoutes.GET("/players/:id/price-history", app.Handlers.FantasyHandler.GetPlayerPriceHistory)

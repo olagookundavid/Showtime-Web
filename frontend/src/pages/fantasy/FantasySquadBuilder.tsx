@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { isDeletedPlayer, FemaleIcon, Button, Field, Input, Select, Modal, Spinner, Loader, PlayerAvatar, PlayerLink, FantasyBackLink, FantasyPitch } from "../../components";
+import { isDeletedPlayer, FemaleIcon, Button, Field, Input, Select, Modal, Spinner, Loader, PlayerAvatar, FantasyPlayerLink, FantasyBackLink, FantasyPitch } from "../../components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
@@ -2323,12 +2323,12 @@ export function FantasySquadBuilder() {
                   {/* Opens the player's profile. There is no fantasy player
                       page yet, so this is the league one for now. */}
                   <h3 className="text-base font-black truncate text-gray-900 dark:text-white mt-0.5">
-                    <PlayerLink
+                    <FantasyPlayerLink
                       id={squad[actionSlot]!.player_id}
                       title={`View ${squad[actionSlot]!.player_name}'s profile`}
                     >
                       {squad[actionSlot]!.player_name}
-                    </PlayerLink>
+                    </FantasyPlayerLink>
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     <span className="font-bold text-gray-700 dark:text-gray-200">

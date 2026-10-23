@@ -490,3 +490,90 @@ type PlayerLeaderboardResponse struct {
 	Teams           []MarketFilterTeam           `json:"teams"`
 	Positions       []string                     `json:"positions"`
 }
+
+// ─── Fantasy player detail ───────────────────────────────────────────────────
+
+// FantasyPlayerDetailQuery picks the view: the whole season, or one gameweek.
+type FantasyPlayerDetailQuery struct {
+	GameweekID string
+}
+
+type FantasyDetailClub struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ShortName string `json:"short_name"`
+	Logo      string `json:"logo"`
+}
+
+type FantasyDetailPlayer struct {
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Image             string            `json:"image"`
+	Position          string            `json:"position"`
+	Gender            string            `json:"gender"`
+	Club              FantasyDetailClub `json:"club"`
+	Available         bool              `json:"available"`
+	UnavailableReason string            `json:"unavailable_reason,omitempty"`
+}
+
+// FantasyDetailGameweek is one played gameweek in the player's season.
+type FantasyDetailGameweek struct {
+	ID           string  `json:"id"`
+	Number       int     `json:"number"`
+	Points       float64 `json:"points"`
+	Games        int     `json:"games"`
+	StartedBy    int     `json:"started_by"`
+	StartedByPct float64 `json:"started_by_pct"`
+	// Price is what the player cost after this gameweek was scored; zero when no
+	// price was recorded for it.
+	Price       float64 `json:"price"`
+	PriceChange float64 `json:"price_change"`
+}
+
+// FantasyScoreLine is one thing that earned (or cost) points in a match.
+type FantasyScoreLine struct {
+	Label  string  `json:"label"`
+	Points float64 `json:"points"`
+}
+
+// FantasyDetailMatch is one game the player played, with what they scored in it.
+type FantasyDetailMatch struct {
+	MatchID        string             `json:"match_id"`
+	GameNumber     int                `json:"game_number"` // 1 for their first game of the season
+	GameweekID     string             `json:"gameweek_id"`
+	GameweekNumber int                `json:"gameweek_number"`
+	Date           time.Time          `json:"date"`
+	Opponent       FantasyDetailClub  `json:"opponent"`
+	Home           bool               `json:"home"`
+	Result         string             `json:"result"` // "W 24-18", "L 12-30", "D 6-6", or "" until finished
+	Points         float64            `json:"points"`
+	Scoring        []FantasyScoreLine `json:"scoring"`
+}
+
+// FantasyDetailFact is one short, notable thing about the player.
+type FantasyDetailFact struct {
+	Key    string `json:"key"`
+	Label  string `json:"label"`
+	Value  string `json:"value"`
+	Detail string `json:"detail,omitempty"`
+}
+
+type FantasyPlayerDetailResponse struct {
+	Player FantasyDetailPlayer `json:"player"`
+	// Gameweek is the one asked for; nil is the whole season.
+	Gameweek *PlayerLeaderboardGameweek `json:"gameweek"`
+	// Summary has the same figures as a leaderboard row, ranked among every
+	// player over the same view.
+	Summary      PlayerLeaderboardItem `json:"summary"`
+	PoolSize     int                   `json:"pool_size"`
+	PositionRank int                   `json:"position_rank"`
+	PositionSize int                   `json:"position_size"`
+	SquadCount   int                   `json:"squad_count"`
+	// Gameweeks always covers every played gameweek, so the picker and the
+	// per-gameweek table do not shrink when one is chosen.
+	Gameweeks []FantasyDetailGameweek `json:"gameweeks"`
+	// Matches is every game in the chosen view, oldest first.
+	Matches      []FantasyDetailMatch     `json:"matches"`
+	PriceHistory []PlayerPriceHistoryItem `json:"price_history"`
+	Facts        []FantasyDetailFact      `json:"facts"`
+}
