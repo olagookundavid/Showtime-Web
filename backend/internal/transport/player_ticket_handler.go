@@ -4,9 +4,12 @@ import (
 	"errors"
 	"net/http"
 
+	"pkg-common/helpers"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/services"
 )
 
@@ -17,6 +20,9 @@ type IPlayerTicketHandler interface {
 	ListMySheets(c *gin.Context)
 	GetMySheet(c *gin.Context)
 	IssueMySheet(c *gin.Context)
+
+	// A player's own tickets, for their portal.
+	GetMyTickets(c *gin.Context)
 
 	// Admin and ticketers.
 	ListSheetDays(c *gin.Context)
@@ -239,4 +245,29 @@ func (h *PlayerTicketHandler) IssueSheet(c *gin.Context) {
 		return
 	}
 	h.issueAndRespond(c, matchID, teamID)
+}
+
+// GetMyTickets godoc
+// @Summary The signed-in player's own tickets, with the code to show at the gate
+// @Tags player-tickets
+// @Produce json
+// @Success 200
+// @Router /api/v1/player-portal/tickets [get]
+func (h *PlayerTicketHandler) GetMyTickets(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	tickets, err := h.service.MyTickets(c.Request.Context(), payload.UserId)
+	if err != nil {
+		// 409, not 500: the account is fine, it just has no player attached yet.
+		if errors.Is(err, appErrors.ErrPlayerNotLinked) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error(), "code": "PLAYER_NOT_LINKED"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": tickets})
 }

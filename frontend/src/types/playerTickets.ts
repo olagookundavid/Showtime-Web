@@ -81,3 +81,14 @@ export interface PlayerTicketIssueResult {
     /** Set when some players could not be given a ticket. */
     error?: string;
 }
+
+/** One of the signed-in player's own tickets, with the code to show at the gate. */
+export interface MyPlayerTicket {
+    ticket_id: string;
+    ticket_code: string;
+    status: string;
+    checked_in_at?: string;
+    team_name: string;
+    opponent: string;
+    match: PlayerTicketMatch;
+}

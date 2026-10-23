@@ -39,6 +39,17 @@ type SheetPlayer struct {
 	IsStarter bool
 }
 
+// MyPlayerTicketRow is a player ticket with the match it is for, as a player sees it.
+type MyPlayerTicketRow struct {
+	TicketID    string
+	TicketCode  string
+	Status      string
+	CheckedInAt *time.Time
+	TeamID      string
+	TeamName    string
+	Match       PlayerTicketMatch
+}
+
 // SheetRef is one team's sheet for one match.
 type SheetRef struct {
 	MatchID string
@@ -68,6 +79,10 @@ type PlayerTicketRepository interface {
 	GetDay(ctx context.Context, eventDayID string) (*domain.EventDay, error)
 	// Holder is who a player ticket admits and for which match.
 	Holder(ctx context.Context, ticketID string) (*domain.PlayerTicketHolder, error)
+	// MyTickets is the live player tickets of the player an account is linked to,
+	// upcoming matches first (soonest first), then played ones (latest first).
+	// linked is false when the account has no player behind it.
+	MyTickets(ctx context.Context, userID string, limit int) (tickets []MyPlayerTicketRow, linked bool, err error)
 }
 
 type PostgresPlayerTicketRepository struct {
@@ -283,4 +298,49 @@ func (r *PostgresPlayerTicketRepository) GetDay(ctx context.Context, eventDayID 
 		return nil, err
 	}
 	return &ed, nil
+}
+
+func (r *PostgresPlayerTicketRepository) MyTickets(ctx context.Context, userID string, limit int) ([]MyPlayerTicketRow, bool, error) {
+	var linked bool
+	if err := r.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM players WHERE user_id = $1::uuid)`, userID).Scan(&linked); err != nil {
+		return nil, false, err
+	}
+	if !linked {
+		return nil, false, nil
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT t.id::text, t.ticket_code, t.status, 
+		       (SELECT MIN(td.checked_in_at) FROM ticket_days td WHERE td.ticket_id = t.id),
+		       COALESCE(t.team_id::text, ''), COALESCE(tm.name, ''),
+		       m.id::text, m.date, CASE WHEN m.time = '00:00' THEN '' ELSE to_char(m.time, 'HH24:MI') END,
+		       COALESCE(m.status, ''), COALESCE(m.venue, ''), COALESCE(c.name, ''),
+		       COALESCE(m.home_team_id::text, ''), COALESCE(ht.name, ''),
+		       COALESCE(m.away_team_id::text, ''), COALESCE(at.name, '')
+		FROM tickets t
+		JOIN players p ON p.id = t.player_id AND p.user_id = $1::uuid
+		JOIN matches m ON m.id = t.match_id
+		LEFT JOIN teams tm ON tm.id = t.team_id
+		LEFT JOIN competitions c ON c.id = m.competition_id
+		LEFT JOIN teams ht ON ht.id = m.home_team_id
+		LEFT JOIN teams at ON at.id = m.away_team_id
+		WHERE t.purchase_type = 'PLAYER' AND t.status IN ('PAID', 'USED', 'EXPIRED')
+		ORDER BY (m.date < `+lagosToday+`), 
+		         CASE WHEN m.date >= `+lagosToday+` THEN m.date END ASC,
+		         m.date DESC, m.time DESC
+		LIMIT $2`, userID, limit)
+	if err != nil {
+		return nil, true, err
+	}
+	defer rows.Close()
+	out := []MyPlayerTicketRow{}
+	for rows.Next() {
+		var x MyPlayerTicketRow
+		if err := rows.Scan(&x.TicketID, &x.TicketCode, &x.Status, &x.CheckedInAt, &x.TeamID, &x.TeamName,
+			&x.Match.ID, &x.Match.Date, &x.Match.Kickoff, &x.Match.Status, &x.Match.Venue, &x.Match.Competition,
+			&x.Match.HomeTeamID, &x.Match.HomeTeam, &x.Match.AwayTeamID, &x.Match.AwayTeam); err != nil {
+			return nil, true, err
+		}
+		out = append(out, x)
+	}
+	return out, true, rows.Err()
 }

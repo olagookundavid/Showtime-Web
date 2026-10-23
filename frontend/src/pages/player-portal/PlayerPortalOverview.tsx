@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, ChevronRightIcon, EnvelopeIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { playerPortalApi } from '../../services/api';
-import type { ContractData, OfferResponse } from '../../types';
-import { DashboardPageHeader, RunnerIcon, Button, Spinner, NotLinkedNotice, OfferResponseDialog, PLAYER_PORTAL_CONTRACTS_PATH, apiError, TeamLink } from '../../components';
+import type { ContractData, MyPlayerTicket, OfferResponse } from '../../types';
+import { DashboardPageHeader, RunnerIcon, Button, Spinner, NotLinkedNotice, OfferResponseDialog, PlayerGameDayTicket, PLAYER_PORTAL_CONTRACTS_PATH, PLAYER_PORTAL_TICKETS_PATH, apiError, TeamLink } from '../../components';
 
 const statLabelClass = 'text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase';
 const statValueClass = 'text-lg sm:text-xl font-black text-gray-900 dark:text-white';
@@ -39,6 +39,23 @@ export const PlayerPortalOverview: React.FC = () => {
         fetchContracts();
     }, []);
 
+    // The ticket for the next match they are named for, if any. A failure here is
+    // not worth interrupting the page for: the Game Day Tickets page says why.
+    const [nextTicket, setNextTicket] = useState<MyPlayerTicket | null>(null);
+    useEffect(() => {
+        let cancelled = false;
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date());
+        playerPortalApi
+            .getMyTickets()
+            .then((res) => {
+                if (!cancelled) setNextTicket(res.find((t) => t.match.date >= today) ?? null);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     const activeContract = contracts.find(c => c.status === 'ACTIVE');
     const pendingOffers = contracts.filter(c => c.status === 'PENDING');
 
@@ -55,6 +72,22 @@ export const PlayerPortalOverview: React.FC = () => {
                 entirely and reads as a contradiction next to the notice. */}
             {notLinked ? <NotLinkedNotice /> : (
             <>
+            {nextTicket && (
+                <section className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Your Next Game Day Ticket</h2>
+                        <Link
+                            to={PLAYER_PORTAL_TICKETS_PATH}
+                            className="inline-flex items-center gap-1 min-h-11 text-xs font-bold text-sffl-red hover:underline"
+                        >
+                            All tickets
+                            <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
+                        </Link>
+                    </div>
+                    <PlayerGameDayTicket ticket={nextTicket} />
+                </section>
+            )}
+
             {/* Pending Offers Alert Section */}
             {pendingOffers.length > 0 && (
                 <section className="space-y-4">

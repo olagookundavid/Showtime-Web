@@ -11,6 +11,7 @@ import (
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/ports"
 	"showtime-backend/pkg/email"
 )
@@ -42,6 +43,9 @@ type IPlayerTicketService interface {
 	// the player rows.
 	TeamSheets(ctx context.Context, teamID string) ([]dto.PlayerTicketSheetResponse, error)
 	SheetDays(ctx context.Context) ([]dto.PlayerTicketDayResponse, error)
+	// MyTickets is the signed-in player's own tickets. It returns
+	// appErrors.ErrPlayerNotLinked when the account has no player behind it.
+	MyTickets(ctx context.Context, userID string) ([]dto.MyPlayerTicket, error)
 	DaySheets(ctx context.Context, eventDayID string) (*dto.PlayerTicketDaySheetsResponse, error)
 }
 
@@ -439,4 +443,36 @@ func (s *TicketService) SendPlayerTicket(ctx context.Context, ticket *domain.Tic
 		})
 	}
 	s.scheduleReminders(ctx, ticket)
+}
+
+// myTicketsLimit caps how far back a player's ticket list goes.
+const myTicketsLimit = 30
+
+func (s *PlayerTicketService) MyTickets(ctx context.Context, userID string) ([]dto.MyPlayerTicket, error) {
+	rows, linked, err := s.repo.MyTickets(ctx, userID, myTicketsLimit)
+	if err != nil {
+		return nil, err
+	}
+	if !linked {
+		return nil, appErrors.ErrPlayerNotLinked
+	}
+	out := make([]dto.MyPlayerTicket, 0, len(rows))
+	for i := range rows {
+		r := &rows[i]
+		_, opponent, _ := teamSide(&r.Match, r.TeamID)
+		t := dto.MyPlayerTicket{
+			TicketID:   r.TicketID,
+			TicketCode: r.TicketCode,
+			Status:     r.Status,
+			TeamName:   r.TeamName,
+			Opponent:   opponent,
+			Match:      matchResponse(&r.Match),
+		}
+		if r.CheckedInAt != nil {
+			at := r.CheckedInAt.Format(time.RFC3339)
+			t.CheckedInAt = &at
+		}
+		out = append(out, t)
+	}
+	return out, nil
 }

@@ -65,6 +65,7 @@ import type {
   PlayerTicketDay,
   PlayerTicketDaySheets,
   PlayerTicketIssueResult,
+  MyPlayerTicket,
   CreateReferralPayload,
   ReferralResponse,
   ReferralStatsResponse,
@@ -2601,6 +2602,12 @@ export const playerPortalApi = {
     notes?: string,
   ): Promise<void> => {
     await api.put(`/player-portal/contracts/${id}/respond`, { action, notes });
+  },
+  getMyTickets: async (): Promise<MyPlayerTicket[]> => {
+    const res = await api.get<{ data: MyPlayerTicket[] }>(
+      "/player-portal/tickets",
+    );
+    return res.data.data || [];
   },
   getMyTransfers: async (params?: {
     page?: number;

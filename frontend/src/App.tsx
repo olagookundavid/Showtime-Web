@@ -333,6 +333,9 @@ const PlayerPortalOverview = lazy(
 const PlayerPortalContracts = lazy(
   () => import("./pages/player-portal/PlayerPortalContracts"),
 );
+const PlayerPortalTickets = lazy(
+  () => import("./pages/player-portal/PlayerPortalTickets"),
+);
 const PlayerPortalTransfers = lazy(() =>
   import("./pages/player-portal/PlayerPortalTransfers").then((m) => ({
     default: m.PlayerPortalTransfers,
@@ -992,6 +995,10 @@ function App() {
                       <Route
                         path="transfers"
                         element={<PlayerPortalTransfers />}
+                      />
+                      <Route
+                        path="tickets"
+                        element={<PlayerPortalTickets />}
                       />
                     </Route>
 

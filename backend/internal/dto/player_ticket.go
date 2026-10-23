@@ -84,3 +84,15 @@ type PlayerTicketSyncResponse struct {
 	Emailed   int `json:"emailed"`
 	Cancelled int `json:"cancelled"`
 }
+
+// MyPlayerTicket is one of the signed-in player's own tickets: the code to show at
+// the gate for a match they are named for.
+type MyPlayerTicket struct {
+	TicketID    string                    `json:"ticket_id"`
+	TicketCode  string                    `json:"ticket_code"`
+	Status      string                    `json:"status"`
+	CheckedInAt *string                   `json:"checked_in_at,omitempty"`
+	TeamName    string                    `json:"team_name"`
+	Opponent    string                    `json:"opponent"`
+	Match       PlayerTicketMatchResponse `json:"match"`
+}

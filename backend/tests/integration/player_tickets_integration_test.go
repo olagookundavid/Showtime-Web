@@ -14,6 +14,7 @@ import (
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 
@@ -375,5 +376,43 @@ func TestPlayerTickets_AdminSeesEverySheetOnTheDay(t *testing.T) {
 	// A team not in the match cannot read its sheet.
 	if _, err := f.service.Sheet(ctx, f.match, awayPlayer); err != services.ErrTeamNotInMatch {
 		t.Errorf("sheet for a team not playing: err = %v", err)
+	}
+}
+
+func TestPlayerTickets_APlayerSeesTheirOwnCodes(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	ctx := context.Background()
+	f.saveSheet(t, "Ada", "Chidi")
+	codes := codesByName(f.sheet(t))
+
+	// Chidi's account is the one that claimed the player; Ada has no account.
+	var chidiUser string
+	if err := f.pool.QueryRow(ctx, `SELECT user_id::text FROM players WHERE id = $1`, f.players["Chidi"]).Scan(&chidiUser); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := f.service.MyTickets(ctx, chidiUser)
+	if err != nil {
+		t.Fatalf("my tickets: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("Chidi sees %d tickets, want 1: %+v", len(got), got)
+	}
+	g := got[0]
+	if g.TicketCode != codes["ZZFIX Chidi"] || g.TeamName != "ZZFIX Home" || g.Opponent != "ZZFIX Away" ||
+		g.Match.Date != "2090-06-06" || g.Match.Kickoff != "14:30" || g.CheckedInAt != nil {
+		t.Errorf("ticket = %+v", g)
+	}
+
+	// A dropped player no longer sees a code; one who was let in sees when.
+	f.saveSheet(t, "Ada")
+	if got, _ := f.service.MyTickets(ctx, chidiUser); len(got) != 0 {
+		t.Errorf("dropped player still sees %d tickets", len(got))
+	}
+
+	// An account with no player behind it is told so, not shown an empty list.
+	other := mustScan(t, f.pool, `INSERT INTO users (full_name, email) VALUES ('ZZFIX Nobody', 'nobody@playerticketfixture.test') RETURNING id::text`)
+	if _, err := f.service.MyTickets(ctx, other); err != appErrors.ErrPlayerNotLinked {
+		t.Errorf("unlinked account: err = %v, want ErrPlayerNotLinked", err)
 	}
 }

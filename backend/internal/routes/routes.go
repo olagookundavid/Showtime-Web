@@ -955,6 +955,8 @@ func SetupPlayerPortalRoutes(r *gin.RouterGroup, app *api.Application) {
 		ppGroup.GET("/contracts/:id", app.Handlers.ContractHandler.GetContractByID)
 		ppGroup.PUT("/contracts/:id/respond", app.Handlers.ContractHandler.RespondToContract)
 		ppGroup.GET("/transfers", app.Handlers.TransferHandler.GetMyTransfers)
+		// The player's own ticket code for each match they are named for.
+		ppGroup.GET("/tickets", app.Handlers.PlayerTicketHandler.GetMyTickets)
 	}
 }
 
