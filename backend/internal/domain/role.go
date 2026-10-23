@@ -68,6 +68,7 @@ const (
 	FeatureInventory          = "inventory"
 	FeatureNews               = "news"
 	FeatureHeroSlides         = "hero_slides"
+	FeatureFantasyCarousel    = "fantasy_carousel"
 	FeatureFAQs               = "faqs"
 	FeatureMedia              = "media"
 	FeatureLiveStream         = "live_stream"
@@ -114,6 +115,7 @@ var FeatureCatalog = []FeatureDef{
 
 	{FeatureNews, "News", "Content", "Publish and edit news.", true},
 	{FeatureHeroSlides, "Hero slides", "Content", "The homepage banner slides.", true},
+	{FeatureFantasyCarousel, "Fantasy carousel", "Content", "The articles featured at the top of the Fantasy page.", true},
 	{FeatureFAQs, "FAQs", "Content", "Edit the questions and answers shown on each page.", true},
 	{FeatureMedia, "Media library", "Content", "Upload files and images to link to from anywhere.", true},
 	{FeatureLiveStream, "Live stream", "Content", "The live stream and replays.", true},

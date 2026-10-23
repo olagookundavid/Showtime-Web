@@ -114,6 +114,11 @@ const FantasyAnalytics = lazy(() =>
     default: m.FantasyAnalytics,
   })),
 );
+const FantasyPlayerDetail = lazy(() =>
+  import("./pages/fantasy/FantasyPlayerDetail").then((m) => ({
+    default: m.FantasyPlayerDetail,
+  })),
+);
 const FantasyPlayerLeaderboard = lazy(() =>
   import("./pages/fantasy/FantasyPlayerLeaderboard").then((m) => ({
     default: m.FantasyPlayerLeaderboard,
@@ -169,6 +174,11 @@ const BroadcastOverlay = lazy(() =>
 );
 const AdminNews = lazy(() =>
   import("./pages/admin/AdminNews").then((m) => ({ default: m.AdminNews })),
+);
+const AdminFantasyCarousel = lazy(() =>
+  import("./pages/admin/AdminFantasyCarousel").then((m) => ({
+    default: m.AdminFantasyCarousel,
+  })),
 );
 const AdminHeroSlides = lazy(() =>
   import("./pages/admin/AdminHeroSlides").then((m) => ({
@@ -579,6 +589,10 @@ function App() {
                         element={<FantasyPlayerLeaderboard />}
                       />
                       <Route
+                        path="/fantasy/players/:id"
+                        element={<FantasyPlayerDetail />}
+                      />
+                      <Route
                         path="/fantasy/reports"
                         element={<Navigate to="/fantasy/analytics" replace />}
                       />
@@ -715,6 +729,14 @@ function App() {
                         element={
                           <FeatureGuard feature="hero_slides">
                             <AdminHeroSlides />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="fantasy-carousel"
+                        element={
+                          <FeatureGuard feature="fantasy_carousel">
+                            <AdminFantasyCarousel />
                           </FeatureGuard>
                         }
                       />

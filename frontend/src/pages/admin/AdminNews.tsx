@@ -17,6 +17,8 @@ import {
 import type { News, CreateNewsPayload } from '../../types';
 import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, RichTextEditor, DashboardPageHeader } from '../../components';
 import { parseYouTubeId, youTubeThumbnailUrl, getApiErrorMessage, isRichTextEmpty } from '../../utils';
+import { FANTASY_NEWS_CATEGORIES, NEWS_CATEGORIES } from '../../constants';
+import { Link } from 'react-router-dom';
 
 interface ArticleForm {
     title: string; excerpt: string; content: string;
@@ -30,7 +32,7 @@ const emptyForm: ArticleForm = {
     author: '', category: '', comments_enabled: true,
 };
 
-const CATEGORIES = ['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'];
+const CATEGORIES = NEWS_CATEGORIES;
 
 const PAGE_SIZE = 10;
 const NO_ROWS: News[] = [];
@@ -275,6 +277,16 @@ export const AdminNews = () => {
                                     </Select>
                                 </Field>
                             </div>
+                            {FANTASY_NEWS_CATEGORIES.includes(form.category) && (
+                                <p className="rounded-lg bg-sffl-red/10 px-3 py-2 text-xs text-gray-700 dark:text-gray-200">
+                                    To show this article at the top of the Fantasy page, add it from the{' '}
+                                    <Link to="/admin/fantasy-carousel" className="font-bold text-sffl-red underline">
+                                        Fantasy Carousel
+                                    </Link>{' '}
+                                    page after saving. You can also write Fantasy articles there with quick add, which
+                                    puts them on the carousel straight away.
+                                </p>
+                            )}
                             <Field label="Excerpt" htmlFor="news-excerpt">
                                 <Textarea id="news-excerpt" value={form.excerpt} onChange={e => set('excerpt', e.target.value)} rows={2} placeholder="Short summary" />
                             </Field>

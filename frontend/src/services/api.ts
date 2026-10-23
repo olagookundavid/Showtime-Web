@@ -14,6 +14,8 @@ import type {
   AdminLiveStatus,
   HeroSlide,
   CreateHeroSlidePayload,
+  FantasyCarouselSlide,
+  UpdateFantasyCarouselSlidePayload,
   UpdateHeroSlidePayload,
   FaqPage,
   FaqPageSummary,
@@ -132,6 +134,7 @@ import type {
   FantasySeason,
   FantasyGameweek,
   FantasyPlayerListItem,
+  FantasyPlayerDetail,
   PlayerLeaderboardResponse,
   PlayerLeaderboardSort,
   MarketSort,
@@ -419,6 +422,42 @@ export const updateHeroSlide = async (
 
 export const deleteHeroSlide = async (id: string) => {
   const response = await api.delete(`/admin/hero-slides/${id}`);
+  return response.data;
+};
+
+// ─── Fantasy carousel ─────────────────────────────────────────────────────────
+// Public: the visible slides, in order, for the top of the Fantasy page.
+export const getFantasyCarousel = async (): Promise<FantasyCarouselSlide[]> => {
+  const response = await api.get<{ data: FantasyCarouselSlide[] }>("/fantasy/carousel");
+  return response.data.data || [];
+};
+
+// Admin: every slide, hidden ones included.
+export const getAdminFantasyCarousel = async (): Promise<FantasyCarouselSlide[]> => {
+  const response = await api.get<{ data: FantasyCarouselSlide[] }>("/admin/fantasy-carousel");
+  return response.data.data || [];
+};
+
+/** Feature an existing news article, after the last slide. */
+export const addFantasyCarouselSlide = async (newsId: string): Promise<FantasyCarouselSlide> => {
+  const response = await api.post<FantasyCarouselSlide>("/admin/fantasy-carousel", { news_id: newsId });
+  return response.data;
+};
+
+/** Publish a new article to the news site and put it straight on the carousel. */
+export const quickAddFantasyArticle = async (payload: CreateNewsPayload): Promise<FantasyCarouselSlide> => {
+  const response = await api.post<FantasyCarouselSlide>("/admin/fantasy-carousel/quick-add", payload);
+  return response.data;
+};
+
+export const updateFantasyCarouselSlide = async (id: string, payload: UpdateFantasyCarouselSlidePayload) => {
+  const response = await api.put(`/admin/fantasy-carousel/${id}`, payload);
+  return response.data;
+};
+
+/** Take a slide off the carousel. The article stays on the news site. */
+export const removeFantasyCarouselSlide = async (id: string) => {
+  const response = await api.delete(`/admin/fantasy-carousel/${id}`);
   return response.data;
 };
 
@@ -3049,6 +3088,18 @@ export const fantasyApi = {
     const res = await api.get<PlayerLeaderboardResponse>(
       `/fantasy/season/${seasonId}/players/leaderboard`,
       { params },
+    );
+    return res.data;
+  },
+  /** One player's fantasy season: ranked figures, games, gameweeks, price history and facts. */
+  getFantasyPlayerDetail: async (
+    seasonId: string,
+    playerId: string,
+    gameweekId?: string,
+  ): Promise<FantasyPlayerDetail> => {
+    const res = await api.get<FantasyPlayerDetail>(
+      `/fantasy/season/${seasonId}/players/${playerId}`,
+      { params: gameweekId ? { gameweek_id: gameweekId } : undefined },
     );
     return res.data;
   },

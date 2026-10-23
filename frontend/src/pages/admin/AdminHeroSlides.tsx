@@ -8,6 +8,7 @@ import {
     EyeIcon,
     EyeSlashIcon,
     FilmIcon,
+    MegaphoneIcon,
     PencilSquareIcon,
     PhotoIcon,
     PlusIcon,
@@ -232,7 +233,7 @@ export const AdminHeroSlides = () => {
                 title="Hero Slides"
                 subtitle={
                     <>
-                        {sortedSlides.length} {sortedSlides.length === 1 ? 'slide' : 'slides'}, in the order visitors see them.
+                        You have {sortedSlides.length} {sortedSlides.length === 1 ? 'slide' : 'slides'}, shown to visitors in this order.
                         Each slide can link to a page or URL of your choice.
                     </>
                 }
@@ -246,6 +247,20 @@ export const AdminHeroSlides = () => {
                     </Button>
                 }
             />
+
+            {/* Temporary notice about the removed five-slide limit: delete this block once everyone knows. */}
+            <div
+                role="status"
+                className="animate-notice-flash flex items-start gap-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-4"
+            >
+                <MegaphoneIcon className="w-5 h-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                <div className="min-w-0">
+                    <p className="font-bold text-amber-900 dark:text-amber-200">Important: the five-slide limit has been removed</p>
+                    <p className="text-sm text-amber-800 dark:text-amber-300 mt-0.5">
+                        You used to be able to add only 5 slides. You can now add as many as you like.
+                    </p>
+                </div>
+            </div>
 
             {isLoading ? (
                 <Loader />

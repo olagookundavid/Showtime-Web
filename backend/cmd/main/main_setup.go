@@ -431,6 +431,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeRepo := ports.NewStoreRepository(pool)
 	importRepo := ports.NewImportRepository(pool)
 	heroSlideRepo := ports.NewHeroSlideRepository(pool)
+	fantasyCarouselRepo := ports.NewFantasyCarouselRepository(pool)
 	faqRepo := ports.NewFAQRepository(pool)
 	mediaRepo := ports.NewMediaRepository(pool)
 	seasonRepo := ports.NewSeasonRepository(pool)
@@ -537,6 +538,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeHandler := transport.NewStoreHandler(storeService, paystackClient)
 	importHandler := transport.NewImportHandler(importService)
 	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
+	fantasyCarouselHandler := transport.NewFantasyCarouselHandler(
+		services.NewFantasyCarouselService(fantasyCarouselRepo, newsService, newsRepo))
 	faqHandler := transport.NewFAQHandler(faqService)
 	mediaHandler := transport.NewMediaHandler(mediaService)
 	seasonHandler := transport.NewSeasonHandler(seasonService)
@@ -589,7 +592,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		authHandler, roleHandler, newsHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, siteEventsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, storeHandler, importHandler,
-		heroSlideHandler, faqHandler, mediaHandler, seasonHandler, playHandler, reliveHandler,
+		heroSlideHandler, fantasyCarouselHandler, faqHandler, mediaHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,

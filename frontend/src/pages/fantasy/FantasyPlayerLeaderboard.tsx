@@ -23,7 +23,7 @@ import {
   FantasyPlayerModal,
   PlayerAvatar,
   PlayerLeaderboardLegend,
-  PlayerLink,
+  FantasyPlayerLink,
   Select,
   playerLeaderboardGuide,
   type Column,
@@ -100,6 +100,7 @@ export function FantasyPlayerLeaderboard() {
   const search = params.get("q") || "";
   const page = Math.max(1, Number(params.get("page")) || 1);
 
+  const [showGuide, setShowGuide] = useState(false);
   const [inspecting, setInspecting] = useState<FantasyPlayerModalData | null>(
     null,
   );
@@ -177,17 +178,27 @@ export function FantasyPlayerLeaderboard() {
       sortActive: sort === key,
       onSort: () => update({ sort: sort === key ? "" : key }),
     });
-    const num =
-      "px-2 py-3 text-xs sm:text-sm font-bold tabular-nums text-gray-700 dark:text-gray-200 whitespace-nowrap";
-    // A heading whose hover hint is the legend's one-line summary.
+    // Every figure column uses the same padding as its heading (headerClassName), a
+    // fixed minimum width and centred text, so each number sits directly under its
+    // label. `wide` is for the two long headings.
+    const num = (wide = false) =>
+      `px-2 py-3 text-center text-xs sm:text-sm font-bold tabular-nums text-gray-700 dark:text-gray-200 whitespace-nowrap ${wide ? "min-w-32" : "min-w-24"}`;
+    const HEADER_PADDING = "px-2 py-2";
+    // A heading with the legend's one-line summary as its hover hint. The table adds
+    // a sort arrow after the label, so a spacer of the same width goes before it:
+    // that keeps the label itself, not label plus arrow, centred over the numbers.
     const guide = playerLeaderboardGuide(gwLabel, isGameweekView);
-    const head = (key: keyof typeof guide, label: string) => (
-      <span title={guide[key].summary}>{label}</span>
+    const head = (key: keyof typeof guide, label: string, sorts = true) => (
+      <span title={guide[key].summary} className="flex items-center gap-1.5">
+        {sorts && <span className="w-4 shrink-0" aria-hidden="true" />}
+        <span>{label}</span>
+      </span>
     );
 
     const cols: Column<PlayerLeaderboardItem>[] = [
       {
-        header: head("player", "Player"),
+        header: head("player", "Player", false),
+        headerClassName: "px-2 py-2 sm:px-4",
         className: "px-2 py-3 sm:px-4 min-w-56",
         cell: (p) => (
           <div className="flex items-center gap-2.5 min-w-0">
@@ -205,13 +216,13 @@ export function FantasyPlayerLeaderboard() {
               zoomable
             />
             <div className="min-w-0">
-              <PlayerLink
+              <FantasyPlayerLink
                 id={p.player_id}
                 className="block text-sm font-black text-gray-900 dark:text-white truncate"
                 title={`View ${p.player_name}'s profile`}
               >
                 {p.player_name}
-              </PlayerLink>
+              </FantasyPlayerLink>
               <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500 dark:text-gray-400">
                 <span className="font-bold text-gray-700 dark:text-gray-300">
                   {p.position}
@@ -242,8 +253,9 @@ export function FantasyPlayerLeaderboard() {
       },
       {
         header: head("points", isGameweekView ? `${gwLabel} pts` : "Pts"),
-        align: "right",
-        className: `${num} text-gray-900! dark:text-white! font-black`,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: `${num()} text-gray-900! dark:text-white! font-black`,
         ...sortable("points"),
         cell: (p) => pts(p.points),
       },
@@ -252,8 +264,9 @@ export function FantasyPlayerLeaderboard() {
     if (!isGameweekView) {
       cols.push({
         header: head("gameweekPoints", `${gwLabel} pts`),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(),
         ...sortable("gameweek_points"),
         cell: (p) => pts(p.gameweek_points),
       });
@@ -262,39 +275,44 @@ export function FantasyPlayerLeaderboard() {
     cols.push(
       {
         header: head("form", "Form"),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(),
         ...sortable("form"),
         cell: (p) => pts(p.form),
       },
       {
         header: head("ppg", "PPG"),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(),
         ...sortable("ppg"),
         cell: (p) => pts(p.points_per_game),
       },
       {
         header: head("apps", "Apps"),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(),
         ...sortable("appearances"),
         cell: (p) => p.appearances,
       },
       {
         header: head("value", "Value"),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(),
         ...sortable("value"),
         cell: (p) => pts(p.value),
       },
       {
         header: head("price", "Price"),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(),
         ...sortable("price"),
         cell: (p) => (
-          <span className="inline-flex flex-col items-end leading-tight">
+          <span className="inline-flex flex-col items-center leading-tight">
             <span>{formatFantasyPrice(p.price)}</span>
             {p.price_change !== 0 && (
               <span
@@ -318,8 +336,9 @@ export function FantasyPlayerLeaderboard() {
       },
       {
         header: head("selected", "Selected"),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(true),
         ...sortable("selected"),
         cell: (p) => (
           <span title={`In ${p.owned_by} of ${data?.squad_count ?? 0} squads`}>
@@ -329,8 +348,9 @@ export function FantasyPlayerLeaderboard() {
       },
       {
         header: head("started", `Started ${gwLabel}`),
-        align: "right",
-        className: num,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: num(true),
         ...sortable("started"),
         cell: (p) => (
           <span
@@ -342,15 +362,17 @@ export function FantasyPlayerLeaderboard() {
       },
       {
         header: head("in", "In"),
-        align: "right",
-        className: `${num} text-emerald-700! dark:text-emerald-400!`,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: `${num()} text-emerald-700! dark:text-emerald-400!`,
         ...sortable("transfers_in"),
         cell: (p) => p.transfers_in.toLocaleString(),
       },
       {
         header: head("out", "Out"),
-        align: "right",
-        className: `${num} text-red-700! dark:text-red-400!`,
+        align: "center",
+        headerClassName: HEADER_PADDING,
+        className: `${num()} text-red-700! dark:text-red-400!`,
         ...sortable("transfers_out"),
         cell: (p) => p.transfers_out.toLocaleString(),
       },
@@ -548,20 +570,21 @@ export function FantasyPlayerLeaderboard() {
 
       {/* Table */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Click a heading to sort. Tap a player to see their fantasy card.
-        </p>
+        <h2 className="text-lg font-black text-sffl-navy dark:text-white">
+          All players
+          {data && (
+            <span className="ml-2 text-sm font-bold text-gray-500 dark:text-gray-400">
+              {data.total.toLocaleString()}
+            </span>
+          )}
+        </h2>
         <Button
-          variant="link"
+          variant="secondary"
           size="sm"
           icon={InformationCircleIcon}
-          onClick={() =>
-            document
-              .getElementById("plb-legend")
-              ?.scrollIntoView({ behavior: "smooth", block: "start" })
-          }
+          onClick={() => setShowGuide(true)}
         >
-          What do these columns mean?
+          Column guide
         </Button>
       </div>
       {isError ? (
@@ -595,9 +618,14 @@ export function FantasyPlayerLeaderboard() {
             onPageChange={(n) => update({ page: n > 1 ? String(n) : "" }, true)}
             onSearchSubmit={(term) => update({ q: term.trim() })}
             onRowClick={openPlayer}
+            // Every row needs an opaque background: the frozen Player column takes it,
+            // and without one the other columns show through it while sliding.
             rowClassName={(p) =>
-              p.available ? "" : "bg-amber-50/40 dark:bg-amber-950/10"
+              p.available
+                ? "bg-white dark:bg-gray-800"
+                : "bg-amber-50 dark:bg-[color-mix(in_oklab,var(--color-amber-950)_30%,var(--color-gray-800))]"
             }
+            scrollHint
             emptyMessage={
               activeFilters > 0
                 ? "No players match these filters."
@@ -609,7 +637,12 @@ export function FantasyPlayerLeaderboard() {
         </div>
       )}
 
-      <PlayerLeaderboardLegend gwLabel={gwLabel} isGameweekView={isGameweekView} />
+      <PlayerLeaderboardLegend
+        open={showGuide}
+        onClose={() => setShowGuide(false)}
+        gwLabel={gwLabel}
+        isGameweekView={isGameweekView}
+      />
 
       <FantasyPlayerModal
         isOpen={!!inspecting}

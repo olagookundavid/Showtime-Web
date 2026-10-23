@@ -16,7 +16,7 @@ import {
 import { fantasySeasonApi } from "../../services/api";
 import type { LeaderboardEntry } from "../../types";
 import { useAuth } from "../../contexts";
-import { AuthRequiredDialog, Loader, FantasyPitch, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
+import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -159,43 +159,13 @@ export function FantasyHub() {
   }
 
   const gameweek = dashboard.current_gameweek;
-  const picks = dashboard.lineup?.picks ?? [];
 
   return (
     <div className="space-y-6 md:space-y-8">
-      {/* My Starting Lineup — positioned ABOVE the dashboard card when entered */}
-      {entered && (
-        <div>
-          {picks.length > 0 ? (
-            <FantasyPitch
-              picks={picks}
-              gameweekLabel={
-                gameweek ? `Gameweek ${gameweek.number}` : undefined
-              }
-              gameweekId={gameweek?.id}
-              showPoints={dashboard.deadline_passed}
-            />
-          ) : (
-            <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                No squad is set for{" "}
-                {gameweek ? `Gameweek ${gameweek.number}` : "this gameweek"}{" "}
-                yet. Pick your{" "}
-                {num(season.squad_size) > 0
-                  ? `${num(season.squad_size)}-player`
-                  : ""}{" "}
-                squad to start scoring points.
-              </p>
-              <Link
-                to="/fantasy/build"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
-              >
-                Build My Squad <ArrowRightIcon className="w-4 h-4" />
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Fantasy news: the articles chosen on the Fantasy Carousel admin page.
+          Renders nothing until one has been added. The team sheet lives on the
+          dashboard, one click away. */}
+      <FantasyNewsCarousel />
 
       {/* Lean, compact Season Dashboard card */}
       <div className="relative overflow-hidden bg-sffl-navy text-white rounded-xl md:rounded-2xl shadow-xl p-5 sm:p-6 md:p-8">
@@ -239,7 +209,7 @@ export function FantasyHub() {
                   <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
                 </ButtonLink>
                 <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
-                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
+                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Leaderboard
                 </ButtonLink>
                 <ButtonLink to="/fantasy/my-team" variant="secondary" tone="dark">
                   <ShieldCheckIcon className="w-4 h-4 text-emerald-400" aria-hidden="true" /> My Active Squad
@@ -281,7 +251,7 @@ export function FantasyHub() {
                   <ChartBarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Weekly Report
                 </ButtonLink>
                 <ButtonLink to="/fantasy/players" variant="secondary" tone="dark">
-                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Stats
+                  <StarIcon className="w-4 h-4 text-yellow-400" aria-hidden="true" /> Player Leaderboard
                 </ButtonLink>
               </>
             )}
@@ -377,7 +347,7 @@ export function FantasyHub() {
           </div>
 
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
-            {topManagers.map((entry, idx) => (
+            {topManagers.slice(0, 3).map((entry, idx) => (
               <button
                 key={entry.team_id ?? idx}
                 type="button"
