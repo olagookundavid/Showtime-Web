@@ -219,7 +219,7 @@ func (s *TicketService) getMatchesForDate(ctx context.Context, date time.Time) [
 	// positionally landed it in search, which looks for a team or competition
 	// *named* "2026-08-15" — so this always came back empty and event days showed
 	// no fixtures.
-	matches, _, _ := s.matchRepo.GetMatches(ctx, "", "", "", 1, 50, "", dateStr)
+	matches, _, _ := s.matchRepo.GetMatches(ctx, "", "", "", 1, 50, "", "", dateStr)
 	return matches
 }
 

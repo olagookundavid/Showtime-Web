@@ -23,7 +23,7 @@ type IMatchService interface {
 	GetTeamsByCompetition(ctx context.Context, competitionID string, status string, page, limit int) ([]dto.TeamResponse, int, error)
 	AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error
 	RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error
-	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error)
+	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, eventDayID string) (dto.PaginatedResult[dto.MatchResponse], error)
 	GetStandings(ctx context.Context, competitionID string, page, limit int) ([]dto.StandingResponse, int, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	// OtherTournamentMatches lists matches that other tournaments already have on a
@@ -331,8 +331,8 @@ func getString(s *string) string {
 	return *s
 }
 
-func (s *MatchService) GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error) {
-	matches, total, err := s.repo.GetMatches(ctx, competitionID, teamID, status, page, limit, search)
+func (s *MatchService) GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, eventDayID string) (dto.PaginatedResult[dto.MatchResponse], error) {
+	matches, total, err := s.repo.GetMatches(ctx, competitionID, teamID, status, page, limit, search, eventDayID)
 	if err != nil {
 		return dto.PaginatedResult[dto.MatchResponse]{}, err
 	}
@@ -1051,7 +1051,7 @@ func isCupSwissRound(round string) bool {
 }
 
 func (s *MatchService) cupMatches(ctx context.Context, competitionID string) ([]domain.Match, error) {
-	matches, _, err := s.repo.GetMatches(ctx, competitionID, "", "", 1, cupMatchLimit, "")
+	matches, _, err := s.repo.GetMatches(ctx, competitionID, "", "", 1, cupMatchLimit, "", "")
 	return matches, err
 }
 

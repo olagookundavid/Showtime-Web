@@ -39,7 +39,7 @@ type MatchRepository interface {
 	CanRemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) (bool, string, error)
 
 	// Matches
-	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error)
+	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, eventDayID string, date ...string) ([]domain.Match, int64, error)
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	// FindMatchesInOtherCompetitions lists matches on a date (YYYY-MM-DD) that belong
@@ -509,7 +509,7 @@ func (r *PostgresMatchRepository) CanRemoveTeamFromCompetition(ctx context.Conte
 }
 
 // --- Matches ---
-func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error) {
+func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, eventDayID string, date ...string) ([]domain.Match, int64, error) {
 	offset := (page - 1) * limit
 
 	// Base query
@@ -573,6 +573,11 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 			args = append(args, parsedDate)
 			whereClause += fmt.Sprintf(" AND m.date = $%d", len(args))
 		}
+	}
+
+	if eventDayID != "" {
+		args = append(args, eventDayID)
+		whereClause += fmt.Sprintf(" AND m.event_day_id = $%d", len(args))
 	}
 
 	// Get Total Count

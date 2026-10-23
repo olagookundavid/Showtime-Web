@@ -570,7 +570,7 @@ export const Layout = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <Link
-                    to="/fantasy"
+                    to="/fantasy/dashboard"
                     onClick={() => setIsMoreMenuOpen(false)}
                     className="flex items-center gap-3 p-3 bg-linear-to-br from-amber-500/10 to-yellow-500/10 dark:from-amber-950/40 dark:to-yellow-950/30 rounded-2xl border border-amber-300/50 dark:border-amber-700/50 active:scale-[0.98] transition-all shadow-xs"
                   >

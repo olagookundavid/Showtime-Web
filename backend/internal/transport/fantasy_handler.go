@@ -28,6 +28,7 @@ type IFantasyHandler interface {
 	GetMyLineup(c *gin.Context)
 	GetTeamLineup(c *gin.Context)
 	GetGameweekReport(c *gin.Context)
+	GetMyPointsHistory(c *gin.Context)
 
 	// Admin
 	AdminListSeasons(c *gin.Context)
@@ -291,6 +292,28 @@ func (h *FantasyHandler) GetTeamLineup(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": res})
+}
+
+func (h *FantasyHandler) GetMyPointsHistory(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	seasonID := c.Query("season_id")
+	if seasonID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "season_id is required"})
+		return
+	}
+
+	res, err := h.service.GetMyPointsHistory(c.Request.Context(), payload.UserId, seasonID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

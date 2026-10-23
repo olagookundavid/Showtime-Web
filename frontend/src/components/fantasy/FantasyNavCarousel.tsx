@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { navLinkClass } from "../ui";
+import type { FantasyNavItem } from "./fantasyNav";
 
-interface FantasyLinksCarouselProps {
-  children: ReactNode;
+interface FantasyNavCarouselProps {
+  items: FantasyNavItem[];
+  activeTo: string;
 }
 
-/** The Fantasy hero's CTA row as a slider, replicating AboutNavCarousel:
+/** The Fantasy hero's section nav as a slider, replicating AboutNavCarousel:
  *  arrow buttons page through the links, which also scroll natively
- *  (touch/trackpad) — so the row never wraps onto a second line, even on
- *  narrow screens. Each child must carry `shrink-0` so it keeps its natural
- *  width inside the scroller instead of being squeezed. */
-export const FantasyLinksCarousel = ({ children }: FantasyLinksCarouselProps) => {
+ *  (touch/trackpad). */
+export const FantasyNavCarousel = ({ items, activeTo }: FantasyNavCarouselProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -32,8 +34,16 @@ export const FantasyLinksCarousel = ({ children }: FantasyLinksCarouselProps) =>
       el.removeEventListener("scroll", updateArrows);
       window.removeEventListener("resize", updateArrows);
     };
-    // Re-measure when the button set itself changes (entered vs. not entered).
-  }, [updateArrows, children]);
+  }, [updateArrows]);
+
+  // Keeps the current page's link in view, e.g. landing straight on a page
+  // whose link sits further along the strip than what's initially visible.
+  useEffect(() => {
+    const link = scrollRef.current?.querySelector<HTMLAnchorElement>(
+      `a[href="${activeTo}"]`,
+    );
+    link?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [activeTo]);
 
   const slide = (direction: 1 | -1) => {
     scrollRef.current?.scrollBy({ left: direction * 220, behavior: "smooth" });
@@ -56,9 +66,21 @@ export const FantasyLinksCarousel = ({ children }: FantasyLinksCarouselProps) =>
       </button>
       <div
         ref={scrollRef}
-        className="no-scrollbar flex scroll-smooth items-center gap-2.5 sm:gap-3 overflow-x-auto px-11"
+        className="no-scrollbar flex scroll-smooth gap-x-6 overflow-x-auto px-11 text-xs font-bold uppercase tracking-wide"
       >
-        {children}
+        {items.map((item) => {
+          const isActive = item.to === activeTo;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              aria-current={isActive ? "page" : undefined}
+              className={`shrink-0 ${navLinkClass(isActive)}`}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </div>
       <button
         type="button"

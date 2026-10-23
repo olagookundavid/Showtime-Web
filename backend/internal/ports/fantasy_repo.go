@@ -121,6 +121,7 @@ type IFantasyRepository interface {
 
 	// Analytics
 	GetGameweekAnalytics(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error)
+	GetTeamPointsHistory(ctx context.Context, seasonID, teamID string) ([]dto.TeamPointsHistoryRow, error)
 }
 
 // PlayerRatingLine pairs a player's rating category with their aggregated stat
@@ -3240,6 +3241,81 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 
 func BuildDreamTeamForTest(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPickResponse, float64) {
 	return buildDreamTeam(scorers)
+}
+
+// GetTeamPointsHistory returns one row per gameweek the team actually played
+// (has a LOCKED lineup for): their own score, their running season total, and
+// where that running total ranked against every team in the season once that
+// gameweek's points were in — a snapshot of the standings as they stood right
+// then, not today's live rank. Reconstructed entirely from fantasy_lineups,
+// so it works for gameweeks that finished long before this endpoint existed.
+func (r *FantasyRepository) GetTeamPointsHistory(ctx context.Context, seasonID, teamID string) ([]dto.TeamPointsHistoryRow, error) {
+	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		WITH team_gw AS (
+			SELECT ft.id AS team_id, fg.id AS gameweek_id, fg.number, fl.points AS raw_points
+			FROM fantasy_teams ft
+			JOIN fantasy_gameweeks fg ON fg.season_id = ft.season_id
+			LEFT JOIN fantasy_lineups fl
+				ON fl.team_id = ft.id AND fl.gameweek_id = fg.id AND fl.status = 'LOCKED'
+			WHERE ft.season_id = $1
+		),
+		cumulative AS (
+			SELECT team_id, gameweek_id, number, raw_points,
+			       SUM(COALESCE(raw_points, 0)) OVER (PARTITION BY team_id ORDER BY number) AS running_total
+			FROM team_gw
+		),
+		ranked AS (
+			SELECT team_id, gameweek_id, number, raw_points, running_total,
+			       ROW_NUMBER() OVER (PARTITION BY number ORDER BY running_total DESC, team_id ASC) AS rnk,
+			       COUNT(*) OVER (PARTITION BY number) AS total_teams,
+			       -- Rank for this gameweek's own score alone, not the cumulative
+			       -- total — "how did I do this week" vs. "where do I stand overall".
+			       ROW_NUMBER() OVER (PARTITION BY number ORDER BY COALESCE(raw_points, 0) DESC, team_id ASC) AS gw_rnk
+			FROM cumulative
+		),
+		gw_summary AS (
+			SELECT fg.id AS gameweek_id,
+			       COALESCE(AVG(fl.points), 0)::float8 AS avg_pts,
+			       COALESCE(MAX(fl.points), 0)::float8 AS max_pts,
+			       COALESCE(MIN(fl.points), 0)::float8 AS min_pts
+			FROM fantasy_gameweeks fg
+			LEFT JOIN fantasy_lineups fl ON fl.gameweek_id = fg.id AND fl.status = 'LOCKED'
+			WHERE fg.season_id = $1
+			GROUP BY fg.id
+		)
+		SELECT r.gameweek_id, r.number, COALESCE(r.raw_points, 0), r.running_total, r.rnk, r.total_teams, r.gw_rnk,
+		       s.avg_pts, s.max_pts, s.min_pts
+		FROM ranked r
+		JOIN gw_summary s ON s.gameweek_id = r.gameweek_id
+		WHERE r.team_id = $2 AND r.raw_points IS NOT NULL
+		ORDER BY r.number ASC
+	`, seasonID, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query team points history: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]dto.TeamPointsHistoryRow, 0)
+	for rows.Next() {
+		var row dto.TeamPointsHistoryRow
+		var avgPts, maxPts, minPts float64
+		if err := rows.Scan(
+			&row.GameweekID, &row.GameweekNumber, &row.Points, &row.RunningTotal, &row.Rank, &row.TotalTeams, &row.GameweekRank,
+			&avgPts, &maxPts, &minPts,
+		); err != nil {
+			return nil, err
+		}
+		row.Points = math.Round(row.Points*10) / 10
+		row.RunningTotal = math.Round(row.RunningTotal*10) / 10
+		row.AveragePoints = math.Round(avgPts*10) / 10
+		row.HighestPoints = math.Round(maxPts*10) / 10
+		row.LowestPoints = math.Round(minPts*10) / 10
+		out = append(out, row)
+	}
+	return out, rows.Err()
 }
 
 // ListMarketFilters returns the clubs and positions present in the season's

@@ -16,7 +16,7 @@ import {
 } from '../../services/api';
 import type { FantasyLineupPick } from '../../types';
 import { useAuth } from '../../contexts';
-import { Loader, Modal, Select, FantasyBackLink, FantasyPitch, Spinner } from '../../components';
+import { Loader, Modal, Select, FantasyPitch, Spinner, ButtonLink } from '../../components';
 
 export function FantasyMyTeam() {
     // Shares the hub/dashboard query key, so this is a cache hit.
@@ -97,9 +97,9 @@ export function FantasyMyTeam() {
                 <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
                     You haven't joined this season yet. It only takes a team name.
                 </p>
-                <Link to="/fantasy" className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95">
+                <ButtonLink to="/fantasy/dashboard" variant="primary" shape="square">
                     Go To The Season
-                </Link>
+                </ButtonLink>
             </div>
         );
     }
@@ -112,9 +112,9 @@ export function FantasyMyTeam() {
                 </div>
                 <h1 className="text-2xl font-black uppercase text-sffl-navy dark:text-white mb-2">No Lineup Found</h1>
                 <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">You haven't drafted your 14-player squad for this gameweek yet.</p>
-                <Link to="/fantasy/build" className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95">
+                <ButtonLink to="/fantasy/build" variant="primary" shape="square">
                     Draft Your Lineup Now
-                </Link>
+                </ButtonLink>
             </div>
         );
     }
@@ -124,7 +124,6 @@ export function FantasyMyTeam() {
 
     return (
         <div className="space-y-6 md:space-y-8">
-            <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -13,7 +13,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { fantasyApi } from "../../services/api";
 import type { FantasyLineupPick } from "../../types";
-import { FantasyBackLink, Button, Select, DataTable } from "../../components";
+import { Button, Select, DataTable } from "../../components";
 
 type AnalyticsTab =
   | "ownership"
@@ -120,8 +120,6 @@ export function FantasyAnalytics() {
 
   return (
     <div className="space-y-6">
-      <FantasyBackLink to="/fantasy" label="Back to Fantasy Hub" />
-
       {/* Hero Header Banner */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl gap-4">
         <div className="min-w-0">
@@ -764,7 +762,7 @@ export function FantasyAnalytics() {
               <div>
                 <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40">
                   <div className="flex items-center gap-2 mb-1">
-                    <LightBulbIcon className="w-4 h-4 text-indigo-400" />
+                    <LightBulbIcon className="w-4 h-4 text-sffl-gold" />
                     <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
                       Differential Heroes
                     </h2>
@@ -820,7 +818,7 @@ export function FantasyAnalytics() {
                             <span className="text-[10px] uppercase font-bold text-gray-400 block">
                               Ownership
                             </span>
-                            <span className="text-xs font-mono font-black text-indigo-600 dark:text-indigo-400">
+                            <span className="text-xs font-mono font-black text-sffl-navy dark:text-white">
                               {p.ownership_percentage}%
                             </span>
                           </div>

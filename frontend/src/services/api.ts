@@ -138,6 +138,7 @@ import type {
   GameweekReportResponse,
   PlayerGWBreakdownResponse,
   PlayerPriceHistoryResponse,
+  TeamPointsHistoryResponse,
   FantasyWallet,
   PayoutStatus,
   PayoutRequest,
@@ -716,6 +717,10 @@ export const getMatches = async (
   /** Narrow to one club. Filtered server-side so a club's fixtures aren't
    *  scattered across pages the client would have to fetch to find them. */
   teamId?: string,
+  /** Narrow to the real-world fixtures a single event day covers — how the
+   *  Fantasy Points page shows what a gameweek's score was actually earned
+   *  against. */
+  eventDayId?: string,
 ): Promise<PaginatedResponse<Match>> => {
   let url = `/matches?page=${page}&limit=${limit}`;
   if (competitionId) {
@@ -729,6 +734,9 @@ export const getMatches = async (
   }
   if (teamId) {
     url += `&team_id=${teamId}`;
+  }
+  if (eventDayId) {
+    url += `&event_day_id=${eventDayId}`;
   }
   const response = await api.get<PaginatedResponse<Match>>(url);
   return response.data;
@@ -3314,6 +3322,16 @@ export const fantasySeasonApi = {
       {
         team_name: teamName,
       },
+    );
+    return res.data.data;
+  },
+  // null, not an empty list, when the manager never entered this season.
+  getPointsHistory: async (
+    seasonId: string,
+  ): Promise<TeamPointsHistoryResponse | null> => {
+    const res = await api.get<{ data: TeamPointsHistoryResponse | null }>(
+      "/fantasy/points-history",
+      { params: { season_id: seasonId } },
     );
     return res.data.data;
   },

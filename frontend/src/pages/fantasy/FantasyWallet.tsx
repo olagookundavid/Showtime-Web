@@ -13,7 +13,7 @@ import {
     BuildingLibraryIcon,
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
-import { Button, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Spinner, Loader, FantasyBackLink } from '../../components';
+import { Button, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Spinner, Loader } from '../../components';
 import {
     fantasyWalletApi,
     formatKobo,
@@ -151,7 +151,7 @@ export function FantasyWallet() {
                     We couldn't load your fantasy wallet right now. Please refresh and try again.
                 </p>
                 <Link
-                    to="/fantasy"
+                    to="/fantasy/dashboard"
                     className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
                 >
                     Back to Fantasy
@@ -187,10 +187,14 @@ export function FantasyWallet() {
 
     const canSubmit = disabledReason === '' && !requestMutation.isPending;
     const transactions = wallet.transactions || [];
+    // True for both "never joined a season" and "joined but hasn't won yet" —
+    // the wallet API returns the same empty shape for both, so the notice
+    // below covers both without guessing which one it is.
+    const walletIsEmpty =
+        wallet.balance_kobo === 0 && wallet.lifetime_won_kobo === 0 && transactions.length === 0;
 
     return (
         <div className="space-y-6 md:space-y-8">
-            <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-bold uppercase mb-2">
@@ -201,6 +205,19 @@ export function FantasyWallet() {
                     Prize money from your leagues lands here. Request a payout and we'll transfer it directly to your bank account.
                 </p>
             </div>
+
+            {walletIsEmpty && (
+                <div className="flex items-start gap-3 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 p-4 sm:p-5">
+                    <InformationCircleIcon className="w-5 h-5 text-sffl-navy dark:text-white shrink-0 mt-0.5" />
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Nothing here yet. Winnings land in this wallet once your squad places in a
+                        scoring league.{' '}
+                        <Link to="/fantasy/dashboard" className="font-bold text-sffl-red hover:text-[#A52323]">
+                            Haven't joined a season? Start here.
+                        </Link>
+                    </p>
+                </div>
+            )}
 
             <div className="space-y-8">
                 {/* ── Balance Hero ──────────────────────────────────────────── */}

@@ -74,7 +74,7 @@ export const FantasyNewsCarousel = () => {
     setCurrentSlide(((index % slideCount) + slideCount) % slideCount);
 
   return (
-    <section className="relative overflow-hidden rounded-xl md:rounded-2xl bg-sffl-navy text-white shadow-xl">
+    <section className="relative overflow-hidden bg-sffl-navy text-white shadow-xl">
       <div
         className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-sffl-red/20 blur-3xl pointer-events-none"
         aria-hidden="true"

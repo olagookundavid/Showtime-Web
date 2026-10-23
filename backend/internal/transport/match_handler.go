@@ -110,10 +110,13 @@ func (h *MatchHandler) GetMatches(c *gin.Context) {
 	teamID := c.Query("team_id")
 	status := c.Query("status")
 	search := c.Query("search")
+	// Lets a fantasy gameweek's own pitch view show the real-world fixtures it
+	// scored against, without the client guessing a date string.
+	eventDayID := c.Query("event_day_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	matches, err := h.service.GetMatches(c.Request.Context(), competitionID, teamID, status, page, limit, search)
+	matches, err := h.service.GetMatches(c.Request.Context(), competitionID, teamID, status, page, limit, search, eventDayID)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return

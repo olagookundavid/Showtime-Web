@@ -131,3 +131,26 @@ export interface PlayerPriceHistoryResponse {
     selected_by_pct?: number;
     history: PlayerPriceHistoryItem[];
 }
+
+/** One gameweek of a manager's season: their own score, their running total,
+ * where that total ranked once the gameweek was in (rank), where that single
+ * gameweek's score alone ranked (gameweek_rank — "how did I do this week" vs.
+ * "where do I stand overall"), and the community benchmarks for that gameweek. */
+export interface TeamPointsHistoryRow {
+    gameweek_id: string;
+    gameweek_number: number;
+    points: number;
+    running_total: number;
+    rank: number;
+    gameweek_rank: number;
+    total_teams: number;
+    average_points: number;
+    highest_points: number;
+    lowest_points: number;
+}
+
+export interface TeamPointsHistoryResponse {
+    season_id: string;
+    team_id: string;
+    history: TeamPointsHistoryRow[];
+}

@@ -23,7 +23,7 @@ import {
 } from "../../services/api";
 import type { FantasyLeague } from "../../types";
 import { useAuth } from "../../contexts";
-import { Loader, FantasyBackLink, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner } from "../../components";
+import { Loader, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner } from "../../components";
 import { rankBadgeClass } from "../../hooks";
 
 /** Nothing off the wire is trusted to be a finite number. */
@@ -409,7 +409,6 @@ export function FantasyLeagues() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
       {/* Header Showtime Navy Banner */}
       <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

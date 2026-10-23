@@ -19,7 +19,6 @@ import {
   Button,
   DataTable,
   Field,
-  FantasyBackLink,
   FantasyPlayerModal,
   PlayerAvatar,
   PlayerLeaderboardLegend,
@@ -386,8 +385,6 @@ export function FantasyPlayerLeaderboard() {
 
   return (
     <div className="space-y-6">
-      <FantasyBackLink to="/fantasy" label="Back to Fantasy Hub" />
-
       {/* Hero */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end bg-sffl-navy text-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl gap-4">
         <div className="min-w-0">
@@ -598,10 +595,10 @@ export function FantasyPlayerLeaderboard() {
             rank yet.
           </p>
           <Link
-            to="/fantasy"
+            to="/fantasy/dashboard"
             className="mt-3 inline-block font-bold text-sffl-red hover:underline"
           >
-            Go to the Fantasy Hub
+            Go to Fantasy
           </Link>
         </div>
       ) : (

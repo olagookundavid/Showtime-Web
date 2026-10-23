@@ -26,7 +26,7 @@ export const BottomNav = ({ onMoreClick, isMoreOpen = false }: BottomNavProps) =
         { name: 'Home', path: '/', icon: HomeIcon, solidIcon: HomeSolid, exact: true },
         { name: 'Standings', path: '/standings', icon: TableCellsIcon, solidIcon: TableSolid },
         { name: 'Stats', path: '/stats', icon: ChartBarIcon, solidIcon: ChartBarSolid },
-        { name: 'Fantasy', path: '/fantasy', icon: TrophyIcon, solidIcon: TrophySolid, isFantasy: true },
+        { name: 'Fantasy', path: '/fantasy/dashboard', activePath: '/fantasy', icon: TrophyIcon, solidIcon: TrophySolid, isFantasy: true },
     ];
 
     const isActive = (path: string, exact = false) => {
@@ -36,7 +36,7 @@ export const BottomNav = ({ onMoreClick, isMoreOpen = false }: BottomNavProps) =
     return (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200/80 dark:border-gray-800 flex items-center justify-around px-1 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
             {navItems.map((item) => {
-                const active = isActive(item.path, item.exact);
+                const active = isActive(item.activePath ?? item.path, item.exact);
                 const Icon = active ? item.solidIcon : item.icon;
 
                 const colorClasses = item.isFantasy

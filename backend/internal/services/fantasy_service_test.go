@@ -63,6 +63,7 @@ type fakeFantasyRepo struct {
 	nearestGWNum     int
 	totalPoints      float64
 	selectedByPct    float64
+	pointsHistory    []dto.TeamPointsHistoryRow
 
 	// pickPointsMu guards pickPoints for the one test (TestTriggerLiveScoreForMatch)
 	// that reads it from the test goroutine while a background worker-pool
@@ -323,6 +324,10 @@ func (f *fakeFantasyRepo) GetGameweekAnalytics(_ context.Context, seasonID, game
 			TotalManagers: 2,
 		},
 	}, nil
+}
+
+func (f *fakeFantasyRepo) GetTeamPointsHistory(_ context.Context, _, _ string) ([]dto.TeamPointsHistoryRow, error) {
+	return f.pointsHistory, nil
 }
 
 // RecalculateAllTeamTotalsInSeason mirrors the production SQL: a team's total is

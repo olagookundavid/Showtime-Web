@@ -1,11 +1,15 @@
-export { FantasyBackLink } from './FantasyBackLink';
+export { FantasyLayout } from './FantasyLayout';
+export { FantasyNavCarousel } from './FantasyNavCarousel';
+export { FANTASY_NAV } from './fantasyNav';
+export type { FantasyNavItem } from './fantasyNav';
 export { FantasyPitch } from './FantasyPitch';
 export type { FantasyPitchProps } from './FantasyPitch';
 export type { PitchPlayerItem, FantasyPlayerModalData } from '../../types';
 export { FantasyPlayerModal } from './FantasyPlayerModal';
 export { FantasyTeamModal } from './FantasyTeamModal';
 export { FantasyNewsCarousel } from './FantasyNewsCarousel';
-export { FantasyLinksCarousel } from './FantasyLinksCarousel';
+export { FantasyPointsChart } from './FantasyPointsChart';
+export { FantasyGameweekBreakdown } from './FantasyGameweekBreakdown';
 export { PlayerAvatar } from './PlayerAvatar';
 export { PlayerLeaderboardLegend } from './PlayerLeaderboardLegend';
 export { playerLeaderboardGuide } from './playerLeaderboardGuide';

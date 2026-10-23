@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, StoreLayout, TicketsLayout, ScrollToTop, CanonicalLink, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, FantasyLayout, StoreLayout, TicketsLayout, ScrollToTop, CanonicalLink, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -71,9 +71,6 @@ const Cart = lazy(() =>
 );
 
 // Lazy load Fantasy Pages
-const FantasyHub = lazy(() =>
-  import("./pages/fantasy/FantasyHub").then((m) => ({ default: m.FantasyHub })),
-);
 const FantasyDashboard = lazy(() =>
   import("./pages/fantasy/FantasyDashboard").then((m) => ({
     default: m.FantasyDashboard,
@@ -87,6 +84,11 @@ const FantasySquadBuilder = lazy(() =>
 const FantasyMyTeam = lazy(() =>
   import("./pages/fantasy/FantasyMyTeam").then((m) => ({
     default: m.FantasyMyTeam,
+  })),
+);
+const FantasyPoints = lazy(() =>
+  import("./pages/fantasy/FantasyPoints").then((m) => ({
+    default: m.FantasyPoints,
   })),
 );
 const FantasyLeagues = lazy(() =>
@@ -500,93 +502,92 @@ function App() {
                       <Route path="/account" element={<MyProfile />} />
 
                       {/* Fantasy Flag Football */}
-                      <Route path="/fantasy" element={<FantasyHub />} />
-                      <Route
-                        path="/fantasy/dashboard"
-                        element={
-                          <ProtectedRoute
-                            actionText="see your fantasy dashboard"
-                            fallbackPath="/fantasy"
-                          >
-                            <FantasyDashboard />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/fantasy/build"
-                        element={
-                          <ProtectedRoute
-                            actionText="pick your squad"
-                            fallbackPath="/fantasy"
-                          >
-                            <FantasySquadBuilder />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/fantasy/my-team"
-                        element={
-                          <ProtectedRoute
-                            actionText="see your squad"
-                            fallbackPath="/fantasy"
-                          >
-                            <FantasyMyTeam />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/fantasy/leagues"
-                        element={
-                          <ProtectedRoute
-                            actionText="join and manage fantasy leagues"
-                            fallbackPath="/fantasy"
-                          >
-                            <FantasyLeagues />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/fantasy/wallet"
-                        element={
-                          <ProtectedRoute
-                            actionText="open your prize wallet"
-                            fallbackPath="/fantasy"
-                          >
-                            <FantasyWallet />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/fantasy/trading"
-                        element={<Navigate to="/fantasy/build" replace />}
-                      />
-                      <Route
-                        path="/fantasy/leaderboard/:id"
-                        element={<FantasyLeaderboard />}
-                      />
-                      <Route
-                        path="/fantasy/analytics"
-                        element={<FantasyAnalytics />}
-                      />
-                      <Route
-                        path="/fantasy/players"
-                        element={<FantasyPlayerLeaderboard />}
-                      />
-                      <Route
-                        path="/fantasy/reports"
-                        element={<Navigate to="/fantasy/analytics" replace />}
-                      />
-                      <Route
-                        path="/fantasy/leagues/confirm"
-                        element={
-                          <ProtectedRoute
-                            actionText="confirm your league payment"
-                            fallbackPath="/fantasy"
-                          >
-                            <FantasyLeagueConfirm />
-                          </ProtectedRoute>
-                        }
-                      />
+                      <Route element={<FantasyLayout />}>
+                        {/* The Hub landing page was retired — Dashboard is
+                            the section's home now. Old links/bookmarks to
+                            /fantasy (it was a sitemap entry) still land
+                            somewhere useful instead of 404ing. */}
+                        <Route
+                          path="/fantasy"
+                          element={<Navigate to="/fantasy/dashboard" replace />}
+                        />
+                        <Route
+                          path="/fantasy/dashboard"
+                          element={
+                            <ProtectedRoute actionText="see your fantasy dashboard">
+                              <FantasyDashboard />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/fantasy/build"
+                          element={
+                            <ProtectedRoute actionText="pick your squad">
+                              <FantasySquadBuilder />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/fantasy/my-team"
+                          element={
+                            <ProtectedRoute actionText="see your squad">
+                              <FantasyMyTeam />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/fantasy/points"
+                          element={
+                            <ProtectedRoute actionText="see your points history">
+                              <FantasyPoints />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/fantasy/leagues"
+                          element={
+                            <ProtectedRoute actionText="join and manage fantasy leagues">
+                              <FantasyLeagues />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/fantasy/wallet"
+                          element={
+                            <ProtectedRoute actionText="open your prize wallet">
+                              <FantasyWallet />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/fantasy/trading"
+                          element={<Navigate to="/fantasy/build" replace />}
+                        />
+                        <Route
+                          path="/fantasy/leaderboard/:id"
+                          element={<FantasyLeaderboard />}
+                        />
+                        <Route
+                          path="/fantasy/analytics"
+                          element={<FantasyAnalytics />}
+                        />
+                        <Route
+                          path="/fantasy/players"
+                          element={<FantasyPlayerLeaderboard />}
+                        />
+                        <Route
+                          path="/fantasy/reports"
+                          element={<Navigate to="/fantasy/analytics" replace />}
+                        />
+                        <Route
+                          path="/fantasy/leagues/confirm"
+                          element={
+                            <ProtectedRoute actionText="confirm your league payment">
+                              <FantasyLeagueConfirm />
+                            </ProtectedRoute>
+                          }
+                        />
+                      </Route>
 
                       {/* About Us Pages */}
                       <Route element={<AboutLayout />}>

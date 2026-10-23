@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { isDeletedPlayer, FemaleIcon, Button, Field, Input, Select, Modal, Spinner, Loader, PlayerAvatar, PlayerLink, FantasyBackLink, FantasyPitch } from "../../components";
+import { isDeletedPlayer, FemaleIcon, Button, Field, Input, Select, Modal, Spinner, Loader, PlayerAvatar, PlayerLink, FantasyPitch } from "../../components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
@@ -1956,7 +1956,6 @@ export function FantasySquadBuilder() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
       {/* Header Showtime Navy Banner */}
       <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
