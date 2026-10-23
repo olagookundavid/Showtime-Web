@@ -16,7 +16,7 @@ import {
 import { fantasySeasonApi } from "../../services/api";
 import type { LeaderboardEntry } from "../../types";
 import { useAuth } from "../../contexts";
-import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyPitch, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
+import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -388,16 +388,6 @@ export function FantasyHub() {
             ))}
           </div>
         </div>
-      )}
-
-      {/* Fantasy pitch — the manager's own current lineup, right under the leaders */}
-      {entered && dashboard.lineup && (
-        <FantasyPitch
-          picks={dashboard.lineup.picks}
-          gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
-          gameweekId={dashboard.lineup.gameweek_id || gameweek?.id}
-          showPoints={dashboard.deadline_passed === true}
-        />
       )}
 
       {/* Join Season Modal — the deliberate opt-in */}
