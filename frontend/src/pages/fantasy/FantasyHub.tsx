@@ -172,14 +172,16 @@ export function FantasyHub() {
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-sffl-red/20 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 text-center md:text-left">
-          <div>
+        {/* The buttons sit under the title, so the title has the banner's full
+            width and only wraps when a name is longer than that. */}
+        <div className="relative z-10 flex flex-col gap-4 md:gap-5 text-center md:text-left">
+          <div className="w-full">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black italic uppercase tracking-tighter text-white">
               {season.name}
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 sm:gap-3">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-3">
             {entered ? (
               <>
                 <ButtonLink
