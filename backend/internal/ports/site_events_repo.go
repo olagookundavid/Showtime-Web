@@ -435,7 +435,7 @@ func (r *PostgresSiteEventsRepository) Conversions(ctx context.Context, sc SiteS
 	if err := r.db.QueryRow(ctx, `
 		SELECT COUNT(*), COALESCE(SUM(quantity), 0), COALESCE(SUM(total_amount), 0)
 		FROM tickets
-		WHERE status IN ('PAID', 'USED') AND `+where, args...,
+		WHERE status IN ('PAID', 'USED') AND purchase_type <> 'PLAYER' AND `+where, args...,
 	).Scan(&c.TicketOrders, &c.TicketsSold, &c.TicketRevenue); err != nil {
 		return c, err
 	}

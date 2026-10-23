@@ -213,6 +213,11 @@ const AdminTickets = lazy(() =>
     default: m.AdminTickets,
   })),
 );
+const AdminPlayerTickets = lazy(() =>
+  import("./pages/admin/AdminPlayerTickets").then((m) => ({
+    default: m.AdminPlayerTickets,
+  })),
+);
 const AdminTicketProducts = lazy(() =>
   import("./pages/admin/AdminTicketProducts").then((m) => ({
     default: m.AdminTicketProducts,
@@ -310,6 +315,9 @@ const TeamHeadBudget = lazy(() =>
   })),
 );
 const TeamTickets = lazy(() => import("./pages/team-head/TeamTickets"));
+const TeamHeadPlayerTickets = lazy(
+  () => import("./pages/team-head/TeamHeadPlayerTickets"),
+);
 const TeamHeadClaims = lazy(() => import("./pages/team-head/TeamHeadClaims"));
 const TeamHeadTeamSheets = lazy(
   () => import("./pages/team-head/TeamHeadTeamSheets"),
@@ -780,6 +788,14 @@ function App() {
                         }
                       />
                       <Route
+                        path="player-tickets"
+                        element={
+                          <FeatureGuard feature="tickets">
+                            <AdminPlayerTickets />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
                         path="ticket-products"
                         element={
                           <FeatureGuard feature="tickets">
@@ -952,6 +968,10 @@ function App() {
                       <Route path="transfers" element={<TeamHeadTransfers />} />
                       <Route path="budget" element={<TeamHeadBudget />} />
                       <Route path="tickets" element={<TeamTickets />} />
+                      <Route
+                        path="player-tickets"
+                        element={<TeamHeadPlayerTickets />}
+                      />
                       <Route path="claims" element={<TeamHeadClaims />} />
                     </Route>
 

@@ -1,3 +1,4 @@
+export { PlayerTicketSheetCard } from './PlayerTicketSheetCard';
 export { SeasonPassCheckout } from './SeasonPassCheckout';
 export { TicketAccessCodeBox } from './TicketAccessCodeBox';
 export { TicketCheckout } from './TicketCheckout';
