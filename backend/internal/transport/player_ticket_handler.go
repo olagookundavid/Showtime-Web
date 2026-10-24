@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"showtime-backend/internal/dto"
 	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/services"
 )
@@ -20,6 +21,9 @@ type IPlayerTicketHandler interface {
 	ListMySheets(c *gin.Context)
 	GetMySheet(c *gin.Context)
 	IssueMySheet(c *gin.Context)
+	AddMyExtraTicket(c *gin.Context)
+	RevokeMyTicket(c *gin.Context)
+	RestoreMyTicket(c *gin.Context)
 
 	// A player's own tickets, for their portal.
 	GetMyTickets(c *gin.Context)
@@ -64,6 +68,14 @@ func playerTicketError(c *gin.Context, err error) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	case errors.Is(err, services.ErrTeamNotInMatch):
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	case errors.Is(err, services.ErrTicketNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	case errors.Is(err, services.ErrNoSlotsLeft), errors.Is(err, services.ErrAlreadyHasTicket),
+		errors.Is(err, services.ErrTicketUsed), errors.Is(err, services.ErrTicketsClosed):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, services.ErrNeedAName), errors.Is(err, services.ErrBadEmail),
+		errors.Is(err, services.ErrNotOnTeam), errors.Is(err, services.ErrNotOnSheetOrTeam):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
@@ -270,4 +282,104 @@ func (h *PlayerTicketHandler) GetMyTickets(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": tickets})
+}
+
+// AddMyExtraTicket godoc
+// @Summary Give one of the team's spare tickets for a match to a reserve or anyone else
+// @Tags player-tickets
+// @Accept json
+// @Produce json
+// @Param matchId path string true "Match ID"
+// @Param request body dto.AddExtraTicketRequest true "Who to give it to"
+// @Success 200 {object} dto.PlayerTicketSheetResponse
+// @Router /api/v1/team-head/player-tickets/{matchId}/extras [post]
+func (h *PlayerTicketHandler) AddMyExtraTicket(c *gin.Context) {
+	team, ok := managerTeam(c)
+	if !ok {
+		return
+	}
+	matchID, ok := matchParam(c)
+	if !ok {
+		return
+	}
+	var req dto.AddExtraTicketRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.PlayerID != "" && !isUUID(req.PlayerID) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": services.ErrNotOnTeam.Error()})
+		return
+	}
+	sheet, err := h.service.AddExtra(c.Request.Context(), matchID, team, req)
+	if err != nil {
+		playerTicketError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, sheet)
+}
+
+// RevokeMyTicket godoc
+// @Summary Take a ticket back, freeing its slot
+// @Tags player-tickets
+// @Produce json
+// @Param matchId path string true "Match ID"
+// @Param ticketId path string true "Ticket ID"
+// @Success 200 {object} dto.PlayerTicketSheetResponse
+// @Router /api/v1/team-head/player-tickets/{matchId}/tickets/{ticketId} [delete]
+func (h *PlayerTicketHandler) RevokeMyTicket(c *gin.Context) {
+	team, ok := managerTeam(c)
+	if !ok {
+		return
+	}
+	matchID, ok := matchParam(c)
+	if !ok {
+		return
+	}
+	ticketID := c.Param("ticketId")
+	if !isUUID(ticketID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": services.ErrTicketNotFound.Error()})
+		return
+	}
+	sheet, err := h.service.Revoke(c.Request.Context(), matchID, team, ticketID)
+	if err != nil {
+		playerTicketError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, sheet)
+}
+
+// RestoreMyTicket godoc
+// @Summary Give a revoked ticket back to a player on the sheet or a manager
+// @Tags player-tickets
+// @Accept json
+// @Produce json
+// @Param matchId path string true "Match ID"
+// @Param request body dto.RestoreTicketRequest true "Who gets it back"
+// @Success 200 {object} dto.PlayerTicketSheetResponse
+// @Router /api/v1/team-head/player-tickets/{matchId}/restore [post]
+func (h *PlayerTicketHandler) RestoreMyTicket(c *gin.Context) {
+	team, ok := managerTeam(c)
+	if !ok {
+		return
+	}
+	matchID, ok := matchParam(c)
+	if !ok {
+		return
+	}
+	var req dto.RestoreTicketRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if (req.PlayerID != "" && !isUUID(req.PlayerID)) || (req.UserID != "" && !isUUID(req.UserID)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": services.ErrNotOnSheetOrTeam.Error()})
+		return
+	}
+	sheet, err := h.service.Restore(c.Request.Context(), matchID, team, req)
+	if err != nil {
+		playerTicketError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, sheet)
 }

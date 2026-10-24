@@ -14,6 +14,8 @@ import {
     downloadPlayerTicketCsv,
     playerTicketFileName,
     playerTicketFixture,
+    playerTicketHolders,
+    playerTicketRoleLabel,
     playerTicketWhen,
     printPlayerTicketSheets,
 } from '../../utils';
@@ -25,8 +27,6 @@ interface PlayerTicketSheetCardProps {
     issuing?: boolean;
 }
 
-const NO_ROWS: PlayerTicketRow[] = [];
-
 const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos' });
 
@@ -35,8 +35,8 @@ const formatTime = (iso: string) =>
  * buttons to print it, export it, or issue any codes still missing.
  */
 export const PlayerTicketSheetCard = ({ sheet, onIssue, issuing }: PlayerTicketSheetCardProps) => {
-    const rows = sheet.players ?? NO_ROWS;
-    const missing = sheet.named - sheet.issued;
+    const rows = playerTicketHolders(sheet);
+    const missing = sheet.missing;
     const title = `${sheet.team_name}: ${playerTicketFixture(sheet)}`;
     const fileName = playerTicketFileName(sheet.match.date, sheet.team_name, 'player tickets');
 
@@ -53,7 +53,7 @@ export const PlayerTicketSheetCard = ({ sheet, onIssue, issuing }: PlayerTicketS
                             {p.name}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {[p.position && p.position !== '-' ? p.position : null, p.is_starter ? 'Starter' : 'Squad']
+                            {[p.role === 'PLAYER' && p.position && p.position !== '-' ? p.position : null, playerTicketRoleLabel(p)]
                                 .filter(Boolean)
                                 .join(' · ')}
                         </div>
@@ -76,7 +76,9 @@ export const PlayerTicketSheetCard = ({ sheet, onIssue, issuing }: PlayerTicketS
                 header: 'Email',
                 accessor: 'has_email',
                 cell: (p) =>
-                    p.has_email ? (
+                    p.revoked ? (
+                        <span className="text-gray-400">—</span>
+                    ) : p.has_email ? (
                         <span className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300">
                             <EnvelopeIcon className="w-4 h-4" aria-hidden="true" />
                             {p.ticket_code ? 'Emailed' : 'Will be emailed'}
@@ -96,6 +98,8 @@ export const PlayerTicketSheetCard = ({ sheet, onIssue, issuing }: PlayerTicketS
                             <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
                             In at {formatTime(p.checked_in_at)}
                         </span>
+                    ) : p.revoked ? (
+                        <span className="text-sm font-semibold text-red-600 dark:text-red-400">Ticket revoked</span>
                     ) : (
                         <span className="text-sm text-gray-500 dark:text-gray-400">{p.ticket_code ? 'Not yet in' : 'No code yet'}</span>
                     ),
@@ -121,7 +125,7 @@ export const PlayerTicketSheetCard = ({ sheet, onIssue, issuing }: PlayerTicketS
                         {[sheet.match.competition, playerTicketWhen(sheet)].filter(Boolean).join(' · ')}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {sheet.named} on the sheet · {sheet.issued} codes · {sheet.checked_in} checked in
+                        {sheet.slots_used} of {sheet.slots_total} tickets used · {sheet.checked_in} checked in
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
@@ -155,11 +159,11 @@ export const PlayerTicketSheetCard = ({ sheet, onIssue, issuing }: PlayerTicketS
                 <DataTable
                     data={rows}
                     columns={columns}
-                    getRowId={(p) => p.player_id}
+                    getRowId={(p) => p.ticket_id ?? p.player_id ?? p.user_id ?? p.name}
                     paginated={false}
                     searchable={false}
                     compact
-                    emptyMessage="No players are on this team sheet yet."
+                    emptyMessage="No tickets for this match yet."
                 />
             </div>
         </section>

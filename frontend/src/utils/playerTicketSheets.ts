@@ -19,8 +19,22 @@ export const playerTicketFixture = (sheet: PlayerTicketSheet) =>
 export const playerTicketWhen = (sheet: PlayerTicketSheet) =>
     [sheetDate(sheet.match.date), sheet.match.kickoff, sheet.match.venue].filter(Boolean).join(' · ');
 
+/** Everyone with a slot for the match: the players on the sheet, then managers and extras. */
+export const playerTicketHolders = (sheet: PlayerTicketSheet): PlayerTicketRow[] => [
+    ...(sheet.players ?? []),
+    ...(sheet.others ?? []),
+];
+
+/** What a row is: Starter or Squad for a player, Manager, or Extra. */
+export const playerTicketRoleLabel = (row: PlayerTicketRow) => {
+    if (row.role === 'MANAGER') return 'Manager';
+    if (row.role === 'EXTRA') return 'Extra';
+    return row.is_starter ? 'Starter' : 'Squad';
+};
+
 /** What a row's ticket means at the gate. */
 export const playerTicketGateStatus = (row: PlayerTicketRow) => {
+    if (row.revoked) return 'Revoked';
     if (!row.ticket_code) return 'No code yet';
     if (row.checked_in_at) return 'Checked in';
     return 'Not yet in';
@@ -36,7 +50,7 @@ export const playerTicketSheetsCsv = (sheets: PlayerTicketSheet[]) => {
     const header = ['Date', 'Kickoff', 'Competition', 'Match', 'Team', 'Jersey', 'Player', 'Position', 'Role', 'Ticket code', 'Gate'];
     const lines = [header.map(csvCell).join(',')];
     for (const sheet of sheets) {
-        for (const p of sheet.players ?? []) {
+        for (const p of playerTicketHolders(sheet).filter((h) => h.ticket_code)) {
             lines.push(
                 [
                     sheet.match.date,
@@ -47,7 +61,7 @@ export const playerTicketSheetsCsv = (sheets: PlayerTicketSheet[]) => {
                     p.jersey_number || '',
                     p.name,
                     p.position,
-                    p.is_starter ? 'Starter' : 'Squad',
+                    playerTicketRoleLabel(p),
                     p.ticket_code ?? '',
                     playerTicketGateStatus(p),
                 ]
@@ -85,13 +99,14 @@ const esc = (s: string | number) =>
     String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
 const sheetHtml = (sheet: PlayerTicketSheet) => {
-    const rows = (sheet.players ?? [])
+    const rows = playerTicketHolders(sheet)
+        .filter((p) => p.ticket_code)
         .map(
             (p) => `<tr>
 <td class="num">${esc(p.jersey_number || '')}</td>
 <td>${esc(p.name)}</td>
-<td>${esc(p.position)}</td>
-<td>${p.is_starter ? 'Starter' : 'Squad'}</td>
+<td>${esc(p.position && p.position !== '-' ? p.position : '')}</td>
+<td>${esc(playerTicketRoleLabel(p))}</td>
 <td class="code">${esc(p.ticket_code ?? '—')}</td>
 <td class="tick"></td>
 </tr>`,
@@ -102,9 +117,9 @@ const sheetHtml = (sheet: PlayerTicketSheet) => {
 <p class="meta">${esc([sheet.match.competition, playerTicketFixture(sheet), playerTicketWhen(sheet)].filter(Boolean).join(' · '))}</p>
 <table>
 <thead><tr><th class="num">#</th><th>Player</th><th>Position</th><th>Role</th><th>Ticket code</th><th class="tick">In</th></tr></thead>
-<tbody>${rows || '<tr><td colspan="6">No players on this sheet.</td></tr>'}</tbody>
+<tbody>${rows || '<tr><td colspan="6">No tickets for this match yet.</td></tr>'}</tbody>
 </table>
-<p class="foot">${sheet.named} players · ${sheet.issued} codes issued</p>
+<p class="foot">${sheet.slots_used} of ${sheet.slots_total} tickets used</p>
 </section>`;
 };
 

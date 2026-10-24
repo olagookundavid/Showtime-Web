@@ -49,8 +49,7 @@ export const TEAM_HEAD_NAV_SECTIONS: DashboardNavSection[] = [
   {
     title: "Match Day",
     links: [
-      { name: "Game Day Tickets", path: "/team-head/player-tickets", icon: ClipboardDocumentCheckIcon, description: "Print your team sheet with every player's ticket code." },
-      { name: "Match Tickets", path: "/team-head/tickets", icon: TicketIcon, description: "Send your team's complimentary tickets." },
+      { name: "Game Day Tickets", path: "/team-head/player-tickets", icon: ClipboardDocumentCheckIcon, description: "Tickets for your team sheet and managers, and extra tickets for reserves or guests." },
     ],
   },
 ];
@@ -59,5 +58,5 @@ export const TEAM_HEAD_BOTTOM_NAV: DashboardBottomNavItem[] = [
   { name: "Home", path: TEAM_HEAD_HOME, end: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },
   { name: "Lineup", path: "/team-head/team-sheets", icon: ClipboardDocumentListIcon, solidIcon: ClipboardSolid },
   { name: "Players", path: "/team-head/players", icon: UserGroupIcon, solidIcon: UsersSolid },
-  { name: "Tickets", path: "/team-head/tickets", icon: TicketIcon, solidIcon: TicketSolid },
+  { name: "Tickets", path: "/team-head/player-tickets", icon: TicketIcon, solidIcon: TicketSolid },
 ];

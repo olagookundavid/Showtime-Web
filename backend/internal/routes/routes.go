@@ -661,6 +661,11 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes.GET("/player-tickets", app.Handlers.PlayerTicketHandler.ListMySheets)
 	thRoutes.GET("/player-tickets/:matchId", app.Handlers.PlayerTicketHandler.GetMySheet)
 	thRoutes.POST("/player-tickets/:matchId/issue", app.Handlers.PlayerTicketHandler.IssueMySheet)
+	// The team's other slots: extra tickets for reserves or anyone else, and taking
+	// a ticket back so its slot can go to someone else.
+	thRoutes.POST("/player-tickets/:matchId/extras", app.Handlers.PlayerTicketHandler.AddMyExtraTicket)
+	thRoutes.DELETE("/player-tickets/:matchId/tickets/:ticketId", app.Handlers.PlayerTicketHandler.RevokeMyTicket)
+	thRoutes.POST("/player-tickets/:matchId/restore", app.Handlers.PlayerTicketHandler.RestoreMyTicket)
 
 	thRoutes.GET("/allocations", app.Handlers.TeamTicketAllocationHandler.GetTeamAllocations)
 	thRoutes.POST("/allocations/issue", app.Handlers.TeamTicketAllocationHandler.IssueTeamTicket)

@@ -25,7 +25,22 @@ var (
 	ErrPlayerTicketMatchNotFound = errors.New("match not found")
 	ErrTeamNotInMatch            = errors.New("that team is not playing in this match")
 	ErrPlayerTicketDayNotFound   = errors.New("match day not found")
+	ErrNoSlotsLeft               = errors.New("this team has no tickets left for the match: revoke one first")
+	ErrTicketNotFound            = errors.New("ticket not found for this team and match")
+	ErrTicketUsed                = errors.New("that ticket has already been used at the gate, so it cannot be revoked")
+	ErrNotOnTeam                 = errors.New("that player is not on this team")
+	ErrAlreadyHasTicket          = errors.New("they already have a ticket for this match")
+	ErrTicketsClosed             = errors.New("this match day has passed, so no more tickets can be issued for it")
+	ErrNeedAName                 = errors.New("a name is needed so the gate knows who the ticket is for")
+	ErrBadEmail                  = errors.New("that email address does not look right")
+	ErrNotOnSheetOrTeam          = errors.New("that person is not on this team's sheet or a manager of the team")
 )
+
+// TeamTicketSlots is how many tickets a team has for one match: its players on the
+// sheet, its managers, and anyone else the manager gives one to. A team need not
+// use them all. Players on the sheet and managers always get theirs, so a big
+// sheet plus many managers can take the whole 30 and leave nothing to give out.
+const TeamTicketSlots = 30
 
 // playerTicketCodeAttempts is how many fresh codes are tried when one is taken.
 const playerTicketCodeAttempts = 5
@@ -47,6 +62,12 @@ type IPlayerTicketService interface {
 	// appErrors.ErrPlayerNotLinked when the account has no player behind it.
 	MyTickets(ctx context.Context, userID string) ([]dto.MyPlayerTicket, error)
 	DaySheets(ctx context.Context, eventDayID string) (*dto.PlayerTicketDaySheetsResponse, error)
+
+	// A team manager spends the team's other slots: extras for reserves or anyone
+	// else, and taking a ticket back to free its slot.
+	AddExtra(ctx context.Context, matchID, teamID string, req dto.AddExtraTicketRequest) (*dto.PlayerTicketSheetResponse, error)
+	Revoke(ctx context.Context, matchID, teamID, ticketID string) (*dto.PlayerTicketSheetResponse, error)
+	Restore(ctx context.Context, matchID, teamID string, req dto.RestoreTicketRequest) (*dto.PlayerTicketSheetResponse, error)
 }
 
 // playerTicketNotifier sends a newly issued player ticket to the player and queues
@@ -129,7 +150,15 @@ func (s *PlayerTicketService) SyncSheet(ctx context.Context, matchID, teamID str
 	if err != nil {
 		return nil, err
 	}
+	managers, err := s.repo.Managers(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
 	live, err := s.repo.LiveTickets(ctx, matchID, teamID)
+	if err != nil {
+		return nil, err
+	}
+	revokedPlayers, revokedUsers, err := s.repo.RevokedHolders(ctx, matchID, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -138,14 +167,22 @@ func (s *PlayerTicketService) SyncSheet(ctx context.Context, matchID, teamID str
 	for _, p := range players {
 		onSheet[p.PlayerID] = true
 	}
-	hasTicket := make(map[string]bool, len(live))
+	hasPlayer := make(map[string]bool, len(live))
+	hasManager := make(map[string]bool)
 	var dropped []string
 	for _, t := range live {
-		if t.PlayerID == nil || !onSheet[*t.PlayerID] {
-			dropped = append(dropped, t.ID)
-			continue
+		if t.PlayerID != nil {
+			hasPlayer[*t.PlayerID] = true
 		}
-		hasTicket[*t.PlayerID] = true
+		if t.UserID != nil && t.TeamRole == domain.TeamRoleManager {
+			hasManager[*t.UserID] = true
+		}
+		// Only a sheet player's own ticket goes when they come off the sheet. A
+		// manager's, and an extra the manager chose to give, stay.
+		if t.TeamRole == domain.TeamRolePlayer && (t.PlayerID == nil || !onSheet[*t.PlayerID]) {
+			dropped = append(dropped, t.ID)
+			delete(hasPlayer, derefString(t.PlayerID))
+		}
 	}
 	cancelled, err := s.repo.CancelUnused(ctx, dropped)
 	if err != nil {
@@ -153,10 +190,15 @@ func (s *PlayerTicketService) SyncSheet(ctx context.Context, matchID, teamID str
 	}
 	res.Cancelled = int(cancelled)
 
-	var missing []ports.SheetPlayer
+	var missing []ticketHolder
 	for _, p := range players {
-		if !hasTicket[p.PlayerID] {
-			missing = append(missing, p)
+		if !hasPlayer[p.PlayerID] && !revokedPlayers[p.PlayerID] {
+			missing = append(missing, playerHolder(p, domain.TeamRolePlayer))
+		}
+	}
+	for _, mg := range managers {
+		if !hasManager[mg.UserID] && !revokedUsers[mg.UserID] {
+			missing = append(missing, managerHolder(mg))
 		}
 	}
 	if len(missing) == 0 {
@@ -168,14 +210,14 @@ func (s *PlayerTicketService) SyncSheet(ctx context.Context, matchID, teamID str
 		return nil, fmt.Errorf("failed to find the match day: %w", err)
 	}
 
-	// One player failing does not stop the rest: the sheet shows who is still
+	// One person failing does not stop the rest: the sheet shows who is still
 	// without a code, and issuing again fills the gaps.
 	var firstErr error
-	for _, p := range missing {
-		ticket, err := s.issue(ctx, m, teamID, dayID, p)
+	for _, h := range missing {
+		ticket, err := s.issue(ctx, m, teamID, dayID, h)
 		if err != nil {
 			if firstErr == nil {
-				firstErr = fmt.Errorf("failed to issue a ticket for %s: %w", p.Name, err)
+				firstErr = fmt.Errorf("failed to issue a ticket for %s: %w", h.Name, err)
 			}
 			continue
 		}
@@ -183,8 +225,7 @@ func (s *PlayerTicketService) SyncSheet(ctx context.Context, matchID, teamID str
 			continue // issued meanwhile by a save running at the same time
 		}
 		res.Issued++
-		if ticket.Email != "" && s.notifier != nil {
-			s.notifier.SendPlayerTicket(ctx, ticket, m, teamName)
+		if s.send(ctx, ticket, m, teamName) {
 			res.Emailed++
 		}
 	}
@@ -194,24 +235,65 @@ func (s *PlayerTicketService) SyncSheet(ctx context.Context, matchID, teamID str
 	return res, nil
 }
 
-// issue creates one player's ticket. It returns nil, nil when the player already
-// has a live ticket for the match, which only happens when two saves race.
-func (s *PlayerTicketService) issue(ctx context.Context, m *ports.PlayerTicketMatch, teamID, dayID string, p ports.SheetPlayer) (*domain.Ticket, error) {
-	matchID, playerID, team := m.ID, p.PlayerID, teamID
+func derefString(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// send emails a new ticket if its holder has an address. It says whether it did.
+func (s *PlayerTicketService) send(ctx context.Context, t *domain.Ticket, m *ports.PlayerTicketMatch, teamName string) bool {
+	if t.Email == "" || s.notifier == nil {
+		return false
+	}
+	s.notifier.SendPlayerTicket(ctx, t, m, teamName)
+	return true
+}
+
+// ticketHolder is who a team ticket is being made for.
+type ticketHolder struct {
+	Role     domain.TeamTicketRole
+	PlayerID string
+	UserID   string
+	Name     string
+	Email    string
+}
+
+func playerHolder(p ports.SheetPlayer, role domain.TeamTicketRole) ticketHolder {
+	return ticketHolder{Role: role, PlayerID: p.PlayerID, Name: p.Name, Email: p.Email}
+}
+
+func managerHolder(m ports.TeamManager) ticketHolder {
+	return ticketHolder{Role: domain.TeamRoleManager, UserID: m.UserID, Name: m.Name, Email: m.Email}
+}
+
+// issue creates one team ticket. It returns nil, nil when the holder already has a
+// live ticket for the match, which only happens when two requests race.
+func (s *PlayerTicketService) issue(ctx context.Context, m *ports.PlayerTicketMatch, teamID, dayID string, h ticketHolder) (*domain.Ticket, error) {
+	matchID, team := m.ID, teamID
 	var lastErr error
 	for i := 0; i < playerTicketCodeAttempts; i++ {
 		ticket := &domain.Ticket{
 			ProductName:  "Player Ticket",
 			PurchaseType: domain.PurchaseTypePlayer,
-			Email:        p.Email,
-			Name:         p.Name,
+			TeamRole:     h.Role,
+			Email:        h.Email,
+			Name:         h.Name,
 			Quantity:     1,
 			Status:       domain.TicketStatusPaid,
 			TicketCode:   GenerateTicketCode(),
 			TeamID:       &team,
-			PlayerID:     &playerID,
 			MatchID:      &matchID,
 			Days:         []domain.TicketDay{{EventDayID: dayID}},
+		}
+		if h.PlayerID != "" {
+			id := h.PlayerID
+			ticket.PlayerID = &id
+		}
+		if h.UserID != "" {
+			id := h.UserID
+			ticket.UserID = &id
 		}
 		err := s.tickets.Create(ctx, ticket)
 		switch uniqueViolation(err) {
@@ -223,7 +305,7 @@ func (s *PlayerTicketService) issue(ctx context.Context, m *ports.PlayerTicketMa
 		case "tickets_ticket_code_key":
 			lastErr = err
 			continue // that code is taken; draw another
-		case "idx_tickets_player_match_live":
+		case "idx_tickets_player_match_live", "idx_tickets_manager_match_live":
 			return nil, nil
 		default:
 			return nil, err
@@ -245,26 +327,62 @@ func matchResponse(m *ports.PlayerTicketMatch) dto.PlayerTicketMatchResponse {
 	}
 }
 
-// buildSheet puts a sheet's players and their tickets side by side.
-func buildSheet(m *ports.PlayerTicketMatch, teamID, teamName, opponent string, players []ports.SheetPlayer, live []domain.Ticket, now time.Time) *dto.PlayerTicketSheetResponse {
+// ticketRow fills a row's ticket details from a live ticket.
+func ticketRow(row *dto.PlayerTicketRow, t *domain.Ticket) {
+	row.TicketID = t.ID
+	row.TicketCode = t.TicketCode
+	row.Status = string(t.Status)
+	for _, d := range t.Days {
+		if d.CheckedInAt != nil {
+			at := d.CheckedInAt.Format(time.RFC3339)
+			row.CheckedInAt = &at
+			break
+		}
+	}
+}
+
+// buildSheet puts everyone with a slot for the match side by side with their
+// ticket: the players on the sheet, the team's managers, and the extras.
+func buildSheet(m *ports.PlayerTicketMatch, teamID, teamName, opponent string, players []ports.SheetPlayer, managers []ports.TeamManager,
+	live []domain.Ticket, revokedPlayers, revokedUsers map[string]bool, now time.Time) *dto.PlayerTicketSheetResponse {
+
 	byPlayer := make(map[string]*domain.Ticket, len(live))
+	byManager := make(map[string]*domain.Ticket)
 	for i := range live {
 		if live[i].PlayerID != nil {
 			byPlayer[*live[i].PlayerID] = &live[i]
 		}
+		if live[i].UserID != nil && live[i].TeamRole == domain.TeamRoleManager {
+			byManager[*live[i].UserID] = &live[i]
+		}
 	}
 
 	sheet := &dto.PlayerTicketSheetResponse{
-		Match:    matchResponse(m),
-		TeamID:   teamID,
-		TeamName: teamName,
-		Opponent: opponent,
-		Players:  make([]dto.PlayerTicketRow, 0, len(players)),
-		Named:    len(players),
-		CanIssue: canIssuePlayerTickets(m, now),
+		Match:      matchResponse(m),
+		TeamID:     teamID,
+		TeamName:   teamName,
+		Opponent:   opponent,
+		Players:    make([]dto.PlayerTicketRow, 0, len(players)),
+		Others:     []dto.PlayerTicketRow{},
+		Named:      len(players),
+		SlotsTotal: TeamTicketSlots,
+		SlotsUsed:  len(live),
+		CanIssue:   canIssuePlayerTickets(m, now),
 	}
+	if left := TeamTicketSlots - len(live); left > 0 {
+		sheet.SlotsLeft = left
+	}
+	checkedIn := func(r *dto.PlayerTicketRow) {
+		if r.CheckedInAt != nil {
+			sheet.CheckedIn++
+		}
+	}
+
+	onSheet := make(map[string]bool, len(players))
 	for _, p := range players {
+		onSheet[p.PlayerID] = true
 		row := dto.PlayerTicketRow{
+			Role:         string(domain.TeamRolePlayer),
 			PlayerID:     p.PlayerID,
 			Name:         p.Name,
 			JerseyNumber: p.JerseyNumber,
@@ -273,20 +391,66 @@ func buildSheet(m *ports.PlayerTicketMatch, teamID, teamName, opponent string, p
 			HasEmail:     p.Email != "",
 		}
 		if t := byPlayer[p.PlayerID]; t != nil {
-			row.TicketID = t.ID
-			row.TicketCode = t.TicketCode
-			row.Status = string(t.Status)
+			ticketRow(&row, t)
 			sheet.Issued++
-			for _, d := range t.Days {
-				if d.CheckedInAt != nil {
-					at := d.CheckedInAt.Format(time.RFC3339)
-					row.CheckedInAt = &at
-					sheet.CheckedIn++
-					break
-				}
-			}
+		} else if revokedPlayers[p.PlayerID] {
+			row.Revoked = true
+		} else {
+			sheet.Missing++
 		}
+		checkedIn(&row)
 		sheet.Players = append(sheet.Players, row)
+	}
+
+	seenManager := make(map[string]bool, len(managers))
+	for _, mg := range managers {
+		seenManager[mg.UserID] = true
+		row := dto.PlayerTicketRow{
+			Role:     string(domain.TeamRoleManager),
+			UserID:   mg.UserID,
+			Name:     mg.Name,
+			Position: "Team manager",
+			HasEmail: mg.Email != "",
+		}
+		if t := byManager[mg.UserID]; t != nil {
+			ticketRow(&row, t)
+		} else if revokedUsers[mg.UserID] {
+			row.Revoked = true
+		} else {
+			sheet.Missing++
+		}
+		checkedIn(&row)
+		sheet.Others = append(sheet.Others, row)
+	}
+
+	// Anyone else holding a live ticket: extras the manager gave, and a manager who
+	// has since left the team but whose ticket stands.
+	for i := range live {
+		t := &live[i]
+		switch {
+		case t.TeamRole == domain.TeamRoleManager && t.UserID != nil && seenManager[*t.UserID]:
+			continue
+		case t.TeamRole == domain.TeamRolePlayer && t.PlayerID != nil && onSheet[*t.PlayerID]:
+			continue
+		case t.TeamRole == domain.TeamRoleExtra && t.PlayerID != nil && onSheet[*t.PlayerID]:
+			continue // a reserve later named on the sheet shows once, as a sheet player
+		}
+		row := dto.PlayerTicketRow{
+			Role:     string(t.TeamRole),
+			Name:     t.Name,
+			HasEmail: t.Email != "",
+		}
+		if t.TeamRole == domain.TeamRoleManager {
+			row.Position = "Team manager"
+		} else {
+			row.Position = "Extra ticket"
+		}
+		if t.PlayerID != nil {
+			row.PlayerID = *t.PlayerID
+		}
+		ticketRow(&row, t)
+		checkedIn(&row)
+		sheet.Others = append(sheet.Others, row)
 	}
 	return sheet
 }
@@ -300,11 +464,19 @@ func (s *PlayerTicketService) Sheet(ctx context.Context, matchID, teamID string)
 	if err != nil {
 		return nil, err
 	}
+	managers, err := s.repo.Managers(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
 	live, err := s.repo.LiveTickets(ctx, matchID, teamID)
 	if err != nil {
 		return nil, err
 	}
-	return buildSheet(m, teamID, team, opponent, players, live, s.now()), nil
+	revokedPlayers, revokedUsers, err := s.repo.RevokedHolders(ctx, matchID, teamID)
+	if err != nil {
+		return nil, err
+	}
+	return buildSheet(m, teamID, team, opponent, players, managers, live, revokedPlayers, revokedUsers, s.now()), nil
 }
 
 func (s *PlayerTicketService) sheets(ctx context.Context, refs []ports.SheetRef, withPlayers bool) ([]dto.PlayerTicketSheetResponse, error) {
@@ -319,6 +491,7 @@ func (s *PlayerTicketService) sheets(ctx context.Context, refs []ports.SheetRef,
 		}
 		if !withPlayers {
 			sheet.Players = nil
+			sheet.Others = nil
 		}
 		out = append(out, *sheet)
 	}
@@ -402,6 +575,7 @@ func (s *TicketService) attachPlayer(ctx context.Context, ticket *domain.Ticket,
 		Name:         h.Name,
 		JerseyNumber: h.JerseyNumber,
 		Position:     h.Position,
+		Role:         string(h.Role),
 		Image:        h.Image,
 		TeamID:       h.TeamID,
 		TeamName:     h.TeamName,
@@ -425,6 +599,7 @@ func (s *TicketService) SendPlayerTicket(ctx context.Context, ticket *domain.Tic
 	if s.email != nil {
 		fixture := m.HomeTeam + " vs " + m.AwayTeam
 		body := email.PlayerTicketEmailHTML(email.PlayerTicketEmailData{
+			Role:        string(ticket.TeamRole),
 			PlayerName:  ticket.Name,
 			TeamName:    teamName,
 			Fixture:     fixture,
