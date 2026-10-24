@@ -9,6 +9,7 @@ package tests_integration
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -414,5 +415,257 @@ func TestPlayerTickets_APlayerSeesTheirOwnCodes(t *testing.T) {
 	other := mustScan(t, f.pool, `INSERT INTO users (full_name, email) VALUES ('ZZFIX Nobody', 'nobody@playerticketfixture.test') RETURNING id::text`)
 	if _, err := f.service.MyTickets(ctx, other); err != appErrors.ErrPlayerNotLinked {
 		t.Errorf("unlinked account: err = %v, want ErrPlayerNotLinked", err)
+	}
+}
+
+// ─── Team slots: managers, extras, revoking ───────────────────────────────────
+
+// addManager makes a user who manages the home team.
+func (f *playerTicketFixture) addManager(t *testing.T, name string) string {
+	t.Helper()
+	id := mustScan(t, f.pool, `INSERT INTO users (full_name, email, role) VALUES ($1, $2, 'team_head') RETURNING id::text`,
+		"ZZFIX "+name, name+"@playerticketfixture.test")
+	mustExec(t, f.pool, `INSERT INTO team_managers (user_id, team_id) VALUES ($1, $2)`, id, f.home)
+	return id
+}
+
+func rowByName(rows []dto.PlayerTicketRow, name string) *dto.PlayerTicketRow {
+	for i := range rows {
+		if rows[i].Name == name {
+			return &rows[i]
+		}
+	}
+	return nil
+}
+
+func TestTeamSlots_ManagersGetATicketWhenTheSheetIsSaved(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	f.addManager(t, "Coach")
+	f.saveSheet(t, "Ada", "Bola")
+
+	s := f.sheet(t)
+	if s.SlotsTotal != 30 || s.SlotsUsed != 3 || s.SlotsLeft != 27 {
+		t.Errorf("slots = %d used of %d, %d left; want 3 of 30, 27 left", s.SlotsUsed, s.SlotsTotal, s.SlotsLeft)
+	}
+	coach := rowByName(s.Others, "ZZFIX Coach")
+	if coach == nil || coach.Role != "MANAGER" || coach.TicketCode == "" || !coach.HasEmail {
+		t.Fatalf("manager row = %+v", coach)
+	}
+	if s.Missing != 0 {
+		t.Errorf("missing = %d, want 0", s.Missing)
+	}
+	// The manager was emailed too: two players with an address plus the manager.
+	if len(f.notifier.sent) != 3 {
+		t.Errorf("emailed %d, want 3", len(f.notifier.sent))
+	}
+
+	// Re-saving does not double up on the manager.
+	f.saveSheet(t, "Ada", "Bola")
+	if s := f.sheet(t); s.SlotsUsed != 3 {
+		t.Errorf("slots used after re-save = %d, want 3", s.SlotsUsed)
+	}
+}
+
+func TestTeamSlots_ExtrasUseTheSpareSlotsAndComeBackWhenRevoked(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	ctx := context.Background()
+	f.addManager(t, "Coach")
+	f.saveSheet(t, "Ada", "Bola") // 2 players + 1 manager = 3 used
+
+	// A reserve from the roster, and a person who is not on the roster at all.
+	sheet, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{PlayerID: f.players["Dayo"]})
+	if err != nil {
+		t.Fatalf("extra for a reserve: %v", err)
+	}
+	sheet, err = f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: "Physio Pat", Email: "pat@playerticketfixture.test"})
+	if err != nil {
+		t.Fatalf("extra by name: %v", err)
+	}
+	if sheet.SlotsUsed != 5 || sheet.SlotsLeft != 25 {
+		t.Errorf("slots = %d used, %d left; want 5 and 25", sheet.SlotsUsed, sheet.SlotsLeft)
+	}
+	dayo, pat := rowByName(sheet.Others, "ZZFIX Dayo"), rowByName(sheet.Others, "Physio Pat")
+	if dayo == nil || dayo.Role != "EXTRA" || dayo.PlayerID != f.players["Dayo"] || dayo.TicketCode == "" {
+		t.Errorf("reserve row = %+v", dayo)
+	}
+	if pat == nil || pat.Role != "EXTRA" || pat.PlayerID != "" || !pat.HasEmail {
+		t.Errorf("named extra row = %+v", pat)
+	}
+
+	// The same person cannot be given a second ticket.
+	if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{PlayerID: f.players["Dayo"]}); err != services.ErrAlreadyHasTicket {
+		t.Errorf("second extra for Dayo: err = %v, want ErrAlreadyHasTicket", err)
+	}
+	// Nor a player from another team, a blank name or a bad address.
+	if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{PlayerID: "00000000-0000-0000-0000-000000000000"}); err != services.ErrNotOnTeam {
+		t.Errorf("stranger: err = %v, want ErrNotOnTeam", err)
+	}
+	if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: "  "}); err != services.ErrNeedAName {
+		t.Errorf("blank name: err = %v, want ErrNeedAName", err)
+	}
+	if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: "X", Email: "nope"}); err != services.ErrBadEmail {
+		t.Errorf("bad email: err = %v, want ErrBadEmail", err)
+	}
+
+	// Taking Pat's ticket back frees the slot.
+	sheet, err = f.service.Revoke(ctx, f.match, f.home, pat.TicketID)
+	if err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+	if sheet.SlotsUsed != 4 || rowByName(sheet.Others, "Physio Pat") != nil {
+		t.Errorf("after revoke: %d used, Pat listed = %v", sheet.SlotsUsed, rowByName(sheet.Others, "Physio Pat") != nil)
+	}
+	if old, _ := f.tickets.GetByCode(ctx, pat.TicketCode); old.Status != domain.TicketStatusCancelled {
+		t.Errorf("revoked ticket is %s, want CANCELLED", old.Status)
+	}
+
+	// Saving the sheet again does not undo an extra the manager chose to give.
+	f.saveSheet(t, "Ada", "Bola")
+	if s := f.sheet(t); rowByName(s.Others, "ZZFIX Dayo") == nil || s.SlotsUsed != 4 {
+		t.Errorf("re-save disturbed the extras: %d used, Dayo listed = %v", s.SlotsUsed, rowByName(s.Others, "ZZFIX Dayo") != nil)
+	}
+}
+
+func TestTeamSlots_ThereAreOnlyThirty(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	ctx := context.Background()
+	f.saveSheet(t, "Ada", "Bola") // 2 used
+	for i := 0; i < 28; i++ {
+		if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: fmt.Sprintf("Guest %d", i)}); err != nil {
+			t.Fatalf("extra %d: %v", i, err)
+		}
+	}
+	s := f.sheet(t)
+	if s.SlotsUsed != 30 || s.SlotsLeft != 0 {
+		t.Fatalf("slots = %d used, %d left; want 30 and 0", s.SlotsUsed, s.SlotsLeft)
+	}
+	if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: "One too many"}); err != services.ErrNoSlotsLeft {
+		t.Errorf("31st: err = %v, want ErrNoSlotsLeft", err)
+	}
+
+	// Revoking one makes room for exactly one.
+	if _, err := f.service.Revoke(ctx, f.match, f.home, s.Others[0].TicketID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: "Fits now"}); err != nil {
+		t.Errorf("after a revoke: %v", err)
+	}
+	if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: "Still too many"}); err != services.ErrNoSlotsLeft {
+		t.Errorf("one past again: err = %v, want ErrNoSlotsLeft", err)
+	}
+}
+
+func TestTeamSlots_TheLastSlotGoesToOnePersonWhenManyAsk(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	f.saveSheet(t, "Ada")
+	ctx := context.Background()
+	for i := 0; i < 28; i++ { // 29 used
+		if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: fmt.Sprintf("Guest %d", i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	won := 0
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if _, err := f.service.AddExtra(ctx, f.match, f.home, dto.AddExtraTicketRequest{Name: fmt.Sprintf("Racer %d", i)}); err == nil {
+				mu.Lock()
+				won++
+				mu.Unlock()
+			}
+		}(i)
+	}
+	wg.Wait()
+	if s := f.sheet(t); won != 1 || s.SlotsUsed != 30 {
+		t.Errorf("%d racers got the last slot and %d are used; want 1 and 30", won, s.SlotsUsed)
+	}
+}
+
+func TestTeamSlots_ARevokedSheetPlayerStaysRevokedUntilRestored(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	ctx := context.Background()
+	coach := f.addManager(t, "Coach")
+	f.saveSheet(t, "Ada", "Bola")
+	s := f.sheet(t)
+	ada := rowByName(s.Players, "ZZFIX Ada")
+	coachRow := rowByName(s.Others, "ZZFIX Coach")
+
+	if _, err := f.service.Revoke(ctx, f.match, f.home, ada.TicketID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.Revoke(ctx, f.match, f.home, coachRow.TicketID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Saving the sheet again leaves both revoked, and says they are not "missing".
+	f.saveSheet(t, "Ada", "Bola")
+	s = f.sheet(t)
+	if a := rowByName(s.Players, "ZZFIX Ada"); a.TicketCode != "" || !a.Revoked {
+		t.Errorf("Ada after re-save = %+v, want revoked with no code", a)
+	}
+	if c := rowByName(s.Others, "ZZFIX Coach"); c.TicketCode != "" || !c.Revoked {
+		t.Errorf("manager after re-save = %+v, want revoked with no code", c)
+	}
+	if s.Missing != 0 || s.SlotsUsed != 1 {
+		t.Errorf("missing %d, used %d; want 0 and 1", s.Missing, s.SlotsUsed)
+	}
+
+	// Restored, each gets a new code, and the marker is cleared.
+	if _, err := f.service.Restore(ctx, f.match, f.home, dto.RestoreTicketRequest{PlayerID: f.players["Ada"]}); err != nil {
+		t.Fatalf("restore Ada: %v", err)
+	}
+	if _, err := f.service.Restore(ctx, f.match, f.home, dto.RestoreTicketRequest{UserID: coach}); err != nil {
+		t.Fatalf("restore manager: %v", err)
+	}
+	s = f.sheet(t)
+	if a := rowByName(s.Players, "ZZFIX Ada"); a.TicketCode == "" || a.TicketCode == ada.TicketCode || a.Revoked {
+		t.Errorf("Ada restored = %+v", a)
+	}
+	if s.SlotsUsed != 3 {
+		t.Errorf("used = %d, want 3", s.SlotsUsed)
+	}
+	// Restoring someone who has a live ticket, or a stranger, is refused.
+	if _, err := f.service.Restore(ctx, f.match, f.home, dto.RestoreTicketRequest{PlayerID: f.players["Ada"]}); err != services.ErrAlreadyHasTicket {
+		t.Errorf("restore twice: err = %v", err)
+	}
+	if _, err := f.service.Restore(ctx, f.match, f.home, dto.RestoreTicketRequest{PlayerID: f.players["Dayo"]}); err != services.ErrNotOnSheetOrTeam {
+		t.Errorf("restore someone off the sheet: err = %v", err)
+	}
+
+	// Dropped and put back on the sheet after a restore, Ada still gets a ticket.
+	f.saveSheet(t, "Bola")
+	f.saveSheet(t, "Ada", "Bola")
+	if a := rowByName(f.sheet(t).Players, "ZZFIX Ada"); a.TicketCode == "" {
+		t.Error("Ada, dropped and re-added after a restore, has no ticket")
+	}
+}
+
+func TestTeamSlots_ATicketUsedAtTheGateCannotBeRevoked(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	ctx := context.Background()
+	f.saveSheet(t, "Ada")
+	row := rowByName(f.sheet(t).Players, "ZZFIX Ada")
+	tk, _ := f.tickets.GetByCode(ctx, row.TicketCode)
+	if err := f.tickets.CheckinDay(ctx, tk.ID, tk.Days[0].EventDayID, "gate"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.Revoke(ctx, f.match, f.home, row.TicketID); err != services.ErrTicketUsed {
+		t.Errorf("revoke a used ticket: err = %v, want ErrTicketUsed", err)
+	}
+	// Another team's ticket id is not found through this team.
+	if _, err := f.service.Revoke(ctx, f.match, f.away, row.TicketID); err != services.ErrTicketNotFound {
+		t.Errorf("revoke through the wrong team: err = %v, want ErrTicketNotFound", err)
+	}
+}
+
+func TestTeamSlots_NothingIsIssuedForAMatchAlreadyPlayed(t *testing.T) {
+	f := newPlayerTicketFixture(t)
+	f.saveSheet(t, "Ada")
+	mustExec(t, f.pool, `UPDATE matches SET status = 'FINISHED' WHERE id = $1`, f.match)
+	if _, err := f.service.AddExtra(context.Background(), f.match, f.home, dto.AddExtraTicketRequest{Name: "Late"}); err != services.ErrTicketsClosed {
+		t.Errorf("extra after the match: err = %v, want ErrTicketsClosed", err)
 	}
 }

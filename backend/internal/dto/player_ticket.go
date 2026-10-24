@@ -2,6 +2,9 @@ package dto
 
 // PlayerTicketHolderResponse is who a player ticket admits, as the gate shows it.
 type PlayerTicketHolderResponse struct {
+	// Role is PLAYER (on the team sheet), MANAGER, or EXTRA (given a ticket by the
+	// team manager). For the last two, Name is who the ticket was made out to.
+	Role         string `json:"role"`
 	PlayerID     string `json:"player_id"`
 	Name         string `json:"name"`
 	JerseyNumber int    `json:"jersey_number"`
@@ -31,7 +34,12 @@ type PlayerTicketMatchResponse struct {
 
 // PlayerTicketRow is one player on a team sheet and their ticket.
 type PlayerTicketRow struct {
-	PlayerID     string `json:"player_id"`
+	// Role is whose slot this is: PLAYER (on the sheet), MANAGER, or EXTRA.
+	Role string `json:"role"`
+	// PlayerID is empty for a manager or an extra who is not on the team's roster.
+	PlayerID string `json:"player_id,omitempty"`
+	// UserID is set for a manager.
+	UserID       string `json:"user_id,omitempty"`
 	Name         string `json:"name"`
 	JerseyNumber int    `json:"jersey_number"`
 	Position     string `json:"position"`
@@ -39,6 +47,9 @@ type PlayerTicketRow struct {
 	// HasEmail says whether the ticket could be emailed to them. The address itself
 	// is not sent: the sheet is printed and handed round.
 	HasEmail bool `json:"has_email"`
+	// Revoked is true when the ticket was taken back on purpose: the person has no
+	// ticket, and saving the sheet again does not give them one.
+	Revoked bool `json:"revoked,omitempty"`
 	// The ticket, once issued. Empty when the sheet has not been turned into tickets
 	// yet (a match already played, or an issue that failed).
 	TicketID    string  `json:"ticket_id,omitempty"`
@@ -54,11 +65,21 @@ type PlayerTicketSheetResponse struct {
 	TeamID   string                    `json:"team_id"`
 	TeamName string                    `json:"team_name"`
 	Opponent string                    `json:"opponent"`
-	// Players is left out of list views.
-	Players   []PlayerTicketRow `json:"players,omitempty"`
-	Named     int               `json:"named"`      // players on the sheet
-	Issued    int               `json:"issued"`     // of them, with a live ticket
-	CheckedIn int               `json:"checked_in"` // of them, through the gate
+	// Players are those on the sheet; Others are the team's managers and any extras
+	// the manager gave a ticket. Both are left out of list views.
+	Players []PlayerTicketRow `json:"players,omitempty"`
+	Others  []PlayerTicketRow `json:"others,omitempty"`
+	Named   int               `json:"named"`  // players on the sheet
+	Issued  int               `json:"issued"` // of them, with a live ticket
+	// Missing is everyone owed a ticket (players on the sheet and managers) who has
+	// none and was not revoked on purpose.
+	Missing   int `json:"missing"`
+	CheckedIn int `json:"checked_in"` // everyone with a slot, through the gate
+	// A team has SlotsTotal tickets for the match; SlotsUsed are live, SlotsLeft can
+	// still be given to extras.
+	SlotsTotal int `json:"slots_total"`
+	SlotsUsed  int `json:"slots_used"`
+	SlotsLeft  int `json:"slots_left"`
 	// CanIssue is false once the match day has passed: no new tickets are made
 	// for a match already played.
 	CanIssue bool `json:"can_issue"`
@@ -95,4 +116,19 @@ type MyPlayerTicket struct {
 	TeamName    string                    `json:"team_name"`
 	Opponent    string                    `json:"opponent"`
 	Match       PlayerTicketMatchResponse `json:"match"`
+}
+
+// AddExtraTicketRequest gives one of the team's slots to someone not on the sheet:
+// a reserve from the roster (PlayerID), or anyone else by name.
+type AddExtraTicketRequest struct {
+	PlayerID string `json:"player_id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+}
+
+// RestoreTicketRequest gives a revoked ticket back to a player on the sheet
+// (PlayerID) or to a manager (UserID).
+type RestoreTicketRequest struct {
+	PlayerID string `json:"player_id"`
+	UserID   string `json:"user_id"`
 }

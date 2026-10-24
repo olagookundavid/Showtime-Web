@@ -67,6 +67,8 @@ import type {
   PlayerTicketDay,
   PlayerTicketDaySheets,
   PlayerTicketIssueResult,
+  AddExtraTicketPayload,
+  RestoreTicketPayload,
   MyPlayerTicket,
   CreateReferralPayload,
   ReferralResponse,
@@ -1655,25 +1657,6 @@ export const adminDeleteAllocation = async (id: string) => {
   return response.data;
 };
 
-export const getTeamAllocations = async (): Promise<TeamTicketAllocation[]> => {
-  const response = await api.get<{ data: TeamTicketAllocation[] }>(
-    "/team-head/allocations",
-  );
-  return response.data.data || [];
-};
-
-export const issueTeamTicket = async (payload: {
-  event_day_id: string;
-  name: string;
-  email: string;
-}): Promise<TicketResponse> => {
-  const response = await api.post<TicketResponse>(
-    "/team-head/allocations/issue",
-    payload,
-  );
-  return response.data;
-};
-
 // ─── Player tickets ──────────────────────────────────────────────────────────
 // Every player named on a team sheet gets a ticket with their own code. A team
 // head's calls are scoped to their team; team-portal admins pass the team.
@@ -1706,6 +1689,44 @@ export const issueMyPlayerTickets = async (
   const response = await api.post<PlayerTicketIssueResult>(
     `/team-head/player-tickets/${matchId}/issue`,
     null,
+    { params: { team_id: teamId } },
+  );
+  return response.data;
+};
+
+export const addMyExtraTicket = async (
+  matchId: string,
+  payload: AddExtraTicketPayload,
+  teamId?: string,
+): Promise<PlayerTicketSheet> => {
+  const response = await api.post<PlayerTicketSheet>(
+    `/team-head/player-tickets/${matchId}/extras`,
+    payload,
+    { params: { team_id: teamId } },
+  );
+  return response.data;
+};
+
+export const revokeMyTicket = async (
+  matchId: string,
+  ticketId: string,
+  teamId?: string,
+): Promise<PlayerTicketSheet> => {
+  const response = await api.delete<PlayerTicketSheet>(
+    `/team-head/player-tickets/${matchId}/tickets/${ticketId}`,
+    { params: { team_id: teamId } },
+  );
+  return response.data;
+};
+
+export const restoreMyTicket = async (
+  matchId: string,
+  payload: RestoreTicketPayload,
+  teamId?: string,
+): Promise<PlayerTicketSheet> => {
+  const response = await api.post<PlayerTicketSheet>(
+    `/team-head/player-tickets/${matchId}/restore`,
+    payload,
     { params: { team_id: teamId } },
   );
   return response.data;

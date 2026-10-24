@@ -84,6 +84,8 @@ export {
     playerTicketFileName,
     playerTicketFixture,
     playerTicketGateStatus,
+    playerTicketHolders,
+    playerTicketRoleLabel,
     playerTicketSheetsCsv,
     playerTicketWhen,
     printPlayerTicketSheets,

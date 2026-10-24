@@ -324,7 +324,6 @@ const TeamHeadBudget = lazy(() =>
     default: m.TeamHeadBudget,
   })),
 );
-const TeamTickets = lazy(() => import("./pages/team-head/TeamTickets"));
 const TeamHeadPlayerTickets = lazy(
   () => import("./pages/team-head/TeamHeadPlayerTickets"),
 );
@@ -992,7 +991,6 @@ function App() {
                       <Route path="contracts" element={<TeamHeadContracts />} />
                       <Route path="transfers" element={<TeamHeadTransfers />} />
                       <Route path="budget" element={<TeamHeadBudget />} />
-                      <Route path="tickets" element={<TeamTickets />} />
                       <Route
                         path="player-tickets"
                         element={<TeamHeadPlayerTickets />}

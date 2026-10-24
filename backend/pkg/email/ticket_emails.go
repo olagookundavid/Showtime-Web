@@ -285,6 +285,9 @@ func DayReminderEmailHTML(d ReminderEmailData) string {
 // PlayerTicketEmailData is the ticket a player gets for being named on a team
 // sheet. Everything is already formatted for reading.
 type PlayerTicketEmailData struct {
+	// Role is PLAYER (named on the team sheet), MANAGER, or EXTRA (given one by the
+	// team manager). It decides what the email says.
+	Role        string
 	PlayerName  string
 	TeamName    string
 	Fixture     string // "Home vs Away"
@@ -307,10 +310,21 @@ func PlayerTicketEmailHTML(d PlayerTicketEmailData) string {
 		title = d.Competition + ": " + d.Fixture
 	}
 
+	intro := `You are on the <strong>` + esc(d.TeamName) + `</strong> team sheet. This is your player ticket for the match:`
+	ticketKind, closing := "Player Ticket", "It admits you only, and only for this match day. Your team manager also has it on the team sheet."
+	switch d.Role {
+	case "MANAGER":
+		intro = `As a manager of <strong>` + esc(d.TeamName) + `</strong>, here is your ticket for the match:`
+		ticketKind, closing = "Manager Ticket", "It admits you only, and only for this match day."
+	case "EXTRA":
+		intro = `<strong>` + esc(d.TeamName) + `</strong> has given you a ticket for the match:`
+		ticketKind, closing = "Team Ticket", "It admits you only, and only for this match day."
+	}
+
 	body := `<tr>
 <td style="padding: 32px 40px 0;">
 <p style="color: #334155; font-size: 16px; font-weight: 700; margin: 0 0 12px;">Hi ` + esc(d.PlayerName) + `,</p>
-<p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0;">You are on the <strong>` + esc(d.TeamName) + `</strong> team sheet. This is your player ticket for the match:</p>
+<p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0;">` + intro + `</p>
 </td>
 </tr>
 
@@ -322,7 +336,7 @@ func PlayerTicketEmailHTML(d PlayerTicketEmailData) string {
 ` + daysBlock([]TicketEmailDay{{Title: title, Date: when, Venue: d.Venue}}) + `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 14px;">
 <tr>
-` + detailRow("🎫 Ticket", "Player Ticket") + detailRow("🏈 Team", d.TeamName) + `
+` + detailRow("🎫 Ticket", ticketKind) + detailRow("🏈 Team", d.TeamName) + `
 </tr>
 </table>
 </td>
@@ -339,7 +353,7 @@ func PlayerTicketEmailHTML(d PlayerTicketEmailData) string {
 <tr>
 <td style="padding: 16px;">
 <p style="color: #991b1b; font-size: 13px; line-height: 1.5; margin: 0;">
-<strong>⚡ Important:</strong> Show this code at the entrance on match day. It admits you only, and only for this match day. Your team manager also has it on the team sheet.
+<strong>⚡ Important:</strong> Show this code at the entrance on match day. ` + closing + `
 </p>
 </td>
 </tr>
@@ -347,5 +361,9 @@ func PlayerTicketEmailHTML(d PlayerTicketEmailData) string {
 </td>
 </tr>`
 
-	return emailShell("IT'S SHOWTIME — Your Player Ticket", ticketBadge(), "You're on the Team Sheet!", body)
+	heading := "You're on the Team Sheet!"
+	if d.Role == "MANAGER" || d.Role == "EXTRA" {
+		heading = "Your Match Day Ticket"
+	}
+	return emailShell("IT'S SHOWTIME — Your Match Day Ticket", ticketBadge(), heading, body)
 }

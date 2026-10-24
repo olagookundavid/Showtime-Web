@@ -170,11 +170,13 @@ const TicketDays = ({ ticket }: { ticket: TicketResponse }) =>
 // of them to the team sheet.
 const PlayerHolderRows = ({ player }: { player: PlayerTicketHolder }) => (
   <>
-    <dt className="text-gray-500 dark:text-gray-400">Player</dt>
+    <dt className="text-gray-500 dark:text-gray-400">
+      {player.role === "MANAGER" ? "Manager" : player.role === "EXTRA" ? "Guest" : "Player"}
+    </dt>
     <dd className="font-bold dark:text-white">
       {player.jersey_number ? `#${player.jersey_number} ` : ""}
       {player.name}
-      {player.position && player.position !== "-" && (
+      {player.role === "PLAYER" && player.position && player.position !== "-" && (
         <span className="font-normal text-gray-500 dark:text-gray-400">
           {" "}
           · {player.position}

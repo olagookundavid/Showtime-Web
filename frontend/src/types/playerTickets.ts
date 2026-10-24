@@ -1,8 +1,13 @@
-// Player tickets: every player named on a team sheet gets a free ticket, with its
-// own code, for that match's game day.
+// Team tickets: every team has TEAM slots for a match. The players on its sheet and
+// its managers get one automatically, and the manager can give the rest to anyone
+// (a reserve, another manager). Each is a free ticket with its own code.
+
+export type TeamTicketRole = 'PLAYER' | 'MANAGER' | 'EXTRA';
 
 /** Who a player ticket admits, as the gate shows it. */
 export interface PlayerTicketHolder {
+    /** PLAYER (on the team sheet), MANAGER, or EXTRA (given a ticket by the team manager). */
+    role: TeamTicketRole;
     player_id: string;
     name: string;
     jersey_number: number;
@@ -33,9 +38,15 @@ export interface PlayerTicketMatch {
     away_team: string;
 }
 
-/** One player on a team sheet and their ticket. */
+/** One person with a slot for a match, and their ticket. */
 export interface PlayerTicketRow {
-    player_id: string;
+    role: TeamTicketRole;
+    /** Absent for a manager, or an extra who is not on the team's roster. */
+    player_id?: string;
+    /** Set for a manager. */
+    user_id?: string;
+    /** The ticket was taken back on purpose: no code, and saving the sheet does not give one. */
+    revoked?: boolean;
     name: string;
     jersey_number: number;
     position: string;
@@ -54,11 +65,18 @@ export interface PlayerTicketSheet {
     team_id: string;
     team_name: string;
     opponent: string;
-    /** Absent in list views. */
+    /** Players on the sheet. Absent in list views. */
     players?: PlayerTicketRow[];
+    /** The team's managers and any extras the manager gave a ticket. Absent in list views. */
+    others?: PlayerTicketRow[];
     named: number;
     issued: number;
+    /** Everyone owed a ticket (sheet players, managers) who has none and was not revoked. */
+    missing: number;
     checked_in: number;
+    slots_total: number;
+    slots_used: number;
+    slots_left: number;
     /** False once the match day has passed. */
     can_issue: boolean;
 }
@@ -91,4 +109,17 @@ export interface MyPlayerTicket {
     team_name: string;
     opponent: string;
     match: PlayerTicketMatch;
+}
+
+/** Gives one of the team's spare slots to a reserve (player_id) or anyone else (name). */
+export interface AddExtraTicketPayload {
+    player_id?: string;
+    name?: string;
+    email?: string;
+}
+
+/** Gives a revoked ticket back to a player on the sheet (player_id) or a manager (user_id). */
+export interface RestoreTicketPayload {
+    player_id?: string;
+    user_id?: string;
 }

@@ -160,11 +160,15 @@ type Ticket struct {
 	TeamID                  *string `json:"team_id,omitempty"`
 	// PlayerID and MatchID are set on a player ticket: who it admits and the match
 	// they were named for.
-	PlayerID     *string   `json:"player_id,omitempty"`
-	MatchID      *string   `json:"match_id,omitempty"`
-	ReferralCode *string   `json:"referral_code,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	PlayerID *string `json:"player_id,omitempty"`
+	MatchID  *string `json:"match_id,omitempty"`
+	// TeamRole says whose slot a team ticket is: a PLAYER on the sheet, a MANAGER
+	// of the team, or an EXTRA person the manager gave one to. Empty on every other
+	// kind of ticket.
+	TeamRole     TeamTicketRole `json:"team_role,omitempty"`
+	ReferralCode *string        `json:"referral_code,omitempty"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
 
 	// Relations
 	Days []TicketDay `json:"days,omitempty"`
@@ -173,22 +177,32 @@ type Ticket struct {
 	Player *PlayerTicketHolder `json:"player,omitempty"`
 }
 
+// TeamTicketRole is whose slot a team's game day ticket is.
+type TeamTicketRole string
+
+const (
+	TeamRolePlayer  TeamTicketRole = "PLAYER"
+	TeamRoleManager TeamTicketRole = "MANAGER"
+	TeamRoleExtra   TeamTicketRole = "EXTRA"
+)
+
 // PlayerTicketHolder is the player a player ticket belongs to and the match they
 // are named for: what the gate shows so a scanner knows who is in front of them.
 type PlayerTicketHolder struct {
-	PlayerID     string    `json:"player_id"`
-	Name         string    `json:"name"`
-	JerseyNumber int       `json:"jersey_number"`
-	Position     string    `json:"position"`
-	Image        string    `json:"image"`
-	TeamID       string    `json:"team_id"`
-	TeamName     string    `json:"team_name"`
-	MatchID      string    `json:"match_id"`
-	HomeTeam     string    `json:"home_team"`
-	AwayTeam     string    `json:"away_team"`
-	Competition  string    `json:"competition"`
-	MatchDate    time.Time `json:"match_date"`
-	Kickoff      string    `json:"kickoff"` // HH:MM, empty when not set
+	Role         TeamTicketRole `json:"role"`
+	PlayerID     string         `json:"player_id"`
+	Name         string         `json:"name"`
+	JerseyNumber int            `json:"jersey_number"`
+	Position     string         `json:"position"`
+	Image        string         `json:"image"`
+	TeamID       string         `json:"team_id"`
+	TeamName     string         `json:"team_name"`
+	MatchID      string         `json:"match_id"`
+	HomeTeam     string         `json:"home_team"`
+	AwayTeam     string         `json:"away_team"`
+	Competition  string         `json:"competition"`
+	MatchDate    time.Time      `json:"match_date"`
+	Kickoff      string         `json:"kickoff"` // HH:MM, empty when not set
 }
 
 // TicketDay is one match day a ticket covers, and whether it has been used.

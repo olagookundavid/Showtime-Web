@@ -50,6 +50,13 @@ type MyPlayerTicketRow struct {
 	Match       PlayerTicketMatch
 }
 
+// TeamManager is one of a team's managers, who each get a ticket for the team's matches.
+type TeamManager struct {
+	UserID string
+	Name   string
+	Email  string
+}
+
 // SheetRef is one team's sheet for one match.
 type SheetRef struct {
 	MatchID string
@@ -79,6 +86,23 @@ type PlayerTicketRepository interface {
 	GetDay(ctx context.Context, eventDayID string) (*domain.EventDay, error)
 	// Holder is who a player ticket admits and for which match.
 	Holder(ctx context.Context, ticketID string) (*domain.PlayerTicketHolder, error)
+	// Managers is the team's managers.
+	Managers(ctx context.Context, teamID string) ([]TeamManager, error)
+	// RosterPlayer is a player on the team's roster (on the sheet or not), for giving
+	// them an extra ticket. Nil when they are not on the team.
+	RosterPlayer(ctx context.Context, playerID, teamID string) (*SheetPlayer, error)
+	// RevokedHolders is who had their ticket for this match taken back on purpose,
+	// by player id and by manager user id.
+	RevokedHolders(ctx context.Context, matchID, teamID string) (players, users map[string]bool, err error)
+	// Revoke takes a ticket back, freeing its slot. It does nothing to a ticket that
+	// has already been used; revoked says whether it changed.
+	Revoke(ctx context.Context, ticketID, matchID, teamID string) (revoked bool, err error)
+	// ClearRevoked forgets that someone's ticket was taken back, so they can be
+	// issued one again.
+	ClearRevoked(ctx context.Context, matchID, teamID, playerID, userID string) error
+	// WithTeamLock runs fn while holding a lock on one team's tickets for one match,
+	// so two people handing out the last slots cannot both succeed.
+	WithTeamLock(ctx context.Context, matchID, teamID string, fn func(ctx context.Context) error) error
 	// MyTickets is the live player tickets of the player an account is linked to,
 	// upcoming matches first (soonest first), then played ones (latest first).
 	// linked is false when the account has no player behind it.
@@ -264,7 +288,7 @@ func (r *PostgresPlayerTicketRepository) Holder(ctx context.Context, ticketID st
 	var h domain.PlayerTicketHolder
 	var matchDate *time.Time
 	err := r.db.QueryRow(ctx, `
-		SELECT COALESCE(p.id::text, ''), COALESCE(p.name, t.name, ''), COALESCE(p.jersey_number, 0),
+		SELECT COALESCE(t.team_role, 'PLAYER'), COALESCE(p.id::text, ''), COALESCE(p.name, t.name, ''), COALESCE(p.jersey_number, 0),
 		       COALESCE(p.position, ''), COALESCE(p.image, ''),
 		       COALESCE(t.team_id::text, ''), COALESCE(tm.name, ''),
 		       COALESCE(m.id::text, ''), COALESCE(ht.name, ''), COALESCE(at.name, ''), COALESCE(c.name, ''),
@@ -277,7 +301,7 @@ func (r *PostgresPlayerTicketRepository) Holder(ctx context.Context, ticketID st
 		LEFT JOIN teams at ON at.id = m.away_team_id
 		LEFT JOIN competitions c ON c.id = m.competition_id
 		WHERE t.id = $1 AND t.purchase_type = 'PLAYER'`, ticketID,
-	).Scan(&h.PlayerID, &h.Name, &h.JerseyNumber, &h.Position, &h.Image,
+	).Scan(&h.Role, &h.PlayerID, &h.Name, &h.JerseyNumber, &h.Position, &h.Image,
 		&h.TeamID, &h.TeamName, &h.MatchID, &h.HomeTeam, &h.AwayTeam, &h.Competition,
 		&matchDate, &h.Kickoff)
 	if err != nil {
@@ -343,4 +367,109 @@ func (r *PostgresPlayerTicketRepository) MyTickets(ctx context.Context, userID s
 		out = append(out, x)
 	}
 	return out, true, rows.Err()
+}
+
+func (r *PostgresPlayerTicketRepository) Managers(ctx context.Context, teamID string) ([]TeamManager, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT u.id::text, COALESCE(NULLIF(TRIM(u.full_name), ''), u.email), COALESCE(u.email, '')
+		FROM team_managers tm JOIN users u ON u.id = tm.user_id
+		WHERE tm.team_id = $1::uuid
+		ORDER BY tm.created_at, u.full_name`, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []TeamManager{}
+	for rows.Next() {
+		var m TeamManager
+		if err := rows.Scan(&m.UserID, &m.Name, &m.Email); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+func (r *PostgresPlayerTicketRepository) RosterPlayer(ctx context.Context, playerID, teamID string) (*SheetPlayer, error) {
+	var p SheetPlayer
+	err := r.db.QueryRow(ctx, `
+		SELECT p.id::text, p.name, COALESCE(p.jersey_number, 0), COALESCE(p.position, ''), COALESCE(p.image, ''),
+		       COALESCE(NULLIF(TRIM(p.email), ''), u.email, '')
+		FROM players p LEFT JOIN users u ON u.id = p.user_id
+		WHERE p.id = $1::uuid AND p.team_id = $2::uuid AND COALESCE(p.status, 'active') = 'active'`, playerID, teamID,
+	).Scan(&p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &p.Image, &p.Email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *PostgresPlayerTicketRepository) RevokedHolders(ctx context.Context, matchID, teamID string) (map[string]bool, map[string]bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT COALESCE(player_id::text, ''), COALESCE(user_id::text, '')
+		FROM tickets
+		WHERE purchase_type = 'PLAYER' AND match_id = $1::uuid AND team_id = $2::uuid
+		  AND status = 'CANCELLED' AND revoked_at IS NOT NULL`, matchID, teamID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	players, users := map[string]bool{}, map[string]bool{}
+	for rows.Next() {
+		var pid, uid string
+		if err := rows.Scan(&pid, &uid); err != nil {
+			return nil, nil, err
+		}
+		if pid != "" {
+			players[pid] = true
+		}
+		if uid != "" {
+			users[uid] = true
+		}
+	}
+	return players, users, rows.Err()
+}
+
+func (r *PostgresPlayerTicketRepository) Revoke(ctx context.Context, ticketID, matchID, teamID string) (bool, error) {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE tickets t SET status = 'CANCELLED', revoked_at = NOW(), updated_at = NOW()
+		WHERE t.id = $1::uuid AND t.match_id = $2::uuid AND t.team_id = $3::uuid
+		  AND t.purchase_type = 'PLAYER' AND t.status = 'PAID'
+		  AND NOT EXISTS (SELECT 1 FROM ticket_days td WHERE td.ticket_id = t.id AND td.checked_in_at IS NOT NULL)`,
+		ticketID, matchID, teamID)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+func (r *PostgresPlayerTicketRepository) ClearRevoked(ctx context.Context, matchID, teamID, playerID, userID string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE tickets SET revoked_at = NULL
+		WHERE purchase_type = 'PLAYER' AND match_id = $1::uuid AND team_id = $2::uuid AND revoked_at IS NOT NULL
+		  AND (($3 <> '' AND player_id = NULLIF($3, '')::uuid) OR ($4 <> '' AND user_id = NULLIF($4, '')::uuid))`,
+		matchID, teamID, playerID, userID)
+	return err
+}
+
+func (r *PostgresPlayerTicketRepository) WithTeamLock(ctx context.Context, matchID, teamID string, fn func(ctx context.Context) error) error {
+	// A session lock on a connection of its own: the work inside runs on other
+	// connections from the pool, so it is not part of this one's transaction.
+	conn, err := r.db.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	const key = `hashtextextended('player-tickets:' || $1::text || ':' || $2::text, 0)`
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock(`+key+`)`, matchID, teamID); err != nil {
+		return err
+	}
+	defer func() {
+		// Unlock on a fresh context: the caller's may already be cancelled.
+		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock(`+key+`)`, matchID, teamID)
+	}()
+	return fn(ctx)
 }

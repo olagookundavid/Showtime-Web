@@ -645,7 +645,7 @@ const ticketColumns = `t.id, t.product_id, t.product_name, t.purchase_type, t.em
 	t.referral_code, t.created_at, t.updated_at, t.discount_code, t.discount_amount,
 	t.game_pass_discount_percent::float8, t.game_pass_discount_amount, t.season_pass_id::text,
 	(SELECT to_char(sp.ends_on, 'YYYY-MM-DD') FROM season_passes sp WHERE sp.id = t.season_pass_id),
-	t.player_id::text, t.match_id::text`
+	t.player_id::text, t.match_id::text, COALESCE(t.team_role, '')`
 
 func scanTicket(row pgx.Row, t *domain.Ticket) error {
 	return row.Scan(
@@ -654,7 +654,7 @@ func scanTicket(row pgx.Row, t *domain.Ticket) error {
 		&t.TotalAmount, &t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.ReferralCode, &t.CreatedAt, &t.UpdatedAt, &t.DiscountCode, &t.DiscountAmount,
 		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount, &t.SeasonPassID, &t.ValidUntil,
-		&t.PlayerID, &t.MatchID,
+		&t.PlayerID, &t.MatchID, &t.TeamRole,
 	)
 }
 
@@ -733,8 +733,8 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		INSERT INTO tickets (product_id, product_name, purchase_type, email, phone, name, user_id, quantity,
 			unit_price, subtotal, total_amount, status, paystack_reference, paystack_access_code, ticket_code,
 			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount,
-			season_pass_id, player_id, match_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+			season_pass_id, player_id, match_id, team_role)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NULLIF($25, ''))
 		ON CONFLICT (paystack_reference) DO NOTHING
 		RETURNING id, created_at, updated_at`,
 		ticket.ProductID, ticket.ProductName, ticket.PurchaseType, ticket.Email, ticket.Phone, ticket.Name,
@@ -742,7 +742,7 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
 		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
 		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount, ticket.SeasonPassID,
-		ticket.PlayerID, ticket.MatchID,
+		ticket.PlayerID, ticket.MatchID, string(ticket.TeamRole),
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
 	if err != nil {
 		return err

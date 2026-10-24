@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardDocumentListIcon, TicketIcon } from '@heroicons/react/24/outline';
+import { ClipboardDocumentListIcon, TicketIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { getMyPlayerTicketSheet, getMyPlayerTicketSheets, issueMyPlayerTickets } from '../../services/api';
 import type { PlayerTicketSheet } from '../../types';
@@ -13,18 +13,22 @@ import {
     PlayerTicketSheetCard,
     Select,
     Spinner,
+    Tabs,
+    TeamTicketSlotsPanel,
     useTeamHeadTeam,
 } from '../../components';
 import { getApiErrorMessage, playerTicketFixture } from '../../utils';
 
 const NO_SHEETS: PlayerTicketSheet[] = [];
 
+type Tab = 'sheet' | 'extra';
+
 // Game days are dated in Lagos time, so "today" is too.
 const lagosToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date());
 
 const optionLabel = (s: PlayerTicketSheet) => {
     const date = new Date(`${s.match.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-    return `${date} · vs ${s.opponent || 'TBD'} · ${s.issued}/${s.named} codes`;
+    return `${date} · vs ${s.opponent || 'TBD'} · ${s.slots_used}/${s.slots_total} tickets`;
 };
 
 const TeamHeadPlayerTickets = () => {
@@ -34,6 +38,7 @@ const TeamHeadPlayerTickets = () => {
     const [picked, setPicked] = useState<string | null>(null);
     const [pendingIssue, setPendingIssue] = useState<PlayerTicketSheet | null>(null);
     const [issuing, setIssuing] = useState(false);
+    const [tab, setTab] = useState<Tab>('sheet');
 
     const { data: sheets = NO_SHEETS, isLoading } = useQuery({
         queryKey: ['myPlayerTicketSheets', teamId],
@@ -56,6 +61,12 @@ const TeamHeadPlayerTickets = () => {
         queryFn: () => getMyPlayerTicketSheet(matchId, teamId),
         enabled: !!teamId && !!matchId,
     });
+
+    // A change on the Extra Tickets tab arrives as the sheet as it now stands.
+    const applySheet = (next: PlayerTicketSheet) => {
+        queryClient.setQueryData(['myPlayerTicketSheet', teamId, next.match.id], next);
+        queryClient.invalidateQueries({ queryKey: ['myPlayerTicketSheets'] });
+    };
 
     const confirmIssue = async () => {
         if (!pendingIssue) return;
@@ -81,7 +92,7 @@ const TeamHeadPlayerTickets = () => {
         <div className="space-y-6">
             <DashboardPageHeader
                 title="Game Day Tickets"
-                subtitle="Every player on your team sheet gets their own ticket code. Print the sheet or export it for the gate, and tell any player without an email their code."
+                subtitle="Your team has 30 tickets for each match. Players on the team sheet and managers get one automatically; give the rest to reserves or anyone else."
             />
 
             {!teamId || isLoading ? (
@@ -127,10 +138,22 @@ const TeamHeadPlayerTickets = () => {
                         </Select>
                     </Field>
 
+                    <Tabs
+                        aria-label="Game day tickets"
+                        value={tab}
+                        onChange={setTab}
+                        items={[
+                            { value: 'sheet', label: 'Team Sheet Tickets', icon: ClipboardDocumentListIcon },
+                            { value: 'extra', label: 'Extra Tickets', icon: UserPlusIcon },
+                        ]}
+                    />
+
                     {loadingSheet || !sheet ? (
                         <Spinner label="Loading the team sheet" />
-                    ) : (
+                    ) : tab === 'sheet' ? (
                         <PlayerTicketSheetCard sheet={sheet} onIssue={setPendingIssue} issuing={issuing} />
+                    ) : (
+                        <TeamTicketSlotsPanel sheet={sheet} teamId={teamId} onChange={applySheet} />
                     )}
                 </>
             )}
@@ -138,13 +161,13 @@ const TeamHeadPlayerTickets = () => {
             <ConfirmDialog
                 open={pendingIssue !== null}
                 title="Issue the missing codes?"
-                description="Each player on the sheet without a code gets one. Players with an email are sent theirs straight away."
+                description="Each player on the sheet and each manager without a code gets one. Anyone with an email is sent theirs straight away."
                 body={
                     pendingIssue && (
                         <ConfirmSummary
                             rows={[
                                 ['Match', playerTicketFixture(pendingIssue)],
-                                ['Players without a code', String(pendingIssue.named - pendingIssue.issued)],
+                                ['People without a code', String(pendingIssue.missing)],
                             ]}
                         />
                     )

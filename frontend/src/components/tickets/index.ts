@@ -1,5 +1,6 @@
 export { PlayerTicketSheetCard } from './PlayerTicketSheetCard';
 export { SeasonPassCheckout } from './SeasonPassCheckout';
+export { TeamTicketSlotsPanel } from './TeamTicketSlotsPanel';
 export { TicketAccessCodeBox } from './TicketAccessCodeBox';
 export { TicketCheckout } from './TicketCheckout';
 export { TicketDayPicker } from './TicketDayPicker';

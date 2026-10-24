@@ -161,14 +161,14 @@ export const AdminPlayerTickets = () => {
             <ConfirmDialog
                 open={pendingIssue !== null}
                 title="Issue the missing codes?"
-                description="Each player on the sheet without a code gets one. Players with an email are sent theirs straight away."
+                description="Each player on the sheet and each manager without a code gets one. Anyone with an email is sent theirs straight away."
                 body={
                     pendingIssue && (
                         <ConfirmSummary
                             rows={[
                                 ['Team', pendingIssue.team_name],
                                 ['Match', playerTicketFixture(pendingIssue)],
-                                ['Players without a code', String(pendingIssue.named - pendingIssue.issued)],
+                                ['People without a code', String(pendingIssue.missing)],
                             ]}
                         />
                     )
