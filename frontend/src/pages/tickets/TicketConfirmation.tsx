@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -13,40 +13,50 @@ import { getTicketByReference, verifyTicket } from "../../services/api";
 import { Button, Loader, formatDayLong } from "../../components";
 import { getApiErrorMessage } from "../../utils";
 
+// How long, and how often, the page keeps checking a payment that is still going through.
+const PENDING_POLL_EVERY_MS = 5000;
+const PENDING_POLL_FOR_MS = 3 * 60 * 1000;
+const SUPPORT_EMAIL = "showtime@showtimeflag.football";
+
 export const TicketConfirmation = () => {
   const [searchParams] = useSearchParams();
   const reference = searchParams.get("reference") || searchParams.get("trxref");
-  const queryClient = useQueryClient();
 
-  // We use a small delay state for webhook processing before enabling the query
-  const [delayComplete, setDelayComplete] = useState(false);
+  // Paystack sends the buyer back here as soon as they pay. Rather than wait for
+  // its webhook, ask Paystack about the payment straight away (the server checks it
+  // and confirms the ticket once, whoever gets there first). If that check cannot
+  // run, show the ticket as the server has it.
+  const [startedAt] = useState(() => Date.now());
   const [rechecking, setRechecking] = useState(false);
-
-  useEffect(() => {
-    if (!reference) return;
-    const timer = setTimeout(() => setDelayComplete(true), 2000);
-    return () => clearTimeout(timer);
-  }, [reference]);
 
   const {
     data: ticketData,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ["publicTicket", reference],
-    queryFn: () => getTicketByReference(reference!),
-    enabled: !!reference && delayComplete,
-    retry: 1, // Retry once if webhook is still processing
+    queryFn: async () => {
+      try {
+        return await verifyTicket(reference!);
+      } catch {
+        return await getTicketByReference(reference!);
+      }
+    },
+    enabled: !!reference,
+    retry: 2,
+    // A bank transfer can take a few minutes to land: keep checking for a while.
+    refetchInterval: (query) =>
+      query.state.data?.status === "PENDING" && Date.now() - startedAt < PENDING_POLL_FOR_MS
+        ? PENDING_POLL_EVERY_MS
+        : false,
   });
 
-  // A buyer stuck on "Payment Pending" if the webhook is slow shouldn't have no
-  // recourse but to keep refreshing the page: re-check with Paystack directly.
   const handleRecheck = async () => {
     if (!reference) return;
     setRechecking(true);
     try {
-      await verifyTicket(reference);
-      await queryClient.invalidateQueries({ queryKey: ["publicTicket", reference] });
+      await refetch();
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Could not check payment status"));
     } finally {
@@ -55,11 +65,11 @@ export const TicketConfirmation = () => {
   };
 
   const ticket = ticketData || null;
-  const loading = !reference ? false : !delayComplete || isLoading;
+  const loading = !reference ? false : isLoading;
   const error = !reference
     ? "No payment reference found."
     : isError
-      ? "Could not find your ticket. Please check your email or contact support."
+      ? `We could not load your ticket. If you were charged, your payment is safe: email ${SUPPORT_EMAIL} with the reference ${reference} and we will sort it out.`
       : "";
 
   if (loading) {
@@ -114,7 +124,7 @@ export const TicketConfirmation = () => {
           {isPaid
             ? "Your tickets are confirmed"
             : isPending
-              ? "Your payment is being processed"
+              ? "Your payment is still going through. This page checks again by itself, and your ticket is emailed the moment it lands."
               : "Your payment could not be completed"}
         </p>
         {isPending && (
