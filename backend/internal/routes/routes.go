@@ -855,6 +855,10 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	// Ticket routes
+	// The Paystack webhook. Set this URL on the Paystack dashboard; it takes ticket,
+	// store and fantasy league payments alike.
+	r.POST("/paystack/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
+
 	ticketRoutes := r.Group("/tickets")
 	{
 
@@ -867,7 +871,9 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
 		}
 
-		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
+		// Paystack calls one URL for every payment; every old webhook path goes to
+		// the same handler, which finds what the payment was for.
+		ticketRoutes.POST("/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
 		ticketRoutes.POST("/verify/:reference", app.Handlers.TicketHandler.VerifyTicket)
 		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
 		ticketRoutes.POST("/referrals", app.Handlers.TicketHandler.CreateReferralCode)
@@ -908,7 +914,7 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
 		}
 
-		storeRoutes.POST("/webhook", app.Handlers.StoreHandler.Webhook)
+		storeRoutes.POST("/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
 		storeRoutes.GET("/orders/by-ref/:reference", app.Handlers.StoreHandler.GetOrderByReference)
 
 		// Public reviews list — anyone can read reviews.
@@ -1050,7 +1056,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/seasons/:season_id/gameweeks/:gw_id/report", app.Handlers.FantasyHandler.GetGameweekReport)
 
 		// Webhook (Unauthenticated, HMAC signature validated)
-		fantasyRoutes.POST("/leagues/webhook", app.Handlers.FantasyLeagueHandler.LeagueWebhook)
+		fantasyRoutes.POST("/leagues/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
 
 		// Authenticated User Operations
 		protected := fantasyRoutes.Group("")

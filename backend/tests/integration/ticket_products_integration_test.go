@@ -1046,3 +1046,81 @@ func TestPayingForATicketKeepsTheSignedInBuyersPhone(t *testing.T) {
 		t.Errorf("a guest's phone must not appear on any profile, found %d", n)
 	}
 }
+
+func TestTickets_MarkPaidHappensOnce(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d := f.eventDay(t, "markpaid", "2090-08-01")
+	comp := f.competition(t, "markpaid", "2090-08-01")
+	p := f.product(t, "MarkPaid", 1000, 0, comp)
+	tk := f.newTicket(p, 1, domain.TicketStatusPending, f.productDay(t, p, d))
+	if err := f.tickets.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+
+	// The webhook and the buyer's page race to confirm it: only one wins.
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	won := 0
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			changed, err := f.tickets.MarkPaid(ctx, tk.ID)
+			if err != nil {
+				t.Error(err)
+			}
+			if changed {
+				mu.Lock()
+				won++
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	if won != 1 {
+		t.Errorf("%d callers marked it paid, want 1", won)
+	}
+	got, _ := f.tickets.GetByID(ctx, tk.ID)
+	if got.Status != domain.TicketStatusPaid {
+		t.Errorf("status = %s, want PAID", got.Status)
+	}
+
+	// A failed payment later paid is accepted; a used ticket is never touched.
+	mustExec(t, f.pool, `UPDATE tickets SET status = 'FAILED' WHERE id = $1`, tk.ID)
+	if changed, _ := f.tickets.MarkPaid(ctx, tk.ID); !changed {
+		t.Error("a FAILED ticket later paid was not marked PAID")
+	}
+	mustExec(t, f.pool, `UPDATE tickets SET status = 'USED' WHERE id = $1`, tk.ID)
+	if changed, _ := f.tickets.MarkPaid(ctx, tk.ID); changed {
+		t.Error("a USED ticket was moved back to PAID")
+	}
+}
+
+func TestTickets_TheGateFindsATicketByItsPaystackReference(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d := f.eventDay(t, "byref", "2090-08-02")
+	comp := f.competition(t, "byref", "2090-08-02")
+	p := f.product(t, "ByRef", 1000, 0, comp)
+	tk := f.newTicket(p, 1, domain.TicketStatusPaid, f.productDay(t, p, d))
+	ref := "sffl-" + strings.ToLower(nextCode())
+	tk.PaystackReference = &ref
+	if err := f.tickets.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+	svc := f.seasonService()
+
+	byCode, err := svc.GetByCode(ctx, tk.TicketCode)
+	if err != nil || byCode.ID != tk.ID {
+		t.Fatalf("by code: %v", err)
+	}
+	// The buyer reads the reference off their Paystack receipt, often in capitals.
+	byRef, err := svc.GetByCode(ctx, strings.ToUpper(ref))
+	if err != nil || byRef.ID != tk.ID {
+		t.Errorf("by Paystack reference: %v", err)
+	}
+	if _, err := svc.GetByCode(ctx, "SFFL-NOPE0000"); err == nil {
+		t.Error("an unknown code was found")
+	}
+}

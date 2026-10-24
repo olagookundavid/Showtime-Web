@@ -70,6 +70,10 @@ type TicketRepository interface {
 	GetByCode(ctx context.Context, code string) (*domain.Ticket, error)
 	SearchByEmail(ctx context.Context, email string, page, limit int) ([]domain.Ticket, int, error)
 	UpdateStatus(ctx context.Context, id string, status domain.TicketStatus) error
+	// MarkPaid moves a PENDING or FAILED ticket to PAID. changed is false when it
+	// was already paid: the webhook and the buyer's confirmation page can both get
+	// there, and only the first should send the confirmation.
+	MarkPaid(ctx context.Context, id string) (changed bool, err error)
 	// CheckinDay marks one day of a PAID ticket as attended. The ticket becomes
 	// USED once every day has been.
 	CheckinDay(ctx context.Context, ticketID, eventDayID, checkedInBy string) error
@@ -929,6 +933,15 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 		return nil, 0, err
 	}
 	return tickets, total, nil
+}
+
+func (r *PostgresTicketRepository) MarkPaid(ctx context.Context, id string) (bool, error) {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE tickets SET status = 'PAID', updated_at = NOW() WHERE id = $1 AND status IN ('PENDING', 'FAILED')`, id)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 func (r *PostgresTicketRepository) UpdateStatus(ctx context.Context, id string, status domain.TicketStatus) error {
