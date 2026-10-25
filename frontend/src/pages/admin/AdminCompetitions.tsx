@@ -551,7 +551,7 @@ const AdminCompetitions = () => {
                 <Field
                   label="Standings Tie-Breaker Rule *"
                   htmlFor="competition-tie-breaker"
-                  hint="Determines how teams are ranked and broken when tied on points/percentage in standings."
+                  hint="Teams are always ranked by Win % first. This decides the order of teams level on Win %."
                 >
                   <Select
                     id="competition-tie-breaker"
@@ -568,8 +568,9 @@ const AdminCompetitions = () => {
                       Points Against, then Name (A-Z)
                     </option>
                     <option value="H2H_PCT_PD_PF_PA_NAME">
-                      Rule 2: Head-to-Head, then Win %, then Point Diff, then
-                      Points For, then Points Against, then Name (A-Z)
+                      Rule 2: Win %, then Head-to-Head between tied teams, then
+                      Point Diff, then Points For, then Points Against, then
+                      Name (A-Z)
                     </option>
                   </Select>
                 </Field>
