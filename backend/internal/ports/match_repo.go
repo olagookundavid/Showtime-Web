@@ -7,7 +7,6 @@ import (
 	"log"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -984,89 +983,35 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 		return standings, nil
 	}
 
-	ruleUpper := strings.ToUpper(strings.TrimSpace(tieBreakerRule))
-	isH2H := ruleUpper == domain.TieBreakerRuleH2H_PCT_PD_PF_PA_NAME ||
-		ruleUpper == "RULE_2" ||
-		ruleUpper == "RULE 2" ||
-		strings.Contains(ruleUpper, "H2H") ||
-		strings.Contains(ruleUpper, "RULE_2") ||
-		strings.Contains(ruleUpper, "RULE 2")
-
-	h2hPoints := make(map[string]map[string]int)
-	if isH2H {
+	// Head-to-head uses the same games as the standings themselves: scored,
+	// finished or live, and not playoff bracket games.
+	var results []domain.StandingsResult
+	if domain.IsH2HTieBreakerRule(tieBreakerRule) {
 		mRows, err := r.db.Query(ctx, `
-			SELECT home_team_id, away_team_id, home_score, away_score 
-			FROM matches 
-			WHERE competition_id::text = $1 AND status IN ('FINISHED', 'LIVE') AND home_score IS NOT NULL AND away_score IS NOT NULL
+			SELECT home_team_id::text, away_team_id::text, home_score, away_score
+			FROM matches
+			WHERE competition_id::text = $1 AND status IN ('FINISHED', 'LIVE')
+			  AND home_team_id IS NOT NULL AND away_team_id IS NOT NULL
+			  AND home_score IS NOT NULL AND away_score IS NOT NULL
+			  AND bracket_pos IS NULL
 		`, competitionID)
-		if err == nil {
-			defer mRows.Close()
-			for mRows.Next() {
-				var hID, aID string
-				var hScore, aScore int
-				if err := mRows.Scan(&hID, &aID, &hScore, &aScore); err == nil {
-					if h2hPoints[hID] == nil {
-						h2hPoints[hID] = make(map[string]int)
-					}
-					if h2hPoints[aID] == nil {
-						h2hPoints[aID] = make(map[string]int)
-					}
-					if hScore > aScore {
-						h2hPoints[hID][aID] += 3
-					} else if aScore > hScore {
-						h2hPoints[aID][hID] += 3
-					} else {
-						h2hPoints[hID][aID] += 1
-						h2hPoints[aID][hID] += 1
-					}
-				}
+		if err != nil {
+			return nil, err
+		}
+		defer mRows.Close()
+		for mRows.Next() {
+			var res domain.StandingsResult
+			if err := mRows.Scan(&res.HomeTeamID, &res.AwayTeamID, &res.HomeScore, &res.AwayScore); err != nil {
+				return nil, err
 			}
+			results = append(results, res)
+		}
+		if err := mRows.Err(); err != nil {
+			return nil, err
 		}
 	}
 
-	getTeamSortKey := func(t *domain.Team) string {
-		if t == nil {
-			return ""
-		}
-		name := strings.TrimSpace(t.Name)
-		if name == "" {
-			name = strings.TrimSpace(t.ShortName)
-		}
-		return strings.ToLower(name)
-	}
-
-	sort.SliceStable(standings, func(i, j int) bool {
-		a, b := standings[i], standings[j]
-		if isH2H {
-			ptsA := h2hPoints[a.TeamID][b.TeamID]
-			ptsB := h2hPoints[b.TeamID][a.TeamID]
-			if ptsA != ptsB {
-				return ptsA > ptsB
-			}
-		}
-		if a.PCT != b.PCT {
-			return a.PCT > b.PCT
-		}
-		if a.GoalDiff != b.GoalDiff {
-			return a.GoalDiff > b.GoalDiff
-		}
-		if a.GoalsFor != b.GoalsFor {
-			return a.GoalsFor > b.GoalsFor
-		}
-		if a.GoalsAgainst != b.GoalsAgainst {
-			return a.GoalsAgainst < b.GoalsAgainst
-		}
-		keyA := getTeamSortKey(a.Team)
-		keyB := getTeamSortKey(b.Team)
-		if keyA != keyB {
-			return keyA < keyB
-		}
-		return a.TeamID < b.TeamID
-	})
-
-	for i := range standings {
-		standings[i].Position = i + 1
-	}
+	domain.RankStandings(standings, tieBreakerRule, results)
 
 	return standings, nil
 }

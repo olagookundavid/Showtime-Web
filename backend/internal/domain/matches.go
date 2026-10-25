@@ -30,8 +30,11 @@ var ValidCompetitionFormats = []string{
 }
 
 const (
-	TieBreakerRulePCT_PD_PF_PA_NAME = "PCT_PD_PF_PA_NAME"     // Rule 1: Win % -> Point Diff -> Points For -> Points Against -> Name
-	TieBreakerRuleH2H_PCT_PD_PF_PA_NAME = "H2H_PCT_PD_PF_PA_NAME" // Rule 2: Head-to-Head -> Win % -> Point Diff -> Points For -> Points Against -> Name
+	TieBreakerRulePCT_PD_PF_PA_NAME = "PCT_PD_PF_PA_NAME" // Rule 1: Win % -> Point Diff -> Points For -> Points Against -> Name
+	// Rule 2: Win % -> Head-to-Head (among teams tied on Win %) -> Point Diff ->
+	// Points For -> Points Against -> Name. The stored value keeps its original
+	// spelling; see RankStandings for the order actually applied.
+	TieBreakerRuleH2H_PCT_PD_PF_PA_NAME = "H2H_PCT_PD_PF_PA_NAME"
 )
 
 const (
