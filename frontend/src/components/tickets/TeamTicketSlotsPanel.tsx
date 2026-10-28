@@ -15,7 +15,7 @@ import {
     type Column,
     type RowAction,
 } from '../ui';
-import { addMyExtraTicket, getPlayers, restoreMyTicket, revokeMyTicket } from '../../services/api';
+import { addMyExtraTicket, getPlayers, restoreMyTicket, revokeMyTicket } from '../../services';
 import type { PlayerTicketRow, PlayerTicketSheet, TeamTicketRole } from '../../types';
 import { getApiErrorMessage, playerTicketFixture, playerTicketHolders, playerTicketRoleLabel } from '../../utils';
 

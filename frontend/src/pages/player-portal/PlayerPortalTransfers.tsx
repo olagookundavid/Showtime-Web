@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { playerPortalApi } from '../../services/api';
+import { getMyTransfers } from '../../services';
 import type { TransferData } from '../../types';
 import { DashboardPageHeader, DataTable, type Column, NotLinkedNotice, apiError } from '../../components';
 
@@ -51,7 +51,7 @@ export const PlayerPortalTransfers: React.FC = () => {
         const fetchTransfers = async () => {
             setLoading(true);
             try {
-                const res = await playerPortalApi.getMyTransfers({ page, limit: PAGE_SIZE });
+                const res = await getMyTransfers({ page, limit: PAGE_SIZE });
                 setTransfers(res.data || NO_ROWS);
                 setTotalPages(res.total_pages || 1);
                 setNotLinked(false);

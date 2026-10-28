@@ -7,7 +7,7 @@ import {
   getMatches,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-} from "../../services/api";
+} from "../../services";
 import type { Competition, Match } from "../../types";
 import {
   Loader,

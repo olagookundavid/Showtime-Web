@@ -8,7 +8,7 @@ import {
   getTeams,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-} from "../../services/api";
+} from "../../services";
 import type { PaginatedResponse, Match, Competition } from "../../types";
 import {
   Loader,

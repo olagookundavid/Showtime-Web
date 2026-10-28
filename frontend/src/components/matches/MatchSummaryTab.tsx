@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import {
   getPublicMatchStats,
   getMatchPlays,
-} from "../../services/api";
+} from "../../services";
 import type {
   Match,
   MatchTeamSheet,

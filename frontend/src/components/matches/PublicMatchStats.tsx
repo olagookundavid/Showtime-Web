@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getPublicMatchStats } from '../../services/api';
+import { getPublicMatchStats } from '../../services';
 import type { PlayerStat, TeamStat } from '../../types';
 import { PlayerStatsTable, TeamStatsTable } from '../stats';
 import { Button, Select, Spinner } from '../ui';

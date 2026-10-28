@@ -6,9 +6,9 @@ import {
   getMatches,
   getTeamHeadTeamSheet,
   saveTeamHeadTeamSheet,
-} from "../../services/api";
+} from "../../services";
 import type { Match, TeamSheetPlayer, SaveTeamSheetPayload } from "../../types";
-import api from "../../services/api";
+import { apiClient as api } from "../../services";
 import {
   MagnifyingGlassIcon,
   XMarkIcon,

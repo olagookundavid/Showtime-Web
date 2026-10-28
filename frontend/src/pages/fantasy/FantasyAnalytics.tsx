@@ -11,7 +11,7 @@ import {
   ArrowPathIcon,
   FireIcon,
 } from "@heroicons/react/24/outline";
-import { fantasyApi } from "../../services/api";
+import { fantasyCoreApi, getGameweekReport } from "../../services";
 import type { FantasyLineupPick } from "../../types";
 import { FantasyBackLink, FantasyPlayerLink, Button, Select, DataTable } from "../../components";
 
@@ -32,7 +32,7 @@ export function FantasyAnalytics() {
   // 1. Fetch active fantasy season
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const seasonId = season?.id || "";
@@ -41,7 +41,7 @@ export function FantasyAnalytics() {
   const { data: gameweeks, isLoading: gwLoading } = useQuery({
     queryKey: ["fantasyGameweeks", seasonId],
     queryFn: () =>
-      seasonId ? fantasyApi.getGameweeks(seasonId) : Promise.resolve([]),
+      seasonId ? fantasyCoreApi.getGameweeks(seasonId) : Promise.resolve([]),
     enabled: Boolean(seasonId),
   });
 
@@ -74,7 +74,7 @@ export function FantasyAnalytics() {
     queryKey: ["fantasyGameweekReport", seasonId, selectedGwId],
     queryFn: () =>
       seasonId && selectedGwId
-        ? fantasyApi.getGameweekReport(seasonId, selectedGwId)
+        ? getGameweekReport(seasonId, selectedGwId)
         : null,
     enabled: Boolean(seasonId) && Boolean(selectedGwId),
     staleTime: 30000,

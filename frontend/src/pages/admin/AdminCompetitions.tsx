@@ -22,7 +22,7 @@ import {
   getCompetitions,
   getTeams,
   getTeamsByCompetition,
-} from "../../services/api";
+} from "../../services";
 import type { Team, CompetitionWithTeamIds as Competition } from "../../types";
 
 type ApiError = {

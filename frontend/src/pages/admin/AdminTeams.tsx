@@ -15,7 +15,7 @@ import {
   getAdminTeams,
   getManagerCandidates,
   getPlayers,
-} from "../../services/api";
+} from "../../services";
 import type { Team } from "../../types";
 import { DataTable, type Column, RowActions, Button, LightboxImage, DashboardPageHeader, useTeamActions, TeamActionDialogs, TeamStatusBadge, isDeletedPlayer } from "../../components";
 import { MANAGER_CANDIDATES_KEY, MAX_MAIN_SQUAD } from "../../constants";

@@ -4,7 +4,7 @@ import {
   XMarkIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import { discountsApi } from "../../services/api";
+import { discountsApi } from "../../services";
 import type { CheckoutItemPayload, DiscountPreview } from "../../types";
 import { Button, IconButton, Input } from "../ui";
 

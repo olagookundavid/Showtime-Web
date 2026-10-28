@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, Input, Modal, Select, DashboardPageHeader } from '../../components';
-import { getAdminUsers, getAdminRoleOptions, updateUserRole, updateUserInfo } from '../../services/api';
+import { getAdminUsers, getAdminRoleOptions, updateUserRole, updateUserInfo } from '../../services';
 import type { RoleOption, UserResponse } from '../../types';
 import { getApiErrorMessage } from '../../utils';
 

@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { FemaleIcon } from '../icons/FemaleIcon';
 import { MaleIcon } from '../icons/MaleIcon';
-import { fantasyApi, formatFantasyPrice } from '../../services/api';
+import { fantasyCoreApi, formatFantasyPrice } from '../../services';
 import type { FantasyGameweek, FantasyLineupPick, FantasyPlayerModalData } from '../../types';
 import { Button, Field, Modal, Select } from '../ui';
 import { FantasyPitch } from './FantasyPitch';
@@ -40,7 +40,7 @@ export function FantasyTeamModal({
     // Lineup query
     const { data, isLoading, isError, refetch } = useQuery({
         queryKey: ['fantasyTeamLineup', teamId, selectedGwId],
-        queryFn: () => (teamId && selectedGwId ? fantasyApi.getTeamLineup(teamId, selectedGwId) : null),
+        queryFn: () => (teamId && selectedGwId ? fantasyCoreApi.getTeamLineup(teamId, selectedGwId) : null),
         enabled: isOpen && Boolean(teamId) && Boolean(selectedGwId),
         staleTime: 30000,
     });
@@ -49,7 +49,7 @@ export function FantasyTeamModal({
 
     const { data: fetchedGameweeks } = useQuery({
         queryKey: ['fantasyGameweeksForModal', activeSeasonId],
-        queryFn: () => (activeSeasonId ? fantasyApi.getGameweeks(activeSeasonId) : []),
+        queryFn: () => (activeSeasonId ? fantasyCoreApi.getGameweeks(activeSeasonId) : []),
         enabled: isOpen && gameweeks.length === 0 && Boolean(activeSeasonId),
         staleTime: 60000,
     });

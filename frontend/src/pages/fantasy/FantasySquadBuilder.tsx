@@ -31,11 +31,11 @@ import {
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import type { ComponentType, SVGProps } from "react";
 import {
-  fantasyApi,
+  fantasyCoreApi,
   fantasySeasonApi,
   fantasySquadApi,
   formatFantasyPrice,
-} from "../../services/api";
+} from "../../services";
 import type { FantasySlot, FantasyPlayerListItem, FantasySeason, Squad, SquadPlayer } from "../../types";
 import { formatStatNumber } from "../../utils";
 import { useAuth } from "../../contexts";
@@ -243,13 +243,13 @@ export function FantasySquadBuilder() {
   // Active Season & Gameweek
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const { data: gameweeks = [], isLoading: gwLoading } = useQuery({
     queryKey: ["fantasyGameweeks", season?.id],
     queryFn: () =>
-      season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([]),
+      season?.id ? fantasyCoreApi.getGameweeks(season.id) : Promise.resolve([]),
     enabled: !!season?.id,
   });
 
@@ -261,7 +261,7 @@ export function FantasySquadBuilder() {
     queryKey: ["myFantasyLineup", season?.id, scheduledGW?.id],
     queryFn: () =>
       season?.id && scheduledGW?.id
-        ? fantasyApi.getMyLineup(season.id, scheduledGW.id)
+        ? fantasyCoreApi.getMyLineup(season.id, scheduledGW.id)
         : Promise.resolve(null),
     enabled: !!season?.id && !!scheduledGW?.id,
   });
@@ -285,7 +285,7 @@ export function FantasySquadBuilder() {
   // by its own endpoint so it never depends on paging the whole player list.
   const { data: marketFilters } = useQuery({
     queryKey: ["playerMarketFilters", season?.id],
-    queryFn: () => fantasyApi.getMarketFilters(season!.id),
+    queryFn: () => fantasyCoreApi.getMarketFilters(season!.id),
     enabled: !!season?.id,
     staleTime: 5 * 60 * 1000,
   });
@@ -580,7 +580,7 @@ export function FantasySquadBuilder() {
         activeModalSlot.requiredGender ||
         (marketGenderFilter ? (marketGenderFilter as "M" | "F") : undefined);
 
-      return fantasyApi.listPlayerMarket(season.id, {
+      return fantasyCoreApi.listPlayerMarket(season.id, {
         // Every eligible position, not just the first: a receiver slot
         // takes Receivers and Centers, and sending only "Receiver"
         // silently hid every Center from the market. This is fixed by
@@ -616,7 +616,7 @@ export function FantasySquadBuilder() {
           total_pages: 0,
           my_rank: 0,
         });
-      return fantasyApi.listPlayerMarket(season.id, {
+      return fantasyCoreApi.listPlayerMarket(season.id, {
         position: benchPositionFilter || undefined,
         gender: marketGenderFilter
           ? (marketGenderFilter as "M" | "F")
@@ -1136,7 +1136,7 @@ export function FantasySquadBuilder() {
     }) => {
       if (!season || !scheduledGW)
         throw new Error("No active season or scheduled gameweek");
-      return fantasyApi.saveLineup({
+      return fantasyCoreApi.saveLineup({
         season_id: season.id,
         gameweek_id: scheduledGW.id,
         team_name: teamName.trim() || getDefaultTeamName(user?.name),

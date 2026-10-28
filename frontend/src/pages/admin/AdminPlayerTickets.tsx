@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDownTrayIcon, PrinterIcon, TicketIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { adminGetPlayerTicketDays, adminGetPlayerTicketDaySheets, adminIssuePlayerTickets } from '../../services/api';
+import { adminGetPlayerTicketDays, adminGetPlayerTicketDaySheets, adminIssuePlayerTickets } from '../../services';
 import type { PlayerTicketDay, PlayerTicketSheet } from '../../types';
 import {
     Button,

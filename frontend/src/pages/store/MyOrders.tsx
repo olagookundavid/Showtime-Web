@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts';
-import { getCustomerOrders } from '../../services/api';
+import { getCustomerOrders } from '../../services';
 import { BackButton, Button } from '../../components';
 
 const statusBadge = (kind: 'payment' | 'fulfillment', value: string) => {

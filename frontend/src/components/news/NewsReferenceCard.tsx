@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getNewsBySlug } from "../../services/api";
+import { getNewsBySlug } from "../../services";
 import type { News } from "../../types";
 import { parseYouTubeId, youTubeThumbnailUrl } from "../../utils";
 

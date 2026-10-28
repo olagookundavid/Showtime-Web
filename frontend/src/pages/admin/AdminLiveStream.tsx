@@ -11,7 +11,7 @@ import {
     SignalIcon,
     VideoCameraIcon,
 } from '@heroicons/react/24/outline';
-import { liveApi, reliveApi } from '../../services/api';
+import { liveApi, reliveApi } from '../../services';
 import type { AdminLiveStatus, AdminReliveStatus } from '../../types';
 import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, DashboardPageHeader, Spinner } from '../../components';
 import { getApiErrorMessage } from '../../utils';

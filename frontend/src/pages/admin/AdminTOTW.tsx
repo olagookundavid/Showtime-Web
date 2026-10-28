@@ -15,7 +15,7 @@ import {
   getAllEventDays,
   getPlayers,
   getAdminPlayerDayStats,
-} from "../../services/api";
+} from "../../services";
 import type {
   TOTWListItem,
   TOTWPlayerSlot,

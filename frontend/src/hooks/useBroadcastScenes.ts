@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getBroadcastScenes } from '../services/broadcastApi';
+import { getBroadcastScenes } from '../services';
 
 /**
  * Data for a match's full-screen scenes, fetched only while a scene is on air.

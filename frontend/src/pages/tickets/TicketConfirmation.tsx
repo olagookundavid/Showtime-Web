@@ -9,7 +9,7 @@ import {
   ClockIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { getTicketByReference, verifyTicket } from "../../services/api";
+import { getTicketByReference, verifyTicket } from "../../services";
 import { Button, Loader, formatDayLong } from "../../components";
 import { getApiErrorMessage } from "../../utils";
 

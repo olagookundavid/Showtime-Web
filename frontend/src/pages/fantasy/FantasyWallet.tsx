@@ -17,7 +17,7 @@ import { Button, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Spinner,
 import {
     fantasyWalletApi,
     formatKobo,
-} from '../../services/api';
+} from '../../services';
 import type { PayoutRequest, PayoutStatus, WalletTransaction } from '../../types';
 import { useAuth } from '../../contexts';
 

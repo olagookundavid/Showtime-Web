@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { formatFantasyPrice } from "../../services/api";
+import { formatFantasyPrice } from "../../services";
 import type {
   FantasyLineupPick,
   FantasySlot,

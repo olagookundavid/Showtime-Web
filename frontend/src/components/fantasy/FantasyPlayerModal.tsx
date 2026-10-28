@@ -13,9 +13,10 @@ import { FemaleIcon } from "../icons/FemaleIcon";
 import { MaleIcon } from "../icons/MaleIcon";
 import { Button, Modal, DataTable, type Column } from "../ui";
 import {
-  fantasyApi,
+  getPlayerBreakdown,
+  getPlayerPriceHistory,
   formatFantasyPrice,
-} from "../../services/api";
+} from "../../services";
 import type { PlayerPriceHistoryItem, FantasyPlayerModalData } from "../../types";
 import { formatStatDecimal, formatStatNumber } from "../../utils";
 
@@ -117,7 +118,7 @@ export function FantasyPlayerModal({
     queryKey: ["playerFantasyBreakdown", player?.playerId, player?.gameweekId],
     queryFn: () =>
       player?.playerId
-        ? fantasyApi.getPlayerBreakdown(
+        ? getPlayerBreakdown(
             player.playerId,
             player.gameweekId || "current",
           )
@@ -130,7 +131,7 @@ export function FantasyPlayerModal({
     queryKey: ["playerPriceHistory", player?.playerId],
     queryFn: () =>
       player?.playerId
-        ? fantasyApi.getPlayerPriceHistory(player.playerId)
+        ? getPlayerPriceHistory(player.playerId)
         : null,
     enabled: isOpen && Boolean(player?.playerId),
     staleTime: 30000,

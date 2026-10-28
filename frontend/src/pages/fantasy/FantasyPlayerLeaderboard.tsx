@@ -28,7 +28,7 @@ import {
   playerLeaderboardGuide,
   type Column,
 } from "../../components";
-import { fantasyApi, formatFantasyPrice } from "../../services/api";
+import { fantasyCoreApi, getPlayerLeaderboard, formatFantasyPrice } from "../../services";
 import type {
   FantasyPlayerModalData,
   PlayerLeaderboardHighlight,
@@ -118,7 +118,7 @@ export function FantasyPlayerLeaderboard() {
 
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const { data, isLoading, isFetching, isError } = useQuery({
@@ -134,7 +134,7 @@ export function FantasyPlayerLeaderboard() {
       page,
     ],
     queryFn: () =>
-      fantasyApi.getPlayerLeaderboard(season!.id, {
+      getPlayerLeaderboard(season!.id, {
         gameweek_id: gameweekId || undefined,
         position: position || undefined,
         team_id: teamId || undefined,

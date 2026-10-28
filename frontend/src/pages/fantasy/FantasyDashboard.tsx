@@ -24,7 +24,7 @@ import {
   fantasySeasonApi,
   fantasyWalletApi,
   formatKobo,
-} from "../../services/api";
+} from "../../services";
 import type {
   FantasyLineupPick,
   DashboardLeagueRow,

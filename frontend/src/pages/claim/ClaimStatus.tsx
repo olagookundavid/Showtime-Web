@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { claimApi } from '../../services/api';
+import { claimApi } from '../../services';
 import type { MyClaimStatusData } from '../../types';
 import { useAuth } from '../../contexts';
 import { useImageUpload } from '../../hooks';

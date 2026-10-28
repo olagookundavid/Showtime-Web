@@ -14,7 +14,7 @@ import {
   getAllEventDays,
   getPlayers,
   getBadgeIcons,
-} from "../../services/api";
+} from "../../services";
 import type {
   Competition,
   Player,

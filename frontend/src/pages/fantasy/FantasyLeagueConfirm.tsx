@@ -6,7 +6,7 @@ import {
     ExclamationTriangleIcon,
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
-import { fantasyApi } from '../../services/api';
+import { fantasyLeaguesApi } from '../../services';
 import { Loader } from '../../components';
 
 /**
@@ -35,7 +35,7 @@ export function FantasyLeagueConfirm() {
         if (!reference || firedRef.current) return;
         firedRef.current = true;
 
-        fantasyApi
+        fantasyLeaguesApi
             .verifyLeaguePayment(reference)
             .then(() => {
                 setState('paid');

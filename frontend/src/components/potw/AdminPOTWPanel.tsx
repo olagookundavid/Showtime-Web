@@ -22,7 +22,7 @@ import {
     getAdminTOTWById,
     overrideAdminPOTW,
     saveAdminPOTWPoll,
-} from '../../services/api';
+} from '../../services';
 import type { POTWPoll, TOTWPlayer } from '../../types';
 import { Button, Field, Input, Select } from '../ui';
 import { ConfirmDialog } from '../ui/ConfirmDialog';

@@ -17,7 +17,7 @@ import {
   getMyProductReview,
   createProductReview,
   deleteAdminProductReview,
-} from "../../services/api";
+} from "../../services";
 import type { StoreProduct, ReviewSort } from "../../types";
 import { StarRating, Loader, BackButton, Button, Field, Input, Select, Textarea, ConfirmDialog, ConfirmSummary } from "../../components";
 

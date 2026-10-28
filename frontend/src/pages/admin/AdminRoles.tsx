@@ -12,7 +12,7 @@ import {
     createAdminRole,
     updateAdminRole,
     deleteAdminRole,
-} from '../../services/api';
+} from '../../services';
 import type { FeatureDef, PermissionLevel, RoleResponse } from '../../types';
 import { getApiErrorMessage } from '../../utils';
 

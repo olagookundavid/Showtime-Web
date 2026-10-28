@@ -15,7 +15,7 @@ import {
     updateOrderFulfillment,
     verifyAdminStoreOrder,
     cancelAdminStoreOrder,
-} from '../../services/api';
+} from '../../services';
 import type { Order } from '../../types';
 import { Loader, ConfirmDialog, ConfirmSummary, Button, ButtonLink, DashboardPageHeader } from '../../components';
 import { getApiErrorMessage } from '../../utils';

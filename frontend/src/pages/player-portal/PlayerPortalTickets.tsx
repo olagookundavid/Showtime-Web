@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TicketIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { playerPortalApi } from '../../services/api';
+import { getMyTickets } from '../../services';
 import type { MyPlayerTicket } from '../../types';
 import { DashboardPageHeader, NotLinkedNotice, PlayerGameDayTicket, Spinner, apiError } from '../../components';
 
@@ -14,8 +14,7 @@ export const PlayerPortalTickets: React.FC = () => {
 
     useEffect(() => {
         let cancelled = false;
-        playerPortalApi
-            .getMyTickets()
+        getMyTickets()
             .then((res) => {
                 if (!cancelled) setTickets(res);
             })

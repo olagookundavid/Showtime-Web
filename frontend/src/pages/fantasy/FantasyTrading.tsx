@@ -13,10 +13,10 @@ import {
     LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import {
-    fantasyApi,
+    fantasyCoreApi,
     fantasySquadApi,
     formatFantasyPrice as sc,
-} from '../../services/api';
+} from '../../services';
 import type { FantasyPlayerListItem, MarketSort, Squad, SquadPlayer } from '../../types';
 import { Loader, Button, Input, Modal } from '../../components';
 import { useDebounced } from '../../hooks';
@@ -39,7 +39,7 @@ export function FantasyTrading() {
 
     const { data: season } = useQuery({
         queryKey: ['fantasySeason'],
-        queryFn: fantasyApi.getActiveSeason,
+        queryFn: fantasyCoreApi.getActiveSeason,
     });
     const seasonId = season?.id;
 
@@ -318,7 +318,7 @@ function PlayerMarket({
         queryKey: ['fantasyMarket', seasonId, search, position, gender, sort],
         initialPageParam: 1,
         queryFn: ({ pageParam }) =>
-            fantasyApi.listPlayerMarket(seasonId, {
+            fantasyCoreApi.listPlayerMarket(seasonId, {
                 search: search || undefined,
                 position: position || undefined,
                 gender: gender || undefined,

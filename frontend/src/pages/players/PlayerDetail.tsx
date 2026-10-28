@@ -8,7 +8,7 @@ import {
   getStatDates,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-} from "../../services/api";
+} from "../../services";
 import type { PlayerBadge } from "../../types";
 import { Loader, Spinner, SeasonStageTabs, BackButton, BadgeImage, CrownIcon, SproutIcon, Button, Field, Select, Modal, RichContent, LightboxImage } from "../../components";
 import { useSearchParams } from "react-router-dom";

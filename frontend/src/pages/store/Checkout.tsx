@@ -22,7 +22,7 @@ import {
   getSavedAddresses,
   saveSavedAddress,
   initializeCheckout,
-} from "../../services/api";
+} from "../../services";
 import type { StoreProduct, SavedAddress, CheckoutPayload, DiscountPreview } from "../../types";
 import { LazyImage, DiscountCodeInput, Button, Checkbox, Field, Input, Textarea, Spinner } from "../../components";
 import { formatVariantLabel } from "../../utils";

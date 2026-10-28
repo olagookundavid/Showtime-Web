@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts";
 import { usePermissions } from "../../hooks";
-import { commentsApi } from "../../services/api";
+import { commentsApi } from "../../services";
 import { COMMENTS_PAGE_SIZE } from "../../constants";
 import type { CommentData } from "../../types";
 import { AuthRequiredDialog } from "../auth/AuthRequiredDialog";

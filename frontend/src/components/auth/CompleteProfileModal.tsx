@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts";
-import { updateOwnProfile } from "../../services/api";
+import { updateOwnProfile } from "../../services";
 import { getApiErrorMessage } from "../../utils";
 import { Button, Field, Input, Modal } from "../ui";
 

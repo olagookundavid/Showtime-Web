@@ -23,7 +23,7 @@ import {
   updateMatch,
   deleteMatch,
   getAdminTeamSheet,
-} from "../../services/api";
+} from "../../services";
 import type {
   Match,
   Competition,

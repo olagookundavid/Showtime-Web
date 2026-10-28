@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CreditCardIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, StarIcon } from '@heroicons/react/24/outline';
-import { getUserProfile, purchaseSeasonPass } from '../../services/api';
+import { getUserProfile, purchaseSeasonPass } from '../../services';
 import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
 import type { AuthUser, PurchaseSeasonPassPayload, SeasonPassResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';

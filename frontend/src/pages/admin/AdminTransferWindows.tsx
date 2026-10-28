@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   adminTransfersApi,
   contractsApi,
-} from "../../services/api";
+} from "../../services";
 import type { TransferWindowData, Player } from "../../types";
 import toast from "react-hot-toast";
 import {

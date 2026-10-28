@@ -9,11 +9,12 @@ import {
     SparklesIcon 
 } from '@heroicons/react/24/outline';
 import {
-    fantasyApi,
+    fantasyCoreApi,
+    getPlayerBreakdown,
     fantasySeasonApi,
     fantasySquadApi,
     formatFantasyPrice,
-} from '../../services/api';
+} from '../../services';
 import type { FantasyLineupPick } from '../../types';
 import { useAuth } from '../../contexts';
 import { Loader, Modal, Select, FantasyBackLink, FantasyPitch, Spinner } from '../../components';
@@ -31,13 +32,13 @@ export function FantasyMyTeam() {
     // Active Season
     const { data: season, isLoading: seasonLoading } = useQuery({
         queryKey: ['fantasySeason'],
-        queryFn: fantasyApi.getActiveSeason,
+        queryFn: fantasyCoreApi.getActiveSeason,
     });
 
     // Gameweeks
     const { data: gameweeks = [], isLoading: gwLoading } = useQuery({
         queryKey: ['fantasyGameweeks', season?.id],
-        queryFn: () => (season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([])),
+        queryFn: () => (season?.id ? fantasyCoreApi.getGameweeks(season.id) : Promise.resolve([])),
         enabled: !!season?.id,
     });
 
@@ -51,7 +52,7 @@ export function FantasyMyTeam() {
     // Fetch Lineup for Selected Gameweek
     const { data: lineup, isLoading: lineupLoading } = useQuery({
         queryKey: ['myFantasyLineup', season?.id, selectedGWId],
-        queryFn: () => (season?.id && selectedGWId ? fantasyApi.getMyLineup(season.id, selectedGWId) : Promise.resolve(null)),
+        queryFn: () => (season?.id && selectedGWId ? fantasyCoreApi.getMyLineup(season.id, selectedGWId) : Promise.resolve(null)),
         enabled: !!season?.id && !!selectedGWId,
         refetchInterval: () => {
             const activeGw = gameweeks.find(gw => gw.id === selectedGWId);
@@ -76,7 +77,7 @@ export function FantasyMyTeam() {
         queryKey: ['playerBreakdown', selectedPlayerForBreakdown?.player_id, selectedGWId],
         queryFn: () => {
             if (!selectedPlayerForBreakdown || !selectedGWId) return Promise.resolve(null);
-            return fantasyApi.getPlayerBreakdown(selectedPlayerForBreakdown.player_id, selectedGWId);
+            return getPlayerBreakdown(selectedPlayerForBreakdown.player_id, selectedGWId);
         },
         enabled: !!selectedPlayerForBreakdown && !!selectedGWId,
     });

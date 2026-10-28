@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   getSeasonGraphics,
   getSeasonMVPs,
-} from "../../services/api";
+} from "../../services";
 import type { SeasonGraphic } from "../../types";
 
 // Homepage seasonal block shown directly under the hero: two "Team of the

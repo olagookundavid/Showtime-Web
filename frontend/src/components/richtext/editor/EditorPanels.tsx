@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { LinkSlashIcon, NoSymbolIcon, SwatchIcon } from '@heroicons/react/24/outline';
 import type { Editor } from '@tiptap/core';
-import { getNews } from '../../../services/api';
+import { getNews } from '../../../services';
 import { Button, Field, Input, Spinner } from '../../ui';
 import { parseNewsRefUrl, parseYouTubeId } from '../../../utils';
 

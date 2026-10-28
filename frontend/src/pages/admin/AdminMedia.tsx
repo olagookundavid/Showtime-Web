@@ -13,7 +13,7 @@ import {
     PhotoIcon,
     TrashIcon,
 } from '@heroicons/react/24/outline';
-import { deleteMediaFile, getMediaFiles, updateMediaFile } from '../../services/api';
+import { deleteMediaFile, getMediaFiles, updateMediaFile } from '../../services';
 import type { MediaFile } from '../../types';
 import { Button, ConfirmDialog, ConfirmSummary, DashboardPageHeader, DataTable, Field, Input, Modal, RowActions, Select, type Column } from '../../components';
 import { CDN_URL, MEDIA_ACCEPT, MEDIA_TYPES, MEDIA_TYPES_HINT, type MediaKind } from '../../constants';

@@ -17,7 +17,7 @@ import {
   Select,
   type Column,
 } from "../../components";
-import { fantasyApi, formatFantasyPrice } from "../../services/api";
+import { fantasyCoreApi, getFantasyPlayerDetail, formatFantasyPrice } from "../../services";
 import type {
   FantasyDetailFact,
   FantasyDetailGameweek,
@@ -102,12 +102,12 @@ export function FantasyPlayerDetail() {
 
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["fantasyPlayerDetail", season?.id, id, gameweekId],
-    queryFn: () => fantasyApi.getFantasyPlayerDetail(season!.id, id!, gameweekId || undefined),
+    queryFn: () => getFantasyPlayerDetail(season!.id, id!, gameweekId || undefined),
     enabled: !!season?.id && !!id,
     placeholderData: keepPreviousData,
     retry: false,

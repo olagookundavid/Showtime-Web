@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { playerPortalApi } from '../../services/api';
+import { playerContractsApi } from '../../services';
 import type { OfferResponse } from '../../types';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
@@ -27,7 +27,7 @@ export const OfferResponseDialog = ({ request, onCancel, onDone }: OfferResponse
         const { contract, action } = request;
         setBusy(true);
         try {
-            await playerPortalApi.respondToContract(contract.id, action);
+            await playerContractsApi.respondToContract(contract.id, action);
             toast.success(action === 'accept' ? 'Contract offer accepted' : 'Contract offer rejected');
         } catch (err) {
             toast.error(apiError(err).error || 'Failed to respond to contract offer');

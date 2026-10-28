@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UserPlusIcon } from '@heroicons/react/24/outline';
 import { Button, Field, Input, Select, ConfirmDialog, ConfirmSummary } from '../../components';
-import { claimApi } from '../../services/api';
+import { claimApi } from '../../services';
 import type { ClaimablePlayerData, VerifyClaimCodeData } from '../../types';
 import { PLAYER_POSITIONS as CLAIM_POSITIONS } from '../../constants';
 

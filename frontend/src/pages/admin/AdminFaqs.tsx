@@ -16,7 +16,7 @@ import {
 import {
     createFaqCategory, createFaqItem, createFaqPage, deleteFaqCategory, deleteFaqItem, deleteFaqPage,
     getAdminFaqPage, getAdminFaqPages, reorderFaqs, updateFaqCategory, updateFaqItem, updateFaqPage,
-} from '../../services/api';
+} from '../../services';
 import type { FaqCategory, FaqCategoryPayload, FaqItem, FaqItemPayload, FaqPage, UpdateFaqPagePayload } from '../../types';
 import {
     Button, ConfirmDialog, ConfirmSummary, DashboardPageHeader, DataTable, FAQ_ICONS, FaqCategoryBrowser,

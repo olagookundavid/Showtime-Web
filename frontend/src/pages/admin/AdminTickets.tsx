@@ -22,7 +22,7 @@ import {
   searchTicketsByEmail,
   getEventDays,
   getAllEventDays,
-} from "../../services/api";
+} from "../../services";
 import type { TicketResponse, TicketDayResponse, EventDayResponse, PlayerTicketHolder } from "../../types";
 import { useAuth } from "../../contexts";
 import { usePermissions } from "../../hooks";

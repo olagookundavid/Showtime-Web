@@ -13,7 +13,7 @@ import {
   ChartBarIcon,
   StarIcon,
 } from "@heroicons/react/24/outline";
-import { fantasySeasonApi } from "../../services/api";
+import { fantasySeasonApi } from "../../services";
 import type { LeaderboardEntry } from "../../types";
 import { useAuth } from "../../contexts";
 import { AuthRequiredDialog, Loader, FantasyNewsCarousel, FantasyTeamModal, Modal, Button, ButtonLink, Field, Input } from "../../components";

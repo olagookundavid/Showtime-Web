@@ -1,5 +1,5 @@
 import axios from 'axios';
-import api from './api';
+import api from './client';
 import { API_URL } from '../constants';
 import type { BroadcastDayMatch, BroadcastMatchDay, PaginatedResponse, SceneData } from '../types';
 

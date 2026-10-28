@@ -3,7 +3,7 @@ import { useLiveStream } from "../hooks";
 import { htmlToPlainText } from "../utils";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getNews } from "../services/api";
+import { getNews } from "../services";
 import { ArrowPathIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 
 export const Landing = () => {

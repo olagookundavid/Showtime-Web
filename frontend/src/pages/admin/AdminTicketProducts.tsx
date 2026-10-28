@@ -22,7 +22,7 @@ import {
   adminUpdateTicketProduct,
   getCompetitions,
   getGamePassRules,
-} from "../../services/api";
+} from "../../services";
 import type {
   Competition,
   CreateSeasonPassPayload,

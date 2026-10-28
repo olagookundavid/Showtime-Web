@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { isDeletedPlayer, deletedRowClass, DeletedPlayerName, Button, Field, Input, LightboxImage, ImageUploadField, Select, RichTextEditor, PlayerPriceHistoryModal, DashboardPageHeader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, useTeamHeadTeam, PlayerLink } from '../../components';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import api, { moveToReserve, graduatePlayer, getTeamRosterSummary } from '../../services/api';
+import { apiClient as api, moveToReserve, graduatePlayer, getTeamRosterSummary } from '../../services';
 import type { RosterSummary, TeamHeadPlayer as Player, PaginatedResponse } from '../../types';
 import {
     PLAYER_POSITIONS_WITH_UNASSIGNED as POSITIONS,

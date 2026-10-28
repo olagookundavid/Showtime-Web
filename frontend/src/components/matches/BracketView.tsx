@@ -8,7 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { FootballIcon } from "../icons/FootballIcon";
 import { useQuery } from "@tanstack/react-query";
-import { getMatches } from "../../services/api";
+import { getMatches } from "../../services";
 import type { Match, BracketColumn } from "../../types";
 import { Spinner } from "../ui";
 import { TeamLink } from "../domain";

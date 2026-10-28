@@ -12,7 +12,7 @@ import {
 import {
   createReferralCode,
   lookupReferrals,
-} from "../../services/api";
+} from "../../services";
 import type { ReferralResponse } from "../../types";
 import { Button, Field, Input } from "../../components";
 

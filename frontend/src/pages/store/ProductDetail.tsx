@@ -10,7 +10,7 @@ import {
   getStoreProduct,
   getStoreProducts,
   getProductReviews,
-} from "../../services/api";
+} from "../../services";
 import type { StoreProduct } from "../../types";
 import { ProductCard, ProductOverview, QuickViewModal, StarRating, ButtonLink, BackButton, Spinner } from "../../components";
 

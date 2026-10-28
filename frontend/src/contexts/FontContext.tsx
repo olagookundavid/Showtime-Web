@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { appSettingsApi } from '../services/api';
+import { appSettingsApi } from '../services';
 
 export interface AppFontOption {
     id: string;

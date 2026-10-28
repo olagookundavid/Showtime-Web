@@ -9,7 +9,7 @@ import {
   getPlayers,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-} from "../../services/api";
+} from "../../services";
 import type { Team } from "../../types";
 import { Loader, Button, Field, Select, BackButton, Spinner, FootballIcon } from "../../components";
 import { formatStatNumber, htmlToPlainText } from "../../utils";

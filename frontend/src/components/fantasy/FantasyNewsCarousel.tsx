@@ -9,7 +9,7 @@ import {
   PlayIcon,
 } from "@heroicons/react/24/outline";
 import { ButtonLink, IconButton } from "../ui";
-import { getFantasyCarousel } from "../../services/api";
+import { getFantasyCarousel } from "../../services";
 import type { FantasyCarouselArticle } from "../../types";
 import { parseYouTubeId, youTubeThumbnailUrl } from "../../utils";
 

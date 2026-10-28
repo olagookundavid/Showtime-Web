@@ -17,10 +17,11 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import {
-  fantasyApi,
+  fantasyCoreApi,
+  fantasyLeaguesApi,
   fantasyLeagueApi,
   formatKobo,
-} from "../../services/api";
+} from "../../services";
 import type { FantasyLeague } from "../../types";
 import { useAuth } from "../../contexts";
 import { Loader, FantasyBackLink, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner } from "../../components";
@@ -90,14 +91,14 @@ export function FantasyLeagues() {
 
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   // My Leagues
   const { data: myLeagues = [], isLoading: myLeaguesLoading } = useQuery({
     queryKey: ["myFantasyLeagues", season?.id],
     queryFn: () =>
-      season?.id ? fantasyApi.listMyLeagues(season.id) : Promise.resolve([]),
+      season?.id ? fantasyLeaguesApi.listMyLeagues(season.id) : Promise.resolve([]),
     enabled: !!season?.id && isAuthenticated,
   });
 
@@ -108,7 +109,7 @@ export function FantasyLeagues() {
     useQuery({
       queryKey: ["publicFantasyLeagues", season?.id, publicPage],
       queryFn: () =>
-        fantasyApi.listPublicLeagues(season!.id, {
+        fantasyLeaguesApi.listPublicLeagues(season!.id, {
           page: publicPage,
           limit: 20,
         }),
@@ -149,7 +150,7 @@ export function FantasyLeagues() {
     // public one straight from the browse list).
     mutationFn: async (by: { invite_code?: string; league_id?: string }) => {
       if (!season?.id) throw new Error("Season not loaded");
-      return fantasyApi.joinLeague(season.id, by);
+      return fantasyLeaguesApi.joinLeague(season.id, by);
     },
     onSuccess: (data) => {
       if (data.paystack_url) {
@@ -244,7 +245,7 @@ export function FantasyLeagues() {
       if (!season?.id) throw new Error("Season not loaded");
       if (!createForm.name.trim()) throw new Error("League name required");
       if (splitError) throw new Error(splitError);
-      return fantasyApi.createLeague({
+      return fantasyLeaguesApi.createLeague({
         season_id: season.id,
         name: createForm.name.trim(),
         type: createForm.type,

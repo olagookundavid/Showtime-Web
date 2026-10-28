@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { CheckCircleIcon, ExclamationTriangleIcon, SignalIcon } from "@heroicons/react/24/outline";
 import { ButtonLink, Button, ConfirmDialog, ConfirmSummary } from "../../components";
 import { useBroadcastScenes } from "../../hooks";
-import { getBroadcastDay, setBroadcastDayOnAir } from "../../services/broadcastApi";
+import { getBroadcastDay, setBroadcastDayOnAir } from "../../services";
 import { formatMatchDate, getApiErrorMessage } from "../../utils";
 
 /**

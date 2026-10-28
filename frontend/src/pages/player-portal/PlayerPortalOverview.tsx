@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, ChevronRightIcon, EnvelopeIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { playerPortalApi } from '../../services/api';
+import { playerContractsApi, getMyTickets } from '../../services';
 import type { ContractData, MyPlayerTicket, OfferResponse } from '../../types';
 import { DashboardPageHeader, RunnerIcon, Button, Spinner, NotLinkedNotice, OfferResponseDialog, PlayerGameDayTicket, PLAYER_PORTAL_CONTRACTS_PATH, PLAYER_PORTAL_TICKETS_PATH, apiError, TeamLink } from '../../components';
 
@@ -19,7 +19,7 @@ export const PlayerPortalOverview: React.FC = () => {
     const fetchContracts = async () => {
         setLoading(true);
         try {
-            const res = await playerPortalApi.getContracts();
+            const res = await playerContractsApi.getContracts();
             setContracts(res || []);
             setNotLinked(false);
         } catch (err) {
@@ -45,8 +45,7 @@ export const PlayerPortalOverview: React.FC = () => {
     useEffect(() => {
         let cancelled = false;
         const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date());
-        playerPortalApi
-            .getMyTickets()
+        getMyTickets()
             .then((res) => {
                 if (!cancelled) setNextTicket(res.find((t) => t.match.date >= today) ?? null);
             })

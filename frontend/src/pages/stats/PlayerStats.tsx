@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getPlayerStats, getTeams } from "../../services/api";
+import { getPlayerStats, getTeams } from "../../services";
 import type { Competition } from "../../types";
 import { useStatsCompetitionFilter } from "../../hooks";
 import {

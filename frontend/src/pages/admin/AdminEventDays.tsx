@@ -20,7 +20,7 @@ import {
   updateEventDay,
   deleteEventDay,
   adminListTicketProducts,
-} from "../../services/api";
+} from "../../services";
 import type { EventDayResponse, TicketProductDayResponse, TicketProductResponse } from "../../types";
 import { useDebounced, usePermissions } from "../../hooks";
 import { getApiErrorMessage } from "../../utils";

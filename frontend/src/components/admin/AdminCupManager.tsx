@@ -9,7 +9,7 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { getCupState, initializeCup, advanceCupRound } from '../../services/api';
+import { getCupState, initializeCup, advanceCupRound } from '../../services';
 import type { CupState } from '../../types';
 import { Button, ConfirmDialog, ConfirmSummary, Field, Input, Modal, Spinner } from '../ui';
 import { getApiErrorMessage } from '../../utils';

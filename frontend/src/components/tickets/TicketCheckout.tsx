@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CreditCardIcon, ExclamationTriangleIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon } from '@heroicons/react/24/outline';
-import { getUserProfile, purchaseTicket, quoteTicketPrice } from '../../services/api';
+import { getUserProfile, purchaseTicket, quoteTicketPrice } from '../../services';
 import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
 import type { AuthUser, PurchaseTicketPayload, TicketProductDayResponse, TicketProductResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';

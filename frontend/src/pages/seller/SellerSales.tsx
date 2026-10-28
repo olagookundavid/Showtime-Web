@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { sellerGetSales } from '../../services/api';
+import { sellerGetSales } from '../../services';
 import type { InventorySale } from '../../types';
 import { DashboardPageHeader, Button, Field, Input, DataTable, type Column } from '../../components';
 
