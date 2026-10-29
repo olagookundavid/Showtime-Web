@@ -869,6 +869,93 @@ live table looks fixed and passes every test, then disappears on the next
 reboot. On a new server, the reboot test in §5.10 catches this before real
 traffic arrives.
 
+### Phase 23 — Moving the Cloudflare zone and R2 storage from a personal to a company account
+
+The domain and its Cloudflare-side configuration had been administered under
+a personal Cloudflare account since the original migration. This phase moved
+ownership to a company account, in two independent tracks with very
+different risk profiles.
+
+**Track A — the DNS zone itself.** Rather than re-adding the domain as a new
+zone under the company account (which would mean a nameserver change at the
+registrar and real DNS propagation downtime, and a real chance of silently
+missing a record when recreating them by hand), Cloudflare's own
+account-to-account **zone transfer** was used: the personal account initiates
+the transfer, the company account accepts the invite, and the zone — every
+DNS record, the SSL/TLS mode, the Origin Certificate and its trust
+relationship — moves intact. **This produced no measurable downtime**,
+because the zone's actual DNS answers never changed, only which account
+administers it. Nothing on the server (Caddy, the `DOCKER-USER` allow-list,
+the Origin Cert) needed to change either — Cloudflare's Origin CA trust is
+global infrastructure, not scoped to one account, so the existing certificate
+kept working without being reissued.
+
+**Track B — R2 storage**, which a zone transfer does **not** touch, since R2
+buckets live at the Cloudflare *account* level, not the zone level. Two
+buckets needed moving, handled in order of increasing risk:
+
+- **The backups bucket** (private, no live reader) — created fresh under the
+  company account, the existing `r2backup` rclone remote's credentials and
+  endpoint were simply overwritten in place with the new account's token
+  (`rclone config update`, not a new remote — the backup script's `REMOTE=`
+  path didn't even need to change, since the new bucket was given the same
+  name as the old one). A real `pg-backup.sh` run, followed by `rclone ls`
+  against the new bucket, was the proof it worked — not just a clean exit
+  code. Zero downtime, since nothing public depends on this bucket.
+
+- **The images bucket** (public, bound to the `cdn.showtimeflag.football`
+  custom domain, read by every page on the live site) — the one piece of
+  this whole migration with genuine, if brief, downtime risk. The approach:
+  copy everything first with `rclone sync` between a remote pointed at the
+  *old* bucket (reusing the app's own already-live R2 credentials from
+  `~/apps/showtime/.env` — no new token needed just to read) and a remote
+  pointed at a freshly created *new* bucket under the company account (a
+  new, bucket-scoped token, matching the project's least-privilege pattern).
+  Only once the source and destination byte counts matched exactly did the
+  live cutover happen: unbind the custom domain from the old bucket, bind it
+  to the new one, then immediately update `~/apps/showtime/.env` with the
+  new account's credentials and `docker compose up -d --force-recreate`. The
+  gap between unbind and rebind was the only real downtime in the entire
+  migration — on the order of seconds, because the object copy and
+  credential swap were fully prepared and verified beforehand, leaving
+  nothing to do *during* the live window but the rebind itself.
+
+**Two gotchas worth remembering, both caught before they caused real
+damage:**
+
+1. **A malformed `rclone` endpoint produces a confusing low-level error, not
+   an obvious config complaint.** The destination remote's `endpoint` was
+   set without the `https://` prefix, which `rclone` happily concatenated
+   into `https:///ACCOUNT_ID.r2.cloudflarestorage.com` — three slashes, an
+   empty host — surfacing as `http: no Host in request URL` deep inside an
+   S3 SDK retry-exhaustion error, with no mention of "endpoint" or
+   "scheme" anywhere in the message. The error *did* usefully say
+   `"destination root directory"`, which correctly pointed at the new
+   remote rather than the old one. **Lesson: when an S3-compatible tool
+   fails with a malformed-URL-shaped error (missing host, triple slashes,
+   empty authority), suspect the configured endpoint string before anything
+   else** — check it with `rclone config show <remote>` rather than assuming
+   a credentials or network problem.
+
+2. **Testing an R2 custom domain against its bucket root (`/`) always 404s,
+   migration success or failure.** R2 doesn't serve a directory listing or
+   index at an unspecified key — only at exact object paths. A `curl` to
+   `https://cdn.showtimeflag.football/` returning `404` after the cutover
+   briefly looked like the rebind had failed; it didn't, and the same
+   request would 404 against the *old* bucket too. The real response
+   headers (`server: cloudflare`, a genuine HTTP response rather than a
+   connection failure) already proved routing was correct — the test just
+   needed a real object key. **Lesson: verify an R2 custom domain cutover
+   against a specific, real object key** (`rclone lsf <remote>:<bucket> |
+   head` to grab one), never against the bare domain root.
+
+**Net effect:** the account ownership change was completed with no DNS
+downtime and an images-bucket cutover window measured in seconds, by
+front-loading every verifiable step (the full object sync, the size
+comparison, the credential swap staged and ready) so that the one
+unavoidable live step — the custom domain rebind — was the only thing left
+to do live.
+
 ---
 
 ## 3. Current Infrastructure
