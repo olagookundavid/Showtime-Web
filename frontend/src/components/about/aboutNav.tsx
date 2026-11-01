@@ -32,7 +32,8 @@ export const ABOUT_NAV: AboutNavItem[] = [
     eyebrow: LEAGUE_EYEBROW,
     title: "OUR TEAM",
     subtitle: "Showtime Leadership & Sporting Operations",
-    backgroundImage: "/images/team/team-photo-cropped.webp",
+    backgroundImage:
+      "https://cdn.showtimeflag.football/files/showtime-leadership-team.webp",
     backgroundFit: "width",
   },
   {

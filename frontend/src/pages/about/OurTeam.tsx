@@ -2,7 +2,6 @@ interface TeamMember {
   name: string;
   role: string;
   image?: string;
-  bio: string[];
   /** Eyebrow label shown above the name (e.g. "Executive Leadership"). */
   badge?: string;
 }
@@ -12,45 +11,23 @@ const PRESIDENT: TeamMember = {
   role: "Founder & President",
   image: "https://cdn.showtimeflag.football/files/azeez-amida.png",
   badge: "Executive Leadership",
-  bio: [
-    "Azeez Amida is the Founder and President of Showtime Flag Football League, one of the leading figures behind the growth and professionalisation of flag football in Nigeria. Under his leadership, Showtime has grown into one of the world's fastest-growing coed professional flag football leagues, creating structured competitive and development opportunities for hundreds of male and female athletes.",
-    "His vision is to build Showtime into a nationally relevant sports and media institution — developing talent, creating sustainable sporting careers, strengthening communities, and presenting Nigerian flag football to a global audience. A business executive and investor with more than two decades of experience, he brings that expertise directly to Showtime's commercial strategy, operating discipline, and long-term ambition.",
-  ],
 };
 
 const COMMISSIONER: TeamMember = {
   name: "Adebare Adejumo",
   role: "League Commissioner",
-  image: "/images/leadership/adebare_adejumo_2.webp",
+  image: "https://cdn.showtimeflag.football/files/adebare-adejumo.webp",
   badge: "League Administration",
-  bio: [
-    "Adebare Adejumo serves as the League Commissioner of Showtime Flag, overseeing the governance, competitive integrity, and overall sporting operations of the league. As chief steward of competition, he works closely with teams, officials, and league stakeholders to uphold the highest standards of fairness, professionalism, and excellence on and off the field.",
-    "His leadership shapes league policies, competition structures, and the continued growth of flag football across Nigeria and beyond — driven by a commitment to athlete success and an environment where players, teams, and communities can thrive.",
-  ],
 };
 
 const KALU_ESTHER: TeamMember = {
   name: "Kalu Esther",
   role: "VP, Operations",
-  image: "/images/leadership/kalu_esther_2.webp",
+  image: "https://cdn.showtimeflag.football/files/esther-kalu.webp",
   badge: "Vice President",
-  bio: [
-    "Esther Kalu serves as Vice President of Operations at Showtime Flag, overseeing the administrative and operational systems that support the league's day-to-day activities.",
-    "She ensures organizational efficiency, manages internal processes, and coordinates logistics across league functions — the structure and stability behind every exceptional experience Showtime delivers for players, partners, and fans.",
-  ],
 };
 
-const IVIE_OKUNS: TeamMember = {
-  name: "Ivie Okuns",
-  role: "VP, Commercials",
-  badge: "Vice President",
-  bio: [
-    "Ivie Okuns serves as Vice President of Commercials at Showtime Flag, leading the league's commercial strategy, brand development, marketing, partnerships, and audience growth.",
-    "Her work spans sponsorship, content strategy, digital marketing, and event promotion — shaping Showtime's brand identity and positioning it as one of Africa's most innovative, fast-growing sports properties.",
-  ],
-};
-
-const LEADERSHIP_TEAM: TeamMember[] = [COMMISSIONER, KALU_ESTHER, IVIE_OKUNS];
+const LEADERSHIP_TEAM: TeamMember[] = [COMMISSIONER, KALU_ESTHER];
 
 // Flat navy feature band for the founder, reusing the Incubator section's
 // visual language (AboutShowtimeFlag.tsx) so top billing comes from scale
@@ -65,7 +42,7 @@ const PresidentBand = ({ member }: { member: TeamMember }) => {
     <section className="relative overflow-hidden bg-linear-to-r from-gray-900 to-sffl-navy text-white group">
       <div className="flex flex-col md:flex-row items-stretch">
         {/* Photo */}
-        <div className="relative w-full md:w-2/5 min-h-80 sm:min-h-96 overflow-hidden bg-black/20">
+        <div className="relative w-full md:w-2/5 min-h-96 sm:min-h-[28rem] md:min-h-[34rem] lg:min-h-[40rem] overflow-hidden bg-black/20">
           {member.image ? (
             <img
               src={member.image}
@@ -113,16 +90,6 @@ const PresidentBand = ({ member }: { member: TeamMember }) => {
             </p>
           </div>
           <span className="h-1 w-12 bg-sffl-red" aria-hidden="true" />
-          <div className="space-y-4">
-            {member.bio.map((para, index) => (
-              <p
-                key={index}
-                className="text-sm md:text-base text-gray-200 leading-relaxed font-medium"
-              >
-                {para}
-              </p>
-            ))}
-          </div>
         </div>
       </div>
     </section>
@@ -138,7 +105,7 @@ const LeadershipCard = ({ member }: { member: TeamMember }) => {
 
   return (
     <article className="group flex flex-col border border-gray-200 dark:border-gray-700 border-t-4 border-t-sffl-red bg-white dark:bg-gray-800">
-      <div className="relative w-full aspect-4/5 overflow-hidden bg-gray-100 dark:bg-gray-900">
+      <div className="relative w-full aspect-square overflow-hidden bg-gray-100 dark:bg-gray-900">
         {member.image ? (
           <img
             src={member.image}
@@ -179,16 +146,6 @@ const LeadershipCard = ({ member }: { member: TeamMember }) => {
           </p>
         </div>
         <span className="h-1 w-10 bg-sffl-red" aria-hidden="true" />
-        <div className="space-y-3">
-          {member.bio.map((para, index) => (
-            <p
-              key={index}
-              className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium"
-            >
-              {para}
-            </p>
-          ))}
-        </div>
       </div>
     </article>
   );
@@ -199,7 +156,7 @@ export const OurTeam = () => {
     <div className="space-y-8 md:space-y-12">
       <div className="aspect-1920/1082 w-full overflow-hidden border border-sffl-navy bg-gray-100 dark:bg-gray-900">
         <img
-          src="/images/team/team-photo-cropped.webp"
+          src="https://cdn.showtimeflag.football/files/showtime-leadership-team.webp"
           alt="The Showtime Flag Football team"
           loading="lazy"
           decoding="async"
