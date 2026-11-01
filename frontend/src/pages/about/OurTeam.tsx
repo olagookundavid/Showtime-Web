@@ -10,7 +10,7 @@ interface TeamMember {
 const PRESIDENT: TeamMember = {
   name: "Azeez Amida",
   role: "Founder & President",
-  image: "/images/leadership/azeez_amida.webp",
+  image: "https://cdn.showtimeflag.football/files/azeez-amida.png",
   badge: "Executive Leadership",
   bio: [
     "Azeez Amida is the Founder and President of Showtime Flag Football League, one of the leading figures behind the growth and professionalisation of flag football in Nigeria. Under his leadership, Showtime has grown into one of the world's fastest-growing coed professional flag football leagues, creating structured competitive and development opportunities for hundreds of male and female athletes.",
