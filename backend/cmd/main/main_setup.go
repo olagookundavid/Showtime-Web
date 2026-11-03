@@ -317,6 +317,15 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return err
 	})
 
+	// Hourly: a cup round that finished a week ago and that no admin has
+	// filled fills the next round's fixtures itself.
+	add("20 * * * *", "Cup auto-fill", func(ctx context.Context) error {
+		if app.MatchService == nil {
+			return nil
+		}
+		return app.MatchService.AutoFillCupRounds(ctx)
+	})
+
 	// Run every 5 minutes to lock scheduled fantasy gameweeks and roll over unedited lineups
 	add("*/5 * * * *", "Fantasy auto-lock job", func(ctx context.Context) error {
 		if app.FantasyService == nil {
@@ -409,7 +418,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.IRoleService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub, services.ISiteEventsService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.IRoleService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub, services.ISiteEventsService, services.IMatchService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -606,5 +615,5 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		storeRepo, storeService,
 		fantasyLeagueRepo, fantasyLeagueService,
 	)
-	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService
+	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService, matchService
 }

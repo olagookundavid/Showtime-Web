@@ -12,6 +12,7 @@ import { getMatches } from "../../services";
 import type { Match, BracketColumn } from "../../types";
 import { Spinner } from "../ui";
 import { TeamLink } from "../domain";
+import { formatMatchTime } from "../../utils";
 
 /**
  * Knockout bracket for a KNOCKOUT-format competition.
@@ -30,11 +31,26 @@ interface BracketViewProps {
   compact?: boolean;
   viewAllLink?: string;
   /**
-   * Cup competition: show only its knockout tree (the matches with a
-   * bracket_pos, not the Swiss rounds) under cup stage names.
+   * Cup competition: one bracket from Round 1 to the Final. The three Swiss
+   * rounds come first, each card showing the record its teams carried into
+   * that round, then the knockout tree. Every slot exists from the start, so
+   * rounds not yet filled show their date with "TBD" teams.
    */
   cup?: boolean;
 }
+
+// A cup's rounds in playing order, with their column titles.
+const CUP_ROUNDS = [
+  { round: "ROUND_1", title: "Round 1" },
+  { round: "ROUND_2", title: "Round 2" },
+  { round: "ROUND_3", title: "Round 3" },
+  { round: "QUARTERFINAL", title: "Quarterfinals" },
+  { round: "SEMIFINAL", title: "Semifinals" },
+  { round: "FINAL", title: "Final" },
+] as const;
+const CUP_SWISS_ROUNDS: readonly string[] = ["ROUND_1", "ROUND_2", "ROUND_3"];
+
+type WinLoss = { w: number; l: number };
 
 // Friendly column titles per stage rank.
 const STAGE_TITLES = ["Wildcards", "Playoffs 1", "Playoffs 2", "Bowl"];
@@ -140,14 +156,55 @@ export const buildBracketColumns = (
     });
 };
 
+// buildCupColumns lays a cup out by its round tags: Swiss rounds by kickoff,
+// knockout rounds top to bottom by bracket_pos.
+export const buildCupColumns = (matches: Match[]): BracketColumn[] =>
+  CUP_ROUNDS.map(({ round, title }) => ({
+    title,
+    matches: matches
+      .filter((m) => m.round === round)
+      .sort((a, b) =>
+        CUP_SWISS_ROUNDS.includes(round)
+          ? a.date.localeCompare(b.date) || (a.start_time || "").localeCompare(b.start_time || "")
+          : (a.bracket_pos ?? 999) - (b.bracket_pos ?? 999),
+      ),
+  })).filter((col) => col.matches.length > 0);
+
+// cupRecordsBefore gives each team's Swiss win-loss record going into each
+// round: recordsBefore.get("ROUND_2")?.get(teamId). Rounds 2 and 3 pair teams
+// with the same record, so this is what each of their cards shows.
+export const cupRecordsBefore = (matches: Match[]) => {
+  const before = new Map<string, Map<string, WinLoss>>();
+  const running = new Map<string, WinLoss>();
+  const bump = (id: string | undefined, won: boolean) => {
+    if (!id) return;
+    const r = running.get(id) ?? { w: 0, l: 0 };
+    running.set(id, won ? { ...r, w: r.w + 1 } : { ...r, l: r.l + 1 });
+  };
+  for (const round of CUP_SWISS_ROUNDS) {
+    before.set(round, new Map([...running].map(([id, r]) => [id, { ...r }])));
+    for (const m of matches) {
+      if (m.round !== round) continue;
+      const side = winnerSide(m);
+      if (!side) continue;
+      bump(m.home_team?.id, side === "HOME");
+      bump(m.away_team?.id, side === "AWAY");
+    }
+  }
+  return before;
+};
+
 const TeamRow = ({
   m,
   side,
   secondLeg,
+  record,
 }: {
   m: Match;
   side: "HOME" | "AWAY";
   secondLeg?: Match;
+  /** The team's record going into this match, e.g. "1-0" (cup Swiss rounds). */
+  record?: string;
 }) => {
   const team = side === "HOME" ? m.home_team : m.away_team;
   const isBye =
@@ -262,6 +319,14 @@ const TeamRow = ({
             ? "BYE"
             : (team.short_name || team.name).toUpperCase()}
       </span>
+      {record && !isTbd && (
+        <span
+          className="shrink-0 text-[10px] font-bold tabular-nums text-gray-400 dark:text-gray-500"
+          title="Record going into this round"
+        >
+          {record}
+        </span>
+      )}
       {secondLeg ? (
         <div className="flex gap-4 text-xs font-semibold tabular-nums text-gray-500 dark:text-gray-400">
           <span className="w-6 text-center">{scoreL1}</span>
@@ -404,11 +469,22 @@ export const MatchCard = ({
   m,
   secondLeg,
   isFinal,
+  records,
+  showTime = false,
 }: {
   m: Match;
   secondLeg?: Match;
   isFinal: boolean;
-}) => (
+  /** Records going into this match by team ID; shown beside each team. */
+  records?: Map<string, WinLoss>;
+  /** Show the kickoff time beside the date (cup days have several games). */
+  showTime?: boolean;
+}) => {
+  const recordOf = (id?: string) => {
+    const r = id ? records?.get(id) : undefined;
+    return r ? `${r.w}-${r.l}` : undefined;
+  };
+  return (
   <div
     className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm overflow-hidden w-full ${isFinal ? "border-sffl-red/40 ring-1 ring-sffl-red/20" : "border-gray-100 dark:border-gray-700"}`}
   >
@@ -421,6 +497,7 @@ export const MatchCard = ({
           month: "short",
           day: "numeric",
         })}
+        {showTime && m.start_time && ` · ${formatMatchTime(m.start_time, m.date)}`}
       </span>
       {secondLeg ? (
         <div className="flex gap-4 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
@@ -437,11 +514,12 @@ export const MatchCard = ({
       )}
     </Link>
     <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-      <TeamRow m={m} side="HOME" secondLeg={secondLeg} />
-      <TeamRow m={m} side="AWAY" secondLeg={secondLeg} />
+      <TeamRow m={m} side="HOME" secondLeg={secondLeg} record={recordOf(m.home_team?.id)} />
+      <TeamRow m={m} side="AWAY" secondLeg={secondLeg} record={recordOf(m.away_team?.id)} />
     </div>
   </div>
-);
+  );
+};
 
 export const BracketView = ({
   competitionId,
@@ -455,10 +533,7 @@ export const BracketView = ({
     enabled: !!competitionId,
   });
 
-  const allMatches = useMemo(() => {
-    const list = data?.data || [];
-    return cup ? list.filter((m) => m.bracket_pos != null) : list;
-  }, [data, cup]);
+  const allMatches = useMemo(() => data?.data || [], [data]);
   const finalTitle = cup ? "Final" : "Bowl";
 
   // Build a lookup: leg1.id -> leg2 match object
@@ -489,9 +564,16 @@ export const BracketView = ({
   }, [allMatches, secondLegIds]);
 
   const columns = useMemo(
-    () => buildBracketColumns(filteredMatches, { cup }),
+    () => (cup ? buildCupColumns(filteredMatches) : buildBracketColumns(filteredMatches)),
     [filteredMatches, cup],
   );
+  const recordsBefore = useMemo(
+    () => (cup ? cupRecordsBefore(filteredMatches) : undefined),
+    [filteredMatches, cup],
+  );
+  // Rounds 2 and 3 show the records teams carried in; Round 1 starts level.
+  const recordsFor = (m: Match) =>
+    m.round && m.round !== "ROUND_1" ? recordsBefore?.get(m.round) : undefined;
   const champion = useMemo(
     () => championOf(filteredMatches),
     [filteredMatches],
@@ -501,6 +583,15 @@ export const BracketView = ({
   // and sort matches within each stage latest first.
   const compactColumns = useMemo(() => {
     if (!compact) return columns;
+    // A cup has 22 slots; the sidebar shows the round being played (the
+    // latest with teams in it) and the one after, in playing order.
+    if (cup) {
+      let current = 0;
+      columns.forEach((col, i) => {
+        if (col.matches.some((m) => m.home_team?.id || m.away_team?.id)) current = i;
+      });
+      return columns.slice(current, current + 2);
+    }
     return [...columns].reverse().map((col) => ({
       ...col,
       matches: [...col.matches].sort((a, b) => {
@@ -509,7 +600,7 @@ export const BracketView = ({
         return (b.bracket_pos ?? 0) - (a.bracket_pos ?? 0);
       }),
     }));
-  }, [columns, compact]);
+  }, [columns, compact, cup]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -585,6 +676,8 @@ export const BracketView = ({
                     m={m}
                     secondLeg={secondLegMap.get(m.id)}
                     isFinal={isBowlStage(m.round) || col.title === finalTitle}
+                    records={recordsFor(m)}
+                    showTime={cup}
                   />
                 ))}
               </div>
@@ -632,6 +725,8 @@ export const BracketView = ({
                       m={m}
                       secondLeg={secondLegMap.get(m.id)}
                       isFinal={isLast}
+                      records={recordsFor(m)}
+                      showTime={cup}
                     />
                   ))}
                 </div>

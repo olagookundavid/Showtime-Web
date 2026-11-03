@@ -38,6 +38,7 @@ type Application struct {
 	BadgeService          services.IBadgeService
 	TOTWService           services.ITOTWService
 	POTWService           services.IPOTWService
+	MatchService          services.IMatchService
 	BroadcastHub          *broadcast.Hub
 
 	// Cron is the background scheduler. CronCancel cancels the context shared by

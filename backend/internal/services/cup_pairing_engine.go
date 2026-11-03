@@ -44,7 +44,10 @@ func GenerateRound1Pairings(teamIDs []string) ([]MatchupPair, error) {
 	return pairings, nil
 }
 
-// GenerateSwissRoundPairings pairs teams 1–10 by adjacent rank with rematch avoidance.
+// GenerateSwissRoundPairings pairs the 10 teams by record, bracket-style:
+// teams with the same number of wins meet (2-0 v 2-0, 1-1 v 1-1), and within a
+// record group by adjacent rank, never a rematch. When a group has an odd
+// number of teams, its lowest-ranked team plays the top of the group below.
 // standings must be sorted 1st to 10th.
 // pastMatchups is a bidirectional lookup: pastMatchups[t1][t2] == true if already played.
 func GenerateSwissRoundPairings(standings []domain.Standing, pastMatchups map[string]map[string]bool) ([]MatchupPair, error) {
@@ -57,14 +60,16 @@ func GenerateSwissRoundPairings(standings []domain.Standing, pastMatchups map[st
 		teams[i] = standings[i].TeamID
 	}
 
-	// Cost function between rank i and rank j:
-	// Squared rank distance + heavy penalty if they already played.
+	// Cost function between rank i and rank j: a large charge per squared
+	// difference in wins (keep records together), plus the squared rank
+	// distance (adjacent within a record), plus a heavy rematch penalty.
 	calcCost := func(i, j int) int {
 		dist := i - j
 		if dist < 0 {
 			dist = -dist
 		}
-		cost := dist * dist
+		wins := standings[i].Won - standings[j].Won
+		cost := 1000*wins*wins + dist*dist
 		t1, t2 := teams[i], teams[j]
 		if pastMatchups != nil && ((pastMatchups[t1] != nil && pastMatchups[t1][t2]) || (pastMatchups[t2] != nil && pastMatchups[t2][t1])) {
 			cost += 100000 // Heavy rematch penalty
