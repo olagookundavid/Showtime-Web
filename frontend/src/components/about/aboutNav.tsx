@@ -33,7 +33,7 @@ export const ABOUT_NAV: AboutNavItem[] = [
     title: "OUR TEAM",
     subtitle: "Showtime Leadership & Sporting Operations",
     backgroundImage:
-      "https://cdn.showtimeflag.football/files/showtime-leadership-team.webp",
+      "https://cdn.showtimeflag.football/files/showtime-leadership-team-updated.jpg",
     backgroundFit: "width",
   },
   {
