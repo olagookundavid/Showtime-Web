@@ -14,6 +14,7 @@ import type {
   CreateStandingPayload,
   BracketEntryPayload,
   CupState,
+  SetupCupRequest,
 } from "../types";
 
 // Sort competitions newest-season first. We parse the trailing Roman numeral
@@ -318,24 +319,20 @@ export const getCupState = async (competitionId: string): Promise<CupState> => {
   return response.data;
 };
 
-export const initializeCup = async (
-  competitionId: string,
-  schedule?: { date: string; time?: string; venue?: string },
-) => {
+// Dates every cup round with no fixtures yet and creates those slots;
+// an unstarted cup is started too (Round 1 drawn, or adopted if entered by hand).
+export const setupCup = async (competitionId: string, schedule: SetupCupRequest) => {
   const response = await api.post(
-    `/admin/competitions/${competitionId}/cup/initialize`,
+    `/admin/competitions/${competitionId}/cup/setup`,
     schedule,
   );
   return response.data;
 };
 
-export const advanceCupRound = async (
-  competitionId: string,
-  schedule?: { date: string; time?: string; venue?: string },
-) => {
+// Fills the next round's fixtures from the finished current round.
+export const fillCupRound = async (competitionId: string) => {
   const response = await api.post(
-    `/admin/competitions/${competitionId}/cup/advance`,
-    schedule,
+    `/admin/competitions/${competitionId}/cup/fill`,
   );
   return response.data;
 };

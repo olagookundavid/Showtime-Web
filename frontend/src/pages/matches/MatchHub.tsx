@@ -169,9 +169,10 @@ export const MatchHub = () => {
   const compFormat = (selectedCompetition?.format || "SEASON").toUpperCase();
   const cupStage = cupStageOf(selectedCompetition);
   const isCup = cupStage !== "none";
-  const isCupKnockout = cupStage === "knockout";
-  // Playoffs competitions or Cup in knockout stage show the bracket.
-  const isKnockout = compFormat === "PLAYOFFS" || isCupKnockout;
+  // A started cup is a bracket from Round 1 to the Final.
+  const isCupBracket = cupStage === "swiss" || cupStage === "knockout";
+  // Playoffs competitions and started cups show the bracket.
+  const isKnockout = compFormat === "PLAYOFFS" || isCupBracket;
   const isPreseason = compFormat === "PRESEASON";
   const isMatchesOnly = isPreseason || cupStage === "matches";
 
@@ -310,17 +311,15 @@ export const MatchHub = () => {
               size="sm"
               icon={isKnockout || isMatchesOnly ? FootballIcon : TrophyIcon}
             >
-              {isCupKnockout
+              {isCupBracket
                 ? "View Cup Bracket"
                 : isKnockout
                   ? "View Playoff Bracket"
                   : isPreseason
                     ? "View Preseason Games"
-                    : cupStage === "swiss"
-                      ? "View Cup Standings"
-                      : isCup
-                        ? "View Cup Matches"
-                        : "View Full Standings"}
+                    : isCup
+                      ? "View Cup Matches"
+                      : "View Full Standings"}
             </ButtonLink>
           </div>
         </div>

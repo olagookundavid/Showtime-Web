@@ -44,10 +44,26 @@ const (
 	CupRoundQF    = "QUARTERFINAL"
 	CupRoundSF    = "SEMIFINAL"
 	CupRoundFinal = "FINAL"
-	// CupRoundCompleted is stored once the Final is signed off; the
-	// competition is marked completed at the same time.
+	// CupRoundCompleted marks a finished cup (older cups were closed this way).
 	CupRoundCompleted = "COMPLETED"
 )
+
+// CupRounds lists a cup's rounds in playing order. Every round's match slots
+// are created, dated, when the cup is set up; later rounds start without teams.
+var CupRounds = []string{CupRound1, CupRound2, CupRound3, CupRoundQF, CupRoundSF, CupRoundFinal}
+
+// CupRoundSlots is how many matches each cup round has.
+var CupRoundSlots = map[string]int{
+	CupRound1: 5, CupRound2: 5, CupRound3: 5,
+	CupRoundQF: 4, CupRoundSF: 2, CupRoundFinal: 1,
+}
+
+// CupSlotAssignment puts two teams into an empty cup match slot.
+type CupSlotAssignment struct {
+	MatchID    string
+	HomeTeamID string
+	AwayTeamID string
+}
 
 type Competition struct {
 	ID                   string    `json:"id"`

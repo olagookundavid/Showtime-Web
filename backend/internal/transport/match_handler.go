@@ -48,8 +48,8 @@ type IMatchHandler interface {
 	SaveTeamHeadTeamSheet(c *gin.Context)
 	GetAdminTeamSheet(c *gin.Context)
 	OverrideMatchMVP(c *gin.Context)
-	InitializeCup(c *gin.Context)
-	AdvanceCupRound(c *gin.Context)
+	SetupCup(c *gin.Context)
+	FillCupRound(c *gin.Context)
 	GetCupState(c *gin.Context)
 }
 
@@ -878,44 +878,44 @@ func (h *MatchHandler) ResetBracket(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Bracket reset"})
 }
 
-// InitializeCup godoc
-// @Summary      Initialize Cup tournament with Round 1 fixtures
+// SetupCup godoc
+// @Summary      Date every cup round that has no fixtures yet, starting the cup if needed
+// @Description  Creates the dated match slots for each missing round, through to the Final. An unstarted cup also gets Round 1: drawn at random, or a Round 1 already entered by hand is kept.
 // @Tags         admin
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "Competition ID"
-// @Param        request body dto.InitializeCupRequest false "Initialize cup parameters"
+// @Param        request body dto.SetupCupRequest true "A date and first kickoff per missing round"
 // @Success      201 {object} map[string]string
-// @Router       /api/v1/admin/competitions/{id}/cup/initialize [post]
-func (h *MatchHandler) InitializeCup(c *gin.Context) {
+// @Router       /api/v1/admin/competitions/{id}/cup/setup [post]
+func (h *MatchHandler) SetupCup(c *gin.Context) {
 	id := c.Param("id")
-	var req dto.InitializeCupRequest
-	_ = c.ShouldBindJSON(&req)
-	if err := h.service.InitializeCup(c.Request.Context(), id, req); err != nil {
+	var req dto.SetupCupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		helpers.BadResponse(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Cup tournament initialized with Round 1"})
+	if err := h.service.SetupCup(c.Request.Context(), id, req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "Cup schedule set up"})
 }
 
-// AdvanceCupRound godoc
-// @Summary      Advance Cup tournament to the next stage
+// FillCupRound godoc
+// @Summary      Fill the next cup round's fixtures from the finished current round
 // @Tags         admin
-// @Accept       json
 // @Produce      json
 // @Param        id path string true "Competition ID"
-// @Param        request body dto.AdvanceCupRequest false "Advance cup parameters"
 // @Success      200 {object} map[string]string
-// @Router       /api/v1/admin/competitions/{id}/cup/advance [post]
-func (h *MatchHandler) AdvanceCupRound(c *gin.Context) {
+// @Router       /api/v1/admin/competitions/{id}/cup/fill [post]
+func (h *MatchHandler) FillCupRound(c *gin.Context) {
 	id := c.Param("id")
-	var req dto.AdvanceCupRequest
-	_ = c.ShouldBindJSON(&req)
-	if err := h.service.AdvanceCupRound(c.Request.Context(), id, req); err != nil {
+	if err := h.service.FillCupRound(c.Request.Context(), id); err != nil {
 		helpers.BadResponse(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Cup round advanced successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Next round's fixtures filled"})
 }
 
 // GetCupState godoc

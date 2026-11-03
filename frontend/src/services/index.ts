@@ -88,8 +88,8 @@ export {
   generateBracket,
   resetBracket,
   getCupState,
-  initializeCup,
-  advanceCupRound,
+  setupCup,
+  fillCupRound,
 } from './matches';
 
 export {

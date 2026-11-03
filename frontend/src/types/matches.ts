@@ -12,15 +12,37 @@ export interface Competition {
 // Progress/status of a CUP competition's Swiss-then-knockout tournament.
 export interface CupState {
     competition_id: string;
-    current_round: string; // UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3 | QUARTERFINAL | SEMIFINAL | FINAL | COMPLETED
+    // UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3: the latest Swiss round with
+    // teams filled in. QUARTERFINAL: the knockout is filled; winners move up
+    // on their own from here. COMPLETED: closed.
+    current_round: string;
     matches_total: number;
     matches_finished: number;
+    // The current round is finished and next_round can be filled now
+    // (before the cup starts: it can be set up).
     can_advance: boolean;
     next_round: string;
     status_message: string;
     // Before the cup starts: the matches already entered form a complete
-    // Round 1, so starting adopts them instead of drawing new fixtures.
+    // Round 1, so setup adopts them instead of drawing new fixtures.
     adopts_existing_matches?: boolean;
+    // Rounds with no match slots yet; setup must give each one a date.
+    missing_rounds: string[];
+    // When next_round fills itself if no admin has (YYYY-MM-DD, Lagos).
+    auto_fill_on?: string;
+}
+
+// One round's match day in a cup's schedule.
+export interface CupRoundDate {
+    round: string; // ROUND_1 … FINAL
+    date: string; // YYYY-MM-DD
+    first_kickoff: string; // HH:MM, the day's first game
+}
+
+export interface SetupCupRequest {
+    rounds: CupRoundDate[];
+    gap_minutes: number; // between kickoffs on a day
+    venue: string;
 }
 
 export interface Team {

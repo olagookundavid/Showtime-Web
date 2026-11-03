@@ -2,11 +2,13 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"pkg-common/logger"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+	"sort"
 	"time"
 )
 
@@ -49,8 +51,9 @@ type IMatchService interface {
 	FemalePlayerIDs(ctx context.Context, playerIDs []string) (map[string]bool, error)
 	OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error
 	SetMatchScore(ctx context.Context, matchID string, home, away int) error
-	InitializeCup(ctx context.Context, competitionID string, req dto.InitializeCupRequest) error
-	AdvanceCupRound(ctx context.Context, competitionID string, req dto.AdvanceCupRequest) error
+	SetupCup(ctx context.Context, competitionID string, req dto.SetupCupRequest) error
+	FillCupRound(ctx context.Context, competitionID string) error
+	AutoFillCupRounds(ctx context.Context) error
 	GetCupState(ctx context.Context, competitionID string) (*dto.CupStateResponse, error)
 }
 
@@ -578,7 +581,12 @@ func (s *MatchService) ResetBracket(ctx context.Context, competitionID string) e
 // both-teams-required requirements and carries no bracket linkage.
 func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.Match, hasBracket bool) error {
 	if !hasBracket {
-		if match.HomeTeamID == "" || match.AwayTeamID == "" {
+		// A later Swiss round's slots wait for the previous round to fill
+		// them, so they may be saved (rescheduled, say) without teams until
+		// they are played.
+		tbdSwissSlot := isCupSwissRound(match.Round) && match.HomeTeamID == "" && match.AwayTeamID == "" &&
+			match.Status != domain.MatchStatusFinished && match.Status != domain.MatchStatusLive
+		if (match.HomeTeamID == "" || match.AwayTeamID == "") && !tbdSwissSlot {
 			return fmt.Errorf("home and away teams are required for non-bracket matches")
 		}
 		// Non-bracket matches don't carry bracket linkage. A cup's Swiss
@@ -1058,17 +1066,55 @@ func (s *MatchService) SetMatchScore(ctx context.Context, matchID string, home, 
 	return s.repo.SetMatchScore(ctx, matchID, home, away)
 }
 
-// cupMatchLimit is well above the 22 matches a 10-team cup ever has.
+// --- Cup tournament ---
+//
+// A cup is 10 teams: three Swiss rounds that everyone plays, then an 8-team
+// knockout (quarterfinals, semifinals, Final). Every round's match slots are
+// created, dated, when the cup is set up, so the whole calendar is known from
+// the start; only Round 1 has teams then. When a Swiss round is finished its
+// results fill the next round's slots, by an admin's click or automatically a
+// week after that round's match day. After Round 3 the top 8 fill the
+// quarterfinals; from there winners move up through feeds_match_id like the
+// Bowl bracket. cup_round records the latest round whose slots are filled.
+
+// cupMatchLimit is well above the 22 matches a 10-team cup has.
 const cupMatchLimit = 100
 
-// nextCupRound maps each cup stage to the one that follows it.
-var nextCupRound = map[string]string{
-	domain.CupRound1:     domain.CupRound2,
-	domain.CupRound2:     domain.CupRound3,
-	domain.CupRound3:     domain.CupRoundQF,
-	domain.CupRoundQF:    domain.CupRoundSF,
-	domain.CupRoundSF:    domain.CupRoundFinal,
-	domain.CupRoundFinal: domain.CupRoundCompleted,
+// cupNextFill is the round each Swiss round's results fill. Knockout rounds
+// need no fill: winners move up on their own.
+var cupNextFill = map[string]string{
+	domain.CupRound1: domain.CupRound2,
+	domain.CupRound2: domain.CupRound3,
+	domain.CupRound3: domain.CupRoundQF,
+}
+
+// cupAutoFillDays is how many days after a finished round's match day the
+// next round fills itself if no admin has filled it.
+const cupAutoFillDays = 7
+
+// cupDefaultGapMinutes is the time between kickoffs on a cup day when the
+// admin gives none (cup days have run 13:20, 14:40, 16:00, 17:20, 18:40).
+const cupDefaultGapMinutes = 80
+
+// cupQFPairForPos maps a quarterfinal slot's bracket_pos to its pairing from
+// GenerateQuarterfinalPairings (1v5, 2v6, 3v7, 4v8). Slots run top to bottom
+// as the bracket is drawn: 1v5 and 4v8 feed SF1, 2v6 and 3v7 feed SF2.
+var cupQFPairForPos = map[int]int{1: 0, 2: 3, 3: 1, 4: 2}
+
+var cupRoundLabels = map[string]string{
+	domain.CupRound1:     "Round 1",
+	domain.CupRound2:     "Round 2",
+	domain.CupRound3:     "Round 3",
+	domain.CupRoundQF:    "the quarterfinals",
+	domain.CupRoundSF:    "the semifinals",
+	domain.CupRoundFinal: "the Final",
+}
+
+func cupRoundLabel(round string) string {
+	if l, ok := cupRoundLabels[round]; ok {
+		return l
+	}
+	return round
 }
 
 func isCupSwissRound(round string) bool {
@@ -1078,6 +1124,56 @@ func isCupSwissRound(round string) bool {
 func (s *MatchService) cupMatches(ctx context.Context, competitionID string) ([]domain.Match, error) {
 	matches, _, err := s.repo.GetMatches(ctx, competitionID, "", "", 1, cupMatchLimit, "")
 	return matches, err
+}
+
+func cupMatchesByRound(matches []domain.Match) map[string][]domain.Match {
+	byRound := make(map[string][]domain.Match)
+	for _, m := range matches {
+		byRound[m.Round] = append(byRound[m.Round], m)
+	}
+	return byRound
+}
+
+// cupMissingRounds lists, in playing order, the rounds with no slots yet.
+func cupMissingRounds(byRound map[string][]domain.Match) []string {
+	missing := make([]string, 0, len(domain.CupRounds))
+	for _, r := range domain.CupRounds {
+		if len(byRound[r]) == 0 {
+			missing = append(missing, r)
+		}
+	}
+	return missing
+}
+
+func cupRoundProgress(matches []domain.Match) (finished, total int) {
+	for _, m := range matches {
+		if m.Status == domain.MatchStatusFinished {
+			finished++
+		}
+	}
+	return finished, len(matches)
+}
+
+// cupAutoFillDue says when `next` fills itself from `current`'s results: a
+// week after current's (last) match day, once all of current is finished and
+// next's slots exist with no teams in them yet.
+func cupAutoFillDue(current, next []domain.Match) (time.Time, bool) {
+	finished, total := cupRoundProgress(current)
+	if total == 0 || finished < total || len(next) == 0 {
+		return time.Time{}, false
+	}
+	for _, m := range next {
+		if m.HomeTeamID != "" || m.AwayTeamID != "" {
+			return time.Time{}, false
+		}
+	}
+	var last time.Time
+	for _, m := range current {
+		if d := dateOnly(m.Date); d.After(last) {
+			last = d
+		}
+	}
+	return last.AddDate(0, 0, cupAutoFillDays), true
 }
 
 // pastMatchups lists who has already played whom in the Swiss rounds, both ways.
@@ -1090,92 +1186,141 @@ func pastMatchups(matches []domain.Match) map[string]map[string]bool {
 		past[a][b] = true
 	}
 	for _, m := range matches {
-		switch m.Round {
-		case domain.CupRound1, domain.CupRound2, domain.CupRound3:
-			if m.HomeTeamID != "" && m.AwayTeamID != "" {
-				mark(m.HomeTeamID, m.AwayTeamID)
-				mark(m.AwayTeamID, m.HomeTeamID)
-			}
+		if isCupSwissRound(m.Round) && m.HomeTeamID != "" && m.AwayTeamID != "" {
+			mark(m.HomeTeamID, m.AwayTeamID)
+			mark(m.AwayTeamID, m.HomeTeamID)
 		}
 	}
 	return past
 }
 
-// cupSchedule parses the date (YYYY-MM-DD) and kickoff (HH:MM) an admin picked
-// for a new stage. Either may be blank: today and 12:00 are used instead.
-func cupSchedule(date, kickoff string) (time.Time, time.Time, error) {
-	day := time.Now().Truncate(24 * time.Hour)
-	if date != "" {
-		d, err := time.Parse("2006-01-02", date)
+// cupDay is one round's match day and its first kickoff.
+type cupDay struct {
+	day   time.Time
+	first time.Time
+}
+
+// parseCupSchedule reads the dates given for the rounds in `need`, and checks
+// every round's day, given or already scheduled, runs in playing order.
+func parseCupSchedule(req dto.SetupCupRequest, need []string, byRound map[string][]domain.Match) (map[string]cupDay, time.Duration, error) {
+	gap := req.GapMinutes
+	if gap == 0 {
+		gap = cupDefaultGapMinutes
+	}
+	if gap < 10 || gap > 360 {
+		return nil, 0, fmt.Errorf("time between kickoffs must be 10 to 360 minutes")
+	}
+
+	given := make(map[string]dto.CupRoundDate, len(req.Rounds))
+	for _, r := range req.Rounds {
+		if _, ok := domain.CupRoundSlots[r.Round]; !ok {
+			return nil, 0, fmt.Errorf("unknown cup round %q", r.Round)
+		}
+		given[r.Round] = r
+	}
+
+	days := make(map[string]cupDay, len(need))
+	for _, round := range need {
+		g, ok := given[round]
+		if !ok || g.Date == "" {
+			return nil, 0, fmt.Errorf("%s needs a date", cupRoundLabel(round))
+		}
+		day, err := time.Parse("2006-01-02", g.Date)
 		if err != nil {
-			return time.Time{}, time.Time{}, fmt.Errorf("date must be YYYY-MM-DD")
+			return nil, 0, fmt.Errorf("%s: date must be YYYY-MM-DD", cupRoundLabel(round))
 		}
-		day = d
+		kickoff := g.FirstKickoff
+		if kickoff == "" {
+			kickoff = "12:00"
+		}
+		first, err := time.Parse("15:04", kickoff)
+		if err != nil {
+			return nil, 0, fmt.Errorf("%s: first kickoff must be HH:MM", cupRoundLabel(round))
+		}
+		days[round] = cupDay{day: day, first: first}
 	}
-	if kickoff == "" {
-		kickoff = "12:00"
+
+	var prev time.Time
+	prevRound := ""
+	for _, round := range domain.CupRounds {
+		var d time.Time
+		if cd, ok := days[round]; ok {
+			d = cd.day
+		} else {
+			for _, m := range byRound[round] {
+				if md := dateOnly(m.Date); md.After(d) {
+					d = md
+				}
+			}
+		}
+		if d.IsZero() {
+			continue
+		}
+		if !prev.IsZero() && d.Before(prev) {
+			return nil, 0, fmt.Errorf("%s (%s) can't be before %s (%s)",
+				cupRoundLabel(round), d.Format("2 Jan"), cupRoundLabel(prevRound), prev.Format("2 Jan"))
+		}
+		prev, prevRound = d, round
 	}
-	start, err := time.Parse("15:04", kickoff)
-	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("time must be HH:MM")
-	}
-	return day, start, nil
+	return days, time.Duration(gap) * time.Minute, nil
 }
 
-func swissRoundMatches(competitionID, round string, pairings []MatchupPair, day, start time.Time, venue string) []*domain.Match {
-	matches := make([]*domain.Match, 0, len(pairings))
-	for _, p := range pairings {
-		matches = append(matches, &domain.Match{
-			CompetitionID: competitionID,
-			HomeTeamID:    p.HomeTeamID,
-			AwayTeamID:    p.AwayTeamID,
-			Date:          day,
-			StartTime:     start,
-			Venue:         venue,
-			Status:        domain.MatchStatusScheduled,
-			Round:         round,
-		})
+// cupSlot is a round's i-th match of the day, kicking off i gaps after the first.
+func cupSlot(competitionID, round string, at cupDay, i int, gap time.Duration, venue string) *domain.Match {
+	return &domain.Match{
+		CompetitionID: competitionID,
+		Round:         round,
+		Date:          at.day,
+		StartTime:     at.first.Add(time.Duration(i) * gap),
+		Venue:         venue,
+		Status:        domain.MatchStatusScheduled,
 	}
-	return matches
 }
 
-// cupKnockoutMatches builds the whole knockout tree at once: the four
-// quarterfinals on `day`, the semifinals a week later and the Final a week
-// after that. qf is 1v5, 2v6, 3v7, 4v8 (GenerateQuarterfinalPairings); 1v5 and
-// 4v8 meet in SF1, 2v6 and 3v7 in SF2. bracket_pos runs top to bottom as the
-// bracket is drawn, like GenerateBracket: 1v5, 4v8, 2v6, 3v7. Winners move up
-// through feeds_match_id. The Final and semifinals come first in the slice so
-// their IDs exist before the matches that feed them are saved.
-func cupKnockoutMatches(competitionID string, qf []MatchupPair, day, start time.Time, venue string) []*domain.Match {
-	newMatch := func(round string, pos, daysLater int) *domain.Match {
-		return &domain.Match{
-			CompetitionID: competitionID,
-			Round:         round,
-			BracketPos:    &pos,
-			Status:        domain.MatchStatusScheduled,
-			Date:          day.AddDate(0, 0, daysLater),
-			StartTime:     start,
-			Venue:         venue,
+// cupSwissSlots builds a Swiss round's 5 slots. With pairs (Round 1's draw)
+// they get teams; otherwise they wait for the previous round to fill them.
+func cupSwissSlots(competitionID, round string, at cupDay, gap time.Duration, venue string, pairs []MatchupPair) []*domain.Match {
+	n := domain.CupRoundSlots[round]
+	slots := make([]*domain.Match, 0, n)
+	for i := 0; i < n; i++ {
+		m := cupSlot(competitionID, round, at, i, gap, venue)
+		if i < len(pairs) {
+			m.HomeTeamID, m.AwayTeamID = pairs[i].HomeTeamID, pairs[i].AwayTeamID
 		}
+		slots = append(slots, m)
 	}
-	final := newMatch(domain.CupRoundFinal, 1, 14)
-	sf1 := newMatch(domain.CupRoundSF, 1, 7)
+	return slots
+}
+
+// cupKnockoutSlots builds the knockout tree with no teams yet: four
+// quarterfinals, two semifinals and the Final, each on its round's day.
+// bracket_pos runs top to bottom as the bracket is drawn, like
+// GenerateBracket; QF 1 and 2 feed SF1, QF 3 and 4 feed SF2, and the
+// semifinals feed the Final. The Final and semifinals come first in the slice
+// so their IDs exist before the matches that feed them are saved.
+func cupKnockoutSlots(competitionID string, days map[string]cupDay, gap time.Duration, venue string) []*domain.Match {
+	slot := func(round string, pos int) *domain.Match {
+		m := cupSlot(competitionID, round, days[round], pos-1, gap, venue)
+		p := pos
+		m.BracketPos = &p
+		return m
+	}
+	final := slot(domain.CupRoundFinal, 1)
+	sf1 := slot(domain.CupRoundSF, 1)
 	sf1.FeedsMatchID, sf1.FeedsSlot = &final.ID, "HOME"
-	sf2 := newMatch(domain.CupRoundSF, 2, 7)
+	sf2 := slot(domain.CupRoundSF, 2)
 	sf2.FeedsMatchID, sf2.FeedsSlot = &final.ID, "AWAY"
 
-	slots := []struct {
-		pair int
+	feeds := []struct {
 		sf   *domain.Match
-		slot string
-	}{{0, sf1, "HOME"}, {3, sf1, "AWAY"}, {1, sf2, "HOME"}, {2, sf2, "AWAY"}}
+		side string
+	}{{sf1, "HOME"}, {sf1, "AWAY"}, {sf2, "HOME"}, {sf2, "AWAY"}}
 
 	matches := []*domain.Match{final, sf1, sf2}
-	for i, s := range slots {
-		m := newMatch(domain.CupRoundQF, i+1, 0)
-		m.HomeTeamID, m.AwayTeamID = qf[s.pair].HomeTeamID, qf[s.pair].AwayTeamID
-		m.FeedsMatchID, m.FeedsSlot = &s.sf.ID, s.slot
-		matches = append(matches, m)
+	for i, f := range feeds {
+		qf := slot(domain.CupRoundQF, i+1)
+		qf.FeedsMatchID, qf.FeedsSlot = &f.sf.ID, f.side
+		matches = append(matches, qf)
 	}
 	return matches
 }
@@ -1245,158 +1390,239 @@ func existingRound1(matches []domain.Match, teamIDs []string) ([]string, error) 
 	return ids, nil
 }
 
-func (s *MatchService) InitializeCup(ctx context.Context, competitionID string, req dto.InitializeCupRequest) error {
+func (s *MatchService) cupForChange(ctx context.Context, competitionID string) (*domain.Competition, error) {
 	comp, err := s.repo.GetCompetitionByID(ctx, competitionID)
 	if err != nil || comp == nil {
-		return fmt.Errorf("competition not found")
+		return nil, fmt.Errorf("competition not found")
 	}
 	if comp.Status == "completed" {
-		return fmt.Errorf("competition is completed and cannot be modified")
+		return nil, fmt.Errorf("competition is completed and cannot be modified")
 	}
 	if comp.Format != string(domain.CompetitionFormatCup) {
-		return fmt.Errorf("only cup competitions can be initialized as a cup")
+		return nil, fmt.Errorf("only cup competitions have a cup schedule")
 	}
+	return comp, nil
+}
 
+// SetupCup dates every round that has no match slots yet and creates those
+// slots. An unstarted cup is started too: Round 1 is drawn at random, or a
+// Round 1 entered by hand is adopted. A cup that started before slots were
+// created up front gets only its missing rounds, so its played and scheduled
+// matches are kept as they are.
+func (s *MatchService) SetupCup(ctx context.Context, competitionID string, req dto.SetupCupRequest) error {
+	comp, err := s.cupForChange(ctx, competitionID)
+	if err != nil {
+		return err
+	}
 	teamIDs, err := s.cupTeamIDs(ctx, competitionID)
 	if err != nil {
 		return err
 	}
-
-	// Matches entered by hand before the cup was started: adopt them as
-	// Round 1 if they form one, rather than drawing new fixtures.
-	existing, err := s.cupMatches(ctx, competitionID)
-	if err != nil {
-		return err
-	}
-	if len(existing) > 0 {
-		ids, err := existingRound1(existing, teamIDs)
-		if err != nil {
-			return fmt.Errorf("can't start the cup from the %d matches already entered: %w", len(existing), err)
-		}
-		if err := s.repo.AdoptCupMatches(ctx, competitionID, domain.CupRound1, ids); err != nil {
-			return err
-		}
-		if err := s.repo.RecalculateStandings(ctx, competitionID); err != nil {
-			return err
-		}
-		s.triggerFantasyResync(competitionID)
-		return nil
-	}
-
-	day, start, err := cupSchedule(req.Date, req.Time)
-	if err != nil {
-		return err
-	}
-	pairings, err := GenerateRound1Pairings(teamIDs)
-	if err != nil {
-		return err
-	}
-	matches := swissRoundMatches(competitionID, domain.CupRound1, pairings, day, start, req.Venue)
-	if err := s.repo.AdvanceCupStage(ctx, competitionID, nil, domain.CupRound1, matches); err != nil {
-		return err
-	}
-
-	if err := s.repo.RecalculateStandings(ctx, competitionID); err != nil {
-		return err
-	}
-	s.triggerFantasyResync(competitionID)
-	return nil
-}
-
-func (s *MatchService) AdvanceCupRound(ctx context.Context, competitionID string, req dto.AdvanceCupRequest) error {
-	comp, err := s.repo.GetCompetitionByID(ctx, competitionID)
-	if err != nil || comp == nil {
-		return fmt.Errorf("competition not found")
-	}
-	if comp.Status == "completed" {
-		return fmt.Errorf("competition is completed and cannot be modified")
-	}
-	if comp.Format != string(domain.CompetitionFormatCup) {
-		return fmt.Errorf("only cup competitions can be advanced")
-	}
-	if comp.CupRound == nil || *comp.CupRound == "" {
-		return fmt.Errorf("cup has not been initialized yet")
-	}
-
-	currentRound := *comp.CupRound
-	nextRound, ok := nextCupRound[currentRound]
-	if !ok {
-		return fmt.Errorf("unknown cup round %q", currentRound)
-	}
-
 	all, err := s.cupMatches(ctx, competitionID)
 	if err != nil {
 		return err
 	}
-	roundTotal, finished := 0, 0
-	for _, m := range all {
-		if m.Round == currentRound {
-			roundTotal++
-			if m.Status == domain.MatchStatusFinished {
-				finished++
-			}
+
+	started := comp.CupRound != nil && *comp.CupRound != ""
+	byRound := cupMatchesByRound(all)
+	var adopt []string
+	if !started && len(all) > 0 {
+		ids, err := existingRound1(all, teamIDs)
+		if err != nil {
+			return fmt.Errorf("can't start the cup from the %d matches already entered: %w", len(all), err)
 		}
-	}
-	if roundTotal == 0 {
-		return fmt.Errorf("no matches found for current round %s", currentRound)
-	}
-	if finished < roundTotal {
-		return fmt.Errorf("cannot advance: all %s matches must be finished (currently %d/%d finished)", currentRound, finished, roundTotal)
+		adopt = ids
+		byRound = map[string][]domain.Match{domain.CupRound1: all}
 	}
 
-	day, start, err := cupSchedule(req.Date, req.Time)
+	missing := cupMissingRounds(byRound)
+	if len(missing) == 0 {
+		return fmt.Errorf("every round already has its fixtures")
+	}
+	koMissing := 0
+	for _, r := range missing {
+		if !isCupSwissRound(r) {
+			koMissing++
+		}
+	}
+	if koMissing != 0 && koMissing != 3 {
+		return fmt.Errorf("the knockout is only partly set up; fix it from the matches list")
+	}
+
+	days, gap, err := parseCupSchedule(req, missing, byRound)
 	if err != nil {
 		return err
 	}
 
-	// Rounds 2 and 3 are paired from the table; the knockout tree is built in
-	// full after Round 3. Moving QF → SF → Final → completed adds no matches:
-	// winners already flow up the tree as results are entered.
-	var matches []*domain.Match
-	switch currentRound {
-	case domain.CupRound1, domain.CupRound2:
-		standings, err := s.cupStandings(ctx, competitionID)
-		if err != nil {
-			return err
+	var slots []*domain.Match
+	for _, round := range missing {
+		if !isCupSwissRound(round) {
+			continue
 		}
-		pairings, err := GenerateSwissRoundPairings(standings, pastMatchups(all))
-		if err != nil {
-			return err
+		var pairs []MatchupPair
+		if round == domain.CupRound1 {
+			if pairs, err = GenerateRound1Pairings(teamIDs); err != nil {
+				return err
+			}
 		}
-		matches = swissRoundMatches(competitionID, nextRound, pairings, day, start, req.Venue)
-
-	case domain.CupRound3:
-		// Ranks 9 & 10 are eliminated; the top 8 go into the quarterfinals.
-		standings, err := s.cupStandings(ctx, competitionID)
-		if err != nil {
-			return err
-		}
-		qf, err := GenerateQuarterfinalPairings(standings)
-		if err != nil {
-			return err
-		}
-		matches = cupKnockoutMatches(competitionID, qf, day, start, req.Venue)
+		slots = append(slots, cupSwissSlots(competitionID, round, days[round], gap, req.Venue, pairs)...)
+	}
+	if koMissing == 3 {
+		slots = append(slots, cupKnockoutSlots(competitionID, days, gap, req.Venue)...)
 	}
 
-	if err := s.repo.AdvanceCupStage(ctx, competitionID, &currentRound, nextRound, matches); err != nil {
+	if err := s.repo.SetupCupSchedule(ctx, competitionID, !started, adopt, slots); err != nil {
 		return err
+	}
+	if !started {
+		if err := s.repo.RecalculateStandings(ctx, competitionID); err != nil {
+			return err
+		}
 	}
 	s.triggerFantasyResync(competitionID)
 	return nil
 }
 
-// unstartedCupState says whether a cup that hasn't started can be: it needs
-// 10 enrolled teams, and either no matches yet (Round 1 is drawn) or matches
-// entered by hand that form a complete Round 1 (they are adopted).
+// FillCupRound fills the next round's slots from the finished current round:
+// Rounds 2 and 3 by record (GenerateSwissRoundPairings), the quarterfinals
+// with the top 8 (GenerateQuarterfinalPairings). Ranks 9 and 10 go out.
+func (s *MatchService) FillCupRound(ctx context.Context, competitionID string) error {
+	comp, err := s.cupForChange(ctx, competitionID)
+	if err != nil {
+		return err
+	}
+	if comp.CupRound == nil || *comp.CupRound == "" {
+		return fmt.Errorf("the cup hasn't been set up yet")
+	}
+	return s.fillNextCupRound(ctx, comp)
+}
+
+func (s *MatchService) fillNextCupRound(ctx context.Context, comp *domain.Competition) error {
+	current := *comp.CupRound
+	next, ok := cupNextFill[current]
+	if !ok {
+		return fmt.Errorf("nothing to fill: from the quarterfinals on, winners move up on their own")
+	}
+	all, err := s.cupMatches(ctx, comp.ID)
+	if err != nil {
+		return err
+	}
+	byRound := cupMatchesByRound(all)
+
+	finished, total := cupRoundProgress(byRound[current])
+	if total == 0 {
+		return fmt.Errorf("%s has no matches", cupRoundLabel(current))
+	}
+	if finished < total {
+		return fmt.Errorf("%s isn't finished yet (%d/%d played)", cupRoundLabel(current), finished, total)
+	}
+	slots := byRound[next]
+	if len(slots) == 0 {
+		return fmt.Errorf("%s has no fixtures yet: set its date first", cupRoundLabel(next))
+	}
+	if len(slots) != domain.CupRoundSlots[next] {
+		return fmt.Errorf("%s has %d fixtures, expected %d; fix it from the matches list", cupRoundLabel(next), len(slots), domain.CupRoundSlots[next])
+	}
+	for _, m := range slots {
+		if m.HomeTeamID != "" || m.AwayTeamID != "" {
+			return fmt.Errorf("%s already has teams entered by hand; clear them to fill it automatically", cupRoundLabel(next))
+		}
+	}
+
+	standings, err := s.cupStandings(ctx, comp.ID)
+	if err != nil {
+		return err
+	}
+
+	assignments := make([]domain.CupSlotAssignment, 0, len(slots))
+	if isCupSwissRound(next) {
+		pairings, err := GenerateSwissRoundPairings(standings, pastMatchups(all))
+		if err != nil {
+			return err
+		}
+		// The top pairing takes the day's first slot.
+		sort.Slice(slots, func(i, j int) bool {
+			if !slots[i].Date.Equal(slots[j].Date) {
+				return slots[i].Date.Before(slots[j].Date)
+			}
+			return slots[i].StartTime.Before(slots[j].StartTime)
+		})
+		for i, p := range pairings {
+			assignments = append(assignments, domain.CupSlotAssignment{MatchID: slots[i].ID, HomeTeamID: p.HomeTeamID, AwayTeamID: p.AwayTeamID})
+		}
+	} else {
+		qf, err := GenerateQuarterfinalPairings(standings)
+		if err != nil {
+			return err
+		}
+		for _, m := range slots {
+			if m.BracketPos == nil {
+				return fmt.Errorf("a quarterfinal has no bracket position; fix it from the matches list")
+			}
+			pair, ok := cupQFPairForPos[*m.BracketPos]
+			if !ok {
+				return fmt.Errorf("a quarterfinal has bracket position %d, expected 1 to 4", *m.BracketPos)
+			}
+			assignments = append(assignments, domain.CupSlotAssignment{MatchID: m.ID, HomeTeamID: qf[pair].HomeTeamID, AwayTeamID: qf[pair].AwayTeamID})
+		}
+	}
+
+	if err := s.repo.FillCupRound(ctx, comp.ID, current, next, assignments); err != nil {
+		return err
+	}
+	s.triggerFantasyResync(comp.ID)
+	return nil
+}
+
+// AutoFillCupRounds fills the next round of every active cup whose current
+// Swiss round finished and whose match day was at least a week ago, when no
+// admin has filled it. Run on a schedule.
+func (s *MatchService) AutoFillCupRounds(ctx context.Context) error {
+	comps, _, err := s.repo.GetCompetitions(ctx, 1, 500, "", "active")
+	if err != nil {
+		return err
+	}
+	today := todayLagos(time.Now())
+	var errs []error
+	for i := range comps {
+		c := &comps[i]
+		if c.Format != string(domain.CompetitionFormatCup) || c.CupRound == nil {
+			continue
+		}
+		next, ok := cupNextFill[*c.CupRound]
+		if !ok {
+			continue
+		}
+		all, err := s.cupMatches(ctx, c.ID)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", c.Name, err))
+			continue
+		}
+		byRound := cupMatchesByRound(all)
+		due, ok := cupAutoFillDue(byRound[*c.CupRound], byRound[next])
+		if !ok || today.Before(due) {
+			continue
+		}
+		if err := s.fillNextCupRound(ctx, c); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", c.Name, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// unstartedCupState says whether a cup that hasn't started can be set up: it
+// needs 10 enrolled teams, and either no matches yet (Round 1 is drawn) or
+// matches entered by hand that form a complete Round 1 (they are adopted).
 func (s *MatchService) unstartedCupState(ctx context.Context, competitionID string) (*dto.CupStateResponse, error) {
 	state := &dto.CupStateResponse{
 		CompetitionID: competitionID,
 		CurrentRound:  "UNINITIALIZED",
 		NextRound:     domain.CupRound1,
+		MissingRounds: append([]string(nil), domain.CupRounds...),
 	}
 	teamIDs, err := s.cupTeamIDs(ctx, competitionID)
 	if err != nil {
-		state.StatusMessage = fmt.Sprintf("Can't start yet: %v.", err)
+		state.StatusMessage = fmt.Sprintf("Can't set up yet: %v.", err)
 		return state, nil
 	}
 	existing, err := s.cupMatches(ctx, competitionID)
@@ -1405,22 +1631,18 @@ func (s *MatchService) unstartedCupState(ctx context.Context, competitionID stri
 	}
 	if len(existing) == 0 {
 		state.CanAdvance = true
-		state.StatusMessage = "Not started. Starting draws 5 random Round 1 fixtures between the 10 teams."
+		state.StatusMessage = "Not set up. Setting up dates every round, from Round 1 to the Final, and draws Round 1 at random."
 		return state, nil
 	}
 	if _, err := existingRound1(existing, teamIDs); err != nil {
-		state.StatusMessage = fmt.Sprintf("Can't start from the %d matches already entered: %v. Fix or delete them, then start.", len(existing), err)
+		state.StatusMessage = fmt.Sprintf("Can't set up from the %d matches already entered: %v. Fix or delete them, then set up.", len(existing), err)
 		return state, nil
 	}
-	for _, m := range existing {
-		if m.Status == domain.MatchStatusFinished {
-			state.MatchesFinished++
-		}
-	}
-	state.MatchesTotal = len(existing)
+	state.MatchesFinished, state.MatchesTotal = cupRoundProgress(existing)
 	state.CanAdvance = true
 	state.AdoptsExistingMatches = true
-	state.StatusMessage = "Not started. The 5 matches already entered form a full Round 1; starting makes them Round 1, results and play-by-play included."
+	state.MissingRounds = state.MissingRounds[1:]
+	state.StatusMessage = "Not set up. The 5 matches already entered form a full Round 1; setting up keeps them as Round 1, results and play-by-play included, and dates every later round."
 	return state, nil
 }
 
@@ -1429,62 +1651,60 @@ func (s *MatchService) GetCupState(ctx context.Context, competitionID string) (*
 	if err != nil || comp == nil {
 		return nil, fmt.Errorf("competition not found")
 	}
-
 	if comp.Status == "completed" {
 		return &dto.CupStateResponse{
-			CompetitionID:   competitionID,
-			CurrentRound:    domain.CupRoundCompleted,
-			MatchesTotal:    0,
-			MatchesFinished: 0,
-			CanAdvance:      false,
-			NextRound:       "",
-			StatusMessage:   "Cup tournament is completed.",
+			CompetitionID: competitionID,
+			CurrentRound:  domain.CupRoundCompleted,
+			MissingRounds: []string{},
+			StatusMessage: "Cup tournament is completed.",
 		}, nil
 	}
-
 	if comp.CupRound == nil || *comp.CupRound == "" {
 		return s.unstartedCupState(ctx, competitionID)
 	}
 
-	currentRound := *comp.CupRound
-	matchesRes, err := s.cupMatches(ctx, competitionID)
+	all, err := s.cupMatches(ctx, competitionID)
 	if err != nil {
 		return nil, err
 	}
-
-	matchesTotal := 0
-	matchesFinished := 0
-	for _, m := range matchesRes {
-		if m.Round == currentRound {
-			matchesTotal++
-			if m.Status == domain.MatchStatusFinished {
-				matchesFinished++
-			}
-		}
+	byRound := cupMatchesByRound(all)
+	current := *comp.CupRound
+	state := &dto.CupStateResponse{
+		CompetitionID: competitionID,
+		CurrentRound:  current,
+		MissingRounds: cupMissingRounds(byRound),
 	}
 
-	canAdvance := matchesTotal > 0 && matchesFinished == matchesTotal
-	nextRound := nextCupRound[currentRound]
-
-	statusMsg := ""
-	if canAdvance {
-		if nextRound == domain.CupRoundCompleted {
-			statusMsg = "Final match is finished! Ready to complete the Cup."
-		} else {
-			statusMsg = fmt.Sprintf("All %s matches finished (%d/%d). Ready to advance to %s.", currentRound, matchesFinished, matchesTotal, nextRound)
+	if next, ok := cupNextFill[current]; ok {
+		finished, total := cupRoundProgress(byRound[current])
+		state.MatchesFinished, state.MatchesTotal = finished, total
+		state.NextRound = next
+		cur, nxt := cupRoundLabel(current), cupRoundLabel(next)
+		switch due, canFill := cupAutoFillDue(byRound[current], byRound[next]); {
+		case total == 0 || finished < total:
+			state.StatusMessage = fmt.Sprintf("%s in progress: %d/%d played.", cur, finished, total)
+		case len(byRound[next]) == 0:
+			state.StatusMessage = fmt.Sprintf("%s is finished. Set the dates for the remaining rounds, then fill %s.", cur, nxt)
+		case !canFill:
+			state.StatusMessage = fmt.Sprintf("%s is finished, but %s already has teams entered by hand.", cur, nxt)
+		default:
+			state.CanAdvance = true
+			state.AutoFillOn = due.Format("2006-01-02")
+			state.StatusMessage = fmt.Sprintf("%s is finished. Fill %s now, or it fills itself on %s.", cur, nxt, due.Format("Mon 2 Jan"))
 		}
+		return state, nil
+	}
+
+	// Knockout: winners move up on their own as results are saved.
+	var knockout []domain.Match
+	for _, r := range []string{domain.CupRoundQF, domain.CupRoundSF, domain.CupRoundFinal} {
+		knockout = append(knockout, byRound[r]...)
+	}
+	state.MatchesFinished, state.MatchesTotal = cupRoundProgress(knockout)
+	if final := byRound[domain.CupRoundFinal]; len(final) == 1 && final[0].Status == domain.MatchStatusFinished {
+		state.StatusMessage = "The Final has been played."
 	} else {
-		statusMsg = fmt.Sprintf("%s in progress: %d/%d matches finished.", currentRound, matchesFinished, matchesTotal)
+		state.StatusMessage = fmt.Sprintf("Knockout: %d/%d played. Winners move up on their own.", state.MatchesFinished, state.MatchesTotal)
 	}
-
-	return &dto.CupStateResponse{
-		CompetitionID:   competitionID,
-		CurrentRound:    currentRound,
-		MatchesTotal:    matchesTotal,
-		MatchesFinished: matchesFinished,
-		CanAdvance:      canAdvance,
-		NextRound:       nextRound,
-		StatusMessage:   statusMsg,
-	}, nil
+	return state, nil
 }
-

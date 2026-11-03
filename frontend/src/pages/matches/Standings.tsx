@@ -167,9 +167,9 @@ export const Standings = () => {
   const compFormat = selectedCompetition?.format;
   const cupStage = cupStageOf(selectedCompetition);
   const isCup = cupStage !== "none";
-  // Knockout competitions (playoffs + bowl, or a cup from its quarterfinals)
-  // have a bracket instead of standings.
-  const isKnockout = compFormat === "PLAYOFFS" || cupStage === "knockout";
+  // Knockout competitions (playoffs + bowl) and started cups have a bracket
+  // instead of standings: a cup is bracket-based from Round 1 to the Final.
+  const isKnockout = compFormat === "PLAYOFFS" || cupStage === "swiss" || cupStage === "knockout";
   const isPreseason = compFormat === "PRESEASON";
   const isMatchesOnly = isPreseason || cupStage === "matches";
 
@@ -214,11 +214,9 @@ export const Standings = () => {
                   : "STANDINGS"}
           </h1>
           <p className="text-gray-300 mt-0.5 text-xs md:text-lg">
-            {cupStage === "knockout"
+            {cupStage === "knockout" || cupStage === "swiss"
               ? "Bracket & Road to the Final"
-              : cupStage === "swiss"
-                ? "Swiss Table & the Race for the Quarterfinals"
-                : isCup
+              : isCup
                   ? "Cup Matches & Results"
                   : isKnockout
                     ? "Bracket & Road to the Bowl"
