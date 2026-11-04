@@ -46,11 +46,11 @@ const DAVID_OLAGOOKUN: TeamMember = {
   image: "",
 };
 
-// const EDEMHANRIA_DEBORAH: TeamMember = {
-//   name: "Edemhanria Deborah",
-//   role: "VP, Sponsorship, Business Development and Sales",
-//   image: "",
-// };
+const EDEMHANRIA_DEBORAH: TeamMember = {
+  name: "Edemhanria Deborah",
+  role: "VP, Sponsorship, Business Development and Sales",
+  image: "",
+};
 
 const CHIMEZURU_ANO_ANYANWU: TeamMember = {
   name: "Chimezuru Ano-Anyanwu",
@@ -79,7 +79,7 @@ const LEADERSHIP_TEAM: TeamMember[] = [
   NNENNA_ORJI,
   TERSUR_KANGE,
   DAVID_OLAGOOKUN,
-  // EDEMHANRIA_DEBORAH,
+  EDEMHANRIA_DEBORAH,
   CHIMEZURU_ANO_ANYANWU,
   BLESSING_OMONIGHO,
 ];
@@ -175,7 +175,11 @@ export const OurTeam = () => {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {LEADERSHIP_TEAM.map((member, i) => (
-            <LeadershipCard key={i} member={member} navy={member === PRESIDENT} />
+            <LeadershipCard
+              key={i}
+              member={member}
+              navy={member === PRESIDENT}
+            />
           ))}
         </div>
       </div>
