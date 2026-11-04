@@ -52,6 +52,29 @@ const CUP_SWISS_ROUNDS: readonly string[] = ["ROUND_1", "ROUND_2", "ROUND_3"];
 
 type WinLoss = { w: number; l: number };
 
+// A record sits in an outlined chip so it doesn't read as a score; the
+// legend above the bracket uses the same chip to explain it.
+const RECORD_CHIP =
+  "shrink-0 px-1 rounded border border-gray-200 dark:border-gray-600 text-[10px] font-bold tabular-nums text-gray-400 dark:text-gray-500";
+
+const RecordLegend = () => (
+  <p className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+    <span className={RECORD_CHIP} aria-hidden="true">
+      1-0
+    </span>
+    Wins-losses going into the round, not a score
+  </p>
+);
+
+// hasRecords reports whether any of these cards shows a record: a Round 2
+// or 3 match with a team in it.
+const hasRecords = (matches: Match[]) =>
+  matches.some(
+    (m) =>
+      (m.round === "ROUND_2" || m.round === "ROUND_3") &&
+      (m.home_team?.id || m.away_team?.id),
+  );
+
 // Friendly column titles per stage rank.
 const STAGE_TITLES = ["Wildcards", "Playoffs 1", "Playoffs 2", "Bowl"];
 // The Cup's QUARTERFINAL / SEMIFINAL / FINAL rank 0 / 2 / 3; it has no rank 1.
@@ -320,10 +343,7 @@ const TeamRow = ({
             : (team.short_name || team.name).toUpperCase()}
       </span>
       {record && !isTbd && (
-        <span
-          className="shrink-0 text-[10px] font-bold tabular-nums text-gray-400 dark:text-gray-500"
-          title="Record going into this round"
-        >
+        <span className={RECORD_CHIP} title="Wins-losses going into this round">
           {record}
         </span>
       )}
@@ -657,6 +677,11 @@ export const BracketView = ({
         </div>
         {champion && <ChampionCard team={champion} compact cup={cup} />}
         <div className="p-3 space-y-4">
+          {cup && hasRecords(compactColumns.flatMap((c) => c.matches)) && (
+            <div className="px-1">
+              <RecordLegend />
+            </div>
+          )}
           {compactColumns.map((col) => (
             <div key={col.title}>
               <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">
@@ -694,6 +719,11 @@ export const BracketView = ({
         Swipe to follow the road to the {finalTitle}
         <ArrowRightIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
       </div>
+      {cup && hasRecords(filteredMatches) && (
+        <div className="mb-3 px-1">
+          <RecordLegend />
+        </div>
+      )}
       <div ref={scrollContainerRef} className="overflow-x-auto pb-4 -mx-2 px-2">
         <div className="flex gap-4 md:gap-8 min-w-max items-stretch">
           {columns.map((col, i) => {
