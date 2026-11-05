@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMatches } from "../../services";
 import type { Match, BracketColumn } from "../../types";
 import { Spinner } from "../ui";
+import type { Shape } from "../ui/buttonStyles";
 import { TeamLink } from "../domain";
 import { formatMatchTime } from "../../utils";
 
@@ -37,6 +38,8 @@ interface BracketViewProps {
    * rounds not yet filled show their date with "TBD" teams.
    */
   cup?: boolean;
+  /** `square` for sharp corners (the Standings page uses this). */
+  shape?: Shape;
 }
 
 // A cup's rounds in playing order, with their column titles.
@@ -406,10 +409,12 @@ export const ChampionCard = ({
   team,
   compact = false,
   cup = false,
+  shape = "round",
 }: {
   team: NonNullable<Match["home_team"]>;
   compact?: boolean;
   cup?: boolean;
+  shape?: Shape;
 }) => {
   const trophy = cup
     ? { src: "/images/branding/showtime-community-cup-shield.webp", alt: "Showtime Cup shield" }
@@ -447,12 +452,14 @@ export const ChampionCard = ({
       </div>
     );
   }
+  const pillRadius = shape === "square" ? "rounded-none" : "rounded-lg";
+  const radius = shape === "square" ? "rounded-none" : "rounded-xl";
   return (
     <div className="flex flex-col w-56 md:w-64">
-      <div className="text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 shadow-md">
+      <div className={`text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 ${pillRadius} bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 shadow-md`}>
         Champion
       </div>
-      <div className="flex flex-col justify-center items-center flex-1 gap-3 rounded-xl border-2 border-amber-400/70 bg-linear-to-b from-amber-50 via-yellow-50 to-amber-100 dark:from-amber-900/30 dark:via-yellow-900/20 dark:to-amber-900/10 shadow-lg p-6 text-center">
+      <div className={`flex flex-col justify-center items-center flex-1 gap-3 ${radius} border-2 border-amber-400/70 bg-linear-to-b from-amber-50 via-yellow-50 to-amber-100 dark:from-amber-900/30 dark:via-yellow-900/20 dark:to-amber-900/10 shadow-lg p-6 text-center`}>
         <img
           src={trophy.src}
           alt={trophy.alt}
@@ -491,6 +498,7 @@ export const MatchCard = ({
   isFinal,
   records,
   showTime = false,
+  shape = "round",
 }: {
   m: Match;
   secondLeg?: Match;
@@ -499,14 +507,16 @@ export const MatchCard = ({
   records?: Map<string, WinLoss>;
   /** Show the kickoff time beside the date (cup days have several games). */
   showTime?: boolean;
+  shape?: Shape;
 }) => {
   const recordOf = (id?: string) => {
     const r = id ? records?.get(id) : undefined;
     return r ? `${r.w}-${r.l}` : undefined;
   };
+  const radius = shape === "square" ? "rounded-none" : "rounded-xl";
   return (
   <div
-    className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm overflow-hidden w-full ${isFinal ? "border-sffl-red/40 ring-1 ring-sffl-red/20" : "border-gray-100 dark:border-gray-700"}`}
+    className={`bg-white dark:bg-gray-800 ${radius} border shadow-sm overflow-hidden w-full ${isFinal ? "border-sffl-red/40 ring-1 ring-sffl-red/20" : "border-gray-100 dark:border-gray-700"}`}
   >
     <Link
       to={`/matches/${m.id}`}
@@ -546,7 +556,10 @@ export const BracketView = ({
   compact = false,
   viewAllLink,
   cup = false,
+  shape = "round",
 }: BracketViewProps) => {
+  const cardRadius = shape === "square" ? "rounded-none" : "rounded-xl";
+  const pillRadius = shape === "square" ? "rounded-none" : "rounded-lg";
   const { data, isLoading } = useQuery({
     queryKey: ["bracketMatches", competitionId],
     queryFn: () => getMatches(competitionId, 1, 100),
@@ -638,7 +651,7 @@ export const BracketView = ({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+      <div className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 ${cardRadius} shadow-sm`}>
         <Spinner label="Loading bracket…" className="py-12" />
       </div>
     );
@@ -646,7 +659,7 @@ export const BracketView = ({
 
   if (columns.length === 0) {
     return (
-      <div className="bg-gray-100 dark:bg-gray-800 p-8 rounded-xl text-center">
+      <div className={`bg-gray-100 dark:bg-gray-800 p-8 ${cardRadius} text-center`}>
         <FootballIcon
           className="w-10 h-10 mx-auto mb-3 text-gray-400"
           aria-hidden="true"
@@ -660,7 +673,7 @@ export const BracketView = ({
 
   if (compact) {
     return (
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+      <div className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 ${cardRadius} shadow-sm overflow-hidden`}>
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 bg-sffl-navy text-white">
           <h3 className="text-sm font-black uppercase tracking-wider">
             {cup ? "Cup Bracket" : "Playoff Bracket"}
@@ -675,7 +688,7 @@ export const BracketView = ({
             </Link>
           )}
         </div>
-        {champion && <ChampionCard team={champion} compact cup={cup} />}
+        {champion && <ChampionCard team={champion} compact cup={cup} shape={shape} />}
         <div className="p-3 space-y-4">
           {cup && hasRecords(compactColumns.flatMap((c) => c.matches)) && (
             <div className="px-1">
@@ -703,6 +716,7 @@ export const BracketView = ({
                     isFinal={isBowlStage(m.round) || col.title === finalTitle}
                     records={recordsFor(m)}
                     showTime={cup}
+                    shape={shape}
                   />
                 ))}
               </div>
@@ -736,7 +750,7 @@ export const BracketView = ({
             return (
               <div key={col.title} className={`flex flex-col ${colWidth}`}>
                 <div
-                  className={`flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? "bg-sffl-red text-white" : "bg-sffl-navy text-white"}`}
+                  className={`flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 ${pillRadius} ${isLast ? "bg-sffl-red text-white" : "bg-sffl-navy text-white"}`}
                 >
                   {isLast && (
                     <TrophyIcon className="w-4 h-4" aria-hidden="true" />
@@ -757,13 +771,14 @@ export const BracketView = ({
                       isFinal={isLast}
                       records={recordsFor(m)}
                       showTime={cup}
+                      shape={shape}
                     />
                   ))}
                 </div>
               </div>
             );
           })}
-          {champion && <ChampionCard team={champion} cup={cup} />}
+          {champion && <ChampionCard team={champion} cup={cup} shape={shape} />}
         </div>
       </div>
     </div>

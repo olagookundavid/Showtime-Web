@@ -100,45 +100,52 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
             title="Champion"
           />
         ) : null;
+        // The bars are siblings of the content div, not nested inside it: the first
+        // column's <td> already gets `position: sticky` from DataTable (STICKY_CELL),
+        // which forms a containing block the same way `relative` would, so `left-0
+        // top-0 bottom-0` lands flush on the cell's own edges and spans its full row
+        // height - the same flush card-edge accent as PlayerCompareSlot's bar.
         return (
-          <div className="relative flex items-center gap-1.5 md:gap-3 min-w-0">
+          <>
             {isWildcard(s) && (
               <span
                 aria-hidden="true"
-                className="absolute -left-2.5 inset-y-0 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"
+                className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 dark:bg-emerald-400"
               />
             )}
             {cupZone(s) && (
               <span
                 aria-hidden="true"
-                className={`absolute -left-2.5 inset-y-0 w-1 rounded-full ${CUP_ZONE_BAR[cupZone(s)!]}`}
+                className={`absolute left-0 top-0 bottom-0 w-1 ${CUP_ZONE_BAR[cupZone(s)!]}`}
               />
             )}
             {isGold(s) && (
               <span
                 aria-hidden="true"
-                className="absolute -left-2.5 inset-y-0 w-1 bg-amber-500"
+                className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"
               />
             )}
-            <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500 dark:text-gray-300">
-              {s.position}
-            </span>
-            {logo}
-            {s.team?.id ? (
-              <Link
-                to={`/teams/${s.team.id}`}
-                className="flex items-center gap-1 uppercase hover:text-sffl-red transition-colors min-w-0"
-              >
-                <span className="truncate">{name}</span>
-                {trophy}
-              </Link>
-            ) : (
-              <span className="flex items-center gap-1 uppercase min-w-0">
-                <span className="truncate">{name}</span>
-                {trophy}
+            <div className="flex items-center gap-1.5 md:gap-3 min-w-0">
+              <span className="w-4 shrink-0 text-center text-xs font-bold text-gray-500 dark:text-gray-300">
+                {s.position}
               </span>
-            )}
-          </div>
+              {logo}
+              {s.team?.id ? (
+                <Link
+                  to={`/teams/${s.team.id}`}
+                  className="flex items-center gap-1 uppercase hover:text-sffl-red transition-colors min-w-0"
+                >
+                  <span className="truncate">{name}</span>
+                  {trophy}
+                </Link>
+              ) : (
+                <span className="flex items-center gap-1 uppercase min-w-0">
+                  <span className="truncate">{name}</span>
+                  {trophy}
+                </span>
+              )}
+            </div>
+          </>
         );
       },
     },
@@ -188,7 +195,8 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           CUP_ZONE_LEGEND.map(({ zone, label }) => (
             <div key={zone} className="flex items-center gap-1.5">
               <div
-                className={`w-1.5 h-3.5 rounded-full shadow-sm ${CUP_ZONE_BAR[zone]}`}
+                aria-hidden="true"
+                className={`w-1.5 h-3.5 ${CUP_ZONE_BAR[zone]}`}
               />
               <span className="text-gray-700 dark:text-gray-300 font-bold">
                 {label}
@@ -198,7 +206,10 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
         ) : (
           <>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-3.5 bg-emerald-500 dark:bg-emerald-400 rounded-full shadow-sm" />
+              <div
+                aria-hidden="true"
+                className="w-1.5 h-3.5 bg-emerald-500 dark:bg-emerald-400"
+              />
               <span className="text-gray-700 dark:text-gray-300 font-bold">
                 Wildcard spot
               </span>
@@ -216,7 +227,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           </>
         )}
       </div>
-      <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg">
+      <div className="overflow-hidden rounded-none shadow-lg">
         <div className="flex items-center justify-between px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg">
           <span>{isCup ? "Cup Standings" : "Team Standings"}</span>
           {isCompleted && (
@@ -231,7 +242,12 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           searchable={false}
           paginated={false}
           getRowId={(s) => s.id}
+          shape="square"
           rowClassName={(s) =>
+            // Priority: champion > viewer's own team > eliminated > normal. A row
+            // that's both the viewer's team and eliminated keeps the red highlight
+            // (easier to find your own team); the red zone bar in the Team cell
+            // still marks it eliminated regardless.
             isGold(s)
               ? "bg-amber-100 dark:bg-amber-950 font-bold text-amber-950 dark:text-amber-100"
               : isHighlighted(s)

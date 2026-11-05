@@ -202,7 +202,7 @@ export const Standings = () => {
   return (
     <div className="space-y-4 md:space-y-8">
       {/* Header - Condensed */}
-      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-sffl-navy text-white p-4 md:p-8 rounded-none shadow-xl">
         <div className="min-w-0">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             {isCup
@@ -238,6 +238,7 @@ export const Standings = () => {
                 <Select
                   id="standings-competition"
                   tone="dark"
+                  shape="square"
                   value={activeCompetitionId}
                   onChange={(e) => handleCompetitionChange(e.target.value)}
                 >
@@ -288,7 +289,11 @@ export const Standings = () => {
               {selectedCompetition?.name}
             </h2>
           </div>
-          <BracketView competitionId={activeCompetitionId} cup={isCup} />
+          <BracketView
+            competitionId={activeCompetitionId}
+            cup={isCup}
+            shape="square"
+          />
         </div>
       )}
 
@@ -332,7 +337,7 @@ export const Standings = () => {
           </div>
 
           {matches.length === 0 ? (
-            <div className="bg-gray-100 dark:bg-gray-800 p-8 sm:p-16 rounded-xl text-center">
+            <div className="bg-gray-100 dark:bg-gray-800 p-8 sm:p-16 rounded-none text-center">
               {isPreseason ? (
                 <FootballIcon
                   className="w-12 h-12 mx-auto mb-4 text-gray-400"
@@ -400,7 +405,7 @@ export const Standings = () => {
           </div>
 
           {/* Abbreviation Legend - Descriptive and Colorful (Togglable) */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-none border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
             <button
               type="button"
               aria-expanded={showLegend}
@@ -492,7 +497,7 @@ export const Standings = () => {
           />
         </div>
       ) : !isKnockout && !isMatchesOnly && !dataLoading ? (
-        <div className="bg-gray-100 dark:bg-gray-800 p-8 sm:p-16 rounded-xl text-center">
+        <div className="bg-gray-100 dark:bg-gray-800 p-8 sm:p-16 rounded-none text-center">
           <TrophyIcon
             className="w-12 h-12 mx-auto mb-4 text-gray-400"
             aria-hidden="true"
