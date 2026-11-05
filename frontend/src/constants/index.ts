@@ -1,5 +1,6 @@
 export * from './api';
 export * from './site';
+export * from './legal';
 export * from './media';
 export * from './matches';
 export * from './players';

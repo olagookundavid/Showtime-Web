@@ -10,6 +10,7 @@ export * from './faq';
 export * from './fantasy';
 export * from './icons';
 export * from './layout';
+export * from './legal';
 export * from './matches';
 export * from './monetization';
 export * from './news';

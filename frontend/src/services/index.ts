@@ -325,6 +325,7 @@ export { getBroadcastDays, getBroadcastDay, setBroadcastDayOnAir, getBroadcastSc
 
 export * from './newsletter';
 export * from './siteTracker';
+export * from './privacyNotice';
 
 // ─── Fantasy module ────────────────────────────────────────────────────────
 

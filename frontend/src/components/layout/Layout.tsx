@@ -11,6 +11,7 @@ import {
 import { useHideOnScrollDown, useScrollLock } from "../../hooks";
 import { NewsletterPopup } from "../newsletter/NewsletterPopup";
 import { CompleteProfileModal } from "../auth";
+import { PrivacyPolicyUpdateModal } from "../legal";
 import { portalLinkFor, type PortalKind } from "./portalLink";
 import { Button, IconButton } from "../ui";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -192,8 +193,10 @@ export const Layout = () => {
 
       <NewsletterPopup />
 
-      {isAuthenticated && user && (!user.firstName || !user.lastName) && (
+      {isAuthenticated && user && (!user.firstName || !user.lastName) ? (
         <CompleteProfileModal />
+      ) : (
+        <PrivacyPolicyUpdateModal />
       )}
 
       {/* "More" Mobile Drawer */}
