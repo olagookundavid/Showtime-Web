@@ -18,7 +18,7 @@ const ADEBARE_ADEJUMO: TeamMember = {
 
 const KALU_ESTHER: TeamMember = {
   name: "Kalu Esther",
-  role: "General Manager/SVP, Showtime Arena",
+  role: "General Manager/Senior Vice President, Showtime Arena",
   image: "https://cdn.showtimeflag.football/files/esther-kalu.webp",
 };
 
