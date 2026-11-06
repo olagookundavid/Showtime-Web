@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { CheckIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts";
 import { useReturnUrl, withReturnUrl } from "../../hooks";
-import { Button, Field, Input } from "../../components";
+import { Button, Checkbox, Field, Input } from "../../components";
 
 export const Signup = () => {
   const [firstName, setFirstName] = useState("");
@@ -11,6 +11,7 @@ export const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,6 +36,11 @@ export const Signup = () => {
 
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError("You must accept the Terms and Conditions to continue.");
       return;
     }
 
@@ -134,7 +140,25 @@ export const Signup = () => {
             />
           </Field>
 
-          <Button type="submit" fullWidth size="lg" loading={loading}>
+          <Checkbox
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            label={
+              <span>
+                I accept the{" "}
+                <Link
+                  to="/about/privacy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sffl-red font-bold hover:underline"
+                >
+                  Terms and Conditions
+                </Link>
+              </span>
+            }
+          />
+
+          <Button type="submit" fullWidth size="lg" loading={loading} disabled={!acceptedTerms}>
             {loading ? "Creating account…" : "Create Account"}
           </Button>
         </form>
