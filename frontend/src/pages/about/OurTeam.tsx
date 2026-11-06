@@ -18,7 +18,7 @@ const ADEBARE_ADEJUMO: TeamMember = {
 
 const KALU_ESTHER: TeamMember = {
   name: "Kalu Esther",
-  role: "General Manager/Senior Vice President, Showtime Arena",
+  role: "Senior Vice President & General Manager, Showtime Arena",
   image: "https://cdn.showtimeflag.football/files/esther-kalu.webp",
 };
 
@@ -43,7 +43,7 @@ const EWOMA_AKWENUKE: TeamMember = {
 const DAVID_OLAGOOKUN: TeamMember = {
   name: "David Olagookun",
   role: "VP, Information Technology",
-  image: "",
+  image: "https://cdn.showtimeflag.football/files/david-olagookun.jpg",
 };
 
 const EDEMHANRIA_DEBORAH: TeamMember = {
