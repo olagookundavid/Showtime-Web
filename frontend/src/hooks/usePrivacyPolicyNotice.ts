@@ -14,33 +14,27 @@ const SUPPRESSED_PATHS = ['/about/privacy'];
  * than `PRIVACY_POLICY_VERSION` (a genuine returning visitor) sees it.
  */
 export function usePrivacyPolicyNotice() {
-    const [isOpen, setIsOpen] = useState(false);
+    const [dismissedAt, setDismissedAt] = useState<string | null>(null);
     const location = useLocation();
+    const routeKey = `${location.pathname}${location.search}`;
+    const forceOpen = new URLSearchParams(location.search).get('privacy') === '1';
+    const seen = readSeenPrivacyPolicyVersion();
 
     useEffect(() => {
-        // Escape hatch for testing/demoing: ?privacy=1 opens it immediately,
-        // ignoring the stored version and the suppressed-path guard.
-        if (new URLSearchParams(location.search).get('privacy') === '1') {
-            setIsOpen(true);
-            return;
-        }
-
-        const seen = readSeenPrivacyPolicyVersion();
-
-        if (seen === null) {
+        // A first visit has no older version to have missed.
+        if (!forceOpen && seen === null) {
             writeSeenPrivacyPolicyVersion(PRIVACY_POLICY_VERSION);
-            return;
         }
+    }, [forceOpen, seen]);
 
-        if (seen === PRIVACY_POLICY_VERSION) return;
-        if (SUPPRESSED_PATHS.some(path => location.pathname.startsWith(path))) return;
-
-        setIsOpen(true);
-    }, [location.pathname, location.search]);
+    const isSuppressed = SUPPRESSED_PATHS.some(path => location.pathname.startsWith(path));
+    const isOpen = dismissedAt !== routeKey && (forceOpen || (
+        seen !== null && seen !== PRIVACY_POLICY_VERSION && !isSuppressed
+    ));
 
     const dismiss = () => {
         writeSeenPrivacyPolicyVersion(PRIVACY_POLICY_VERSION);
-        setIsOpen(false);
+        setDismissedAt(routeKey);
     };
 
     return { isOpen, dismiss };
