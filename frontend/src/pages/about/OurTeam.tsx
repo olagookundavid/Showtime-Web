@@ -6,7 +6,7 @@ interface TeamMember {
 
 const PRESIDENT: TeamMember = {
   name: "Azeez Amida",
-  role: "Founder & President",
+  role: "President",
   image: "https://cdn.showtimeflag.football/files/azeez-amida.png",
 };
 
@@ -72,14 +72,14 @@ const TERSUR_KANGE: TeamMember = {
 
 const LEADERSHIP_TEAM: TeamMember[] = [
   PRESIDENT,
-  ADEBARE_ADEJUMO,
   KALU_ESTHER,
+  ADEBARE_ADEJUMO,
   EWOMA_AKWENUKE,
+  EDEMHANRIA_DEBORAH,
   NSIDIBE_ABASI_ASUQUO,
   NNENNA_ORJI,
   TERSUR_KANGE,
   DAVID_OLAGOOKUN,
-  EDEMHANRIA_DEBORAH,
   CHIMEZURU_ANO_ANYANWU,
   BLESSING_OMONIGHO,
 ];
@@ -158,16 +158,6 @@ const LeadershipCard = ({
 export const OurTeam = () => {
   return (
     <div className="space-y-8 md:space-y-12">
-      <div className="w-full overflow-hidden border border-sffl-navy bg-gray-100 dark:bg-gray-900">
-        <img
-          src="https://cdn.showtimeflag.football/files/showtime-leadership-team-updated.jpg"
-          alt="The Showtime Flag Football team"
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-contain"
-        />
-      </div>
-
       <div className="space-y-6">
         <h2 className="mb-6 flex items-center gap-3 text-xl md:text-2xl font-black uppercase text-sffl-navy dark:text-white tracking-tight">
           <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
