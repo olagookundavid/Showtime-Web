@@ -1,12 +1,16 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 import { usePrivacyPolicyNotice } from "../../hooks";
-import { Button, ButtonLink, Modal } from "../ui";
+import { Button, Checkbox, Modal } from "../ui";
 
 /** One-time notice that the Privacy Policy has changed. No onClose: the
- *  footer buttons call `dismiss` directly, so backdrop click, Escape and
- *  the X icon can't close it — only "Not now" or "View Privacy Policy" can. */
+ *  footer button calls `dismiss` directly, so backdrop click, Escape and
+ *  the X icon can't close it — only ticking the checkbox and hitting
+ *  "Continue" can. */
 export const PrivacyPolicyUpdateModal = () => {
   const { isOpen, dismiss } = usePrivacyPolicyNotice();
+  const [accepted, setAccepted] = useState(false);
 
   return (
     <Modal
@@ -15,14 +19,9 @@ export const PrivacyPolicyUpdateModal = () => {
       subtitle="Please take a moment to review the changes."
       maxWidth="md"
       footer={
-        <>
-          <Button variant="ghost" onClick={dismiss}>
-            Not now
-          </Button>
-          <ButtonLink to="/about/privacy" onClick={dismiss}>
-            View Privacy Policy
-          </ButtonLink>
-        </>
+        <Button disabled={!accepted} onClick={dismiss}>
+          Continue
+        </Button>
       }
     >
       <div className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
@@ -37,6 +36,26 @@ export const PrivacyPolicyUpdateModal = () => {
           including the applicable purposes, lawful grounds, safeguards,
           retention arrangements and your rights.
         </p>
+      </div>
+
+      <div className="mt-4">
+        <Checkbox
+          checked={accepted}
+          onChange={(e) => setAccepted(e.target.checked)}
+          label={
+            <span>
+              I accept the{" "}
+              <Link
+                to="/about/privacy"
+                target="_blank"
+                rel="noreferrer"
+                className="text-sffl-red font-bold hover:underline"
+              >
+                Terms and Conditions
+              </Link>
+            </span>
+          }
+        />
       </div>
     </Modal>
   );
