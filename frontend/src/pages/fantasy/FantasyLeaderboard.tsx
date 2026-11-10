@@ -200,7 +200,7 @@ export function FantasyLeaderboard() {
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Header Showtime Navy Banner */}
-      <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
+      <div className="bg-sffl-navy text-white shadow-xl p-4 sm:p-6 md:p-8">
         <div className="mb-1">
           <BackButton
             fallback="/fantasy/leagues"
@@ -235,6 +235,7 @@ export function FantasyLeaderboard() {
                 tone="dark"
                 variant="secondary"
                 size="sm"
+                shape="square"
                 icon={ArrowRightStartOnRectangleIcon}
                 onClick={() => setConfirmLeave(true)}
               >
@@ -250,6 +251,7 @@ export function FantasyLeaderboard() {
             <Select
               id="leaderboard-gw-filter"
               tone="dark"
+              shape="square"
               value={selectedGWId}
               onChange={(e) => {
                 setSelectedGWId(e.target.value);
@@ -273,6 +275,7 @@ export function FantasyLeaderboard() {
             <ButtonLink
               to={`/fantasy/analytics${selectedGWId ? `?gw=${selectedGWId}` : ""}`}
               size="sm"
+              shape="square"
               icon={ChartBarIcon}
             >
               Weekly Report
@@ -282,7 +285,7 @@ export function FantasyLeaderboard() {
       </div>
 
       {/* League filter */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 md:p-5 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 md:p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <UserGroupIcon className="w-4 h-4 text-sffl-red" />
           <h2 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white">
@@ -292,6 +295,7 @@ export function FantasyLeaderboard() {
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
+            shape="square"
             variant={scope === OVERALL ? "navy" : "secondary"}
             aria-pressed={scope === OVERALL}
             onClick={() => selectScope(OVERALL)}
@@ -302,6 +306,7 @@ export function FantasyLeaderboard() {
             <Button
               key={o.id}
               size="sm"
+              shape="square"
               variant={scope === o.id ? "navy" : "secondary"}
               aria-pressed={scope === o.id}
               onClick={() => selectScope(o.id)}
@@ -325,7 +330,7 @@ export function FantasyLeaderboard() {
       </div>
 
       {/* Unified Standings Table Card */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3 bg-gray-50/50 dark:bg-gray-700/30">
           <div>
             <h2 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-1.5">
@@ -339,7 +344,7 @@ export function FantasyLeaderboard() {
             </p>
           </div>
           {canJumpToMe && (
-            <Button size="sm" variant="secondary" icon={MapPinIcon} onClick={jumpToMe}>
+            <Button size="sm" variant="secondary" shape="square" icon={MapPinIcon} onClick={jumpToMe}>
               Jump to my rank {effectiveRank > 0 ? `(#${effectiveRank})` : ""}
             </Button>
           )}
@@ -426,7 +431,7 @@ export function FantasyLeaderboard() {
                             </span>
                           ) : (
                             r.isMe && (
-                              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
                                 You
                               </span>
                             )
@@ -438,6 +443,7 @@ export function FantasyLeaderboard() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          shape="square"
                           className="shrink-0"
                           icon={EyeIcon}
                           aria-label={r.pinned ? "View your lineup" : `View ${r.teamName}'s squad`}
@@ -483,6 +489,7 @@ export function FantasyLeaderboard() {
             <div className="flex items-center gap-2">
               <IconButton
                 variant="secondary"
+                shape="square"
                 icon={ChevronDoubleLeftIcon}
                 label="First page"
                 disabled={safePage === 1}
@@ -490,6 +497,7 @@ export function FantasyLeaderboard() {
               />
               <IconButton
                 variant="secondary"
+                shape="square"
                 icon={ChevronLeftIcon}
                 label="Previous page"
                 disabled={safePage === 1}
@@ -497,6 +505,7 @@ export function FantasyLeaderboard() {
               />
               <IconButton
                 variant="secondary"
+                shape="square"
                 icon={ChevronRightIcon}
                 label="Next page"
                 disabled={safePage >= totalPages}
@@ -504,6 +513,7 @@ export function FantasyLeaderboard() {
               />
               <IconButton
                 variant="secondary"
+                shape="square"
                 icon={ChevronDoubleRightIcon}
                 label="Last page"
                 disabled={safePage >= totalPages}
@@ -531,7 +541,7 @@ export function FantasyLeaderboard() {
             <div>
 
               {leaveEntryFeeKobo > 0 ? (
-                <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2">
+                <div className="p-3 rounded-none bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2">
                   <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
                   <div>
                     <p className="text-xs font-black uppercase tracking-wider text-red-700 dark:text-red-300">
@@ -545,7 +555,7 @@ export function FantasyLeaderboard() {
                   </div>
                 </div>
               ) : (
-                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                <div className="p-3 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
                   <p className="text-xs text-gray-700 dark:text-gray-200">
                     This league is free, so nothing is lost — you can join it
                     again whenever you like.

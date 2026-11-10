@@ -53,8 +53,9 @@ export function PlayerLeaderboardLegend({ open, onClose, gwLabel, isGameweekView
       title="What each column means"
       subtitle="Every figure comes from real match stats, scored with the same rules as your lineup."
       maxWidth="2xl"
+      shape="square"
     >
-      <div className="flex items-start gap-2 rounded-xl bg-gray-50 dark:bg-gray-900/40 p-3 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
+      <div className="flex items-start gap-2 rounded-none bg-gray-50 dark:bg-gray-900/40 p-3 text-xs sm:text-sm text-gray-700 dark:text-gray-200">
         <CursorArrowRaysIcon className="w-4 h-4 shrink-0 mt-0.5 text-sffl-red" aria-hidden="true" />
         <p>
           <strong>Using the table:</strong> click a column heading to sort by it, and click it again to
@@ -73,7 +74,7 @@ export function PlayerLeaderboardLegend({ open, onClose, gwLabel, isGameweekView
                 <span className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
                   {entry.label}
                 </span>
-                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[10px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                <span className="px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[10px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-300">
                   {entry.scope}
                 </span>
               </dt>

@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChartBarIcon,
   UserGroupIcon,
   TrophyIcon,
   ShieldCheckIcon,
@@ -13,7 +12,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { fantasyApi } from "../../services/api";
 import type { FantasyLineupPick } from "../../types";
-import { Button, Select, DataTable } from "../../components";
+import { Button, ButtonLink, Select, DataTable } from "../../components";
 
 type AnalyticsTab =
   | "ownership"
@@ -120,48 +119,32 @@ export function FantasyAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Header Banner */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl gap-4">
-        <div className="min-w-0">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-black uppercase tracking-wider mb-2">
-            <ChartBarIcon className="w-3.5 h-3.5 text-yellow-400" />{" "}
-            Week-by-Week Intelligence
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-white">
-            GAMEWEEK ANALYTICS &amp; REPORT
-          </h1>
-          <p className="text-gray-300 mt-1 text-xs sm:text-sm max-w-2xl">
-            Deep dive into player popularity, top scoring performers, actual
-            club contributions, and the optimal dream team for every round.
-          </p>
-        </div>
-
-        {/* Gameweek Selector Dropdown */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-stretch md:self-auto">
-          <label
-            htmlFor="analytics-gw"
-            className="text-xs text-gray-300 font-bold uppercase"
-          >
-            Gameweek:
-          </label>
-          <Select
-            id="analytics-gw"
-            tone="dark"
-            value={selectedGwId}
-            onChange={(e) => handleSelectGw(e.target.value)}
-            className="w-full sm:w-auto"
-          >
-            {(gameweeks || []).map((gw) => (
-              <option
-                key={gw.id}
-                value={gw.id}
-                className="text-gray-900 bg-white"
-              >
-                Gameweek {gw.number} ({gw.status})
-              </option>
-            ))}
-          </Select>
-        </div>
+      {/* Action band: title/subtitle already come from PageHeader via FantasyLayout */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-3 bg-sffl-navy text-white p-4 sm:p-6 md:p-8 shadow-xl">
+        <label
+          htmlFor="analytics-gw"
+          className="text-xs text-gray-300 font-bold uppercase"
+        >
+          Gameweek:
+        </label>
+        <Select
+          id="analytics-gw"
+          tone="dark"
+          shape="square"
+          value={selectedGwId}
+          onChange={(e) => handleSelectGw(e.target.value)}
+          className="w-full sm:w-auto"
+        >
+          {(gameweeks || []).map((gw) => (
+            <option
+              key={gw.id}
+              value={gw.id}
+              className="text-gray-900 bg-white"
+            >
+              Gameweek {gw.number} ({gw.status})
+            </option>
+          ))}
+        </Select>
       </div>
 
       {/* Quick Navigation Links */}
@@ -171,7 +154,7 @@ export function FantasyAnalytics() {
             Round status:
           </span>
           <span
-            className={`font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+            className={`font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
               activeGameweek?.status === "FINALIZED"
                 ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                 : activeGameweek?.status === "LIVE"
@@ -184,19 +167,22 @@ export function FantasyAnalytics() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
+          <ButtonLink
             to={`/fantasy/leaderboard/${seasonId}?type=overall`}
-            className="min-h-11 text-sffl-navy dark:text-gray-200 hover:text-sffl-red dark:hover:text-white font-bold transition inline-flex items-center gap-1"
+            variant="ghost"
+            size="sm"
+            shape="square"
+            icon={TrophyIcon}
           >
-            <TrophyIcon className="w-3.5 h-3.5" aria-hidden="true" /> View Standings
-          </Link>
+            View Standings
+          </ButtonLink>
         </div>
       </div>
 
       {/* KPI Metric Cards Strip */}
       <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Average Points */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 shadow-sm">
           <span className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-wider block">
             Average Score
           </span>
@@ -209,7 +195,7 @@ export function FantasyAnalytics() {
         </div>
 
         {/* High Score */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 shadow-sm">
           <span className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-wider block">
             Peak Score
           </span>
@@ -224,7 +210,7 @@ export function FantasyAnalytics() {
         </div>
 
         {/* Most Owned */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 shadow-sm">
           <span className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-wider block">
             Most Owned
           </span>
@@ -241,7 +227,7 @@ export function FantasyAnalytics() {
         </div>
 
         {/* Gameweek MVP */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 shadow-sm">
           <span className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-wider block">
             Gameweek MVP
           </span>
@@ -258,7 +244,7 @@ export function FantasyAnalytics() {
         </div>
 
         {/* Top Real Club */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm col-span-2 sm:col-span-1">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 shadow-sm col-span-2 sm:col-span-1">
           <span className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-wider block">
             Top Club Output
           </span>
@@ -276,9 +262,10 @@ export function FantasyAnalytics() {
       </div>
 
       {/* Tab Navigation Controls */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-2 shadow-sm flex flex-wrap gap-1 sm:gap-2">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-2 shadow-sm flex flex-wrap gap-1 sm:gap-2">
         <Button
           size="sm"
+          shape="square"
           variant={selectedTab === "ownership" ? "navy" : "secondary"}
           className="flex-1 sm:flex-none"
           icon={UserGroupIcon}
@@ -289,6 +276,7 @@ export function FantasyAnalytics() {
 
         <Button
           size="sm"
+          shape="square"
           variant={selectedTab === "top_scorers" ? "navy" : "secondary"}
           className="flex-1 sm:flex-none"
           icon={FireIcon}
@@ -299,6 +287,7 @@ export function FantasyAnalytics() {
 
         <Button
           size="sm"
+          shape="square"
           variant={selectedTab === "club_points" ? "navy" : "secondary"}
           className="flex-1 sm:flex-none"
           icon={ShieldCheckIcon}
@@ -309,6 +298,7 @@ export function FantasyAnalytics() {
 
         <Button
           size="sm"
+          shape="square"
           variant={selectedTab === "dream_team" ? "navy" : "secondary"}
           className="flex-1 sm:flex-none"
           icon={SparklesIcon}
@@ -319,6 +309,7 @@ export function FantasyAnalytics() {
 
         <Button
           size="sm"
+          shape="square"
           variant={selectedTab === "differentials" ? "navy" : "secondary"}
           className="flex-1 sm:flex-none"
           icon={LightBulbIcon}
@@ -329,7 +320,7 @@ export function FantasyAnalytics() {
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="py-24 flex flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
             <ArrowPathIcon className="w-8 h-8 animate-spin text-sffl-red" />
@@ -340,7 +331,7 @@ export function FantasyAnalytics() {
         ) : isError ? (
           <div className="py-16 text-center text-red-600 dark:text-red-400 text-sm">
             <p className="font-bold">Failed to load gameweek analytics.</p>
-            <Button className="mt-3" size="sm" variant="secondary" onClick={() => refetch()}>
+            <Button className="mt-3" size="sm" variant="secondary" shape="square" onClick={() => refetch()}>
               Try again
             </Button>
           </div>
@@ -371,6 +362,7 @@ export function FantasyAnalytics() {
                 ) : (
                   <DataTable
                     compact
+                    shape="square"
                     searchable={false}
                     paginated={false}
                     getRowId={(p) => p.player_id}
@@ -396,7 +388,7 @@ export function FantasyAnalytics() {
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
                                 <span className="truncate">{p.player_name}</span>
-                                <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                <span className="text-[10px] font-bold px-1 py-0.2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                                   {p.gender}
                                 </span>
                               </p>
@@ -444,7 +436,7 @@ export function FantasyAnalytics() {
                         className: "py-3.5 px-4",
                         cell: (p) => (
                           <span
-                            className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-mono font-black ${
+                            className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-mono font-black ${
                               p.points > 0
                                 ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
                                 : p.points < 0
@@ -488,6 +480,7 @@ export function FantasyAnalytics() {
                       <Button
                         key={pos.id}
                         size="sm"
+                        shape="square"
                         variant={positionFilter === pos.id ? "navy" : "secondary"}
                         aria-pressed={positionFilter === pos.id}
                         onClick={() => setPositionFilter(pos.id)}
@@ -505,6 +498,7 @@ export function FantasyAnalytics() {
                 ) : (
                   <DataTable
                     compact
+                    shape="square"
                     searchable={false}
                     paginated={false}
                     getRowId={(p) => p.player_id}
@@ -530,7 +524,7 @@ export function FantasyAnalytics() {
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
                                 <span className="truncate">{p.player_name}</span>
-                                <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                <span className="text-[10px] font-bold px-1 py-0.2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                                   {p.gender}
                                 </span>
                               </p>
@@ -566,7 +560,7 @@ export function FantasyAnalytics() {
                         className: "py-3.5 px-4",
                         cell: (p) => (
                           <span
-                            className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-mono font-black border ${
+                            className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-mono font-black border ${
                               p.points > 0
                                 ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                                 : p.points < 0
@@ -604,6 +598,7 @@ export function FantasyAnalytics() {
                 ) : (
                   <DataTable
                     compact
+                    shape="square"
                     searchable={false}
                     paginated={false}
                     getRowId={(c) => c.club_id}
@@ -620,7 +615,7 @@ export function FantasyAnalytics() {
                             {c.club_logo ? (
                               <img src={c.club_logo} alt={c.club_name} className="w-7 h-7 object-contain shrink-0" />
                             ) : (
-                              <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-gray-500 shrink-0">
+                              <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-gray-500 shrink-0">
                                 {c.club_name.slice(0, 2).toUpperCase()}
                               </div>
                             )}
@@ -710,7 +705,7 @@ export function FantasyAnalytics() {
                       <h3 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white px-1">
                         Offensive Unit
                       </h3>
-                      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                      <div className="bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
                         {report.dream_team
                           .filter((p) =>
                             [
@@ -734,7 +729,7 @@ export function FantasyAnalytics() {
                       <h3 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white px-1">
                         Defensive Unit
                       </h3>
-                      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                      <div className="bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
                         {report.dream_team
                           .filter((p) =>
                             [
@@ -779,11 +774,15 @@ export function FantasyAnalytics() {
                   </div>
                 ) : (
                   <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {report.differentials.map((p) => (
+                    {report.differentials.map((p, idx) => (
                       <div
                         key={p.player_id}
-                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm hover:border-sffl-red/40 transition-colors"
+                        className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:border-sffl-red/40 transition-colors"
                       >
+                        <span
+                          className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${idx % 2 === 0 ? "bg-sffl-red" : "bg-sffl-navy"}`}
+                          aria-hidden="true"
+                        />
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 border border-gray-200 dark:border-gray-600">
                             {p.player_image ? (
@@ -849,7 +848,7 @@ function DreamTeamRow({ pick }: { pick: FantasyLineupPick }) {
   return (
     <div className="p-3 flex items-center justify-between gap-3 text-xs">
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className="w-12 text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-center shrink-0">
+        <span className="w-12 text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-center shrink-0">
           {pick.slot.replace("_", " ")}
         </span>
         <div className="min-w-0">

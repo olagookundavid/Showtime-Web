@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import {
   ArrowTopRightOnSquareIcon,
   SparklesIcon,
@@ -11,7 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { FemaleIcon } from "../icons/FemaleIcon";
 import { MaleIcon } from "../icons/MaleIcon";
-import { Button, Modal, DataTable, type Column } from "../ui";
+import { Button, ButtonLink, Modal, DataTable, type Column } from "../ui";
 import {
   fantasyApi,
   formatFantasyPrice,
@@ -167,16 +166,20 @@ export function FantasyPlayerModal({
       title={player.playerName}
       subtitle={`Fantasy Player Profile • ${player.teamName || player.teamShortName || "Independent"}`}
       maxWidth="md"
+      shape="square"
       footer={
         <>
-          <Link
+          <ButtonLink
             to={`/players/${player.playerId}`}
-            className="inline-flex items-center gap-1.5 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:text-sffl-red transition sm:mr-auto"
+            variant="ghost"
+            icon={ArrowTopRightOnSquareIcon}
+            iconPosition="right"
+            shape="square"
+            className="sm:mr-auto"
           >
-            View Full Season Stats{" "}
-            <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" aria-hidden="true" />
-          </Link>
-          <Button variant="secondary" className="uppercase tracking-wider" onClick={onClose}>
+            View Full Season Stats
+          </ButtonLink>
+          <Button variant="secondary" shape="square" className="uppercase tracking-wider" onClick={onClose}>
             Close
           </Button>
         </>
@@ -186,7 +189,7 @@ export function FantasyPlayerModal({
         {/* Hero / Avatar Card */}
         <div className="p-5 md:p-6 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/70 dark:bg-gray-800/40 flex items-center gap-4">
           <div className="relative shrink-0">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-white dark:border-gray-700 shadow-md bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-none overflow-hidden border-2 border-white dark:border-gray-700 shadow-md bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
               {player.playerImage ? (
                 <img
                   src={player.playerImage}
@@ -224,11 +227,11 @@ export function FantasyPlayerModal({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <span
-                className={`px-2.5 py-0.5 rounded text-[11px] font-black uppercase tracking-wider ${posStyle.bg} ${posStyle.text}`}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider ${posStyle.bg} ${posStyle.text}`}
               >
                 {posLabel}
               </span>
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                 {unit}
               </span>
             </div>
@@ -243,7 +246,7 @@ export function FantasyPlayerModal({
                 </span>
                 {priceHistoryData && priceHistoryData.total_change !== 0 && (
                   <span
-                    className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                    className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
                       priceHistoryData.total_change > 0
                         ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
                         : "bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
@@ -261,7 +264,7 @@ export function FantasyPlayerModal({
         {/* KPI Metrics Strip */}
         <div className="p-5 md:p-6 overflow-y-auto space-y-5 flex-1">
           <div className="grid grid-cols-3 gap-2.5 text-center">
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+            <div className="p-3 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
               <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
                 GW Points
               </span>
@@ -272,7 +275,7 @@ export function FantasyPlayerModal({
               </span>
             </div>
 
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+            <div className="p-3 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
               <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
                 Total Points
               </span>
@@ -283,7 +286,7 @@ export function FantasyPlayerModal({
               </span>
             </div>
 
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+            <div className="p-3 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
               <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
                 Ownership
               </span>
@@ -297,7 +300,7 @@ export function FantasyPlayerModal({
 
           {/* Gameweek Scoring Breakdown (if available) */}
           {(player.gameweekId || breakdownData) && (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800/60 p-4">
+            <div className="rounded-none border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800/60 p-4">
               <div className="flex items-center justify-between mb-3 border-b border-gray-200 dark:border-gray-700 pb-2 gap-2 flex-wrap">
                 <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-1.5">
                   <SparklesIcon className="w-4 h-4 text-sffl-red" />
@@ -305,7 +308,7 @@ export function FantasyPlayerModal({
                 </h4>
                 <div className="flex items-center gap-1.5">
                   {breakdownData?.is_nearest_week && (
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                       Latest Played
                       {breakdownData.gameweek_number
                         ? ` (GW ${breakdownData.gameweek_number})`
@@ -459,7 +462,7 @@ export function FantasyPlayerModal({
           )}
 
           {/* Price History Section */}
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800/60 p-4">
+          <div className="rounded-none border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800/60 p-4">
             <div className="flex items-center justify-between mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
               <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-1.5">
                 <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-500" />
@@ -491,6 +494,7 @@ export function FantasyPlayerModal({
               priceHistoryData.history.length > 0 ? (
               <div className="space-y-2">
                 <DataTable
+                  shape="square"
                   data={priceHistoryData.history}
                   columns={HISTORY_COLUMNS}
                   searchable={false}

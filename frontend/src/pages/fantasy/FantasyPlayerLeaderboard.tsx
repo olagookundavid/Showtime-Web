@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   ArrowTrendingDownIcon,
   ArrowTrendingUpIcon,
   ChartBarIcon,
   FireIcon,
-  StarIcon,
   TrophyIcon,
   UserGroupIcon,
   ArrowsRightLeftIcon,
@@ -17,6 +16,7 @@ import {
 import type { ComponentType, SVGProps } from "react";
 import {
   Button,
+  ButtonLink,
   DataTable,
   Field,
   FantasyPlayerModal,
@@ -212,6 +212,7 @@ export function FantasyPlayerLeaderboard() {
               image={p.player_image}
               gender={p.gender}
               size="sm"
+              shape="square"
               zoomable
             />
             <div className="min-w-0">
@@ -239,7 +240,7 @@ export function FantasyPlayerLeaderboard() {
                 </span>
                 {!p.available && (
                   <span
-                    className="px-1.5 py-px rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                    className="px-1.5 py-px rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
                     title="Still ranks on what they scored, but cannot be started"
                   >
                     {p.unavailable_reason}
@@ -385,27 +386,14 @@ export function FantasyPlayerLeaderboard() {
 
   return (
     <div className="space-y-6">
-      {/* Hero */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end bg-sffl-navy text-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl gap-4">
-        <div className="min-w-0">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-black uppercase tracking-wider mb-2">
-            <StarIcon className="w-3.5 h-3.5" aria-hidden="true" /> Player
-            Leaderboard
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-white">
-            PLAYER STATS &amp; RANKINGS
-          </h1>
-          <p className="text-gray-300 mt-1 text-xs sm:text-sm max-w-2xl">
-            Every player ranked by fantasy points, picked or not — with form,
-            value, how many managers own and start them, and who the market is
-            buying and selling.
-          </p>
-        </div>
+      {/* Action band: title/subtitle already come from PageHeader via FantasyLayout */}
+      <div className="flex justify-end bg-sffl-navy text-white p-4 sm:p-6 md:p-8 shadow-xl">
         <div className="w-full md:w-56 shrink-0">
           <Field label="Showing" htmlFor="plb-gw" tone="dark">
             <Select
               id="plb-gw"
               tone="dark"
+              shape="square"
               value={gameweekId}
               onChange={(e) => update({ gw: e.target.value })}
               className="w-full"
@@ -434,7 +422,7 @@ export function FantasyPlayerLeaderboard() {
       {data && data.highlights.length > 0 && (
         <section aria-label="Highlights">
           <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-5 gap-3">
-            {data.highlights.map((h) => {
+            {data.highlights.map((h, idx) => {
               const Icon = HIGHLIGHT_ICONS[h.key] ?? ChartBarIcon;
               const p = h.player;
               if (!p) return null;
@@ -443,8 +431,12 @@ export function FantasyPlayerLeaderboard() {
                   key={h.key}
                   type="button"
                   onClick={() => openPlayer(p)}
-                  className="text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm hover:border-sffl-red/40 hover:shadow-md transition min-w-0"
+                  className="relative text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 shadow-sm hover:border-sffl-red/40 hover:shadow-md transition min-w-0"
                 >
+                  <span
+                    className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${idx % 2 === 0 ? "bg-sffl-red" : "bg-sffl-navy"}`}
+                    aria-hidden="true"
+                  />
                   <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     <Icon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
                     {h.label}
@@ -455,6 +447,7 @@ export function FantasyPlayerLeaderboard() {
                       image={p.player_image}
                       gender={p.gender}
                       size="md"
+                      shape="square"
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-black text-gray-900 dark:text-white truncate">
@@ -478,7 +471,7 @@ export function FantasyPlayerLeaderboard() {
       {/* Filters */}
       <section
         aria-label="Filters"
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm"
+        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 shadow-sm"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Field label="Position" htmlFor="plb-pos">
@@ -556,6 +549,7 @@ export function FantasyPlayerLeaderboard() {
             <Button
               variant="link"
               size="sm"
+              shape="square"
               icon={XMarkIcon}
               onClick={() => update({ pos: "", club: "", gender: "", q: "" })}
             >
@@ -578,6 +572,7 @@ export function FantasyPlayerLeaderboard() {
         <Button
           variant="secondary"
           size="sm"
+          shape="square"
           icon={InformationCircleIcon}
           onClick={() => setShowGuide(true)}
         >
@@ -585,25 +580,23 @@ export function FantasyPlayerLeaderboard() {
         </Button>
       </div>
       {isError ? (
-        <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-6 text-sm text-red-800 dark:text-red-200">
+        <div className="rounded-none border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-6 text-sm text-red-800 dark:text-red-200">
           The player leaderboard could not be loaded. Try again in a moment.
         </div>
       ) : !seasonLoading && !season ? (
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
+        <div className="rounded-none border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-300">
             There's no fantasy season running right now, so there's nothing to
             rank yet.
           </p>
-          <Link
-            to="/fantasy/dashboard"
-            className="mt-3 inline-block font-bold text-sffl-red hover:underline"
-          >
+          <ButtonLink to="/fantasy/dashboard" variant="link" shape="square" className="mt-3">
             Go to Fantasy
-          </Link>
+          </ButtonLink>
         </div>
       ) : (
-        <div className="rounded-2xl overflow-hidden shadow-sm">
+        <div className="rounded-none overflow-hidden shadow-sm">
           <DataTable
+            shape="square"
             data={data?.data ?? NO_ROWS}
             columns={columns}
             getRowId={(p) => p.player_id}
