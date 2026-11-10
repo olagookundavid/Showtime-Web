@@ -28,6 +28,8 @@ import {
   ClockIcon,
   PencilSquareIcon,
   ArrowPathIcon,
+  PlayCircleIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import {
   fantasyApi,
@@ -41,6 +43,7 @@ import type {
   FantasySeason,
   Squad,
   SquadPlayer,
+  PlayerFormGame,
 } from "../../types";
 import {
   SLOT_DEFINITIONS,
@@ -54,6 +57,7 @@ import {
   isFemale,
   getDefaultTeamName,
   formatStatNumber,
+  formatStatDecimal,
 } from "../../utils";
 import { useAuth } from "../../contexts";
 import { useReserveDrag } from "../../hooks";
@@ -184,6 +188,36 @@ export function FantasyPickTeam() {
   );
   // Player action popover: which slot's player is showing actions
   const [actionSlot, setActionSlot] = useState<FantasySlot | null>(null);
+  // Whether the Manage Starter panel's "Substitute" dropdown is expanded —
+  // reset whenever the panel targets a different slot (or closes).
+  const [showSubstituteOptions, setShowSubstituteOptions] = useState(false);
+  useEffect(() => {
+    setShowSubstituteOptions(false);
+  }, [actionSlot]);
+  // Which pitch substitute (owned, start-eligible, not yet in a slot) is
+  // showing its own details panel — a separate id since a substitute isn't
+  // keyed by FantasySlot the way a starter is.
+  const [actionSubstituteId, setActionSubstituteId] = useState<string | null>(
+    null,
+  );
+  const actionSubstitutePlayer = useMemo(
+    () =>
+      mySquad?.players.find((p) => p.player_id === actionSubstituteId) ??
+      null,
+    [mySquad, actionSubstituteId],
+  );
+  const actionSlotPlayerId = actionSlot ? squad[actionSlot]?.player_id : undefined;
+  const actionPlayerFormId = actionSlotPlayerId ?? actionSubstituteId ?? undefined;
+  // Form, points-per-game and the last few matches for whoever the Manage
+  // Starter or substitute details panel is open on — season-wide stats the
+  // squad slot/bench row itself doesn't carry.
+  const { data: actionPlayerForm, isLoading: actionPlayerFormLoading } =
+    useQuery({
+      queryKey: ["fantasyPlayerForm", actionPlayerFormId, season?.id],
+      queryFn: () => fantasyApi.getPlayerForm(actionPlayerFormId!, season?.id),
+      enabled: !!actionPlayerFormId && !!season?.id,
+      staleTime: 30000,
+    });
   // Rule violation modal dialog
   const [violationModal, setViolationModal] = useState<{
     title: string;
@@ -754,12 +788,29 @@ export function FantasyPickTeam() {
     [trueSubstitutes, playerMetadataLookup],
   );
 
-  // Tapping an on-pitch substitute token does exactly what the old "Start"
-  // button did — look the full squad record back up from the id the pitch
-  // hands back, since PitchSubstitute is deliberately a lighter shape.
+  // Bench players the Manage Starter panel's "Substitute" dropdown offers
+  // for the slot it's open on — position- and gender-eligible, same rule
+  // ownedForSlot applies for the full player-selection modal. Squad-rule
+  // checks (club limit, All-Rounder cap) run on pick via handleReserveDrop,
+  // so this list doesn't duplicate that validation up front.
+  const eligibleSubstitutesForSlot = useMemo(() => {
+    if (!actionSlot) return [];
+    const def = SLOT_DEFINITIONS.find((d) => d.slot === actionSlot);
+    if (!def) return [];
+    return trueSubstitutes.filter(
+      (p) =>
+        positionFitsSlot(def, p.position) &&
+        (!def.requiredGender ||
+          (p.gender || "M").toUpperCase().startsWith(def.requiredGender)),
+    );
+  }, [actionSlot, trueSubstitutes]);
+
+  // Tapping an on-pitch substitute token opens its own details panel — same
+  // as tapping a starter — rather than starting them immediately. Starting
+  // happens from a button inside that panel now.
   const handleSubstituteClick = (sub: PitchSubstitute) => {
-    const full = mySquad?.players.find((p) => p.player_id === sub.playerId);
-    if (full) handleStartReserve(full);
+    setActionSlot(null);
+    setActionSubstituteId(sub.playerId);
   };
 
   // Who the manager already owns and can field in the open slot — the only
@@ -1310,13 +1361,6 @@ export function FantasyPickTeam() {
         ? `Swapped ${a.player_name} and ${b.player_name}.`
         : `${a.player_name} moved to ${toDef.label}.`,
     );
-  };
-
-  // "Swap with Reserve" — open the slot's picker (owned players only)
-  const handleSwapWithReserve = (slot: FantasySlot) => {
-    setActionSlot(null);
-    const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
-    if (def) setActiveModalSlot(def);
   };
 
   // "Start" — promote a bench reserve into an open matching slot
@@ -1936,6 +1980,7 @@ export function FantasyPickTeam() {
                 if (player) {
                   // A blocked starter opens the same Manage menu as anyone else,
                   // so they can be benched or replaced, not only swapped.
+                  setActionSubstituteId(null);
                   setActionSlot(actionSlot === slot ? null : slot);
                 } else {
                   const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
@@ -2261,6 +2306,8 @@ export function FantasyPickTeam() {
         title="Manage starter"
         maxWidth="md"
         shape="square"
+        position="right"
+        closeOnBackdrop={false}
       >
         {actionSlot && squad[actionSlot] && (
           <div className="text-gray-900 dark:text-white -m-4 sm:-m-6">
@@ -2308,6 +2355,15 @@ export function FantasyPickTeam() {
               </div>
             </div>
 
+            <PlayerFormStats
+              price={squad[actionSlot]!.price}
+              loading={actionPlayerFormLoading}
+              form={actionPlayerForm?.form}
+              pointsPerGame={actionPlayerForm?.points_per_game}
+              selectedByPct={actionPlayerForm?.selected_by_pct}
+              recentGames={actionPlayerForm?.recent_games}
+            />
+
             {starterIssue(actionSlot) && (
               <div
                 role="alert"
@@ -2329,7 +2385,8 @@ export function FantasyPickTeam() {
             <div className="p-4 space-y-2">
               <button
                 type="button"
-                onClick={() => handleSwapWithReserve(actionSlot)}
+                onClick={() => setShowSubstituteOptions((v) => !v)}
+                aria-expanded={showSubstituteOptions}
                 className="w-full flex items-center gap-3.5 p-3.5 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
               >
                 <div className="p-2.5 rounded-none bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-white">
@@ -2337,28 +2394,155 @@ export function FantasyPickTeam() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-sm font-black text-gray-900 dark:text-white block">
-                    Swap with Reserve
+                    Substitute
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                    Replace with an eligible bench player
+                    Swap in an eligible bench player
                   </span>
                 </div>
+                <ChevronDownIcon
+                  className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${
+                    showSubstituteOptions ? "rotate-180" : ""
+                  }`}
+                  aria-hidden="true"
+                />
               </button>
 
+              {showSubstituteOptions && (
+                <div className="border border-gray-200 dark:border-gray-700 rounded-none divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden max-h-64 overflow-y-auto">
+                  {eligibleSubstitutesForSlot.length === 0 ? (
+                    <p className="p-3.5 text-xs text-gray-500 dark:text-gray-400 text-center">
+                      No eligible bench player for this slot.
+                    </p>
+                  ) : (
+                    eligibleSubstitutesForSlot.map((p) => {
+                      const meta = playerMetadataLookup.get(p.player_id);
+                      return (
+                        <button
+                          key={p.player_id}
+                          type="button"
+                          onClick={() => handleReserveDrop(p.player_id, actionSlot)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+                        >
+                          <PlayerAvatar
+                            name={p.name}
+                            image={p.image || meta?.image || undefined}
+                            gender={p.gender}
+                            size="sm"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white block truncate">
+                              {p.name}
+                            </span>
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                              {p.position} • {formatFantasyPrice(p.purchase_price)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <Button variant="secondary" size="sm" onClick={() => setActionSlot(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ────────────────────────────────────────────────────────────────────
+                SUBSTITUTE DETAILS PANEL — tapping a pitch-card substitute
+                opens this instead of starting them immediately.
+            ──────────────────────────────────────────────────────────────────── */}
+      <Modal
+        open={!!(actionSubstituteId && actionSubstitutePlayer)}
+        onClose={() => setActionSubstituteId(null)}
+        title="Substitute details"
+        maxWidth="md"
+        shape="square"
+        position="right"
+        closeOnBackdrop={false}
+      >
+        {actionSubstitutePlayer && (
+          <div className="text-gray-900 dark:text-white -m-4 sm:-m-6">
+            {/* Player summary */}
+            <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <PlayerAvatar
+                  name={actionSubstitutePlayer.name}
+                  image={
+                    actionSubstitutePlayer.image ||
+                    playerMetadataLookup.get(actionSubstitutePlayer.player_id)
+                      ?.image ||
+                    undefined
+                  }
+                  gender={actionSubstitutePlayer.gender}
+                  size="md"
+                  zoomable
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                      SUB
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                      {actionSubstitutePlayer.position || "Position unknown"}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-black truncate text-gray-900 dark:text-white mt-0.5">
+                    <PlayerLink
+                      id={actionSubstitutePlayer.player_id}
+                      title={`View ${actionSubstitutePlayer.name}'s profile`}
+                    >
+                      {actionSubstitutePlayer.name}
+                    </PlayerLink>
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="font-bold text-gray-700 dark:text-gray-200">
+                      {actionSubstitutePlayer.position || "Position unknown"}
+                    </span>{" "}
+                    • {actionSubstitutePlayer.club_short_name ||
+                      actionSubstitutePlayer.club_name}{" "}
+                    • {formatFantasyPrice(actionSubstitutePlayer.purchase_price)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <PlayerFormStats
+              price={actionSubstitutePlayer.purchase_price}
+              loading={actionPlayerFormLoading}
+              form={actionPlayerForm?.form}
+              pointsPerGame={actionPlayerForm?.points_per_game}
+              selectedByPct={actionPlayerForm?.selected_by_pct}
+              recentGames={actionPlayerForm?.recent_games}
+            />
+
+            {/* Action buttons */}
+            <div className="p-4 space-y-2">
               <button
                 type="button"
-                onClick={() => handleMoveToBench(actionSlot)}
+                onClick={() => {
+                  setActionSubstituteId(null);
+                  handleStartReserve(actionSubstitutePlayer);
+                }}
                 className="w-full flex items-center gap-3.5 p-3.5 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
               >
-                <div className="p-2.5 rounded-none bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                  <ArrowUturnDownIcon className="w-5 h-5" />
+                <div className="p-2.5 rounded-none bg-emerald-600/10 text-emerald-600 dark:text-emerald-400">
+                  <PlayCircleIcon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-sm font-black text-gray-900 dark:text-white block">
-                    Move to Bench
+                    Start
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                    Remove from starting 14 without selling
+                    Promote into an open matching slot
                   </span>
                 </div>
               </button>
@@ -2366,7 +2550,11 @@ export function FantasyPickTeam() {
 
             {/* Footer */}
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-              <Button variant="secondary" size="sm" onClick={() => setActionSlot(null)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setActionSubstituteId(null)}
+              >
                 Cancel
               </Button>
             </div>
@@ -2676,5 +2864,114 @@ export function FantasyPickTeam() {
           );
         })()}
     </>
+  );
+}
+
+interface PlayerFormStatsProps {
+  price: number;
+  loading: boolean;
+  form?: number;
+  pointsPerGame?: number;
+  selectedByPct?: number;
+  recentGames?: PlayerFormGame[];
+}
+
+// The season stats + "Last 5 Games" strip shown in both the Manage Starter
+// and substitute details panels — identical markup, fed each player's own
+// squad price and fantasyApi.getPlayerForm() result.
+function PlayerFormStats({
+  price,
+  loading,
+  form,
+  pointsPerGame,
+  selectedByPct,
+  recentGames,
+}: PlayerFormStatsProps) {
+  return (
+    <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+        <div className="p-2.5 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+          <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
+            Price
+          </span>
+          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+            {formatFantasyPrice(price)}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+          <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
+            Form
+          </span>
+          <span className="text-sm font-black text-gray-900 dark:text-white mt-0.5 block">
+            {loading ? "—" : formatStatDecimal(form ?? 0, 1)}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+          <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
+            Pts / Match
+          </span>
+          <span className="text-sm font-black text-gray-900 dark:text-white mt-0.5 block">
+            {loading ? "—" : formatStatDecimal(pointsPerGame ?? 0, 1)}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-none bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+          <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
+            Selected By
+          </span>
+          <span className="text-sm font-black text-gray-900 dark:text-white mt-0.5 block">
+            {loading ? "—" : `${(selectedByPct ?? 0).toFixed(1)}%`}
+          </span>
+        </div>
+      </div>
+
+      <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-4 mb-2">
+        Last 5 Games
+      </h4>
+      {loading ? (
+        <p className="flex items-center justify-center gap-2 text-xs text-gray-500 py-3">
+          <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
+          Loading recent form…
+        </p>
+      ) : recentGames && recentGames.length > 0 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {recentGames.map((g) => (
+            <div
+              key={g.gameweek_id}
+              className="shrink-0 w-16 flex flex-col items-center gap-1 p-2 rounded-none border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50"
+            >
+              <span className="text-[9px] font-black uppercase text-gray-400">
+                GW{g.gameweek_number}
+              </span>
+              {g.opponent_logo ? (
+                <img
+                  src={g.opponent_logo}
+                  alt={g.opponent_short_name || g.opponent_name || "Opponent"}
+                  className="w-6 h-6 object-contain"
+                />
+              ) : (
+                <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300 truncate max-w-full">
+                  {g.opponent_short_name || g.opponent_name || "—"}
+                </span>
+              )}
+              <span
+                className={`text-sm font-black ${
+                  g.points > 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : g.points < 0
+                      ? "text-red-500"
+                      : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                {formatStatDecimal(g.points, 1)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-500 py-2 text-center">
+          No match stats recorded yet this season.
+        </p>
+      )}
+    </div>
   );
 }

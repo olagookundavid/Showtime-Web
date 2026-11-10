@@ -22,6 +22,7 @@ type IFantasyHandler interface {
 	GetPlayerLeaderboard(c *gin.Context)
 	GetPlayerBreakdown(c *gin.Context)
 	GetPlayerPriceHistory(c *gin.Context)
+	GetPlayerForm(c *gin.Context)
 	EnterSeason(c *gin.Context)
 	GetDashboard(c *gin.Context)
 	SaveLineup(c *gin.Context)
@@ -184,6 +185,25 @@ func (h *FantasyHandler) GetPlayerPriceHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": history})
+}
+
+// GetPlayerForm is the rolling stats (form, points per game, ownership) and
+// recent-match strip for a player's detail panel.
+func (h *FantasyHandler) GetPlayerForm(c *gin.Context) {
+	playerID := c.Param("id")
+	seasonID := c.Query("season_id")
+
+	form, err := h.service.GetPlayerForm(c.Request.Context(), seasonID, playerID)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": form})
 }
 
 // EnterSeason signs the manager up for a season — the deliberate opt-in that

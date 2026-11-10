@@ -22,6 +22,8 @@ interface FantasyPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
   player: FantasyPlayerModalData | null;
+  /** `right` slides in as a side panel instead of the centered dialog. */
+  position?: "center" | "right";
 }
 
 function normalizePosition(pos?: string): string {
@@ -110,6 +112,7 @@ export function FantasyPlayerModal({
   isOpen,
   onClose,
   player,
+  position = "center",
 }: FantasyPlayerModalProps) {
 
   const { data: breakdownData, isLoading: loadingBreakdown } = useQuery({
@@ -167,6 +170,7 @@ export function FantasyPlayerModal({
       subtitle={`Fantasy Player Profile • ${player.teamName || player.teamShortName || "Independent"}`}
       maxWidth="md"
       shape="square"
+      position={position}
       footer={
         <>
           <ButtonLink

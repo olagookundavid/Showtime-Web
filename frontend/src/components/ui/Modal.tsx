@@ -18,6 +18,10 @@ type Props = {
   maxWidth?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
   /** `square` for sharp corners (store pages). */
   shape?: Shape;
+  /** `right` slides in as a full-height side panel instead of a centered dialog. */
+  position?: "center" | "right";
+  /** false stops a backdrop click or Escape from closing it, so only an explicit control (the X, a footer button) can. Defaults to true. */
+  closeOnBackdrop?: boolean;
 };
 
 const widthClass: Record<NonNullable<Props["maxWidth"]>, string> = {
@@ -35,8 +39,8 @@ const widthClass: Record<NonNullable<Props["maxWidth"]>, string> = {
 const openModals: string[] = [];
 
 // Lightweight modal: dark backdrop, scrollable inner card, ESC + click-outside
-// to close. Rendered through a portal so it escapes whatever stacking context
-// the trigger lives in.
+// to close (unless `closeOnBackdrop` is false). Rendered through a portal so
+// it escapes whatever stacking context the trigger lives in.
 export const Modal = ({
   open,
   onClose,
@@ -46,8 +50,11 @@ export const Modal = ({
   footer,
   maxWidth = "xl",
   shape = "round",
+  position = "center",
+  closeOnBackdrop = true,
 }: Props) => {
   const id = useId();
+  const isRight = position === "right";
 
   useScrollLock(open);
 
@@ -63,26 +70,27 @@ export const Modal = ({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      if (!closeOnBackdrop) return;
       if (e.key === "Escape" && openModals[openModals.length - 1] === id) onClose?.();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose, id]);
+  }, [open, onClose, id, closeOnBackdrop]);
 
   if (!open) return null;
 
   const node = (
     <div
-      className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-modal-backdrop-in"
+      className={`fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex ${isRight ? "items-stretch justify-end" : "items-center justify-center p-3 sm:p-6"} overflow-hidden animate-modal-backdrop-in`}
       data-dialog
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? "modal-title" : undefined}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white dark:bg-gray-800 ${shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl ${maxWidth === "full" ? "h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)]" : "max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh]"} flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700 animate-modal-in`}
+        className={`bg-white dark:bg-gray-800 ${isRight ? "rounded-none h-[100dvh] max-h-[100dvh]" : shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl ${isRight ? "" : maxWidth === "full" ? "h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)]" : "max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh]"} flex flex-col overflow-hidden ${isRight ? "" : "my-auto"} border border-gray-100 dark:border-gray-700 ${isRight ? "animate-panel-in" : "animate-modal-in"}`}
       >
         {(title || subtitle || onClose) && (
           <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">

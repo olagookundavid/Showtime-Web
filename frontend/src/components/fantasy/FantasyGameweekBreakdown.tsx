@@ -89,6 +89,7 @@ export function FantasyGameweekBreakdown({ seasonId, rows }: FantasyGameweekBrea
           showPoints
           hideHeader
           hideDetailStrip
+          playerModalPosition="right"
         />
       ) : (
         <p className="text-sm text-[#aebdd0] text-center py-6">

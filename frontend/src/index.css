@@ -108,9 +108,24 @@ body:has([role="dialog"]) nav.fixed.bottom-0 {
   animation: modal-pop-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Entrance for Modal's `position="right"` side panel: slides in from the edge. */
+@keyframes panel-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-panel-in {
+  animation: panel-slide-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-modal-backdrop-in,
-  .animate-modal-in {
+  .animate-modal-in,
+  .animate-panel-in {
     animation: none;
   }
 }

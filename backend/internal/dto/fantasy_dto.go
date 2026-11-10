@@ -399,6 +399,31 @@ type PlayerPriceHistoryResponse struct {
 }
 
 
+// ─── Player Form DTOs ────────────────────────────────────────────────────────
+
+// PlayerFormGame is one of a player's last played gameweeks, for the strip of
+// recent results on their detail panel.
+type PlayerFormGame struct {
+	GameweekID        string  `json:"gameweek_id"`
+	GameweekNumber    int     `json:"gameweek_number"`
+	OpponentName      string  `json:"opponent_name,omitempty"`
+	OpponentShortName string  `json:"opponent_short_name,omitempty"`
+	OpponentLogo      string  `json:"opponent_logo,omitempty"`
+	Points            float64 `json:"points"`
+}
+
+// PlayerFormResponse is the season-wide form a player's detail panel shows
+// alongside their price: the same rolling stats as the player leaderboard,
+// plus the handful of recent matches "Form" is averaged from.
+type PlayerFormResponse struct {
+	PlayerID      string           `json:"player_id"`
+	Form          float64          `json:"form"`            // average over the last 3 played gameweeks
+	PointsPerGame float64          `json:"points_per_game"` // season total / appearances
+	SelectedByPct float64          `json:"selected_by_pct"`
+	// RecentGames is the last up to 5 played gameweeks, oldest first.
+	RecentGames []PlayerFormGame `json:"recent_games"`
+}
+
 // MarketFilterTeam is a club that has at least one player on the market.
 type MarketFilterTeam struct {
 	ID        string `json:"id"`

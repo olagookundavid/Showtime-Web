@@ -404,6 +404,11 @@ export interface FantasyPitchProps {
    * history view (e.g. Points, where the gameweek is already named one level
    * up and there's nothing to filter toward) it was pure chrome. */
   hideHeader?: boolean;
+  /** Display mode only, when `onPlayerClick` is omitted: position of the
+   * player profile this pitch opens on its own (Points, Transfers want the
+   * same right-side panel the Squad Builder uses; other display pages keep
+   * the centered dialog). */
+  playerModalPosition?: "center" | "right";
 }
 
 export function FantasyPitch({
@@ -433,6 +438,7 @@ export function FantasyPitch({
   hideDetailStrip,
   onRemovePlayer,
   hideHeader,
+  playerModalPosition = "center",
 }: FantasyPitchProps) {
   const bySlot = useMemo(() => {
     const map = new Map<FantasySlot, PitchPlayerItem>();
@@ -1298,6 +1304,7 @@ export function FantasyPitch({
           isOpen={Boolean(inspectingPlayer)}
           onClose={() => setInspectingPlayer(null)}
           player={inspectingPlayer}
+          position={playerModalPosition}
         />
       )}
 

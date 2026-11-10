@@ -138,6 +138,7 @@ import type {
   GameweekReportResponse,
   PlayerGWBreakdownResponse,
   PlayerPriceHistoryResponse,
+  PlayerFormResponse,
   TeamPointsHistoryResponse,
   FantasyWallet,
   PayoutStatus,
@@ -3064,6 +3065,16 @@ export const fantasyApi = {
   ): Promise<PlayerPriceHistoryResponse> => {
     const res = await api.get<{ data: PlayerPriceHistoryResponse }>(
       `/fantasy/players/${playerId}/price-history`,
+      { params: seasonId ? { season_id: seasonId } : undefined },
+    );
+    return res.data.data;
+  },
+  getPlayerForm: async (
+    playerId: string,
+    seasonId?: string,
+  ): Promise<PlayerFormResponse> => {
+    const res = await api.get<{ data: PlayerFormResponse }>(
+      `/fantasy/players/${playerId}/form`,
       { params: seasonId ? { season_id: seasonId } : undefined },
     );
     return res.data.data;

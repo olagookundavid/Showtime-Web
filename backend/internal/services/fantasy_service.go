@@ -55,6 +55,7 @@ type IFantasyService interface {
 	GetMyPointsHistory(ctx context.Context, userID, seasonID string) (*dto.TeamPointsHistoryResponse, error)
 	GetPlayerBreakdown(ctx context.Context, playerID, gameweekID string) (*dto.PlayerGWBreakdownResponse, error)
 	GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error)
+	GetPlayerForm(ctx context.Context, seasonID, playerID string) (*dto.PlayerFormResponse, error)
 
 	// Core Engine
 	ComputeGameweekScores(ctx context.Context, gameweekID string) error

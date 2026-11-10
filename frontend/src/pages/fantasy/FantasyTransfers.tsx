@@ -941,6 +941,7 @@ export function FantasyTransfers() {
                         title="Your Squad"
                         substitutes={pitchBench}
                         hideDetailStrip
+                        playerModalPosition="right"
                         onRemovePlayer={
                           mySquad.market_open
                             ? (playerId) => {
