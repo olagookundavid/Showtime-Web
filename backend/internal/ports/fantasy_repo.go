@@ -90,6 +90,10 @@ type IFantasyRepository interface {
 	// GetTeamOverallRank returns the team's position among every manager in the
 	// season, and how many managers there are.
 	GetTeamOverallRank(ctx context.Context, seasonID, teamID string) (int, int, error)
+	// GetTeamOverallRankTrend is GetTeamOverallRank plus whether that rank is
+	// better, worse or unchanged from before the most recently scored
+	// gameweek. Movement is "" when no gameweek has been scored yet.
+	GetTeamOverallRankTrend(ctx context.Context, seasonID, teamID string) (rank, total int, movement string, err error)
 	// RecalculateTeamTotalPoints rebuilds a team's season total from its locked
 	// lineups. Idempotent by construction, so a gameweek can be re-scored.
 	RecalculateTeamTotalPoints(ctx context.Context, teamID string) error
@@ -1293,6 +1297,78 @@ func (r *FantasyRepository) GetTeamOverallRank(ctx context.Context, seasonID, te
 		return 0, 0, fmt.Errorf("failed to rank team: %w", err)
 	}
 	return rank, total, nil
+}
+
+// GetTeamOverallRankTrend ranks a team as GetTeamOverallRank does, and also
+// compares that to the rank it would have had using only points scored
+// before the most recently completed gameweek — no stored history needed,
+// since a team's running total is already the sum of its locked lineups.
+func (r *FantasyRepository) GetTeamOverallRankTrend(ctx context.Context, seasonID, teamID string) (int, int, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		WITH latest_gw AS (
+			SELECT fg.id
+			FROM fantasy_gameweeks fg
+			WHERE fg.season_id = $1
+			  AND EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = fg.id AND fl.status = 'LOCKED')
+			ORDER BY fg.number DESC
+			LIMIT 1
+		),
+		team_prev AS (
+			SELECT ft.id,
+			       ft.total_points - COALESCE(fl.points, 0) AS prev_points
+			FROM fantasy_teams ft
+			LEFT JOIN latest_gw lg ON true
+			LEFT JOIN fantasy_lineups fl ON fl.team_id = ft.id AND fl.gameweek_id = lg.id AND fl.status = 'LOCKED'
+			WHERE ft.season_id = $1
+		),
+		ranked_now AS (
+			SELECT ft.id,
+			       ROW_NUMBER() OVER (ORDER BY ft.total_points DESC, COALESCE(u.full_name, '') ASC, ft.id ASC) AS rnk,
+			       COUNT(*) OVER () AS total
+			FROM fantasy_teams ft
+			LEFT JOIN users u ON ft.user_id = u.id
+			WHERE ft.season_id = $1
+		),
+		ranked_prev AS (
+			SELECT tp.id,
+			       ROW_NUMBER() OVER (ORDER BY tp.prev_points DESC, COALESCE(u.full_name, '') ASC, tp.id ASC) AS rnk
+			FROM team_prev tp
+			JOIN fantasy_teams ft ON ft.id = tp.id
+			LEFT JOIN users u ON ft.user_id = u.id
+		)
+		SELECT rn.rnk, rn.total, rp.rnk, (SELECT id FROM latest_gw) IS NOT NULL AS has_history
+		FROM ranked_now rn
+		JOIN ranked_prev rp ON rp.id = rn.id
+		WHERE rn.id = $2
+	`
+	var rank, total, prevRank int
+	var hasHistory bool
+	if err := r.pool.QueryRow(ctx, query, seasonID, teamID).Scan(&rank, &total, &prevRank, &hasHistory); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, 0, "", nil
+		}
+		return 0, 0, "", fmt.Errorf("failed to rank team with trend: %w", err)
+	}
+	return rank, total, rankMovement(rank, prevRank, hasHistory), nil
+}
+
+// rankMovement turns a before/after rank pair into "UP", "DOWN" or "SAME". A
+// lower rank number is better, so a drop in the number is a climb.
+func rankMovement(rank, prevRank int, hasHistory bool) string {
+	if !hasHistory {
+		return ""
+	}
+	switch {
+	case rank < prevRank:
+		return "UP"
+	case rank > prevRank:
+		return "DOWN"
+	default:
+		return "SAME"
+	}
 }
 
 func (r *FantasyRepository) RecalculateTeamTotalPoints(ctx context.Context, teamID string) error {

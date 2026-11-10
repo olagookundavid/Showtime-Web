@@ -27,25 +27,25 @@ export const FANTASY_NAV: FantasyNavItem[] = [
   },
   {
     to: "/fantasy/build",
-    label: "Build Squad",
+    label: "Pick Team",
     eyebrow: EYEBROW,
-    title: "BUILD YOUR SQUAD",
-    subtitle:
-      "Pick your 14 players, make transfers and set your lineup before the deadline.",
+    title: "PICK YOUR TEAM",
+    subtitle: "Arrange your starting 14 and bench before the deadline.",
   },
   {
-    to: "/fantasy/my-team",
-    label: "My Team",
+    to: "/fantasy/transfers",
+    label: "Transfers",
     eyebrow: EYEBROW,
-    title: "MY TEAM",
-    subtitle: "See your current lineup, this gameweek's score and your squad's value.",
+    title: "TRANSFERS",
+    subtitle: "Buy and sell players to build your squad.",
   },
   {
     to: "/fantasy/points",
     label: "Points",
     eyebrow: EYEBROW,
     title: "POINTS",
-    subtitle: "Your score every gameweek, against the average and where you ranked.",
+    subtitle:
+      "Your score every gameweek, against the average and where you ranked — including the pitch for any past gameweek.",
   },
   {
     to: "/fantasy/leagues",

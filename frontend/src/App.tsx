@@ -76,14 +76,14 @@ const FantasyDashboard = lazy(() =>
     default: m.FantasyDashboard,
   })),
 );
-const FantasySquadBuilder = lazy(() =>
-  import("./pages/fantasy/FantasySquadBuilder").then((m) => ({
-    default: m.FantasySquadBuilder,
+const FantasyPickTeam = lazy(() =>
+  import("./pages/fantasy/FantasyPickTeam").then((m) => ({
+    default: m.FantasyPickTeam,
   })),
 );
-const FantasyMyTeam = lazy(() =>
-  import("./pages/fantasy/FantasyMyTeam").then((m) => ({
-    default: m.FantasyMyTeam,
+const FantasyTransfers = lazy(() =>
+  import("./pages/fantasy/FantasyTransfers").then((m) => ({
+    default: m.FantasyTransfers,
   })),
 );
 const FantasyPoints = lazy(() =>
@@ -522,18 +522,27 @@ function App() {
                         <Route
                           path="/fantasy/build"
                           element={
-                            <ProtectedRoute actionText="pick your squad">
-                              <FantasySquadBuilder />
+                            <ProtectedRoute actionText="arrange your lineup">
+                              <FantasyPickTeam />
                             </ProtectedRoute>
                           }
                         />
                         <Route
-                          path="/fantasy/my-team"
+                          path="/fantasy/transfers"
                           element={
-                            <ProtectedRoute actionText="see your squad">
-                              <FantasyMyTeam />
+                            <ProtectedRoute actionText="buy and sell players">
+                              <FantasyTransfers />
                             </ProtectedRoute>
                           }
+                        />
+                        {/* My Team was retired — its one unique feature (a
+                            past gameweek's pitch with points and a
+                            breakdown) already lives on the Points page via
+                            FantasyGameweekBreakdown. Old bookmarks land
+                            somewhere useful instead of 404ing. */}
+                        <Route
+                          path="/fantasy/my-team"
+                          element={<Navigate to="/fantasy/points" replace />}
                         />
                         <Route
                           path="/fantasy/points"
@@ -561,7 +570,7 @@ function App() {
                         />
                         <Route
                           path="/fantasy/trading"
-                          element={<Navigate to="/fantasy/build" replace />}
+                          element={<Navigate to="/fantasy/transfers" replace />}
                         />
                         <Route
                           path="/fantasy/leaderboard/:id"

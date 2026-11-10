@@ -79,3 +79,19 @@ export type {
 } from './autoFillLineup';
 export { isConfirmSkipped, setConfirmSkipped } from './confirmPreferences';
 export { sortStatRows } from './sortStatRows';
+export {
+  SLOT_DEFINITIONS,
+  isAllrounderPosition,
+  positionFitsSlot,
+  emptySquad,
+  formatPositions,
+  joinNames,
+  describePlayer,
+  isFemale,
+  unitOf,
+  getDefaultTeamName,
+  POSITION_GROUP_ORDER,
+  normalizeFantasyPosition,
+  groupPlayersByPosition,
+} from './fantasySlots';
+export type { SlotDefinition } from './fantasySlots';

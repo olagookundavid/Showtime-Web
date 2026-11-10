@@ -935,13 +935,13 @@ func (s *FantasyService) GetDashboard(ctx context.Context, userID, seasonID stri
 	}
 	res.Entered = true
 
-	rank, total, err := s.repo.GetTeamOverallRank(ctx, season.ID, team.ID)
+	rank, total, movement, err := s.repo.GetTeamOverallRankTrend(ctx, season.ID, team.ID)
 	if err != nil {
 		return nil, err
 	}
 	res.Team = &dto.DashboardTeam{
 		ID: team.ID, Name: team.Name, TotalPoints: team.TotalPoints,
-		OverallRank: rank, TotalManagers: total,
+		OverallRank: rank, TotalManagers: total, RankMovement: movement,
 	}
 
 	if leagues, err := s.leagueRepo.ListMyLeaguesWithRank(ctx, userID, season.ID); err == nil {

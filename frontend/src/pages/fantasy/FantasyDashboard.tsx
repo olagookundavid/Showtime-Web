@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import {
-  TrophyIcon,
   ShieldCheckIcon,
   ClockIcon,
   LockClosedIcon,
@@ -12,30 +11,29 @@ import {
   ArrowRightIcon,
   SparklesIcon,
   ChartBarIcon,
+  CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ChevronDoubleLeftIcon,
-  ChevronDoubleRightIcon,
-  MapPinIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
 import {
+  fantasyApi,
   fantasySeasonApi,
   fantasySquadApi,
   fantasyWalletApi,
   formatFantasyPrice,
   formatKobo,
+  getMatches,
 } from "../../services/api";
 import type {
   DashboardLeagueRow,
   FantasyLineupPick,
-  LeaderboardEntry,
+  Match,
+  RankMovement,
 } from "../../types";
-import { Loader, FantasyPitch, FantasyTeamModal, Spinner, Button, IconButton, FantasyNewsCarousel, ButtonLink, Modal, Field, Input } from "../../components";
-import { formatStatDecimal } from "../../utils";
+import { Loader, FantasyPitch, Button, IconButton, Spinner, FantasyNewsCarousel, FantasyStandingRow, ButtonLink, Modal, Field, Input } from "../../components";
+import { formatStatDecimal, formatMatchTime } from "../../utils";
 import { useAuth } from "../../contexts";
-import { useFantasyLeaderboard, rankBadgeClass } from "../../hooks";
-import { OVERALL } from "../../constants";
 
 function getDefaultTeamName(userName?: string | null): string {
   const clean = (userName || "").trim();
@@ -104,294 +102,276 @@ function useCountdown(deadline?: string | null): CountdownParts | null {
   return countdown && countdown.deadline === deadline ? countdown.parts : null;
 }
 
-/** One leaderboard row, shared by the pinned podium and the paged window. */
-function LeaderboardRow({
-  entry,
-  fallbackRank,
-  isMe,
-  onSelect,
+interface StandingRow {
+  key: string;
+  to: string;
+  name: string;
+  rank: number;
+  movement?: RankMovement;
+  isOverall: boolean;
+}
+
+/**
+ * Standings panel: the manager's own position in Overall and in every
+ * mini-league they're in, each a link straight to that table's full page.
+ */
+function MyStandings({
+  seasonId,
+  team,
+  leagues,
 }: {
-  entry: LeaderboardEntry;
-  fallbackRank: number;
-  isMe: boolean;
-  onSelect?: (teamId: string) => void;
+  seasonId: string;
+  team?: {
+    overall_rank: number;
+    rank_movement?: RankMovement;
+  };
+  leagues: DashboardLeagueRow[];
 }) {
-  const rank = num(entry?.rank) > 0 ? num(entry.rank) : fallbackRank;
-  const canClick = Boolean(onSelect && entry?.team_id);
+  const rows: StandingRow[] = [
+    {
+      key: "overall",
+      to: `/fantasy/leaderboard/${seasonId}?type=overall`,
+      name: "Overall",
+      rank: num(team?.overall_rank),
+      movement: team?.rank_movement,
+      isOverall: true,
+    },
+    ...(leagues ?? [])
+      .filter((l) => !!l?.league_id && l.type !== "OVERALL")
+      .map((l) => ({
+        key: l.league_id,
+        to: `/fantasy/leaderboard/${l.league_id}`,
+        name: l.name || "Unnamed league",
+        rank: num(l.my_rank),
+        movement: l.rank_movement,
+        isOverall: false,
+      })),
+  ];
+
   return (
-    <div
-      onClick={canClick ? () => onSelect!(entry.team_id!) : undefined}
-      role={canClick ? "button" : undefined}
-      tabIndex={canClick ? 0 : undefined}
-      onKeyDown={
-        canClick
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelect!(entry.team_id!);
-              }
-            }
-          : undefined
-      }
-      aria-label={
-        canClick
-          ? `${entry?.team_name || "Unnamed squad"}, rank ${rank > 0 ? rank : "unranked"}. View their squad`
-          : undefined
-      }
-      className={`min-h-11 px-3 py-3 flex items-center justify-between gap-3 rounded-xl transition ${
-        isMe
-          ? "bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-inset ring-emerald-500/40"
-          : ""
-      } ${canClick ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/60 group" : ""}`}
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankBadgeClass(rank)}`}
-        >
-          {rank > 0 ? rank : "—"}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5 min-w-0">
-            <span className="min-w-0 truncate group-hover:text-sffl-red transition-colors">
-              {entry?.team_name || "Unnamed squad"}
-            </span>
-            {isMe && (
-              <span className="ml-1 shrink-0 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                You
-              </span>
-            )}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-            {entry?.user_name || "—"}
-          </p>
+    <div>
+      <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2 mb-4">
+        <ChartBarIcon className="w-5 h-5 text-sffl-red" /> Standings
+      </h2>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+          Your position in every table you're part of. Tap one for the full standings.
+        </p>
+
+        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+          {rows.map((row) => (
+            <FantasyStandingRow
+              key={row.key}
+              to={row.to}
+              name={row.name}
+              rank={row.rank}
+              movement={row.movement}
+              isOverall={row.isOverall}
+            />
+          ))}
         </div>
       </div>
-      <p className="text-sm font-black text-sffl-red shrink-0">
-        {formatStatDecimal(num(entry?.total_points), 2)} pts
-      </p>
     </div>
   );
 }
 
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** "Fri 23 Oct" — the day-first style the fixtures panel groups matches by. */
+function formatFixtureDay(dateString: string): string {
+  const datePart = dateString.split("T")[0];
+  const [year, month, day] = datePart.split("-").map((p) => parseInt(p, 10));
+  if (!year || !month || !day) return dateString;
+  const d = new Date(year, month - 1, day);
+  return `${WEEKDAY_LABELS[d.getDay()]} ${d.getDate()} ${MONTH_LABELS[d.getMonth()]}`;
+}
+
+/** "Fri 23 Oct, 18:30" — the gameweek deadline, converted to the viewer's own clock. */
+function formatFixtureDeadline(deadline?: string | null): string {
+  if (!deadline) return "To be announced";
+  const d = new Date(deadline);
+  if (Number.isNaN(d.getTime())) return "To be announced";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${WEEKDAY_LABELS[d.getDay()]} ${d.getDate()} ${MONTH_LABELS[d.getMonth()]}, ${hh}:${mm}`;
+}
+
+/** One fixture row: home name+crest, kickoff time (or score once underway), away crest+name. */
+function FixtureRow({ match }: { match: Match }) {
+  const isLiveOrDone = match.status === "FINISHED" || match.status === "LIVE";
+  return (
+    <Link
+      to={`/matches/${match.id}`}
+      className="flex items-center justify-center gap-3 py-3 px-2 -mx-2 rounded-lg transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
+    >
+      <div className="flex-1 min-w-0 flex items-center justify-end gap-2">
+        <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+          {match.home_team?.short_name || match.home_team?.name || "TBD"}
+        </span>
+        <img
+          src={match.home_team?.logo || "/images/default_football.webp"}
+          alt=""
+          aria-hidden="true"
+          className="w-6 h-6 object-contain shrink-0"
+        />
+      </div>
+      <span className="shrink-0 w-16 text-center text-sm font-black text-sffl-navy dark:text-white tabular-nums">
+        {isLiveOrDone ? `${match.home_score} - ${match.away_score}` : formatMatchTime(match.start_time, match.date)}
+      </span>
+      <div className="flex-1 min-w-0 flex items-center justify-start gap-2">
+        <img
+          src={match.away_team?.logo || "/images/default_football.webp"}
+          alt=""
+          aria-hidden="true"
+          className="w-6 h-6 object-contain shrink-0"
+        />
+        <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+          {match.away_team?.short_name || match.away_team?.name || "TBD"}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 /**
- * Standings panel: Overall plus every league the manager is in, a pinned top 3
- * and a paged window that opens on the manager's own page.
+ * Fixtures panel: one gameweek's real-world matches at a time, grouped by
+ * day, stepped through with Previous/Next. Next is disabled once there's no
+ * later gameweek to step to yet.
  */
-function DashboardLeaderboard({
+function FixturesPanel({
   seasonId,
-  leagues,
-  myTeamId,
   currentGameweekId,
 }: {
   seasonId: string;
-  leagues: DashboardLeagueRow[];
-  myTeamId?: string;
   currentGameweekId?: string;
 }) {
-  const { user } = useAuth();
-  const [scope, setScope] = useState<string>(OVERALL);
-  const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
-
-  const leagueOptions = (leagues ?? [])
-    .filter((l) => !!l?.league_id && l.type !== "OVERALL")
-    .map((l) => ({ id: l.league_id, name: l.name || "Unnamed league" }));
-
-  const {
-    isLoading,
-    isEmpty,
-    topThree,
-    windowRows,
-    total,
-    totalPages,
-    page,
-    myRank,
-    canJumpToMe,
-    allOnPodium,
-    goToPage,
-    jumpToMe,
-    resetPaging,
-    fallbackRankAt,
-  } = useFantasyLeaderboard({
-    seasonId,
-    scope,
-    queryPrefix: "fantasyDashLeaderboard",
+  const { data: gameweeks = [] } = useQuery({
+    queryKey: ["fantasyGameweeks", seasonId],
+    queryFn: () => fantasyApi.getGameweeks(seasonId),
+    enabled: !!seasonId,
   });
 
-  const safePage = page;
+  const sortedGameweeks = useMemo(
+    () => [...gameweeks].sort((a, b) => a.number - b.number),
+    [gameweeks],
+  );
 
-  const selectScope = (next: string) => {
-    setScope(next);
-    resetPaging();
-  };
+  const [requestedGwId, setRequestedGwId] = useState("");
+  // Defaults to the gameweek the dashboard already has open, falling back to
+  // the latest one known so far if that's not (yet) in the list.
+  const defaultGwId =
+    currentGameweekId && sortedGameweeks.some((gw) => gw.id === currentGameweekId)
+      ? currentGameweekId
+      : sortedGameweeks[sortedGameweeks.length - 1]?.id ?? "";
+  const selectedGwId = sortedGameweeks.some((gw) => gw.id === requestedGwId)
+    ? requestedGwId
+    : defaultGwId;
 
-  const isRowMe = (entry: LeaderboardEntry | undefined) => {
-    if (!entry) return false;
-    if (user?.id && entry.user_id && entry.user_id === user.id) return true;
-    if (myTeamId && entry.team_id && entry.team_id === myTeamId) return true;
-    return false;
-  };
+  const selectedIndex = sortedGameweeks.findIndex((gw) => gw.id === selectedGwId);
+  const selectedGameweek = selectedIndex >= 0 ? sortedGameweeks[selectedIndex] : undefined;
 
-  const myEntry = topThree.find(isRowMe) || windowRows.find(isRowMe);
-  const effectiveRank = myEntry?.rank ? num(myEntry.rank) : myRank;
+  const { data: matchesRes, isLoading: matchesLoading } = useQuery({
+    queryKey: ["fantasyFixtures", selectedGameweek?.event_day_id],
+    queryFn: () => getMatches(undefined, 1, 100, undefined, undefined, undefined, selectedGameweek?.event_day_id),
+    enabled: !!selectedGameweek?.event_day_id,
+  });
+  const fixtures = useMemo(() => matchesRes?.data ?? [], [matchesRes]);
 
-  const fullTableTo =
-    scope === OVERALL
-      ? `/fantasy/leaderboard/${seasonId}?type=overall`
-      : `/fantasy/leaderboard/${scope}`;
+  const canGoPrev = selectedIndex > 0;
+  const canGoNext = selectedIndex >= 0 && selectedIndex < sortedGameweeks.length - 1;
+
+  const dayGroups = useMemo(() => {
+    const byDay = new Map<string, Match[]>();
+    for (const m of fixtures) {
+      const key = (m.date || "").split("T")[0];
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key)!.push(m);
+    }
+    return Array.from(byDay.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [fixtures]);
+
+  const dateRangeLabel = useMemo(() => {
+    if (dayGroups.length === 0) return "";
+    const first = dayGroups[0][0];
+    const last = dayGroups[dayGroups.length - 1][0];
+    return first === last ? formatFixtureDay(first) : `${formatFixtureDay(first)} - ${formatFixtureDay(last)}`;
+  }, [dayGroups]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div>
-          <h2 className="text-base font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
-            <ChartBarIcon className="w-5 h-5 text-sffl-red" /> Standings
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            {effectiveRank > 0
-              ? `You are ranked #${effectiveRank.toLocaleString()}${total > 0 ? ` of ${total.toLocaleString()}` : ""} here`
-              : "Season leaders across the table you pick"}
-          </p>
-        </div>
-        <Link
-          to={fullTableTo}
-          className="min-h-11 text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition shrink-0"
-        >
-          Full Table <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
-        </Link>
-      </div>
-
-      {/* League filter */}
-      <div className="flex flex-wrap gap-2 pb-4 mb-2 border-b border-gray-100 dark:border-gray-700">
-        <Button
-          size="sm"
-          variant={scope === OVERALL ? "navy" : "secondary"}
-          aria-pressed={scope === OVERALL}
-          onClick={() => selectScope(OVERALL)}
-        >
-          Overall
-        </Button>
-        {leagueOptions.map((o) => (
-          <Button
-            key={o.id}
-            size="sm"
-            variant={scope === o.id ? "navy" : "secondary"}
-            aria-pressed={scope === o.id}
-            onClick={() => selectScope(o.id)}
-          >
-            {o.name}
-          </Button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <Spinner label="Loading the table…" className="py-10" />
-      ) : isEmpty ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-          No manager has scored in this table yet. Be the first on the board.
-        </p>
-      ) : (
-        <>
-          {/* Pinned top 3 */}
-          {topThree.length > 0 && (
-            <div className="mb-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
-                <TrophyIcon className="w-3.5 h-3.5 text-amber-500" /> Top 3
-              </p>
-              <div className="bg-gray-50 dark:bg-gray-700/40 divide-y divide-gray-100 dark:divide-gray-700">
-                {topThree.map((entry, idx) => (
-                  <LeaderboardRow
-                    key={entry?.team_id ?? `top-${idx}`}
-                    entry={entry}
-                    fallbackRank={idx + 1}
-                    isMe={isRowMe(entry)}
-                    onSelect={(id) => setInspectingTeamId(id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Paged window */}
-          <div className="flex items-center justify-between gap-3 mb-1.5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Rest of the table
+    <div>
+      <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2 mb-4">
+        <CalendarDaysIcon className="w-5 h-5 text-sffl-red" /> Fixtures
+      </h2>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-5 md:p-6 shadow-sm">
+        <div className="flex items-center justify-center gap-4 sm:gap-6 mb-3">
+          <IconButton
+            variant="secondary"
+            icon={ChevronLeftIcon}
+            label="Previous gameweek"
+            disabled={!canGoPrev}
+            onClick={() => setRequestedGwId(sortedGameweeks[selectedIndex - 1].id)}
+          />
+          <div className="text-center min-w-0">
+            <p className="text-base sm:text-lg font-black uppercase tracking-wide text-sffl-navy dark:text-white">
+              {selectedGameweek ? `Gameweek ${selectedGameweek.number}` : "No Gameweeks Yet"}
             </p>
-            {canJumpToMe && (
-              <Button size="sm" variant="secondary" icon={MapPinIcon} onClick={jumpToMe}>
-                Jump to me
-              </Button>
+            {!matchesLoading && dateRangeLabel && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{dateRangeLabel}</p>
             )}
           </div>
+          <IconButton
+            variant="secondary"
+            icon={ChevronRightIcon}
+            label="Next gameweek"
+            disabled={!canGoNext}
+            onClick={() => setRequestedGwId(sortedGameweeks[selectedIndex + 1].id)}
+          />
+        </div>
 
-          {windowRows.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-              {allOnPodium
-                ? "Everyone in this table is on the podium above."
-                : "Nothing more to show on this page."}
+        {selectedGameweek && (
+          <div className="text-center mb-5">
+            <p className="text-sm font-bold text-sffl-navy dark:text-white">
+              Deadline: {formatFixtureDeadline(selectedGameweek.deadline)}
             </p>
-          ) : (
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              {windowRows.map((entry, idx) => (
-                <LeaderboardRow
-                  key={entry?.team_id ?? `row-${idx}`}
-                  entry={entry}
-                  fallbackRank={fallbackRankAt(idx)}
-                  isMe={isRowMe(entry)}
-                  onSelect={(id) => setInspectingTeamId(id)}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
-            <span className="font-bold">
-              Page {safePage} of {totalPages}
-              {total > 0
-                ? ` • ${total.toLocaleString()} manager${total === 1 ? "" : "s"}`
-                : ""}
-            </span>
-            <div className="flex items-center gap-2">
-              <IconButton
-                variant="secondary"
-                icon={ChevronDoubleLeftIcon}
-                label="First page"
-                disabled={safePage === 1}
-                onClick={() => goToPage(1)}
-              />
-              <IconButton
-                variant="secondary"
-                icon={ChevronLeftIcon}
-                label="Previous page"
-                disabled={safePage <= 1}
-                onClick={() => goToPage(safePage - 1)}
-              />
-              <IconButton
-                variant="secondary"
-                icon={ChevronRightIcon}
-                label="Next page"
-                disabled={safePage >= totalPages}
-                onClick={() => goToPage(safePage + 1)}
-              />
-              <IconButton
-                variant="secondary"
-                icon={ChevronDoubleRightIcon}
-                label="Last page"
-                disabled={safePage >= totalPages}
-                onClick={() => goToPage(totalPages)}
-              />
-            </div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+              Deadline in your local time · kick-offs in West Africa Time (WAT)
+            </p>
           </div>
-        </>
-      )}
+        )}
 
-      {/* Team Inspection Modal */}
-      <FantasyTeamModal
-        isOpen={Boolean(inspectingTeamId)}
-        onClose={() => setInspectingTeamId(null)}
-        teamId={inspectingTeamId}
-        seasonId={seasonId}
-        initialGameweekId={currentGameweekId}
-      />
+        {matchesLoading ? (
+          <Spinner label="Loading fixtures…" className="py-10" />
+        ) : !selectedGameweek ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+            No gameweeks have been scheduled yet.
+          </p>
+        ) : fixtures.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+            No fixtures found for Gameweek {selectedGameweek.number}.
+          </p>
+        ) : (
+          <div className="space-y-5">
+            {dayGroups.map(([dateKey, dayMatches]) => (
+              <div key={dateKey} className="flex gap-3 sm:gap-4">
+                <div className="shrink-0 pt-3">
+                  <p className="text-[11px] sm:text-xs font-black uppercase text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {formatFixtureDay(dateKey)}
+                  </p>
+                </div>
+                <div className="flex-1 min-w-0 divide-y divide-gray-100 dark:divide-gray-700">
+                  {dayMatches.map((match) => (
+                    <FixtureRow key={match.id} match={match} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -600,6 +580,10 @@ export function FantasyDashboard() {
 
   const rank = num(team?.overall_rank);
   const totalManagers = num(team?.total_managers);
+  // Pick Team only arranges players already owned — a manager with no squad
+  // yet has nothing to arrange, so these CTAs send them to sign players
+  // first instead of to a page with nothing for them to do.
+  const needsSquad = !squad || squad.players.length === 0;
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -619,9 +603,21 @@ export function FantasyDashboard() {
         <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="p-4 bg-white/10">
             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
+              Season Total
+            </span>
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight break-all">
+              {formatStatDecimal(num(team?.total_points), 2)}
+            </span>
+            <span className="block text-xs text-gray-300 font-bold mt-0.5">
+              All gameweeks
+            </span>
+          </div>
+
+          <div className="p-4 bg-white/10">
+            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
               Overall Rank
             </span>
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-yellow-400 leading-tight break-all">
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight break-all">
               {rank > 0 ? `#${rank.toLocaleString()}` : "—"}
             </span>
             <span className="block text-xs text-gray-300 font-bold mt-0.5">
@@ -642,18 +638,6 @@ export function FantasyDashboard() {
             </span>
             <span className="block text-xs text-gray-300 font-bold mt-0.5">
               This match day
-            </span>
-          </div>
-
-          <div className="p-4 bg-white/10">
-            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
-              Season Total
-            </span>
-            <span className="text-2xl sm:text-3xl md:text-4xl font-black text-emerald-400 leading-tight break-all">
-              {formatStatDecimal(num(team?.total_points), 2)}
-            </span>
-            <span className="block text-xs text-gray-300 font-bold mt-0.5">
-              All gameweeks
             </span>
           </div>
 
@@ -769,13 +753,13 @@ export function FantasyDashboard() {
 
           {!deadlinePassed && (
             <ButtonLink
-              to="/fantasy/build"
+              to={needsSquad ? "/fantasy/transfers" : "/fantasy/build"}
               variant="primary"
               shape="square"
               icon={PencilSquareIcon}
               className="shrink-0"
             >
-              Edit Squad
+              {needsSquad ? "Sign Your Squad" : "Edit Squad"}
             </ButtonLink>
           )}
         </div>
@@ -794,20 +778,22 @@ export function FantasyDashboard() {
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               No squad is set for{" "}
               {gameweek ? `Gameweek ${gameweek.number}` : "this gameweek"} yet.
-              Pick your{" "}
+              {needsSquad
+                ? " Sign your "
+                : " Pick your "}
               {num(season.squad_size) > 0
                 ? `${num(season.squad_size)}-player`
                 : ""}{" "}
               squad to start scoring points.
             </p>
             <ButtonLink
-              to="/fantasy/build"
+              to={needsSquad ? "/fantasy/transfers" : "/fantasy/build"}
               variant="primary"
               shape="square"
               icon={ArrowRightIcon}
               iconPosition="right"
             >
-              Build My Squad
+              {needsSquad ? "Sign Players To Build Your Squad" : "Set Your Lineup"}
             </ButtonLink>
           </div>
         ) : (
@@ -870,12 +856,7 @@ export function FantasyDashboard() {
         )}
 
       {/* Standings */}
-      <DashboardLeaderboard
-        seasonId={season.id}
-        leagues={leagues}
-        myTeamId={team?.id}
-        currentGameweekId={gameweek?.id}
-      />
+      <MyStandings seasonId={season.id} team={team} leagues={leagues} />
 
       {/* My leagues */}
       <div>
@@ -944,6 +925,9 @@ export function FantasyDashboard() {
           </div>
         )}
       </div>
+
+      {/* Fixtures */}
+      <FixturesPanel seasonId={season.id} currentGameweekId={gameweek?.id} />
     </div>
   );
 }

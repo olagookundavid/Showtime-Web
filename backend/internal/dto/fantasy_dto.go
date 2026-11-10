@@ -95,6 +95,9 @@ type DashboardTeam struct {
 	GameweekPoints float64 `json:"gameweek_points"`
 	OverallRank    int     `json:"overall_rank"`
 	TotalManagers  int     `json:"total_managers"`
+	// RankMovement is "UP", "DOWN" or "SAME" against the rank before the last
+	// scored gameweek, or "" when there is no prior gameweek to compare.
+	RankMovement string `json:"rank_movement,omitempty"`
 }
 
 // DashboardLeagueRow is one of the manager's mini-leagues and where they sit.
@@ -105,6 +108,9 @@ type DashboardLeagueRow struct {
 	MemberCount  int    `json:"member_count"`
 	MyRank       int    `json:"my_rank"`
 	EntryFeeKobo int64  `json:"entry_fee_kobo"`
+	// RankMovement is "UP", "DOWN" or "SAME" against the rank before the last
+	// scored gameweek, or "" when there is no prior gameweek to compare.
+	RankMovement string `json:"rank_movement,omitempty"`
 }
 
 // FantasyDashboardResponse is everything the manager's weekly landing page
