@@ -127,6 +127,32 @@ const dayToCheckin = (
   t.days.find((d) => filterDayId && d.event_day_id === filterDayId) ??
   t.days.find((d) => d.date === today);
 
+// When the ticket was checked in, as an ISO time, or undefined if it has not been.
+// A Game Pass is checked in per match day, so this is the day the list is filtered
+// to (or its latest check-in when the list shows every day). A Season Pass has no
+// match days: it shows when it last got its holder in.
+const checkinAt = (t: TicketResponse, filterDayId: string): string | undefined => {
+  if (t.purchase_type === "SEASON_PASS") return t.last_entry_at;
+  const day = t.days.find((d) => filterDayId && d.event_day_id === filterDayId);
+  if (day) return day.checked_in_at;
+  return t.days
+    .map((d) => d.checked_in_at)
+    .filter((at): at is string => !!at)
+    .sort()
+    .pop();
+};
+
+// "8 Nov, 6:51 PM" in Lagos time, which is where the games are played.
+const formatCheckin = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lagos",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(iso));
+
 // Every match day on a ticket, with a tick once it has been attended. A Season
 // Pass has no match days: it says when it ends instead.
 const TicketDays = ({ ticket }: { ticket: TicketResponse }) =>
@@ -547,6 +573,21 @@ export const AdminTickets = () => {
             {t.status}
           </span>
         ),
+      },
+      {
+        header: "Checked in",
+        sortable: true,
+        sortValue: (t) => checkinAt(t, selectedEventDay) ?? "",
+        cell: (t) => {
+          const at = checkinAt(t, selectedEventDay);
+          return at ? (
+            <span className="whitespace-nowrap text-sm font-semibold dark:text-white">
+              {formatCheckin(at)}
+            </span>
+          ) : (
+            <span className="text-gray-400">—</span>
+          );
+        },
       },
       {
         header: "Actions",

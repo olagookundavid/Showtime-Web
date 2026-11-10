@@ -649,7 +649,8 @@ const ticketColumns = `t.id, t.product_id, t.product_name, t.purchase_type, t.em
 	t.referral_code, t.created_at, t.updated_at, t.discount_code, t.discount_amount,
 	t.game_pass_discount_percent::float8, t.game_pass_discount_amount, t.season_pass_id::text,
 	(SELECT to_char(sp.ends_on, 'YYYY-MM-DD') FROM season_passes sp WHERE sp.id = t.season_pass_id),
-	t.player_id::text, t.match_id::text, COALESCE(t.team_role, '')`
+	t.player_id::text, t.match_id::text, COALESCE(t.team_role, ''),
+	(SELECT MAX(e.created_at) FROM season_pass_entries e WHERE e.ticket_id = t.id)`
 
 func scanTicket(row pgx.Row, t *domain.Ticket) error {
 	return row.Scan(
@@ -658,7 +659,7 @@ func scanTicket(row pgx.Row, t *domain.Ticket) error {
 		&t.TotalAmount, &t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.ReferralCode, &t.CreatedAt, &t.UpdatedAt, &t.DiscountCode, &t.DiscountAmount,
 		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount, &t.SeasonPassID, &t.ValidUntil,
-		&t.PlayerID, &t.MatchID, &t.TeamRole,
+		&t.PlayerID, &t.MatchID, &t.TeamRole, &t.LastEntryAt,
 	)
 }
 

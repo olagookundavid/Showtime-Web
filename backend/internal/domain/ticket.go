@@ -165,10 +165,14 @@ type Ticket struct {
 	// TeamRole says whose slot a team ticket is: a PLAYER on the sheet, a MANAGER
 	// of the team, or an EXTRA person the manager gave one to. Empty on every other
 	// kind of ticket.
-	TeamRole     TeamTicketRole `json:"team_role,omitempty"`
-	ReferralCode *string        `json:"referral_code,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	TeamRole TeamTicketRole `json:"team_role,omitempty"`
+	// LastEntryAt is when a season pass last got its holder in. A season pass has no
+	// match days to carry a check-in time, so this stands in for it. Nil for every
+	// other ticket, and for a pass not yet used.
+	LastEntryAt  *time.Time `json:"last_entry_at,omitempty"`
+	ReferralCode *string    `json:"referral_code,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 
 	// Relations
 	Days []TicketDay `json:"days,omitempty"`

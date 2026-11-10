@@ -1070,6 +1070,9 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 	if t.SeasonPassID != nil {
 		res.SeasonPassID = *t.SeasonPassID
 	}
+	if t.LastEntryAt != nil {
+		res.LastEntryAt = t.LastEntryAt.UTC().Format(time.RFC3339)
+	}
 	if t.ValidUntil != nil {
 		res.ValidUntil = *t.ValidUntil
 	}
