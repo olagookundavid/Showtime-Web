@@ -143,6 +143,8 @@ export interface TicketResponse {
     /** Set for a Season Pass: the last day it lets people in (YYYY-MM-DD). It has no match days. */
     season_pass_id?: string;
     valid_until?: string;
+    /** Set for a Season Pass: when it last got its holder in (it has no match days to carry a check-in). */
+    last_entry_at?: string;
     /** Set on a player ticket looked up by code: who it admits and for which match. */
     player?: PlayerTicketHolder;
     days: TicketDayResponse[];
