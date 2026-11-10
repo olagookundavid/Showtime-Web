@@ -12,7 +12,7 @@ import {
 import {
   getManagerCandidates,
   getTeamManagers,
-} from "../../services/api";
+} from "../../services";
 import type { Team, TeamManager } from "../../types";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ConfirmSummary } from "../ui/ConfirmSummary";

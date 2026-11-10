@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"showtime-backend/internal/domain"
+	"showtime-backend/internal/dto"
 	"testing"
 	"time"
 )
@@ -220,26 +221,26 @@ func TestGenerateQuarterfinalPairings(t *testing.T) {
 	}
 }
 
-func TestCupKnockoutMatches(t *testing.T) {
-	qf := []MatchupPair{
-		{HomeTeamID: "s1", AwayTeamID: "s5"},
-		{HomeTeamID: "s2", AwayTeamID: "s6"},
-		{HomeTeamID: "s3", AwayTeamID: "s7"},
-		{HomeTeamID: "s4", AwayTeamID: "s8"},
+func TestCupKnockoutSlots(t *testing.T) {
+	day := func(d int) cupDay {
+		return cupDay{day: time.Date(2026, 12, d, 0, 0, 0, 0, time.UTC), first: time.Date(0, 1, 1, 13, 20, 0, 0, time.UTC)}
 	}
-	day := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
-	matches := cupKnockoutMatches("comp", qf, day, day, "Venue")
+	days := map[string]cupDay{domain.CupRoundQF: day(6), domain.CupRoundSF: day(13), domain.CupRoundFinal: day(20)}
+	matches := cupKnockoutSlots("comp", days, 80*time.Minute, "Venue")
 	if len(matches) != 7 {
-		t.Fatalf("expected 7 knockout matches, got %d", len(matches))
+		t.Fatalf("expected 7 knockout slots, got %d", len(matches))
 	}
 
-	// Give each match the ID the repo would, in insert order, then check the
+	// Give each slot the ID the repo would, in insert order, then check the
 	// feed pointers resolve to the right parent.
 	for i, m := range matches {
 		m.ID = fmt.Sprintf("m%d", i)
 	}
 	byRound := map[string][]*domain.Match{}
 	for _, m := range matches {
+		if m.HomeTeamID != "" || m.AwayTeamID != "" {
+			t.Errorf("%s slot %d should start with no teams", m.Round, *m.BracketPos)
+		}
 		byRound[m.Round] = append(byRound[m.Round], m)
 	}
 	final, sfs, qfs := byRound[domain.CupRoundFinal], byRound[domain.CupRoundSF], byRound[domain.CupRoundQF]
@@ -254,30 +255,157 @@ func TestCupKnockoutMatches(t *testing.T) {
 			t.Errorf("SF %d does not feed the Final", *sf.BracketPos)
 		}
 	}
-
-	// Top to bottom: 1v5 and 4v8 into SF1, 2v6 and 3v7 into SF2.
-	want := []struct {
-		home, away, sf, slot string
-	}{
-		{"s1", "s5", sfs[0].ID, "HOME"},
-		{"s4", "s8", sfs[0].ID, "AWAY"},
-		{"s2", "s6", sfs[1].ID, "HOME"},
-		{"s3", "s7", sfs[1].ID, "AWAY"},
-	}
+	// Top to bottom: QF 1 and 2 into SF1, QF 3 and 4 into SF2.
+	want := []struct{ sf, side string }{{sfs[0].ID, "HOME"}, {sfs[0].ID, "AWAY"}, {sfs[1].ID, "HOME"}, {sfs[1].ID, "AWAY"}}
 	for i, w := range want {
 		m := qfs[i]
 		if *m.BracketPos != i+1 {
 			t.Errorf("QF %d has bracket_pos %d", i+1, *m.BracketPos)
 		}
-		if m.HomeTeamID != w.home || m.AwayTeamID != w.away {
-			t.Errorf("QF %d: got %s v %s, want %s v %s", i+1, m.HomeTeamID, m.AwayTeamID, w.home, w.away)
-		}
-		if m.FeedsMatchID == nil || *m.FeedsMatchID != w.sf || m.FeedsSlot != w.slot {
+		if m.FeedsMatchID == nil || *m.FeedsMatchID != w.sf || m.FeedsSlot != w.side {
 			t.Errorf("QF %d feeds the wrong semifinal slot", i+1)
 		}
+		wantKick := time.Date(0, 1, 1, 13, 20, 0, 0, time.UTC).Add(time.Duration(i) * 80 * time.Minute)
+		if !m.StartTime.Equal(wantKick) {
+			t.Errorf("QF %d kicks off %s, want %s", i+1, m.StartTime.Format("15:04"), wantKick.Format("15:04"))
+		}
 	}
-	if !qfs[0].Date.Equal(day) || !sfs[0].Date.Equal(day.AddDate(0, 0, 7)) || !final[0].Date.Equal(day.AddDate(0, 0, 14)) {
-		t.Errorf("knockout dates should be the QF day, +7 and +14 days")
+	if !qfs[0].Date.Equal(days[domain.CupRoundQF].day) || !sfs[0].Date.Equal(days[domain.CupRoundSF].day) || !final[0].Date.Equal(days[domain.CupRoundFinal].day) {
+		t.Errorf("each knockout round should be on its own scheduled day")
+	}
+}
+
+// The QF fill puts 1v5 and 4v8 into SF1's feeders, 2v6 and 3v7 into SF2's.
+func TestCupQFPairForPos(t *testing.T) {
+	qf := []MatchupPair{{"s1", "s5"}, {"s2", "s6"}, {"s3", "s7"}, {"s4", "s8"}}
+	want := map[int]MatchupPair{1: {"s1", "s5"}, 2: {"s4", "s8"}, 3: {"s2", "s6"}, 4: {"s3", "s7"}}
+	for pos, w := range want {
+		if got := qf[cupQFPairForPos[pos]]; got != w {
+			t.Errorf("QF slot %d gets %v, want %v", pos, got, w)
+		}
+	}
+}
+
+func TestCupSwissSlots(t *testing.T) {
+	at := cupDay{day: time.Date(2026, 11, 22, 0, 0, 0, 0, time.UTC), first: time.Date(0, 1, 1, 13, 20, 0, 0, time.UTC)}
+	slots := cupSwissSlots("comp", domain.CupRound3, at, 80*time.Minute, "Showtime Arena", nil)
+	if len(slots) != 5 {
+		t.Fatalf("expected 5 slots, got %d", len(slots))
+	}
+	for i, want := range []string{"13:20", "14:40", "16:00", "17:20", "18:40"} {
+		m := slots[i]
+		if got := m.StartTime.Format("15:04"); got != want {
+			t.Errorf("slot %d kicks off %s, want %s", i+1, got, want)
+		}
+		if m.HomeTeamID != "" || m.AwayTeamID != "" || m.Round != domain.CupRound3 || !m.Date.Equal(at.day) {
+			t.Errorf("slot %d: want an empty Round 3 slot on its day, got %+v", i+1, m)
+		}
+	}
+	drawn := cupSwissSlots("comp", domain.CupRound1, at, 80*time.Minute, "", []MatchupPair{{"a", "b"}, {"c", "d"}, {"e", "f"}, {"g", "h"}, {"i", "j"}})
+	if drawn[4].HomeTeamID != "i" || drawn[4].AwayTeamID != "j" {
+		t.Errorf("Round 1's draw should fill its slots in order")
+	}
+}
+
+func TestGenerateSwissRoundPairings_ByRecord(t *testing.T) {
+	// After Round 1: five winners (ranks 1-5), five losers (6-10). Round 1
+	// was 1v6, 2v7, 3v8, 4v9, 5v10.
+	standings := make([]domain.Standing, 10)
+	past := map[string]map[string]bool{}
+	for i := range standings {
+		standings[i] = domain.Standing{TeamID: fmt.Sprintf("t%d", i+1), Position: i + 1}
+		if i < 5 {
+			standings[i].Won = 1
+		}
+	}
+	for i := 1; i <= 5; i++ {
+		a, b := fmt.Sprintf("t%d", i), fmt.Sprintf("t%d", i+5)
+		past[a] = map[string]bool{b: true}
+		past[b] = map[string]bool{a: true}
+	}
+	pairings, err := GenerateSwissRoundPairings(standings, past)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wins := map[string]int{}
+	for _, s := range standings {
+		wins[s.TeamID] = s.Won
+	}
+	mixed := 0
+	for _, p := range pairings {
+		if past[p.HomeTeamID][p.AwayTeamID] {
+			t.Errorf("rematch %s v %s", p.HomeTeamID, p.AwayTeamID)
+		}
+		if wins[p.HomeTeamID] != wins[p.AwayTeamID] {
+			mixed++
+		}
+	}
+	// Five winners can't all be paired with each other: exactly one winner
+	// must meet a loser, and no more.
+	if mixed != 1 {
+		t.Errorf("expected exactly 1 winner-v-loser pairing, got %d: %v", mixed, pairings)
+	}
+}
+
+func TestCupAutoFillDue(t *testing.T) {
+	day := time.Date(2026, 11, 8, 0, 0, 0, 0, time.UTC)
+	round := func(status domain.MatchStatus) []domain.Match {
+		ms := make([]domain.Match, 5)
+		for i := range ms {
+			ms[i] = domain.Match{Date: day, Status: status, HomeTeamID: "h", AwayTeamID: "a"}
+		}
+		return ms
+	}
+	empty := make([]domain.Match, 5)
+
+	due, ok := cupAutoFillDue(round(domain.MatchStatusFinished), empty)
+	if !ok || !due.Equal(day.AddDate(0, 0, 7)) {
+		t.Errorf("a finished round should fill the next a week later: got %v %v", due, ok)
+	}
+	if _, ok := cupAutoFillDue(round(domain.MatchStatusScheduled), empty); ok {
+		t.Errorf("an unfinished round must not fill the next")
+	}
+	if _, ok := cupAutoFillDue(round(domain.MatchStatusFinished), nil); ok {
+		t.Errorf("a round with no slots can't be filled")
+	}
+	if _, ok := cupAutoFillDue(round(domain.MatchStatusFinished), round(domain.MatchStatusScheduled)); ok {
+		t.Errorf("slots with teams already in them must not be filled again")
+	}
+}
+
+func TestParseCupSchedule(t *testing.T) {
+	existing := map[string][]domain.Match{
+		domain.CupRound1: {{Date: time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)}},
+		domain.CupRound2: {{Date: time.Date(2026, 11, 8, 0, 0, 0, 0, time.UTC)}},
+	}
+	need := []string{domain.CupRound3, domain.CupRoundQF, domain.CupRoundSF, domain.CupRoundFinal}
+	req := dto.SetupCupRequest{Rounds: []dto.CupRoundDate{
+		{Round: domain.CupRound3, Date: "2026-11-22", FirstKickoff: "13:20"},
+		{Round: domain.CupRoundQF, Date: "2026-12-06"},
+		{Round: domain.CupRoundSF, Date: "2026-12-13"},
+		{Round: domain.CupRoundFinal, Date: "2026-12-20"},
+	}}
+	days, gap, err := parseCupSchedule(req, need, existing)
+	if err != nil {
+		t.Fatalf("a valid schedule was refused: %v", err)
+	}
+	if gap != 80*time.Minute {
+		t.Errorf("default gap should be 80 minutes, got %v", gap)
+	}
+	if days[domain.CupRound3].first.Format("15:04") != "13:20" || days[domain.CupRoundQF].first.Format("15:04") != "12:00" {
+		t.Errorf("kickoffs not read as given / defaulted")
+	}
+
+	early := req
+	early.Rounds = append([]dto.CupRoundDate(nil), req.Rounds...)
+	early.Rounds[0].Date = "2026-11-01" // before Round 2's 8 Nov
+	if _, _, err := parseCupSchedule(early, need, existing); err == nil {
+		t.Errorf("Round 3 before Round 2 should be refused")
+	}
+
+	short := dto.SetupCupRequest{Rounds: req.Rounds[:3]}
+	if _, _, err := parseCupSchedule(short, need, existing); err == nil {
+		t.Errorf("a missing round date should be refused")
 	}
 }
 
@@ -332,6 +460,16 @@ func TestValidateKnockoutMatchKeepsCupSwissRound(t *testing.T) {
 		if m.Round != round {
 			t.Errorf("%s: round tag was cleared to %q", round, m.Round)
 		}
+	}
+	// A later Swiss round's empty slot can be saved (rescheduled) before it
+	// is filled, but not played without teams.
+	tbd := &domain.Match{Round: domain.CupRound3, Status: domain.MatchStatusScheduled}
+	if err := s.validateKnockoutMatch(context.Background(), tbd, false); err != nil {
+		t.Errorf("an empty Round 3 slot should save: %v", err)
+	}
+	tbd.Status = domain.MatchStatusFinished
+	if err := s.validateKnockoutMatch(context.Background(), tbd, false); err == nil {
+		t.Errorf("an empty slot must not be saved as finished")
 	}
 	m := &domain.Match{HomeTeamID: "a", AwayTeamID: "b", Round: "Week 1"}
 	if err := s.validateKnockoutMatch(context.Background(), m, false); err != nil {

@@ -7,7 +7,7 @@ import {
   getStandings,
   getCompetitions,
   getNews,
-} from "../services/api";
+} from "../services";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 // Hook for scroll animations

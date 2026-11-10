@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UserCircleIcon, KeyIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts';
-import { updateOwnProfile } from '../../services/api';
+import { updateOwnProfile } from '../../services';
 import { getApiErrorMessage } from '../../utils';
 import { ConfirmDialog, ConfirmSummary, Button, Field, Input } from '../../components';
 

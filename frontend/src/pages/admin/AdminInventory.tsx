@@ -22,7 +22,7 @@ import {
     getAdminPaymentMethods,
     createAdminPaymentMethod,
     toggleAdminPaymentMethod,
-} from '../../services/api';
+} from '../../services';
 import type { InventoryProduct, InventorySale, PaymentMethod } from '../../types';
 import { Loader, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, Input, Modal, Select, RichTextEditor, DashboardPageHeader } from '../../components';
 import { getApiErrorMessage } from '../../utils';

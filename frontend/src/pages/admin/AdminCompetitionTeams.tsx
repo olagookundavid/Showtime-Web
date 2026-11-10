@@ -9,7 +9,7 @@ import {
     getTeams,
     addTeamToCompetition,
     removeTeamFromCompetition,
-} from '../../services/api';
+} from '../../services';
 import type { Team } from '../../types';
 import { Loader, ConfirmDialog, ConfirmSummary, Button, LightboxImage, Select, DashboardPageHeader, TeamLink } from '../../components';
 

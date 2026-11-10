@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CreditCardIcon, ExclamationTriangleIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon } from '@heroicons/react/24/outline';
-import { getUserProfile, purchaseTicket, quoteTicketPrice } from '../../services/api';
-import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
+import { getUserProfile, purchaseTicket, quoteTicketPrice } from '../../services';
 import type { AuthUser, PurchaseTicketPayload, TicketProductDayResponse, TicketProductResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';
 import { dayLabel, formatDayShort, naira, sortDaysByDate } from './ticketFormat';
@@ -40,9 +39,6 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
-    // Consent must be given actively, so this starts unticked and stays out of
-    // the purchase validation — it can never block or fail a ticket sale.
-    const [joinNewsletter, setJoinNewsletter] = useState(false);
     // A purchase creates a ticket order, so it waits for an explicit confirm.
     const [confirmPurchase, setConfirmPurchase] = useState(false);
 
@@ -107,14 +103,6 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
             };
 
             const result = await purchaseTicket(payload);
-
-            // Fire-and-forget, deliberately after the sale succeeded and never
-            // awaited: `keepalive` lets it complete even though the next line
-            // navigates away to Paystack, and a failure here is invisible to
-            // the buyer rather than costing them their ticket.
-            if (joinNewsletter) {
-                void subscribeToNewsletter({ firstName: toFirstName(name), email }, { keepalive: true });
-            }
 
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
@@ -347,21 +335,9 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                         </div>
                     )}
 
-                    {/* Optional newsletter opt-in. Unticked by default — a pre-ticked box isn't consent. */}
-                    {newsletterEnabled && (
-                        <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/40">
-                            <Checkbox
-                                className="mt-0.5"
-                                checked={joinNewsletter}
-                                onChange={(e) => setJoinNewsletter(e.target.checked)}
-                            />
-                            <span className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-                                <span className="font-bold text-gray-800 dark:text-white">Send me the Showtime newsletter</span>
-                                <br />
-                                Fixtures, match news and ticket drops. Unsubscribe any time.
-                            </span>
-                        </label>
-                    )}
+                    <p className="text-center text-[11px] leading-relaxed text-gray-500">
+                        You will also get Showtime fixtures, match news and ticket drops by email. Unsubscribe any time.
+                    </p>
                     <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-gray-500">
                         {free ? (
                             <SparklesIcon className="h-4 w-4 shrink-0" aria-hidden="true" />

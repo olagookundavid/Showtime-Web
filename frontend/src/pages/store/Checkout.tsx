@@ -13,16 +13,11 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAuth, useCart } from "../../contexts";
 import {
-  newsletterEnabled,
-  subscribeToNewsletter,
-  toFirstName,
-} from "../../services/newsletter";
-import {
   getStoreProduct,
   getSavedAddresses,
   saveSavedAddress,
   initializeCheckout,
-} from "../../services/api";
+} from "../../services";
 import type { StoreProduct, SavedAddress, CheckoutPayload, DiscountPreview } from "../../types";
 import { LazyImage, DiscountCodeInput, Button, Checkbox, Field, Input, Textarea, Spinner } from "../../components";
 import { formatVariantLabel } from "../../utils";
@@ -49,9 +44,6 @@ export const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string>("");
   const [payError, setPayError] = useState<string>("");
-  // Consent must be given actively, so this starts unticked and stays out of
-  // checkout validation — it can never block or fail an order.
-  const [joinNewsletter, setJoinNewsletter] = useState(false);
   // Logged-in users can opt to persist this address to their address book.
   // Default ON when they don't have any saved addresses yet, OFF otherwise
   // (handled below once savedAddresses has loaded).
@@ -278,20 +270,6 @@ export const Checkout = () => {
       const response = await initializeCheckout(payload);
       if (!response) {
         throw new Error("No response received from merchant API.");
-      }
-
-      // Fire-and-forget, deliberately after the order succeeded and never
-      // awaited: `keepalive` lets it finish across the redirect to
-      // Paystack, and a failure here stays invisible to the customer
-      // rather than costing them their order.
-      if (joinNewsletter) {
-        void subscribeToNewsletter(
-          {
-            firstName: toFirstName(shippingForm.recipient_name),
-            email: shippingForm.email,
-          },
-          { keepalive: true },
-        );
       }
 
       // A code can cover the order in full. There is nothing to pay, so the
@@ -690,25 +668,6 @@ export const Checkout = () => {
                 >
                   {payError}
                 </div>
-              )}
-
-              {/* Optional newsletter opt-in. Unticked by default —
-                                a pre-ticked box isn't consent. */}
-              {newsletterEnabled && !isSubmitting && (
-                <label className="flex items-start gap-3 p-4 rounded-none bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 cursor-pointer">
-                  <Checkbox
-                    className="mt-0.5"
-                    checked={joinNewsletter}
-                    onChange={(e) => setJoinNewsletter(e.target.checked)}
-                  />
-                  <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                    <span className="font-black text-sffl-navy dark:text-white uppercase tracking-wider">
-                      Send me the Showtime newsletter
-                    </span>
-                    <br />
-                    Fixtures, match news and new drops. Unsubscribe any time.
-                  </span>
-                </label>
               )}
 
               {isSubmitting ? (

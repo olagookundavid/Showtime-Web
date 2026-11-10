@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { formatFantasyPrice } from "../../services/api";
+import { formatFantasyPrice } from "../../services";
 import type {
   FantasyLineupPick,
   FantasySlot,
@@ -578,7 +578,7 @@ export function FantasyPitch({
   useEffect(() => () => stopDragRef.current?.(), []);
 
   const handleSpotPointerDown = (
-    e: ReactPointerEvent<HTMLButtonElement>,
+    e: ReactPointerEvent<HTMLElement>,
     spot: PitchSpot,
   ) => {
     if (!canDrag || !bySlot.has(spot.slot)) return;
@@ -1022,7 +1022,7 @@ export function FantasyPitch({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onRemovePlayer(pick.player_id);
+                        onRemovePlayer(pick.player_id || "");
                       }}
                       aria-label={`Remove ${pick.player_name ?? "this player"} from your squad`}
                       title="Remove from squad"

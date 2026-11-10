@@ -1,7 +1,7 @@
 export { useDebounced } from './useDebounced';
 export { useHideOnScrollDown } from './useHideOnScrollDown';
 export { useIsScrolled } from './useIsScrolled';
-export { useNewsletterPrompt } from './useNewsletterPrompt';
+export { usePrivacyPolicyNotice } from './usePrivacyPolicyNotice';
 export { useReturnUrl, withReturnUrl } from './useReturnUrl';
 export { useFaqPage } from './useFaqPage';
 export { useLiveStream } from './useLiveStream';

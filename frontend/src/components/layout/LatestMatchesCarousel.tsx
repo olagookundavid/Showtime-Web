@@ -6,7 +6,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
-import { getMatches } from "../../services/api";
+import { getMatches } from "../../services";
 import type { Match } from "../../types";
 import { Loader } from "../ui/Loader";
 import { formatMatchTime } from "../../utils";

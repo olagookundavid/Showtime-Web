@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { getGamePassRules, getTicketProducts } from "../../services/api";
+import { getGamePassRules, getTicketProducts } from "../../services";
 import type {
   GamePassRule,
   TicketProductDayResponse,

@@ -6,7 +6,7 @@ import {
   getTOTWById,
   getLatestTOTW,
   getCurrentPOTWPoll,
-} from "../../services/api";
+} from "../../services";
 import type {
   POTWPoll,
   TOTWListItem,

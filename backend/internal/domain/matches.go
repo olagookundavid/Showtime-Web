@@ -30,8 +30,11 @@ var ValidCompetitionFormats = []string{
 }
 
 const (
-	TieBreakerRulePCT_PD_PF_PA_NAME = "PCT_PD_PF_PA_NAME"     // Rule 1: Win % -> Point Diff -> Points For -> Points Against -> Name
-	TieBreakerRuleH2H_PCT_PD_PF_PA_NAME = "H2H_PCT_PD_PF_PA_NAME" // Rule 2: Head-to-Head -> Win % -> Point Diff -> Points For -> Points Against -> Name
+	TieBreakerRulePCT_PD_PF_PA_NAME = "PCT_PD_PF_PA_NAME" // Rule 1: Win % -> Point Diff -> Points For -> Points Against -> Name
+	// Rule 2: Win % -> Head-to-Head (among teams tied on Win %) -> Point Diff ->
+	// Points For -> Points Against -> Name. The stored value keeps its original
+	// spelling; see RankStandings for the order actually applied.
+	TieBreakerRuleH2H_PCT_PD_PF_PA_NAME = "H2H_PCT_PD_PF_PA_NAME"
 )
 
 const (
@@ -41,10 +44,26 @@ const (
 	CupRoundQF    = "QUARTERFINAL"
 	CupRoundSF    = "SEMIFINAL"
 	CupRoundFinal = "FINAL"
-	// CupRoundCompleted is stored once the Final is signed off; the
-	// competition is marked completed at the same time.
+	// CupRoundCompleted marks a finished cup (older cups were closed this way).
 	CupRoundCompleted = "COMPLETED"
 )
+
+// CupRounds lists a cup's rounds in playing order. Every round's match slots
+// are created, dated, when the cup is set up; later rounds start without teams.
+var CupRounds = []string{CupRound1, CupRound2, CupRound3, CupRoundQF, CupRoundSF, CupRoundFinal}
+
+// CupRoundSlots is how many matches each cup round has.
+var CupRoundSlots = map[string]int{
+	CupRound1: 5, CupRound2: 5, CupRound3: 5,
+	CupRoundQF: 4, CupRoundSF: 2, CupRoundFinal: 1,
+}
+
+// CupSlotAssignment puts two teams into an empty cup match slot.
+type CupSlotAssignment struct {
+	MatchID    string
+	HomeTeamID string
+	AwayTeamID string
+}
 
 type Competition struct {
 	ID                   string    `json:"id"`

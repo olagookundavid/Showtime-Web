@@ -6,7 +6,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   getPlayers,
   getTeams,
-} from "../../services/api";
+} from "../../services";
 import type { PaginatedResponse, Player, PublicTeam } from "../../types";
 import {
   ArrowRightIcon,

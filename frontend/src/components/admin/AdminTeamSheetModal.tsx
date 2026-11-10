@@ -15,7 +15,7 @@ import {
   getPlayers,
   saveTeamSheet,
   createPlayer,
-} from "../../services/api";
+} from "../../services";
 import type { Match, TeamSheetPlayer, Player } from "../../types";
 import { PLAYER_POSITIONS_WITH_UNASSIGNED } from "../../constants";
 import { Button, Checkbox, IconButton, Input, Modal, Select, Tabs } from "../ui";

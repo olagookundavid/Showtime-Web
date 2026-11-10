@@ -1,162 +1,95 @@
-import { EnvelopeIcon } from '@heroicons/react/24/outline';
-import { CopyableEmail } from '../../components';
+import {
+  BookOpenIcon,
+  DocumentArrowDownIcon,
+} from "@heroicons/react/24/outline";
+import { buttonClass } from "../../components";
 
 export const PrivacyPolicy = () => {
-    return (
-        <div className="space-y-4 md:space-y-8">
-            <section className="p-5 sm:p-8 space-y-6 text-gray-700 dark:text-gray-300 leading-relaxed wrap-break-word">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Last updated: 27 June 2026</p>
-                <p>
-                    This Privacy Policy explains how the Showtime Flag Football League ("Showtime", "we",
-                    "us", or "our") collects, uses, and safeguards your information when you visit
-                    <strong> showtimeflag.football</strong> (the "Site"). By using the Site, you agree to the
-                    practices described here.
-                </p>
+  const pdfUrl =
+    "https://cdn.showtimeflag.football/files/showtime-privacy-policy.pdf";
 
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        1. Information We Collect
-                    </h2>
-                    <ul className="list-disc list-inside space-y-2 ml-2">
-                        <li><strong>Account information</strong> you provide when registering — such as your name, email address, and phone number.</li>
-                        <li><strong>Transaction information</strong> when you buy tickets or store items — such as billing details and shipping address. Payment card details are handled by our payment provider and are not stored by us.</li>
-                        <li><strong>Usage data</strong> collected automatically — such as your IP address, browser type, device information, pages visited, and the dates/times of visits.</li>
-                        <li><strong>Cookies and similar technologies</strong> — see the Cookies section below.</li>
-                    </ul>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        2. How We Use Your Information
-                    </h2>
-                    <ul className="list-disc list-inside space-y-2 ml-2">
-                        <li>To create and manage your account.</li>
-                        <li>To process ticket purchases, store orders, and deliver confirmations.</li>
-                        <li>To operate, maintain, and improve the Site and our services.</li>
-                        <li>To communicate with you about your account, purchases, or league updates.</li>
-                        <li>To display advertising that helps fund the league (see Advertising below).</li>
-                        <li>To protect against fraud and keep the Site secure.</li>
-                    </ul>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        3. Cookies and Tracking Technologies
-                    </h2>
-                    <p>
-                        We use cookies and similar technologies to keep you signed in, remember your
-                        preferences, understand how the Site is used, and serve advertising. You can disable
-                        cookies in your browser settings, though some parts of the Site may not function
-                        properly if you do.
-                    </p>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        4. Advertising and Third-Party Cookies
-                    </h2>
-                    <div className="border border-gray-200 dark:border-gray-700 border-t-4 border-t-sffl-red bg-white dark:bg-gray-800 p-5 sm:p-6 space-y-3">
-                        <p>
-                            We use <strong>Google AdSense</strong>, a third-party advertising service, to display
-                            ads on the Site. Third-party vendors, including Google, use cookies to serve ads based
-                            on your prior visits to this and other websites.
-                        </p>
-                        <ul className="list-disc list-inside space-y-2 ml-2">
-                            <li>
-                                Google's use of advertising cookies enables it and its partners to serve ads to you
-                                based on your visit to our Site and/or other sites on the Internet.
-                            </li>
-                            <li>
-                                You may opt out of personalised advertising by visiting{' '}
-                                <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="text-sffl-red font-semibold underline">Google Ads Settings</a>.
-                            </li>
-                            <li>
-                                You can also opt out of third-party vendor cookies for personalised advertising at{' '}
-                                <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" className="text-sffl-red font-semibold underline">aboutads.info/choices</a>.
-                            </li>
-                        </ul>
-                        <p>
-                            For more information on how Google uses data when you use our Site, see Google's{' '}
-                            <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" className="text-sffl-red font-semibold underline">Privacy &amp; Terms</a>.
-                        </p>
-                    </div>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        5. How We Share Information
-                    </h2>
-                    <p>
-                        We do not sell your personal information. We share it only with service providers who
-                        help us operate the Site — such as our payment processor (to complete purchases) and
-                        advertising and analytics partners (as described above) — or where required by law.
-                    </p>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        6. Data Security
-                    </h2>
-                    <p>
-                        We take reasonable technical and organisational measures to protect your information.
-                        However, no method of transmission or storage is completely secure, and we cannot
-                        guarantee absolute security.
-                    </p>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        7. Children's Privacy
-                    </h2>
-                    <p>
-                        The Site is not directed to children under 13, and we do not knowingly collect personal
-                        information from them. If you believe a child has provided us with information, please
-                        contact us so we can remove it.
-                    </p>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        8. Your Rights
-                    </h2>
-                    <p>
-                        Depending on your location, you may have the right to access, correct, or delete your
-                        personal information, or to object to certain processing. To make a request, contact us
-                        using the details below.
-                    </p>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        9. Changes to This Policy
-                    </h2>
-                    <p>
-                        We may update this Privacy Policy from time to time. Any changes will be posted on this
-                        page with an updated "Last updated" date.
-                    </p>
-                </div>
-
-                <div>
-                    <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight mb-3">
-                        <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
-                        10. Contact Us
-                    </h2>
-                    <p className="mb-4">
-                        If you have any questions about this Privacy Policy or how we handle your information,
-                        please reach out:
-                    </p>
-                    <CopyableEmail email="showtime@sffl.football" label={<EnvelopeIcon className="w-5 h-5" aria-label="Email" />} className="text-sffl-red font-bold text-base sm:text-lg" />
-                </div>
-            </section>
+  return (
+    <div className="space-y-4 md:space-y-8">
+      {/* Desktop & Tablet Layout: Embedded PDF Viewer */}
+      <section className="hidden md:block border border-gray-200 dark:border-gray-700 border-t-4 border-t-sffl-red bg-white dark:bg-gray-800 p-6 md:p-8 space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 dark:border-gray-700 pb-4 gap-4">
+          <div>
+            <h2 className="flex items-center gap-3 text-2xl font-black text-sffl-navy dark:text-white uppercase">
+              <span
+                className="h-px w-8 shrink-0 bg-sffl-red"
+                aria-hidden="true"
+              />
+              Privacy Policy
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Review our complete privacy policy below.
+            </p>
+          </div>
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonClass("primary", "md", false, "")}
+          >
+            <DocumentArrowDownIcon className="w-5 h-5" aria-hidden="true" />
+            <span>Download PDF</span>
+          </a>
         </div>
-    );
+
+        <div className="w-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 p-2">
+          <iframe
+            src={`${pdfUrl}#toolbar=1`}
+            title="Showtime Flag Football Privacy Policy"
+            className="w-full h-200 border-0 bg-white"
+            loading="lazy"
+          />
+        </div>
+      </section>
+
+      {/* Mobile Layout: Navy Preview Band */}
+      <section className="block md:hidden bg-linear-to-r from-gray-900 to-sffl-navy text-white p-6 relative overflow-hidden">
+        {/* Decorative Background Icon */}
+        <div className="absolute -right-5 -bottom-5 text-white/10 text-9xl font-black pointer-events-none select-none">
+          PDF
+        </div>
+
+        <div className="relative z-10 space-y-4">
+          <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
+            <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
+            Official Document
+          </p>
+          <h2 className="text-2xl font-black uppercase tracking-tight">
+            Privacy Policy
+          </h2>
+          <p className="text-gray-200 text-sm leading-relaxed">
+            Access the complete Showtime Flag Football League privacy policy
+            directly on your device.
+          </p>
+
+          <div className="flex flex-col gap-3 pt-2">
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass("primary", "lg", true, "", "dark")}
+            >
+              <BookOpenIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+              <span>Open Privacy Policy</span>
+            </a>
+            <a
+              href={pdfUrl}
+              download="Showtime Privacy Policy.pdf"
+              className={buttonClass("outline", "lg", true, "", "dark")}
+            >
+              <DocumentArrowDownIcon
+                className="w-5 h-5 shrink-0"
+                aria-hidden="true"
+              />
+              <span>Download PDF</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 };

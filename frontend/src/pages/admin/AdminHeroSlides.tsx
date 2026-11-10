@@ -16,7 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import {
     getAdminHeroSlides, createHeroSlide, updateHeroSlide, deleteHeroSlide,
-} from '../../services/api';
+} from '../../services';
 import type { HeroSlide } from '../../types';
 import { Loader, Button, Field, ImageUploadField, Input, Modal, ConfirmDialog, ConfirmSummary, DashboardPageHeader } from '../../components';
 import { getApiErrorMessage } from '../../utils';

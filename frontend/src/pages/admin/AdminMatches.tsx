@@ -23,7 +23,7 @@ import {
   updateMatch,
   deleteMatch,
   getAdminTeamSheet,
-} from "../../services/api";
+} from "../../services";
 import type {
   Match,
   Competition,
@@ -105,6 +105,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 // A stable empty list, so the tables aren't handed a fresh array on every render.
 const NO_MATCHES: Match[] = [];
+
+// A cup's rounds, whose later slots are created dated but without teams.
+const CUP_SLOT_ROUNDS = new Set(["ROUND_1", "ROUND_2", "ROUND_3", "QUARTERFINAL", "SEMIFINAL", "FINAL"]);
 
 // Live matches get their score over SSE (the broadcast studio's on-air
 // scoreboard), so they get their own subscription rather than reading the
@@ -466,7 +469,14 @@ export const AdminMatches = () => {
       toast.error("Home and Away scores are required for finished matches");
       return false;
     }
-    if (!formIsKnockout && (!form.home_team_id || !form.away_team_id)) {
+    // A cup's later slots exist, dated, before their teams are known; they
+    // can be rescheduled while still TBD, but not played without teams.
+    const isTbdCupSlot =
+      CUP_SLOT_ROUNDS.has(form.round) &&
+      !form.home_team_id &&
+      !form.away_team_id &&
+      form.status === "SCHEDULED";
+    if (!formIsKnockout && !isTbdCupSlot && (!form.home_team_id || !form.away_team_id)) {
       toast.error("Home and Away teams are required");
       return false;
     }

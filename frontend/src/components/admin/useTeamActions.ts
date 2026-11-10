@@ -7,7 +7,7 @@ import {
   deleteTeam,
   removeTeamManager,
   updateTeam,
-} from "../../services/api";
+} from "../../services";
 import type { Team, TeamManager } from "../../types";
 import { MANAGER_CANDIDATES_KEY } from "../../constants";
 import { getApiErrorMessage } from "../../utils";

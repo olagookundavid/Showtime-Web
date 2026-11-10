@@ -5,7 +5,7 @@ import {
   PhotoIcon,
   PlayCircleIcon,
 } from '@heroicons/react/24/outline';
-import { saveTOTWArticle } from '../../services/api';
+import { saveTOTWArticle } from '../../services';
 import type { News, CreateNewsPayload, TeamOfTheWeek } from '../../types';
 import { Button, Field, Input, Modal, Textarea } from '../ui';
 import { RichTextEditor } from '../richtext';

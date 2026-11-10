@@ -449,3 +449,19 @@ func TestListPublicProductsHidesATicketWithNoUpcomingDay(t *testing.T) {
 		t.Fatalf("a ticket with only past days should not be listed, got %d", len(got))
 	}
 }
+
+func TestPaystackStillOpenLeavesUnfinishedPaymentsPending(t *testing.T) {
+	for status, open := range map[string]bool{
+		"ongoing": true, "pending": true, "processing": true, "queued": true, "abandoned": true,
+		"failed": false, "reversed": false, "success": false,
+	} {
+		resp := &PaystackVerifyResponse{}
+		resp.Data.Status = status
+		if got := paystackStillOpen(resp); got != open {
+			t.Errorf("%s: still open = %v, want %v", status, got, open)
+		}
+	}
+	if !paystackStillOpen(nil) {
+		t.Error("no answer from Paystack should leave the ticket pending")
+	}
+}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ArrowPathIcon, PencilSquareIcon, PhotoIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { createBadgeIcon, deleteBadgeIcon, getBadgeIcons, updateBadgeIcon } from '../../services/api';
+import { createBadgeIcon, deleteBadgeIcon, getBadgeIcons, updateBadgeIcon } from '../../services';
 import type { BadgeIcon } from '../../types';
 import { getApiErrorMessage } from '../../utils';
 import { Button, ConfirmDialog, ConfirmSummary, Field, IconButton, ImageUploadField, Input, Modal, Spinner } from '../ui';

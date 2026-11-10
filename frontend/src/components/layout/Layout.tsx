@@ -9,8 +9,8 @@ import {
   LatestMatchesInfoStrip,
 } from "./LatestMatchesCarousel";
 import { useHideOnScrollDown, useScrollLock } from "../../hooks";
-import { NewsletterPopup } from "../newsletter/NewsletterPopup";
 import { CompleteProfileModal } from "../auth";
+import { PrivacyPolicyUpdateModal } from "../legal";
 import { portalLinkFor, type PortalKind } from "./portalLink";
 import { Button, IconButton } from "../ui";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -31,10 +31,8 @@ import {
   ScaleIcon,
   MapPinIcon,
   VideoCameraIcon,
-  TicketIcon,
   CalendarIcon,
   UserGroupIcon,
-  TableCellsIcon,
   ChartPieIcon,
   TrophyIcon,
   UserCircleIcon,
@@ -190,10 +188,10 @@ export const Layout = () => {
         isMoreOpen={isMoreMenuOpen}
       />
 
-      <NewsletterPopup />
-
-      {isAuthenticated && user && (!user.firstName || !user.lastName) && (
+      {isAuthenticated && user && (!user.firstName || !user.lastName) ? (
         <CompleteProfileModal />
+      ) : (
+        <PrivacyPolicyUpdateModal />
       )}
 
       {/* "More" Mobile Drawer */}
@@ -352,14 +350,9 @@ export const Layout = () => {
                         <UserGroupIcon className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-sm text-sffl-navy dark:text-white uppercase tracking-tight">
-                            Teams
-                          </span>
-                          <span className="px-1.5 py-0.5 bg-sffl-red text-white text-[9px] font-black rounded-full uppercase">
-                            8 Franchises
-                          </span>
-                        </div>
+                        <span className="font-black text-sm text-sffl-navy dark:text-white uppercase tracking-tight">
+                          Teams
+                        </span>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
                           Rosters, Staff & Franchise Central
                         </p>
@@ -387,25 +380,6 @@ export const Layout = () => {
                     </div>
                   </Link>
 
-                  {/* Standings */}
-                  <Link
-                    to="/standings"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center shrink-0">
-                      <TableCellsIcon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
-                        Standings
-                      </span>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                        Table & Rankings
-                      </p>
-                    </div>
-                  </Link>
-
                   {/* Team of the Week */}
                   <Link
                     to="/totw"
@@ -429,7 +403,7 @@ export const Layout = () => {
                   <Link
                     to="/potw"
                     onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                    className="col-span-2 flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
                       <TrophyIcon className="w-5 h-5" />
@@ -492,36 +466,18 @@ export const Layout = () => {
                 </div>
               </div>
 
-              {/* Section 3: Tickets, Merch & Orders */}
+              {/* Section 3: Official Store & Orders */}
               <div className="mb-5">
                 <div className="flex items-center justify-between mb-2 px-1">
                   <span className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Tickets & Official Store
+                    Official Store
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <Link
-                    to="/tickets"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <TicketIcon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
-                        Gameday Tickets
-                      </span>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                        Arena Match Passes
-                      </p>
-                    </div>
-                  </Link>
-
-                  <Link
                     to="/store"
                     onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                    className="col-span-2 flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                       <ShoppingBagIcon className="w-5 h-5" />
@@ -561,36 +517,18 @@ export const Layout = () => {
                 </div>
               </div>
 
-              {/* Section 4: Fantasy & News */}
+              {/* Section 4: News */}
               <div className="mb-5">
                 <div className="flex items-center justify-between mb-2 px-1">
                   <span className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Fantasy & Media
+                    News
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <Link
-                    to="/fantasy/dashboard"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-linear-to-br from-amber-500/10 to-yellow-500/10 dark:from-amber-950/40 dark:to-yellow-950/30 rounded-2xl border border-amber-300/50 dark:border-amber-700/50 active:scale-[0.98] transition-all shadow-xs"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                      <TrophyIcon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-amber-700 dark:text-yellow-400 uppercase tracking-tight truncate block">
-                        Fantasy League
-                      </span>
-                      <p className="text-[10px] text-amber-600/80 dark:text-amber-300/80 truncate">
-                        Build Squad & Win
-                      </p>
-                    </div>
-                  </Link>
-
-                  <Link
                     to="/news"
                     onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                    className="col-span-2 flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
                   >
                     <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
                       <NewspaperIcon className="w-5 h-5" />

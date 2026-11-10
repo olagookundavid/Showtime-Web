@@ -1046,3 +1046,135 @@ func TestPayingForATicketKeepsTheSignedInBuyersPhone(t *testing.T) {
 		t.Errorf("a guest's phone must not appear on any profile, found %d", n)
 	}
 }
+
+func TestTickets_MarkPaidHappensOnce(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d := f.eventDay(t, "markpaid", "2090-08-01")
+	comp := f.competition(t, "markpaid", "2090-08-01")
+	p := f.product(t, "MarkPaid", 1000, 0, comp)
+	tk := f.newTicket(p, 1, domain.TicketStatusPending, f.productDay(t, p, d))
+	if err := f.tickets.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+
+	// The webhook and the buyer's page race to confirm it: only one wins.
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	won := 0
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			changed, err := f.tickets.MarkPaid(ctx, tk.ID)
+			if err != nil {
+				t.Error(err)
+			}
+			if changed {
+				mu.Lock()
+				won++
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	if won != 1 {
+		t.Errorf("%d callers marked it paid, want 1", won)
+	}
+	got, _ := f.tickets.GetByID(ctx, tk.ID)
+	if got.Status != domain.TicketStatusPaid {
+		t.Errorf("status = %s, want PAID", got.Status)
+	}
+
+	// A failed payment later paid is accepted; a used ticket is never touched.
+	mustExec(t, f.pool, `UPDATE tickets SET status = 'FAILED' WHERE id = $1`, tk.ID)
+	if changed, _ := f.tickets.MarkPaid(ctx, tk.ID); !changed {
+		t.Error("a FAILED ticket later paid was not marked PAID")
+	}
+	mustExec(t, f.pool, `UPDATE tickets SET status = 'USED' WHERE id = $1`, tk.ID)
+	if changed, _ := f.tickets.MarkPaid(ctx, tk.ID); changed {
+		t.Error("a USED ticket was moved back to PAID")
+	}
+}
+
+func TestTickets_TheGateFindsATicketByItsPaystackReference(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	d := f.eventDay(t, "byref", "2090-08-02")
+	comp := f.competition(t, "byref", "2090-08-02")
+	p := f.product(t, "ByRef", 1000, 0, comp)
+	tk := f.newTicket(p, 1, domain.TicketStatusPaid, f.productDay(t, p, d))
+	ref := "sffl-" + strings.ToLower(nextCode())
+	tk.PaystackReference = &ref
+	if err := f.tickets.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+	svc := f.seasonService()
+
+	byCode, err := svc.GetByCode(ctx, tk.TicketCode)
+	if err != nil || byCode.ID != tk.ID {
+		t.Fatalf("by code: %v", err)
+	}
+	// The buyer reads the reference off their Paystack receipt, often in capitals.
+	byRef, err := svc.GetByCode(ctx, strings.ToUpper(ref))
+	if err != nil || byRef.ID != tk.ID {
+		t.Errorf("by Paystack reference: %v", err)
+	}
+	if _, err := svc.GetByCode(ctx, "SFFL-NOPE0000"); err == nil {
+		t.Error("an unknown code was found")
+	}
+}
+
+func TestSeasonPass_ShowsWhenItLastGotItsHolderIn(t *testing.T) {
+	f := newTicketFixture(t)
+	ctx := context.Background()
+	pass := f.seasonPass(t, "LASTIN", 0, "2092-05-31")
+	id := pass.ID
+	tk := &domain.Ticket{
+		ProductName: pass.Name, PurchaseType: domain.PurchaseTypeSeasonPass, SeasonPassID: &id,
+		Email: "lastin@ticketfixture.test", Name: "Fan", Phone: "0800", Quantity: 1,
+		Status: domain.TicketStatusPaid, TicketCode: nextCode(),
+	}
+	if err := f.tickets.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+
+	// Not used yet: no time.
+	if got, _ := f.tickets.GetByID(ctx, tk.ID); got.LastEntryAt != nil {
+		t.Fatalf("an unused pass shows an entry time: %v", got.LastEntryAt)
+	}
+
+	// Two earlier days and today: the latest one is shown.
+	older := time.Date(2092, 1, 5, 17, 30, 0, 0, time.UTC)
+	newer := time.Date(2092, 1, 12, 18, 45, 0, 0, time.UTC)
+	mustExec(t, f.pool, `INSERT INTO season_pass_entries (ticket_id, entry_date, created_at) VALUES ($1, '2092-01-05', $2), ($1, '2092-01-12', $3)`, tk.ID, older, newer)
+	got, err := f.tickets.GetByID(ctx, tk.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.LastEntryAt == nil || !got.LastEntryAt.Equal(newer) {
+		t.Fatalf("last entry = %v, want %v", got.LastEntryAt, newer)
+	}
+
+	// It comes through the admin list too, and through the response as UTC.
+	list, _, err := f.tickets.List(ctx, "", "", 1, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for i := range list {
+		if list[i].ID == tk.ID {
+			found = true
+			if list[i].LastEntryAt == nil || !list[i].LastEntryAt.Equal(newer) {
+				t.Errorf("admin list last entry = %v", list[i].LastEntryAt)
+			}
+		}
+	}
+	if !found {
+		t.Error("the season pass is missing from the admin list")
+	}
+	res, err := f.seasonService().GetByCode(ctx, tk.TicketCode)
+	if err != nil || res.LastEntryAt != "2092-01-12T18:45:00Z" {
+		t.Errorf("response last_entry_at = %q err=%v, want 2092-01-12T18:45:00Z", res.LastEntryAt, err)
+	}
+}

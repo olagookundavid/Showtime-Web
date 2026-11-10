@@ -49,7 +49,7 @@ func (r *PostgresAnalyticsRepository) GetSalesByTier(ctx context.Context) ([]Sal
 	query := `
 		SELECT COALESCE(NULLIF(t.product_name, ''), 'Ticket') as tier_name, COALESCE(SUM(t.total_amount), 0) as total_amount, COALESCE(SUM(t.quantity), 0) as quantity
 		FROM tickets t
-		WHERE t.status IN ('PAID', 'USED')
+		WHERE t.status IN ('PAID', 'USED') AND t.purchase_type <> 'PLAYER'
 		GROUP BY COALESCE(NULLIF(t.product_name, ''), 'Ticket')
 		ORDER BY total_amount DESC
 	`

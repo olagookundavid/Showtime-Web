@@ -17,14 +17,14 @@ import {
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
 import {
-  fantasyApi,
+  fantasyCoreApi,
   fantasySeasonApi,
   fantasySquadApi,
   fantasyWalletApi,
   formatFantasyPrice,
   formatKobo,
   getMatches,
-} from "../../services/api";
+} from "../../services";
 import type {
   DashboardLeagueRow,
   FantasyLineupPick,
@@ -251,7 +251,7 @@ function FixturesPanel({
 }) {
   const { data: gameweeks = [] } = useQuery({
     queryKey: ["fantasyGameweeks", seasonId],
-    queryFn: () => fantasyApi.getGameweeks(seasonId),
+    queryFn: () => fantasyCoreApi.getGameweeks(seasonId),
     enabled: !!seasonId,
   });
 

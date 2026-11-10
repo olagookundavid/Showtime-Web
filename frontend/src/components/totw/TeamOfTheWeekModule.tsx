@@ -5,7 +5,7 @@ import {
   getLatestTOTW,
   getTOTWArchive,
   getTOTWById,
-} from "../../services/api";
+} from "../../services";
 import type { TeamOfTheWeek, TOTWPlayer } from "../../types";
 import {
   ArrowPathIcon,

@@ -18,4 +18,11 @@ export const CUP_ZONE_LEGEND: { zone: CupZone; label: string }[] = [
   { zone: "out", label: "Eliminated" },
 ];
 
-export const CUP_ELIMINATED_ROW = "bg-red-50/40 dark:bg-red-950/20 text-gray-500 dark:text-gray-400";
+// A plain, muted inactive row - distinct from both the live "bg-white dark:bg-gray-900"
+// resting row and its "hover:bg-gray-50 dark:hover:bg-gray-800" hover state (gray-100/
+// gray-950 sit one step further out on each side than those, so eliminated rows never
+// visually collide with an ordinary row being hovered or with the table's own gray-800
+// card chrome). Which zone a team is in stays on the accent bar alone (CUP_ZONE_BAR);
+// this is only "still alive vs eliminated".
+export const CUP_ELIMINATED_ROW =
+  "bg-gray-100 dark:bg-gray-950 text-gray-500 dark:text-gray-400";

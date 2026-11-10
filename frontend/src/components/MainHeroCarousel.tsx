@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { getHeroSlides } from "../services/api";
+import { getHeroSlides } from "../services";
 import { IconButton } from "./ui";
 
 // Up to this many slides get one dot each; beyond it the row would overflow a

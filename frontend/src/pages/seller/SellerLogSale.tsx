@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { MagnifyingGlassIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
-import { sellerGetProducts, sellerLogSale, sellerGetPaymentMethods } from '../../services/api';
+import { sellerGetProducts, sellerLogSale, sellerGetPaymentMethods } from '../../services';
 import type { InventoryProduct, PaymentMethod } from '../../types';
 import { DashboardPageHeader, Button, Field, Input, Select, Textarea, ConfirmDialog, ConfirmSummary, Spinner } from '../../components';
 import { getApiErrorMessage } from '../../utils';

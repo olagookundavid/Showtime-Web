@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MEDIA_TYPES } from '../constants';
-import { createMediaFile, presignMediaUpload, replaceMediaFile } from '../services/api';
+import { createMediaFile, presignMediaUpload, replaceMediaFile } from '../services';
 import type { MediaFile } from '../types';
 import { getApiErrorMessage } from '../utils';
 

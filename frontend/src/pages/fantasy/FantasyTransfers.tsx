@@ -34,11 +34,11 @@ import {
   ListBulletIcon,
 } from "@heroicons/react/24/outline";
 import {
-  fantasyApi,
+  fantasyCoreApi,
   fantasySeasonApi,
   fantasySquadApi,
   formatFantasyPrice,
-} from "../../services/api";
+} from "../../services";
 import type { FantasyPlayerListItem, Squad, SquadPlayer } from "../../types";
 import {
   isFemale,
@@ -91,13 +91,13 @@ export function FantasyTransfers() {
   // Active Season & Gameweek
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const { data: gameweeks = [], isLoading: gwLoading } = useQuery({
     queryKey: ["fantasyGameweeks", season?.id],
     queryFn: () =>
-      season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([]),
+      season?.id ? fantasyCoreApi.getGameweeks(season.id) : Promise.resolve([]),
     enabled: !!season?.id,
   });
 
@@ -125,7 +125,7 @@ export function FantasyTransfers() {
     queryKey: ["myFantasyLineup", season?.id, scheduledGW?.id],
     queryFn: () =>
       season?.id && scheduledGW?.id
-        ? fantasyApi.getMyLineup(season.id, scheduledGW.id)
+        ? fantasyCoreApi.getMyLineup(season.id, scheduledGW.id)
         : Promise.resolve(null),
     enabled: !!season?.id && !!scheduledGW?.id,
   });
@@ -140,7 +140,7 @@ export function FantasyTransfers() {
   // by its own endpoint so it never depends on paging the whole player list.
   const { data: marketFilters } = useQuery({
     queryKey: ["playerMarketFilters", season?.id],
-    queryFn: () => fantasyApi.getMarketFilters(season!.id),
+    queryFn: () => fantasyCoreApi.getMarketFilters(season!.id),
     enabled: !!season?.id,
     staleTime: 5 * 60 * 1000,
   });
@@ -254,7 +254,7 @@ export function FantasyTransfers() {
     queryFn: () => {
       if (!season?.id)
         return Promise.resolve({ data: [], total: 0, total_pages: 0 });
-      return fantasyApi.listPlayerMarket(season.id, {
+      return fantasyCoreApi.listPlayerMarket(season.id, {
         position: derivedPositionFilter || undefined,
         gender: marketGenderFilter
           ? (marketGenderFilter as "M" | "F")

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { getPlayerById, getPlayerStatById } from "../../services/api";
+import { getPlayerById, getPlayerStatById } from "../../services";
 import type { Competition, NormalizedPosition, Player } from "../../types";
 import { useStatsCompetitionFilter } from "../../hooks";
 import { categoriesForPosition } from "../../constants";

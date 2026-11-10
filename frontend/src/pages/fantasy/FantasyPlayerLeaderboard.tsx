@@ -22,12 +22,12 @@ import {
   FantasyPlayerModal,
   PlayerAvatar,
   PlayerLeaderboardLegend,
-  PlayerLink,
+  FantasyPlayerLink,
   Select,
   playerLeaderboardGuide,
   type Column,
 } from "../../components";
-import { fantasyApi, formatFantasyPrice } from "../../services/api";
+import { fantasyCoreApi, getPlayerLeaderboard, formatFantasyPrice } from "../../services";
 import type {
   FantasyPlayerModalData,
   PlayerLeaderboardHighlight,
@@ -117,7 +117,7 @@ export function FantasyPlayerLeaderboard() {
 
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const { data, isLoading, isFetching, isError } = useQuery({
@@ -133,7 +133,7 @@ export function FantasyPlayerLeaderboard() {
       page,
     ],
     queryFn: () =>
-      fantasyApi.getPlayerLeaderboard(season!.id, {
+      getPlayerLeaderboard(season!.id, {
         gameweek_id: gameweekId || undefined,
         position: position || undefined,
         team_id: teamId || undefined,
@@ -216,13 +216,13 @@ export function FantasyPlayerLeaderboard() {
               zoomable
             />
             <div className="min-w-0">
-              <PlayerLink
+              <FantasyPlayerLink
                 id={p.player_id}
                 className="block text-sm font-black text-gray-900 dark:text-white truncate"
                 title={`View ${p.player_name}'s profile`}
               >
                 {p.player_name}
-              </PlayerLink>
+              </FantasyPlayerLink>
               <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500 dark:text-gray-400">
                 <span className="font-bold text-gray-700 dark:text-gray-300">
                   {p.position}

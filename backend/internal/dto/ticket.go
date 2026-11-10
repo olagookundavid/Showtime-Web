@@ -204,6 +204,11 @@ type TicketResponse struct {
 	TicketCode              string  `json:"ticket_code,omitempty"`
 	AuthorizationURL        string  `json:"authorization_url,omitempty"`
 	ReferralCode            string  `json:"referral_code,omitempty"`
+	// LastEntryAt is set for a season pass: when it last got its holder in.
+	LastEntryAt string `json:"last_entry_at,omitempty"`
+	// Player is set on a player ticket when it is looked up at the gate: who it
+	// admits and the match they are named for.
+	Player *PlayerTicketHolderResponse `json:"player,omitempty"`
 	// One entry per match day the ticket covers, each with its own check-in.
 	Days      []TicketDayResponse `json:"days"`
 	CreatedAt string              `json:"created_at"`

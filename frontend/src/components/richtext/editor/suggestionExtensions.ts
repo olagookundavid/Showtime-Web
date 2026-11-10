@@ -2,7 +2,7 @@ import { Extension, Node, type Editor } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import { Suggestion } from '@tiptap/suggestion';
 import { UserIcon } from '@heroicons/react/24/outline';
-import { getPlayers, getTeams } from '../../../services/api';
+import { getPlayers, getTeams } from '../../../services';
 import type { Team } from '../../../types';
 import { FootballIcon } from '../../icons';
 import type { MenuItem } from './SuggestionList';

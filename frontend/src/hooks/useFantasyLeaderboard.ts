@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fantasyApi } from '../services/api';
+import { fantasyLeaguesApi } from '../services';
 import type { Leaderboard, LeaderboardEntry } from '../types';
 import { OVERALL } from '../constants';
 
@@ -64,9 +64,9 @@ export function useFantasyLeaderboard({
         const params = { gameweek_id: gameweekId || undefined, page: targetPage, limit: fetchLimit };
         if (scope === OVERALL) {
             if (!seasonId) return Promise.resolve(EMPTY_BOARD);
-            return fantasyApi.getOverallLeaderboard(seasonId, params);
+            return fantasyLeaguesApi.getOverallLeaderboard(seasonId, params);
         }
-        return fantasyApi.getLeaderboard(scope, params);
+        return fantasyLeaguesApi.getLeaderboard(scope, params);
     };
 
     // Resolves first: provides total, my_rank, and my_entry

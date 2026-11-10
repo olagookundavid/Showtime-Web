@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { fantasyApi } from "../../services/api";
+import { fantasyCoreApi } from "../../services";
 import type { TeamPointsHistoryRow } from "../../types";
 import { IconButton, Spinner } from "../ui";
 import { FantasyPitch } from "./FantasyPitch";
@@ -35,7 +35,7 @@ export function FantasyGameweekBreakdown({ seasonId, rows }: FantasyGameweekBrea
 
   const { data: lineup, isLoading: lineupLoading } = useQuery({
     queryKey: ["fantasyLineup", seasonId, row.gameweek_id],
-    queryFn: () => fantasyApi.getMyLineup(seasonId, row.gameweek_id),
+    queryFn: () => fantasyCoreApi.getMyLineup(seasonId, row.gameweek_id),
   });
 
   return (

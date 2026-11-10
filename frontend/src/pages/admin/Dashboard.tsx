@@ -16,7 +16,7 @@ import {
     DataTable,
     type Column,
 } from '../../components';
-import { getAdminAnalytics } from '../../services/api';
+import { getAdminAnalytics } from '../../services';
 import { formatNaira } from '../../utils';
 import type { TicketResponse, SiteBreakdownRow } from '../../types';
 

@@ -24,7 +24,7 @@ import {
     saveAdminProductVariants,
     saveAdminProductImages,
     getAdminOrders,
-} from '../../services/api';
+} from '../../services';
 import type { Order, StoreProduct, ProductImage, ProductOption } from '../../types';
 import { Loader, ImageUploadField, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Checkbox, Field, IconButton, Input, Modal, Select, RichTextEditor, DiscountCodesPanel, DashboardPageHeader } from '../../components';
 import { useImageUpload } from '../../hooks';

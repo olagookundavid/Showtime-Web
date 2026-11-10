@@ -1,6 +1,6 @@
 import { Fragment, useEffect, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getMatchPlays } from '../../services/api';
+import { getMatchPlays } from '../../services';
 import { API_URL } from '../../constants';
 import type { GamePlay, PlayPlayer } from '../../types';
 import { Spinner } from '../ui';

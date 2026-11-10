@@ -2,7 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { EnvelopeIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { confirmEmailVerification, sendEmailVerificationCode } from '../../services/api';
+import { confirmEmailVerification, sendEmailVerificationCode } from '../../services';
 import { useAuth } from '../../contexts';
 import { Button, Field, Input } from '../ui';
 

@@ -9,7 +9,7 @@ interface Props {
     image?: string | null;
     /** 'F' shows the women's tint on the gender pip. Omit to hide the pip. */
     gender?: string | null;
-    size?: 'sm' | 'md' | 'lg';
+    size?: 'sm' | 'md' | 'lg' | 'xl';
     className?: string;
     /** Tap the photo to open it full size, as player photos do elsewhere on the site. */
     zoomable?: boolean;
@@ -21,6 +21,7 @@ const SIZES = {
     sm: 'w-9 h-9 text-[10px]',
     md: 'w-11 h-11 text-xs',
     lg: 'w-14 h-14 text-sm',
+    xl: 'w-24 h-24 sm:w-28 sm:h-28 text-xl',
 } as const;
 
 /** First letters of the first two words — "Uche Kalu (KNK)" becomes "UK". */

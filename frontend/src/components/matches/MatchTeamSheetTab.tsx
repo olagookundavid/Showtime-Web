@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getPublicMatchStats } from "../../services/api";
+import { getPublicMatchStats } from "../../services";
 import type { Match, MatchTeamSheet, TeamSheetPlayer } from "../../types";
 import { isDeletedPlayer, DELETED_TITLE, TeamLink } from "../domain";
 import {

@@ -19,7 +19,7 @@ import {
   updateSeasonMVP,
   deleteSeasonMVP,
   getPlayers,
-} from "../../services/api";
+} from "../../services";
 import type { SeasonMVP, Player } from "../../types";
 import { Loader, ConfirmDialog, ConfirmSummary, Button, Field, IconButton, ImageUploadField, Input, DashboardPageHeader, PlayerLink } from "../../components";
 

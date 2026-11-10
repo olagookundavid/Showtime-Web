@@ -22,8 +22,8 @@ import {
   searchTicketsByEmail,
   getEventDays,
   getAllEventDays,
-} from "../../services/api";
-import type { TicketResponse, TicketDayResponse, EventDayResponse } from "../../types";
+} from "../../services";
+import type { TicketResponse, TicketDayResponse, EventDayResponse, PlayerTicketHolder } from "../../types";
 import { useAuth } from "../../contexts";
 import { usePermissions } from "../../hooks";
 import { formatMatchDate } from "../../utils";
@@ -127,6 +127,32 @@ const dayToCheckin = (
   t.days.find((d) => filterDayId && d.event_day_id === filterDayId) ??
   t.days.find((d) => d.date === today);
 
+// When the ticket was checked in, as an ISO time, or undefined if it has not been.
+// A Game Pass is checked in per match day, so this is the day the list is filtered
+// to (or its latest check-in when the list shows every day). A Season Pass has no
+// match days: it shows when it last got its holder in.
+const checkinAt = (t: TicketResponse, filterDayId: string): string | undefined => {
+  if (t.purchase_type === "SEASON_PASS") return t.last_entry_at;
+  const day = t.days.find((d) => filterDayId && d.event_day_id === filterDayId);
+  if (day) return day.checked_in_at;
+  return t.days
+    .map((d) => d.checked_in_at)
+    .filter((at): at is string => !!at)
+    .sort()
+    .pop();
+};
+
+// "8 Nov, 6:51 PM" in Lagos time, which is where the games are played.
+const formatCheckin = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lagos",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(iso));
+
 // Every match day on a ticket, with a tick once it has been attended. A Season
 // Pass has no match days: it says when it ends instead.
 const TicketDays = ({ ticket }: { ticket: TicketResponse }) =>
@@ -166,6 +192,38 @@ const TicketDays = ({ ticket }: { ticket: TicketResponse }) =>
   </ul>
   );
 
+// A player ticket says who it admits, so the gate can match the person in front
+// of them to the team sheet.
+const PlayerHolderRows = ({ player }: { player: PlayerTicketHolder }) => (
+  <>
+    <dt className="text-gray-500 dark:text-gray-400">
+      {player.role === "MANAGER" ? "Manager" : player.role === "EXTRA" ? "Guest" : "Player"}
+    </dt>
+    <dd className="font-bold dark:text-white">
+      {player.jersey_number ? `#${player.jersey_number} ` : ""}
+      {player.name}
+      {player.role === "PLAYER" && player.position && player.position !== "-" && (
+        <span className="font-normal text-gray-500 dark:text-gray-400">
+          {" "}
+          · {player.position}
+        </span>
+      )}
+    </dd>
+    <dt className="text-gray-500 dark:text-gray-400">Team</dt>
+    <dd className="dark:text-white">{player.team_name || "—"}</dd>
+    <dt className="text-gray-500 dark:text-gray-400">Match</dt>
+    <dd className="dark:text-white">
+      {player.home_team} vs {player.away_team}
+      {(player.competition || player.kickoff) && (
+        <span className="text-gray-500 dark:text-gray-400">
+          {" "}
+          · {[player.competition, player.kickoff].filter(Boolean).join(" · ")}
+        </span>
+      )}
+    </dd>
+  </>
+);
+
 const TicketSummary = ({
   t,
   showReference,
@@ -178,14 +236,18 @@ const TicketSummary = ({
     <dd className="font-mono font-bold text-sffl-navy dark:text-white">
       {t.ticket_code || "—"}
     </dd>
-    {t.name && (
-      <>
-        <dt className="text-gray-500 dark:text-gray-400">Name</dt>
-        <dd className="dark:text-white">{t.name}</dd>
-      </>
+    {t.player ? (
+      <PlayerHolderRows player={t.player} />
+    ) : (
+      t.name && (
+        <>
+          <dt className="text-gray-500 dark:text-gray-400">Name</dt>
+          <dd className="dark:text-white">{t.name}</dd>
+        </>
+      )
     )}
     <dt className="text-gray-500 dark:text-gray-400">Email</dt>
-    <dd className="break-all dark:text-white">{t.email}</dd>
+    <dd className="break-all dark:text-white">{t.email || "—"}</dd>
     <dt className="text-gray-500 dark:text-gray-400">
       {t.days.length > 1 ? "Match days" : "Match day"}
     </dt>
@@ -511,6 +573,21 @@ export const AdminTickets = () => {
             {t.status}
           </span>
         ),
+      },
+      {
+        header: "Checked in",
+        sortable: true,
+        sortValue: (t) => checkinAt(t, selectedEventDay) ?? "",
+        cell: (t) => {
+          const at = checkinAt(t, selectedEventDay);
+          return at ? (
+            <span className="whitespace-nowrap text-sm font-semibold dark:text-white">
+              {formatCheckin(at)}
+            </span>
+          ) : (
+            <span className="text-gray-400">—</span>
+          );
+        },
       },
       {
         header: "Actions",

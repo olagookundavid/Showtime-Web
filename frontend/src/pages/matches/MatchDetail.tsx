@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getMatchDetail, getPublicMatchStats } from '../../services/api';
+import { getMatchDetail, getPublicMatchStats } from '../../services';
 import { Loader, Button, LightboxImage, PlayByPlayTimeline, PublicMatchStats, MatchSummaryTab, getUnifiedMatchMvp, MatchTeamSheetTab, CommentSection, BackButton, FootballIcon } from '../../components';
 import { formatMatchTime, formatMatchDate } from '../../utils';
 import { useLiveMatchScore } from '../../hooks';

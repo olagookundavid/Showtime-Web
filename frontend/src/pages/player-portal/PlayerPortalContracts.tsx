@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { playerPortalApi } from '../../services/api';
+import { playerContractsApi } from '../../services';
 import type { ContractData, OfferResponse } from '../../types';
 import { DashboardPageHeader, DataTable, type Column, RowActions, NotLinkedNotice, OfferResponseDialog, apiError } from '../../components';
 
@@ -32,7 +32,7 @@ export const PlayerPortalContracts: React.FC = () => {
     const fetchContracts = async () => {
         setLoading(true);
         try {
-            const res = await playerPortalApi.getContracts();
+            const res = await playerContractsApi.getContracts();
             setContracts(res || NO_ROWS);
             setNotLinked(false);
         } catch (err) {

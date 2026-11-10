@@ -317,6 +317,15 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return err
 	})
 
+	// Hourly: a cup round that finished a week ago and that no admin has
+	// filled fills the next round's fixtures itself.
+	add("20 * * * *", "Cup auto-fill", func(ctx context.Context) error {
+		if app.MatchService == nil {
+			return nil
+		}
+		return app.MatchService.AutoFillCupRounds(ctx)
+	})
+
 	// Run every 5 minutes to lock scheduled fantasy gameweeks and roll over unedited lineups
 	add("*/5 * * * *", "Fantasy auto-lock job", func(ctx context.Context) error {
 		if app.FantasyService == nil {
@@ -409,7 +418,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.IRoleService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub, services.ISiteEventsService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.IRoleService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub, services.ISiteEventsService, services.IMatchService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -468,7 +477,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	auditService := services.NewAuditService(auditRepo, authRepo)
 	emailService := email.NewResendService() // Move this up
 	roleService := services.NewRoleService(roleRepo, authRepo)
-	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService, roleService)
+	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService, roleService).WithContactSyncer(emailService)
 	notifService := services.NewNotificationService(notifRepo)
 	windowService := services.NewTransferWindowService(windowRepo)
 	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo)
@@ -480,11 +489,20 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	newsService := services.NewNewsService(newsRepo, storageService)
 	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
-	ticketService := services.NewTicketService(eventDayRepo, productRepo, ticketRepo, scheduledEmailRepo, seasonPassRepo, matchRepo, paystackClient, emailService, discountService, discountRepo).WithUserPhoneSaver(authRepo)
+	ticketService := services.NewTicketService(eventDayRepo, productRepo, ticketRepo, scheduledEmailRepo, seasonPassRepo, matchRepo, paystackClient, emailService, discountService, discountRepo).WithUserPhoneSaver(authRepo).WithContactSyncer(emailService)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo, roleService)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 	siteEventsService := services.NewSiteEventsService(siteEventsRepo)
 	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, productRepo, ticketService)
+
+	// Player tickets: saving a team sheet hands every player named on it a ticket,
+	// and the gate shows which player a code belongs to.
+	playerTicketRepo := ports.NewPlayerTicketRepository(pool)
+	playerTicketService := services.NewPlayerTicketService(playerTicketRepo, ticketRepo, ticketService)
+	ticketService.WithPlayerHolders(playerTicketRepo)
+	if ms, ok := matchService.(*services.MatchService); ok {
+		ms.WithPlayerTickets(playerTicketService)
+	}
 	statsService := services.NewStatsService(statsRepo, matchRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo)
 	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService, discountService, discountRepo, authRepo)
@@ -589,5 +607,13 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
 		badgeHandler, totwHandler, potwHandler, broadcastHandler,
 	)
-	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService
+	h.PlayerTicketHandler = transport.NewPlayerTicketHandler(playerTicketService)
+	// One Paystack webhook for every kind of payment: Paystack calls a single URL.
+	h.PaystackWebhookHandler = transport.NewPaystackWebhookHandler(
+		paystackClient.GetSecretKey,
+		ticketRepo, ticketService,
+		storeRepo, storeService,
+		fantasyLeagueRepo, fantasyLeagueService,
+	)
+	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService, matchService
 }

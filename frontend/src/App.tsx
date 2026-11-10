@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, ThemeProvider, FontProvider, CartProvider } from "./contexts";
-import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, FantasyLayout, StoreLayout, TicketsLayout, ScrollToTop, CanonicalLink, Loader, ErrorBoundary, AdSenseScript, BrevoTracker, PageViewTracker } from "./components";
+import { ProtectedRoute, FeatureGuard, Layout, AboutLayout, FantasyLayout, StoreLayout, TicketsLayout, ScrollToTop, CanonicalLink, Loader, ErrorBoundary, AdSenseScript, PageViewTracker } from "./components";
 import {
   Landing,
   AboutShowtimeFlag,
@@ -116,6 +116,11 @@ const FantasyAnalytics = lazy(() =>
     default: m.FantasyAnalytics,
   })),
 );
+const FantasyPlayerDetail = lazy(() =>
+  import("./pages/fantasy/FantasyPlayerDetail").then((m) => ({
+    default: m.FantasyPlayerDetail,
+  })),
+);
 const FantasyPlayerLeaderboard = lazy(() =>
   import("./pages/fantasy/FantasyPlayerLeaderboard").then((m) => ({
     default: m.FantasyPlayerLeaderboard,
@@ -220,6 +225,11 @@ const AdminTickets = lazy(() =>
     default: m.AdminTickets,
   })),
 );
+const AdminPlayerTickets = lazy(() =>
+  import("./pages/admin/AdminPlayerTickets").then((m) => ({
+    default: m.AdminPlayerTickets,
+  })),
+);
 const AdminTicketProducts = lazy(() =>
   import("./pages/admin/AdminTicketProducts").then((m) => ({
     default: m.AdminTicketProducts,
@@ -316,7 +326,9 @@ const TeamHeadBudget = lazy(() =>
     default: m.TeamHeadBudget,
   })),
 );
-const TeamTickets = lazy(() => import("./pages/team-head/TeamTickets"));
+const TeamHeadPlayerTickets = lazy(
+  () => import("./pages/team-head/TeamHeadPlayerTickets"),
+);
 const TeamHeadClaims = lazy(() => import("./pages/team-head/TeamHeadClaims"));
 const TeamHeadTeamSheets = lazy(
   () => import("./pages/team-head/TeamHeadTeamSheets"),
@@ -331,6 +343,9 @@ const PlayerPortalOverview = lazy(
 );
 const PlayerPortalContracts = lazy(
   () => import("./pages/player-portal/PlayerPortalContracts"),
+);
+const PlayerPortalTickets = lazy(
+  () => import("./pages/player-portal/PlayerPortalTickets"),
 );
 const PlayerPortalTransfers = lazy(() =>
   import("./pages/player-portal/PlayerPortalTransfers").then((m) => ({
@@ -396,11 +411,10 @@ function App() {
               <ScrollToTop />
               <CanonicalLink />
               <AdSenseScript />
-              {/* Visitor analytics. All render null. Vercel and Brevo are third-party
-                  (see config/analytics.ts); PageViewTracker feeds our own database
-                  and the admin Traffic page (see docs/analytics/README.md). */}
+              {/* Visitor analytics. Both render null. Vercel is third-party;
+                  PageViewTracker feeds our own database and the admin Traffic
+                  page (see docs/analytics/README.md). */}
               <Analytics />
-              <BrevoTracker />
               <PageViewTracker />
               <ErrorBoundary>
                 <Suspense fallback={<Loader />}>
@@ -583,6 +597,10 @@ function App() {
                         <Route
                           path="/fantasy/players"
                           element={<FantasyPlayerLeaderboard />}
+                        />
+                        <Route
+                          path="/fantasy/players/:id"
+                          element={<FantasyPlayerDetail />}
                         />
                         <Route
                           path="/fantasy/reports"
@@ -803,6 +821,14 @@ function App() {
                         }
                       />
                       <Route
+                        path="player-tickets"
+                        element={
+                          <FeatureGuard feature="tickets">
+                            <AdminPlayerTickets />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
                         path="ticket-products"
                         element={
                           <FeatureGuard feature="tickets">
@@ -974,7 +1000,10 @@ function App() {
                       <Route path="contracts" element={<TeamHeadContracts />} />
                       <Route path="transfers" element={<TeamHeadTransfers />} />
                       <Route path="budget" element={<TeamHeadBudget />} />
-                      <Route path="tickets" element={<TeamTickets />} />
+                      <Route
+                        path="player-tickets"
+                        element={<TeamHeadPlayerTickets />}
+                      />
                       <Route path="claims" element={<TeamHeadClaims />} />
                     </Route>
 
@@ -995,6 +1024,10 @@ function App() {
                       <Route
                         path="transfers"
                         element={<PlayerPortalTransfers />}
+                      />
+                      <Route
+                        path="tickets"
+                        element={<PlayerPortalTickets />}
                       />
                     </Route>
 

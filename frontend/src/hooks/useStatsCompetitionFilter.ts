@@ -6,7 +6,7 @@ import {
   getStatDates,
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
-} from "../services/api";
+} from "../services";
 import type { Competition } from "../types";
 
 const COMP_STORAGE_KEY = "sffl_stats_comp";

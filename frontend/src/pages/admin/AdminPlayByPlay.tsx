@@ -46,7 +46,7 @@ import {
   setPBPLock,
   rederiveSituations,
   overrideMatchMVP,
-} from "../../services/api";
+} from "../../services";
 import type {
   Match,
   Competition,

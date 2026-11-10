@@ -217,8 +217,8 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		compGroup.DELETE("/:id/teams/:teamId", app.Handlers.MatchHandler.RemoveTeamFromCompetition)
 		compGroup.POST("/:id/bracket", app.Handlers.MatchHandler.GenerateBracket)
 		compGroup.DELETE("/:id/bracket", app.Handlers.MatchHandler.ResetBracket)
-		compGroup.POST("/:id/cup/initialize", app.Handlers.MatchHandler.InitializeCup)
-		compGroup.POST("/:id/cup/advance", app.Handlers.MatchHandler.AdvanceCupRound)
+		compGroup.POST("/:id/cup/setup", app.Handlers.MatchHandler.SetupCup)
+		compGroup.POST("/:id/cup/fill", app.Handlers.MatchHandler.FillCupRound)
 		compGroup.GET("/:id/cup/state", app.Handlers.MatchHandler.GetCupState)
 		// Step 3: per-competition play-by-play scoring rules.
 		compGroup.GET("/:id/game-rules", app.Handlers.PlayHandler.GetRules)
@@ -521,6 +521,16 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		allocationsGroup.DELETE("/:id", app.Handlers.TeamTicketAllocationHandler.DeleteAllocation)
 	}
 
+	// Player tickets for every team, by match day: ticketers print them for the gate.
+	playerTicketsGroup := adminRoutes.Group("/player-tickets")
+	playerTicketsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
+	{
+		playerTicketsGroup.GET("/days", app.Handlers.PlayerTicketHandler.ListSheetDays)
+		playerTicketsGroup.GET("/days/:id", app.Handlers.PlayerTicketHandler.GetDaySheets)
+		playerTicketsGroup.GET("/matches/:matchId/teams/:teamId", app.Handlers.PlayerTicketHandler.GetSheet)
+		playerTicketsGroup.POST("/matches/:matchId/teams/:teamId/issue", app.Handlers.PlayerTicketHandler.IssueSheet)
+	}
+
 	ticketsGroup := adminRoutes.Group("/tickets")
 	ticketsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
 	{
@@ -646,6 +656,17 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes.GET("/roster-summary", app.Handlers.PlayerHandler.GetRosterSummary)
 
 	// Allocations
+	// Player tickets: the team's sheets with every player's ticket code, to print
+	// and hand to the gate. Codes are issued when a sheet is saved; issue fills gaps.
+	thRoutes.GET("/player-tickets", app.Handlers.PlayerTicketHandler.ListMySheets)
+	thRoutes.GET("/player-tickets/:matchId", app.Handlers.PlayerTicketHandler.GetMySheet)
+	thRoutes.POST("/player-tickets/:matchId/issue", app.Handlers.PlayerTicketHandler.IssueMySheet)
+	// The team's other slots: extra tickets for reserves or anyone else, and taking
+	// a ticket back so its slot can go to someone else.
+	thRoutes.POST("/player-tickets/:matchId/extras", app.Handlers.PlayerTicketHandler.AddMyExtraTicket)
+	thRoutes.DELETE("/player-tickets/:matchId/tickets/:ticketId", app.Handlers.PlayerTicketHandler.RevokeMyTicket)
+	thRoutes.POST("/player-tickets/:matchId/restore", app.Handlers.PlayerTicketHandler.RestoreMyTicket)
+
 	thRoutes.GET("/allocations", app.Handlers.TeamTicketAllocationHandler.GetTeamAllocations)
 	thRoutes.POST("/allocations/issue", app.Handlers.TeamTicketAllocationHandler.IssueTeamTicket)
 
@@ -834,6 +855,10 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	// Ticket routes
+	// The Paystack webhook. Set this URL on the Paystack dashboard; it takes ticket,
+	// store and fantasy league payments alike.
+	r.POST("/paystack/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
+
 	ticketRoutes := r.Group("/tickets")
 	{
 
@@ -846,7 +871,9 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
 		}
 
-		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
+		// Paystack calls one URL for every payment; every old webhook path goes to
+		// the same handler, which finds what the payment was for.
+		ticketRoutes.POST("/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
 		ticketRoutes.POST("/verify/:reference", app.Handlers.TicketHandler.VerifyTicket)
 		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
 		ticketRoutes.POST("/referrals", app.Handlers.TicketHandler.CreateReferralCode)
@@ -887,7 +914,7 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
 		}
 
-		storeRoutes.POST("/webhook", app.Handlers.StoreHandler.Webhook)
+		storeRoutes.POST("/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
 		storeRoutes.GET("/orders/by-ref/:reference", app.Handlers.StoreHandler.GetOrderByReference)
 
 		// Public reviews list — anyone can read reviews.
@@ -953,6 +980,8 @@ func SetupPlayerPortalRoutes(r *gin.RouterGroup, app *api.Application) {
 		ppGroup.GET("/contracts/:id", app.Handlers.ContractHandler.GetContractByID)
 		ppGroup.PUT("/contracts/:id/respond", app.Handlers.ContractHandler.RespondToContract)
 		ppGroup.GET("/transfers", app.Handlers.TransferHandler.GetMyTransfers)
+		// The player's own ticket code for each match they are named for.
+		ppGroup.GET("/tickets", app.Handlers.PlayerTicketHandler.GetMyTickets)
 	}
 }
 
@@ -1009,6 +1038,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
 		fantasyRoutes.GET("/season/:id/market/filters", app.Handlers.FantasyHandler.ListMarketFilters)
 		fantasyRoutes.GET("/season/:id/players/leaderboard", app.Handlers.FantasyHandler.GetPlayerLeaderboard)
+		fantasyRoutes.GET("/season/:id/players/:player_id", app.Handlers.FantasyHandler.GetFantasyPlayerDetail)
 		fantasyRoutes.GET("/carousel", app.Handlers.FantasyCarouselHandler.ListPublic)
 		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
 		fantasyRoutes.GET("/players/:id/price-history", app.Handlers.FantasyHandler.GetPlayerPriceHistory)
@@ -1027,7 +1057,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/seasons/:season_id/gameweeks/:gw_id/report", app.Handlers.FantasyHandler.GetGameweekReport)
 
 		// Webhook (Unauthenticated, HMAC signature validated)
-		fantasyRoutes.POST("/leagues/webhook", app.Handlers.FantasyLeagueHandler.LeagueWebhook)
+		fantasyRoutes.POST("/leagues/webhook", app.Handlers.PaystackWebhookHandler.Webhook)
 
 		// Authenticated User Operations
 		protected := fantasyRoutes.Group("")

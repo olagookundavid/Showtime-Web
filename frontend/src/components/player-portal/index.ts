@@ -1,10 +1,12 @@
 export { NotLinkedNotice } from './NotLinkedNotice';
+export { PlayerGameDayTicket } from './PlayerGameDayTicket';
 export { OfferResponseDialog } from './OfferResponseDialog';
 export type { OfferResponse } from '../../types';
 export { apiError } from './apiError';
 export {
   PLAYER_PORTAL_HOME,
   PLAYER_PORTAL_CONTRACTS_PATH,
+  PLAYER_PORTAL_TICKETS_PATH,
   PLAYER_PORTAL_NAV_SECTIONS,
   PLAYER_PORTAL_BOTTOM_NAV,
 } from './playerPortalNav';

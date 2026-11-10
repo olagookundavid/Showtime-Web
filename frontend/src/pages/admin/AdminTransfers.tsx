@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   adminTransfersApi,
   transfersApi,
-} from "../../services/api";
+} from "../../services";
 import type { TransferData, TeamBudgetData } from "../../types";
 import toast from "react-hot-toast";
 import { BanknotesIcon, BoltIcon } from "@heroicons/react/24/outline";

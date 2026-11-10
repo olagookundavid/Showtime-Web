@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getNewsBySlug, getNews } from '../../services/api';
+import { getNewsBySlug, getNews } from '../../services';
 import { Loader, LightboxImage, RichContent, YouTubeEmbed, CommentSection, BackButton } from '../../components';
 import { parseYouTubeId } from '../../utils';
 

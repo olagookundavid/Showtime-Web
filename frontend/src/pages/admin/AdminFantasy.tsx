@@ -28,12 +28,13 @@ import {
     CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
-    fantasyApi,
+    fantasyCoreApi,
+    fantasyLeaguesApi,
     fantasyAdminApi,
     formatKobo,
     formatFantasyPrice,
     getCompetitions
-} from '../../services/api';
+} from '../../services';
 import type {
     FantasySeason,
     FantasyGameweek,
@@ -350,7 +351,7 @@ function useReleaseSeasonMutation(onSettled?: () => void) {
     return useMutation({
         mutationFn: async (seasonId: string) => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
-            return fantasyApi.adminActivateSeason(seasonId);
+            return fantasyCoreApi.adminActivateSeason(seasonId);
         },
         onSuccess: () => {
             toast.success('Season released — players can see it now.');
@@ -573,7 +574,7 @@ function CreateSeasonCard() {
         mutationFn: async () => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!seasonForm.competition_id) throw new Error("Select a competition");
-            return fantasyApi.adminCreateSeason({
+            return fantasyCoreApi.adminCreateSeason({
                 competition_id: seasonForm.competition_id,
                 name: seasonForm.name,
                 squad_size: 14,
@@ -700,7 +701,7 @@ function SeasonDetail({ season, onBack }: { season: FantasySeason; onBack: () =>
     // Shares SetupTab's query key, so react-query serves both from one request.
     const { data: gameweeks = [] } = useQuery({
         queryKey: ['adminFantasyGameweeks', season.id],
-        queryFn: () => fantasyApi.getGameweeks(season.id),
+        queryFn: () => fantasyCoreApi.getGameweeks(season.id),
     });
 
     // An active season with no open gameweek still shows players nothing, which
@@ -805,12 +806,12 @@ function SetupTab({ season }: { season: FantasySeason }) {
 
     const { data: gameweeks = [], isLoading: gwLoading } = useQuery({
         queryKey: ['adminFantasyGameweeks', season.id],
-        queryFn: () => fantasyApi.getGameweeks(season.id),
+        queryFn: () => fantasyCoreApi.getGameweeks(season.id),
     });
 
     const { data: matchDays = [], isLoading: matchDaysLoading } = useQuery<ScheduledMatchDay[]>({
         queryKey: ['adminFantasyScheduledMatchDays', season.id],
-        queryFn: () => fantasyApi.adminGetScheduledMatchDays(season.id),
+        queryFn: () => fantasyCoreApi.adminGetScheduledMatchDays(season.id),
     });
 
     // Every write waits here for the confirm dialog
@@ -858,7 +859,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
     const initPricesMutation = useMutation({
         mutationFn: async (seasonId: string) => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
-            return fantasyApi.adminInitializePrices(seasonId);
+            return fantasyCoreApi.adminInitializePrices(seasonId);
         },
         onSuccess: () => toast.success("Player prices initialized!"),
         onError: (err: unknown) => toast.error(errorText(err)),
@@ -868,7 +869,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
     const autoScheduleMutation = useMutation({
         mutationFn: async () => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
-            return fantasyApi.adminAutoScheduleGameweeks(season.id);
+            return fantasyCoreApi.adminAutoScheduleGameweeks(season.id);
         },
         onSuccess: (gws) => {
             toast.success(`Successfully auto-scheduled ${gws.length} gameweek(s) from match fixtures!`);
@@ -882,7 +883,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
         mutationFn: async () => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!gwForm.match_date) throw new Error("Select a Match Date from the competition schedule");
-            return fantasyApi.adminCreateGameweek(season.id, {
+            return fantasyCoreApi.adminCreateGameweek(season.id, {
                 number: gwNumber,
                 match_date: gwForm.match_date,
                 deadline: gwForm.deadline ? toRFC3339(gwForm.deadline) : undefined,
@@ -902,7 +903,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
         mutationFn: async ({ gwId, deadline }: { gwId: string; deadline: string }) => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!deadline) throw new Error("Pick a new deadline first");
-            return fantasyApi.adminUpdateGameweekDeadline(gwId, toRFC3339(deadline));
+            return fantasyCoreApi.adminUpdateGameweekDeadline(gwId, toRFC3339(deadline));
         },
         onSuccess: () => {
             toast.success("Deadline updated!");
@@ -917,7 +918,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
     const finalizeGwMutation = useMutation({
         mutationFn: async (gwId: string) => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
-            return fantasyApi.adminFinalizeGameweek(gwId);
+            return fantasyCoreApi.adminFinalizeGameweek(gwId);
         },
         onSuccess: () => {
             toast.success("Gameweek finalized and official scores computed!");
@@ -930,7 +931,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
     const deleteGwMutation = useMutation({
         mutationFn: async (gwId: string) => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
-            return fantasyApi.adminDeleteGameweek(gwId);
+            return fantasyCoreApi.adminDeleteGameweek(gwId);
         },
         onSuccess: () => {
             toast.success("Gameweek deleted and remaining schedule re-synced!");
@@ -1492,7 +1493,7 @@ function CreateLeagueCard({ seasonId }: { seasonId: string }) {
         mutationFn: async () => {
             if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!form.name.trim()) throw new Error('Give the league a name');
-            return fantasyApi.createLeague({
+            return fantasyLeaguesApi.createLeague({
                 season_id: seasonId,
                 name: form.name.trim(),
                 type: form.type,

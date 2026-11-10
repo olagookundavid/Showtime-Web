@@ -18,7 +18,7 @@ import {
 import {
   getBroadcastDay,
   setBroadcastDayOnAir,
-} from "../../services/broadcastApi";
+} from "../../services";
 import {
   formatMatchDate,
   formatMatchTime,

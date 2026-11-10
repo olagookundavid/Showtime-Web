@@ -8,7 +8,7 @@ import {
   UserGroupIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
-import { fantasyApi, fantasySeasonApi } from "../../services/api";
+import { fantasyCoreApi, fantasySeasonApi } from "../../services";
 import type { TeamPointsHistoryRow } from "../../types";
 import {
   Loader,
@@ -46,7 +46,7 @@ export function FantasyPoints() {
   // Transfers, not a points-history page.
   const { data: gameweeks = [] } = useQuery({
     queryKey: ["fantasyGameweeks", seasonId],
-    queryFn: () => (seasonId ? fantasyApi.getGameweeks(seasonId) : Promise.resolve([])),
+    queryFn: () => (seasonId ? fantasyCoreApi.getGameweeks(seasonId) : Promise.resolve([])),
     enabled: !!seasonId,
   });
   const seasonHasStarted = gameweeks.some((gw) => gw.status !== "SCHEDULED");

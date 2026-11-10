@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { transfersApi, contractsApi, getTeams } from '../../services/api';
+import { transfersApi, contractsApi, getTeams } from '../../services';
 import type {
     Team,
     TransferData,

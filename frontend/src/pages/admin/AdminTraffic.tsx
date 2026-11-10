@@ -30,7 +30,7 @@ import {
     TrafficHeatmap,
     type Column,
 } from '../../components';
-import { downloadSiteTrafficExport, getSiteEvents, getSiteMatchDays, getSiteTrafficSummary } from '../../services/api';
+import { downloadSiteTrafficExport, getSiteEvents, getSiteMatchDays, getSiteTrafficSummary } from '../../services';
 import { getApiErrorMessage, lagosToday } from '../../utils';
 import type { SiteBreakdownRow, SiteDailyPoint, SiteEvent, SiteHeatCell, SiteMatchDay, SiteMatchReach, SiteMonthlyPoint, SiteRange, SiteTrafficSummary } from '../../types';
 

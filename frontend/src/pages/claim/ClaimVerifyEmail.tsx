@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { claimApi } from "../../services/api";
+import { claimApi } from "../../services";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { Spinner } from "../../components";
 

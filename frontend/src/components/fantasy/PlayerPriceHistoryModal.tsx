@@ -7,7 +7,7 @@ import {
     ScaleIcon,
     BoltIcon,
 } from '@heroicons/react/24/outline';
-import { fantasyApi, formatFantasyPrice } from '../../services/api';
+import { getPlayerPriceHistory, formatFantasyPrice } from '../../services';
 import { formatStatDecimal } from '../../utils';
 import { Button, Modal, DataTable, type Column } from '../ui';
 
@@ -36,7 +36,7 @@ export function PlayerPriceHistoryModal({
 }: PlayerPriceHistoryModalProps) {
     const { data: priceData, isLoading, isError } = useQuery({
         queryKey: ['playerPriceHistory', playerId, seasonId],
-        queryFn: () => (playerId ? fantasyApi.getPlayerPriceHistory(playerId, seasonId) : null),
+        queryFn: () => (playerId ? getPlayerPriceHistory(playerId, seasonId) : null),
         enabled: isOpen && Boolean(playerId),
         staleTime: 30000,
     });

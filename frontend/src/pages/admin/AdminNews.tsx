@@ -13,7 +13,7 @@ import {
 import { PlayIcon } from '@heroicons/react/24/solid';
 import {
     getNews, createNews, updateNews, deleteNews,
-} from '../../services/api';
+} from '../../services';
 import type { News, CreateNewsPayload } from '../../types';
 import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textarea, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, RichTextEditor, DashboardPageHeader } from '../../components';
 import { parseYouTubeId, youTubeThumbnailUrl, getApiErrorMessage, isRichTextEmpty } from '../../utils';

@@ -31,33 +31,35 @@ var ErrGameweekNotInSeason = errors.New("that gameweek is not part of this seaso
 // unpicked player who had a big game on zero — the opposite of what a player
 // leaderboard is for.
 func (s *FantasyService) GetPlayerLeaderboard(ctx context.Context, seasonID string, q dto.PlayerLeaderboardQuery) (*dto.PlayerLeaderboardResponse, error) {
-	gameweeks, err := s.repo.ListGameweeks(ctx, seasonID)
+	in, err := s.loadLeaderboardInput(ctx, seasonID)
 	if err != nil {
 		return nil, err
 	}
-	players, err := s.repo.ListLeaderboardPlayers(ctx, seasonID)
-	if err != nil {
-		return nil, err
+	return buildPlayerLeaderboard(in, q)
+}
+
+// loadLeaderboardInput reads everything the player rankings are built from. The
+// leaderboard and the player detail page both start here, so they rank the same
+// players on the same data.
+func (s *FantasyService) loadLeaderboardInput(ctx context.Context, seasonID string) (leaderboardInput, error) {
+	var in leaderboardInput
+	var err error
+	if in.gameweeks, err = s.repo.ListGameweeks(ctx, seasonID); err != nil {
+		return in, err
 	}
-	stats, err := s.repo.GetSeasonGameweekStats(ctx, seasonID)
-	if err != nil {
-		return nil, err
+	if in.players, err = s.repo.ListLeaderboardPlayers(ctx, seasonID); err != nil {
+		return in, err
 	}
-	starts, err := s.repo.GetSeasonLineupStarts(ctx, seasonID)
-	if err != nil {
-		return nil, err
+	if in.stats, err = s.repo.GetSeasonGameweekStats(ctx, seasonID); err != nil {
+		return in, err
 	}
-	squadCount, err := s.repo.CountSeasonTeams(ctx, seasonID)
-	if err != nil {
-		return nil, err
+	if in.starts, err = s.repo.GetSeasonLineupStarts(ctx, seasonID); err != nil {
+		return in, err
 	}
-	return buildPlayerLeaderboard(leaderboardInput{
-		gameweeks:  gameweeks,
-		players:    players,
-		stats:      stats,
-		starts:     starts,
-		squadCount: squadCount,
-	}, q)
+	if in.squadCount, err = s.repo.CountSeasonTeams(ctx, seasonID); err != nil {
+		return in, err
+	}
+	return in, nil
 }
 
 type leaderboardInput struct {
@@ -68,9 +70,69 @@ type leaderboardInput struct {
 	squadCount int
 }
 
+// rankedPool is every player scored and ranked, before any filter or paging.
+type rankedPool struct {
+	players []dto.PlayerLeaderboardItem
+	// focus is the gameweek the per-gameweek figures describe; played lists the
+	// gameweeks that have stats, oldest first.
+	focus  *dto.PlayerLeaderboardGameweek
+	played []dto.PlayerLeaderboardGameweek
+}
+
 // buildPlayerLeaderboard is the whole leaderboard as a pure function of its
 // inputs, so the arithmetic is testable without a database.
 func buildPlayerLeaderboard(in leaderboardInput, q dto.PlayerLeaderboardQuery) (*dto.PlayerLeaderboardResponse, error) {
+	ranked, err := rankPlayerPool(in, q.GameweekID)
+	if err != nil {
+		return nil, err
+	}
+	pool, focus, playedGWs := ranked.players, ranked.focus, ranked.played
+
+	resp := &dto.PlayerLeaderboardResponse{
+		Gameweek:        focus,
+		PlayedGameweeks: playedGWs,
+		SquadCount:      in.squadCount,
+		Highlights:      leaderboardHighlights(pool),
+	}
+	resp.Teams, resp.Positions = leaderboardFilterOptions(pool)
+
+	// Filter, sort, page.
+	filtered := filterLeaderboard(pool, q)
+	sortLeaderboard(filtered, q.Sort)
+
+	limit := q.Limit
+	if limit <= 0 {
+		limit = playerLeaderboardDefaultLimit
+	}
+	if limit > playerLeaderboardMaxLimit {
+		limit = playerLeaderboardMaxLimit
+	}
+	page := q.Page
+	if page < 1 {
+		page = 1
+	}
+	resp.Total = len(filtered)
+	resp.Limit = limit
+	resp.Page = page
+	resp.TotalPages = (resp.Total + limit - 1) / limit
+	start := (page - 1) * limit
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+	end := start + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	resp.Data = filtered[start:end]
+	return resp, nil
+}
+
+// rankPlayerPool scores every player from their own stat lines and ranks the
+// whole pool by points: the season's, or one gameweek's when gameweekID is set.
+// The leaderboard and the player detail page both read it, so a player's rank is
+// the same number in both.
+func rankPlayerPool(in leaderboardInput, gameweekID string) (*rankedPool, error) {
+	q := dto.PlayerLeaderboardQuery{GameweekID: gameweekID}
 	gwNumber := make(map[string]int, len(in.gameweeks))
 	for _, gw := range in.gameweeks {
 		gwNumber[gw.ID] = gw.Number
@@ -217,43 +279,7 @@ func buildPlayerLeaderboard(in leaderboardInput, q dto.PlayerLeaderboardQuery) (
 		}
 	}
 
-	resp := &dto.PlayerLeaderboardResponse{
-		Gameweek:        focus,
-		PlayedGameweeks: playedGWs,
-		SquadCount:      in.squadCount,
-		Highlights:      leaderboardHighlights(pool),
-	}
-	resp.Teams, resp.Positions = leaderboardFilterOptions(pool)
-
-	// 4. Filter, sort, page.
-	filtered := filterLeaderboard(pool, q)
-	sortLeaderboard(filtered, q.Sort)
-
-	limit := q.Limit
-	if limit <= 0 {
-		limit = playerLeaderboardDefaultLimit
-	}
-	if limit > playerLeaderboardMaxLimit {
-		limit = playerLeaderboardMaxLimit
-	}
-	page := q.Page
-	if page < 1 {
-		page = 1
-	}
-	resp.Total = len(filtered)
-	resp.Limit = limit
-	resp.Page = page
-	resp.TotalPages = (resp.Total + limit - 1) / limit
-	start := (page - 1) * limit
-	if start > len(filtered) {
-		start = len(filtered)
-	}
-	end := start + limit
-	if end > len(filtered) {
-		end = len(filtered)
-	}
-	resp.Data = filtered[start:end]
-	return resp, nil
+	return &rankedPool{players: pool, focus: focus, played: playedGWs}, nil
 }
 
 func byPointsThenName(a, b dto.PlayerLeaderboardItem) bool {

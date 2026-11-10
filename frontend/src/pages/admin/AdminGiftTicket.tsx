@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { GiftIcon, ClipboardIcon, CheckIcon, CheckCircleIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
-import { adminListTicketProducts, giftTicket } from '../../services/api';
+import { adminListTicketProducts, giftTicket } from '../../services';
 import type { TicketResponse } from '../../types';
 import { ConfirmDialog, ConfirmSummary, Button, Field, IconButton, Input, Select, DashboardPageHeader, TicketDayPicker } from '../../components';
 import { getApiErrorMessage } from '../../utils';

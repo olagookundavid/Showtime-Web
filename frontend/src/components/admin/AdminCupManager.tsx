@@ -7,9 +7,9 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   ClockIcon,
-  ExclamationTriangleIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { getCupState, initializeCup, advanceCupRound } from '../../services/api';
+import { getCupState, setupCup, fillCupRound } from '../../services';
 import type { CupState } from '../../types';
 import { Button, ConfirmDialog, ConfirmSummary, Field, Input, Modal, Spinner } from '../ui';
 import { getApiErrorMessage } from '../../utils';
@@ -21,30 +21,37 @@ interface AdminCupManagerProps {
 
 const CUP_ROUNDS = [
   { key: 'ROUND_1', label: 'Round 1', sublabel: 'Random draw', phase: 'swiss' },
-  { key: 'ROUND_2', label: 'Round 2', sublabel: 'Paired by rank', phase: 'swiss' },
-  { key: 'ROUND_3', label: 'Round 3', sublabel: 'Final Swiss round', phase: 'swiss' },
-  { key: 'QUARTERFINAL', label: 'Quarterfinal', sublabel: 'Top 8 (1v5 to 4v8)', phase: 'knockout' },
-  { key: 'SEMIFINAL', label: 'Semifinal', sublabel: 'Final 4', phase: 'knockout' },
+  { key: 'ROUND_2', label: 'Round 2', sublabel: 'Same records meet', phase: 'swiss' },
+  { key: 'ROUND_3', label: 'Round 3', sublabel: 'Last Swiss round', phase: 'swiss' },
+  { key: 'QUARTERFINAL', label: 'Quarterfinals', sublabel: 'Top 8: 1v5 to 4v8', phase: 'knockout' },
+  { key: 'SEMIFINAL', label: 'Semifinals', sublabel: 'Final 4', phase: 'knockout' },
   { key: 'FINAL', label: 'Final', sublabel: 'Championship', phase: 'knockout' },
 ];
 
 const roundLabel = (key?: string) =>
   key === 'COMPLETED' ? 'Completed' : CUP_ROUNDS.find((r) => r.key === key)?.label ?? key ?? '';
 
-// Rounds 1–3 and the knockout tree (built after Round 3) create new fixtures,
-// so they need a date, kickoff and venue. Later steps only move the stage on:
-// the semifinals and Final already exist and fill in as winners advance.
-const CREATES_FIXTURES = new Set(['UNINITIALIZED', 'ROUND_1', 'ROUND_2', 'ROUND_3']);
+const dayLabel = (date?: string) =>
+  date
+    ? new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    : '';
 
 const SCHEDULE_FORM_ID = 'cup-schedule-form';
+// Cup days have run 13:20, 14:40, 16:00, 17:20, 18:40 at Showtime Arena.
+const DEFAULT_KICKOFF = '13:20';
+const DEFAULT_GAP_MINUTES = 80;
+const DEFAULT_VENUE = 'Showtime Arena';
+
+type PendingAction = 'setup' | 'fill' | null;
+type RoundDay = { date: string; kickoff: string };
 
 export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId, isCompleted }) => {
   const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState(() => new Date().toISOString().substring(0, 10));
-  const [scheduleTime, setScheduleTime] = useState('12:00');
-  const [scheduleVenue, setScheduleVenue] = useState('Showtime Stadium');
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [pending, setPending] = useState<PendingAction>(null);
+  const [days, setDays] = useState<Record<string, RoundDay>>({});
+  const [gapMinutes, setGapMinutes] = useState(String(DEFAULT_GAP_MINUTES));
+  const [venue, setVenue] = useState(DEFAULT_VENUE);
 
   const { data: cupState, isLoading } = useQuery<CupState>({
     queryKey: ['adminCupState', competitionId],
@@ -53,41 +60,45 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
   });
 
   const currentRound = cupState?.current_round || 'UNINITIALIZED';
-  const isInitialize = currentRound === 'UNINITIALIZED';
-  // Matches entered by hand before the cup started that form a full Round 1:
-  // starting adopts them (dates included), so there's nothing to schedule.
-  const adopting = isInitialize && !!cupState?.adopts_existing_matches;
-  const needsSchedule = CREATES_FIXTURES.has(currentRound) && !adopting;
+  const notStarted = currentRound === 'UNINITIALIZED';
+  const adopting = notStarted && !!cupState?.adopts_existing_matches;
+  // Rounds that still need a date, in playing order.
+  const missing = CUP_ROUNDS.filter((r) => cupState?.missing_rounds?.includes(r.key));
+  const dayOf = (round: string): RoundDay => days[round] ?? { date: '', kickoff: DEFAULT_KICKOFF };
+  const setDay = (round: string, patch: Partial<RoundDay>) =>
+    setDays((d) => ({ ...d, [round]: { ...dayOf(round), ...patch } }));
 
   const onDone = (message: string) => {
     toast.success(message);
-    setConfirmOpen(false);
-    setModalOpen(false);
+    setPending(null);
+    setScheduleOpen(false);
     queryClient.invalidateQueries({ queryKey: ['adminCupState', competitionId] });
     queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
     queryClient.invalidateQueries({ queryKey: ['adminCompetitions'] });
     queryClient.invalidateQueries({ queryKey: ['publicCompetitions'] });
     queryClient.invalidateQueries({ queryKey: ['publicStandings'] });
+    queryClient.invalidateQueries({ queryKey: ['bracketMatches', competitionId] });
   };
   const onFail = (fallback: string) => (err: unknown) => {
-    setConfirmOpen(false);
+    setPending(null);
     toast.error(getApiErrorMessage(err, fallback));
   };
 
-  const schedule = needsSchedule
-    ? { date: scheduleDate, time: scheduleTime, venue: scheduleVenue }
-    : undefined;
-
-  const initMutation = useMutation({
-    mutationFn: () => initializeCup(competitionId, schedule),
-    onSuccess: (data) => onDone(data.message || 'Cup started with Round 1'),
-    onError: onFail('Failed to start the Cup'),
+  const setupMutation = useMutation({
+    mutationFn: () =>
+      setupCup(competitionId, {
+        rounds: missing.map((r) => ({ round: r.key, date: dayOf(r.key).date, first_kickoff: dayOf(r.key).kickoff })),
+        gap_minutes: Number(gapMinutes) || DEFAULT_GAP_MINUTES,
+        venue,
+      }),
+    onSuccess: () => onDone(notStarted ? 'Cup set up: every round is dated' : 'Remaining rounds dated'),
+    onError: onFail('Failed to set up the Cup'),
   });
 
-  const advanceMutation = useMutation({
-    mutationFn: () => advanceCupRound(competitionId, schedule),
-    onSuccess: (data) => onDone(data.message || 'Cup moved to the next stage'),
-    onError: onFail('Failed to advance the Cup'),
+  const fillMutation = useMutation({
+    mutationFn: () => fillCupRound(competitionId),
+    onSuccess: () => onDone(`${roundLabel(cupState?.next_round)} fixtures filled`),
+    onError: onFail('Failed to fill the next round'),
   });
 
   if (isLoading) {
@@ -100,38 +111,28 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
 
   const isCupCompleted = isCompleted || currentRound === 'COMPLETED';
   const activeIndex = CUP_ROUNDS.findIndex((r) => r.key === currentRound);
-  const nextLabel = isInitialize ? 'Round 1' : roundLabel(cupState?.next_round);
-  const isFinishing = cupState?.next_round === 'COMPLETED';
-  const pending = initMutation.isPending || advanceMutation.isPending;
+  const nextLabel = roundLabel(cupState?.next_round);
+  const fillsQuarterfinals = cupState?.next_round === 'QUARTERFINAL';
+  // Before the cup starts, can_advance means it can be set up.
+  const canSetUp = notStarted ? !!cupState?.can_advance : missing.length > 0;
+  const canFill = !notStarted && !!cupState?.can_advance;
 
   const getStepStatus = (index: number) => {
     if (isCupCompleted) return 'completed';
-    if (isInitialize) return 'upcoming';
+    if (notStarted) return 'upcoming';
     if (index < activeIndex) return 'completed';
     if (index === activeIndex) return 'current';
     return 'upcoming';
   };
 
-  // Steps that create fixtures collect a schedule first; the rest go straight
-  // to the confirm dialog.
-  const startAction = () => (needsSchedule ? setModalOpen(true) : setConfirmOpen(true));
-
-  const confirmTitle = isInitialize
-    ? 'Start the Cup?'
-    : isFinishing
-      ? 'Complete the Cup?'
-      : `Advance to ${nextLabel}?`;
-  const confirmDescription = adopting
-    ? 'The 5 matches already entered become Round 1. Their dates, results, play-by-play and stats stay as they are.'
-    : isInitialize
-    ? 'Five Round 1 fixtures will be drawn at random between the 10 teams.'
-    : currentRound === 'ROUND_3'
-      ? 'The Swiss table is locked. Ranks 9 and 10 are eliminated, and the quarterfinals (1v5, 2v6, 3v7, 4v8), semifinals and Final are created.'
-      : needsSchedule
-        ? `Five ${nextLabel} fixtures will be paired from the current table, with no rematches.`
-        : isFinishing
-          ? 'The Cup is marked completed and can no longer be changed.'
-          : `The Cup moves on to the ${nextLabel}. Its fixtures already exist and are filled in by the winners.`;
+  const scheduleRows: [string, string][] = [
+    ...(adopting ? ([['Round 1', 'The 5 matches already entered']] as [string, string][]) : []),
+    ...missing.map(
+      (r) => [r.label, `${dayLabel(dayOf(r.key).date)}, first game ${dayOf(r.key).kickoff}`] as [string, string],
+    ),
+    ['Between kickoffs', `${Number(gapMinutes) || DEFAULT_GAP_MINUTES} minutes`],
+    ['Venue', venue],
+  ];
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
@@ -144,24 +145,33 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
           <div className="min-w-0">
             <h2 className="text-lg md:text-xl font-bold">Cup Tournament</h2>
             <p className="text-xs md:text-sm text-gray-300 mt-0.5">
-              10 teams play 3 Swiss rounds; the top 8 go into a knockout bracket.
+              Every round is dated up front. 10 teams play 3 Swiss rounds; the top 8 go into the knockout.
             </p>
           </div>
         </div>
 
-        <div className="shrink-0">
-          {isInitialize && !isCupCompleted && cupState?.can_advance && (
-            <Button variant="primary" tone="dark" icon={PlayIcon} onClick={startAction}>
-              {adopting ? 'Start Cup from these matches' : 'Start Cup (Round 1)'}
+        <div className="flex flex-wrap gap-2 shrink-0">
+          {!isCupCompleted && canSetUp && (
+            <Button
+              variant={canFill ? 'secondary' : 'primary'}
+              tone="dark"
+              icon={notStarted ? PlayIcon : CalendarDaysIcon}
+              onClick={() => setScheduleOpen(true)}
+            >
+              {notStarted ? 'Set up Cup' : 'Date remaining rounds'}
             </Button>
           )}
-
-          {!isInitialize && !isCupCompleted && cupState?.can_advance && (
-            <Button variant="primary" tone="dark" icon={ArrowRightIcon} iconPosition="right" onClick={startAction}>
-              {isFinishing ? 'Complete Cup' : `Advance to ${nextLabel}`}
+          {!isCupCompleted && canFill && (
+            <Button
+              variant="primary"
+              tone="dark"
+              icon={ArrowRightIcon}
+              iconPosition="right"
+              onClick={() => setPending('fill')}
+            >
+              Fill {nextLabel}
             </Button>
           )}
-
           {isCupCompleted && (
             <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-lg border border-emerald-500/30 text-xs font-bold">
               <CheckCircleIcon className="w-4 h-4 text-emerald-400" aria-hidden="true" />
@@ -176,6 +186,7 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
         <ol className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
           {CUP_ROUNDS.map((round, idx) => {
             const status = getStepStatus(idx);
+            const undated = !notStarted && cupState?.missing_rounds?.includes(round.key);
             return (
               <li
                 key={round.key}
@@ -219,7 +230,9 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
                 >
                   {round.label}
                 </div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{round.sublabel}</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                  {undated ? 'No date yet' : round.sublabel}
+                </div>
               </li>
             );
           })}
@@ -238,16 +251,21 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
           <p className="text-sm font-bold text-gray-900 dark:text-white wrap-break-word">
             {cupState?.status_message || 'Tournament ready.'}
           </p>
+          {!notStarted && missing.length > 0 && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 wrap-break-word">
+              Not dated yet: {missing.map((r) => r.label).join(', ')}.
+            </p>
+          )}
         </div>
 
-        {(!isInitialize || adopting) && !isCupCompleted && (
+        {!isCupCompleted && (cupState?.matches_total ?? 0) > 0 && (
           <div className="flex items-center gap-4 bg-gray-100 dark:bg-gray-700/60 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 shrink-0">
             <div>
               <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                {adopting ? 'Matches already entered' : `${roundLabel(currentRound)} matches`}
+                {adopting ? 'Matches already entered' : activeIndex >= 3 ? 'Knockout matches' : `${roundLabel(currentRound)} matches`}
               </div>
               <div className="text-base font-bold text-sffl-navy dark:text-white">
-                {cupState?.matches_finished || 0} / {cupState?.matches_total || 0} finished
+                {cupState?.matches_finished || 0} / {cupState?.matches_total || 0} played
               </div>
             </div>
             <div className="w-20 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
@@ -266,16 +284,22 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
         )}
       </div>
 
-      {/* Schedule for the fixtures this step creates */}
+      {/* Dates for every round that has no fixtures yet */}
       <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={isInitialize ? 'Schedule Round 1' : `Schedule the ${nextLabel}`}
-        subtitle="Date, kickoff time and venue for the new fixtures. You can still edit each match afterwards."
-        maxWidth="md"
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        title={notStarted ? 'Set up the Cup' : 'Date the remaining rounds'}
+        subtitle={
+          notStarted
+            ? adopting
+              ? 'The 5 matches already entered stay as Round 1. Pick a day for each later round; their fixtures are filled as results come in.'
+              : 'Pick a day for every round. Round 1 is drawn at random; later rounds are filled as results come in.'
+            : 'Pick a day for each round that has none. Rounds already scheduled stay as they are.'
+        }
+        maxWidth="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setScheduleOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" form={SCHEDULE_FORM_ID} variant="primary">
@@ -286,92 +310,111 @@ export const AdminCupManager: React.FC<AdminCupManagerProps> = ({ competitionId,
       >
         <form
           id={SCHEDULE_FORM_ID}
-          className="space-y-4"
+          className="space-y-5"
           onSubmit={(e) => {
             e.preventDefault();
-            setConfirmOpen(true);
+            setPending('setup');
           }}
         >
-          {currentRound === 'ROUND_3' && (
-            <div className="flex gap-2.5 p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-200">
-              <ExclamationTriangleIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
-              <div className="space-y-1">
-                <div className="font-bold">Quarterfinal cutoff</div>
-                <p>
-                  Advancing locks the Swiss table. Ranks 9 and 10 are eliminated; the top 8 meet in the
-                  quarterfinals (1v5, 2v6, 3v7, 4v8). The date below is for the quarterfinals; the semifinals
-                  follow a week later and the Final a week after that.
-                </p>
+          <div className="space-y-3">
+            {missing.map((r) => (
+              <div key={r.key} className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 items-end">
+                <Field label={`${r.label} date`} htmlFor={`cup-date-${r.key}`}>
+                  <Input
+                    id={`cup-date-${r.key}`}
+                    type="date"
+                    required
+                    value={dayOf(r.key).date}
+                    onChange={(e) => setDay(r.key, { date: e.target.value })}
+                  />
+                </Field>
+                <Field label="First kickoff" htmlFor={`cup-kickoff-${r.key}`}>
+                  <Input
+                    id={`cup-kickoff-${r.key}`}
+                    type="time"
+                    required
+                    value={dayOf(r.key).kickoff}
+                    onChange={(e) => setDay(r.key, { kickoff: e.target.value })}
+                  />
+                </Field>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
 
-          <Field label="Fixture date" htmlFor="cup-schedule-date">
-            <Input
-              id="cup-schedule-date"
-              type="date"
-              required
-              value={scheduleDate}
-              onChange={(e) => setScheduleDate(e.target.value)}
-            />
-          </Field>
-
-          <Field label="Kickoff time" htmlFor="cup-schedule-time">
-            <Input
-              id="cup-schedule-time"
-              type="time"
-              required
-              value={scheduleTime}
-              onChange={(e) => setScheduleTime(e.target.value)}
-            />
-          </Field>
-
-          <Field label="Venue" htmlFor="cup-schedule-venue">
-            <Input
-              id="cup-schedule-venue"
-              type="text"
-              value={scheduleVenue}
-              onChange={(e) => setScheduleVenue(e.target.value)}
-              placeholder="e.g. Showtime Stadium"
-            />
-          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field
+              label="Minutes between kickoffs"
+              htmlFor="cup-gap"
+              hint="Each game starts this long after the one before."
+            >
+              <Input
+                id="cup-gap"
+                type="number"
+                min={10}
+                max={360}
+                required
+                value={gapMinutes}
+                onChange={(e) => setGapMinutes(e.target.value)}
+              />
+            </Field>
+            <Field label="Venue" htmlFor="cup-venue">
+              <Input
+                id="cup-venue"
+                type="text"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
+                placeholder="e.g. Showtime Arena"
+              />
+            </Field>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            You can still change any single match's date, time or venue from the matches list afterwards.
+          </p>
         </form>
       </Modal>
 
       {/* Rendered outside the Modal so its backdrop doesn't close the Modal. */}
       <ConfirmDialog
-        open={confirmOpen}
-        title={confirmTitle}
-        description={confirmDescription}
+        open={pending === 'setup'}
+        title={notStarted ? 'Set up the Cup?' : 'Date the remaining rounds?'}
+        description={
+          notStarted && !adopting
+            ? 'Round 1 is drawn at random now, and every later round gets dated fixtures showing TBD until results fill them.'
+            : 'Each round below gets its dated fixtures, showing TBD until results fill them.'
+        }
+        body={<ConfirmSummary rows={scheduleRows} />}
+        confirmLabel={notStarted ? 'Set up Cup' : 'Save dates'}
+        tone="info"
+        icon={CalendarDaysIcon}
+        pending={setupMutation.isPending}
+        onConfirm={() => setupMutation.mutate()}
+        onCancel={() => setPending(null)}
+      />
+      <ConfirmDialog
+        open={pending === 'fill'}
+        title={`Fill ${nextLabel}?`}
+        description={
+          fillsQuarterfinals
+            ? 'Round 3 results lock the order: ranks 9 and 10 are out, and the top 8 go into the quarterfinals (1v5, 2v6, 3v7, 4v8). From there winners move up on their own.'
+            : `Teams with the same record are paired into the ${nextLabel} fixtures, with no rematches.`
+        }
         body={
           <ConfirmSummary
             rows={[
-              ['Stage', isInitialize ? 'Not started' : roundLabel(currentRound)],
-              ['Moves to', nextLabel],
-              ...(adopting
-                ? ([
-                    [
-                      'Matches',
-                      `${cupState?.matches_total ?? 5} already entered, ${cupState?.matches_finished ?? 0} finished`,
-                    ],
-                  ] as [string, string][])
-                : []),
-              ...(needsSchedule
-                ? ([
-                    ['Date', scheduleDate],
-                    ['Kickoff', scheduleTime],
-                    ['Venue', scheduleVenue],
-                  ] as [string, string][])
+              ['From', `${roundLabel(currentRound)} results`],
+              ['Fills', nextLabel],
+              ...(cupState?.auto_fill_on
+                ? ([['Otherwise fills itself on', dayLabel(cupState.auto_fill_on)]] as [string, string][])
                 : []),
             ]}
           />
         }
-        confirmLabel={isInitialize ? 'Start Cup' : isFinishing ? 'Complete Cup' : `Advance to ${nextLabel}`}
-        tone={currentRound === 'ROUND_3' || isFinishing ? 'warning' : 'info'}
-        icon={isInitialize ? PlayIcon : isFinishing ? CheckCircleIcon : ArrowRightIcon}
-        pending={pending}
-        onConfirm={() => (isInitialize ? initMutation.mutate() : advanceMutation.mutate())}
-        onCancel={() => setConfirmOpen(false)}
+        confirmLabel={`Fill ${nextLabel}`}
+        tone={fillsQuarterfinals ? 'warning' : 'info'}
+        icon={ArrowRightIcon}
+        pending={fillMutation.isPending}
+        onConfirm={() => fillMutation.mutate()}
+        onCancel={() => setPending(null)}
       />
     </div>
   );

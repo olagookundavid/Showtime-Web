@@ -21,7 +21,7 @@ import {
   getTeamManagers,
   getTeamsByCompetition,
   sortCompetitionsBySeason,
-} from "../../services/api";
+} from "../../services";
 import type { Competition, Match, Team, Player } from "../../types";
 import { useAuth } from "../../contexts";
 import { usePermissions } from "../../hooks";

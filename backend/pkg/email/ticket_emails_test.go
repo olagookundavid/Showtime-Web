@@ -104,3 +104,15 @@ func TestSeasonPassEmailShowsTheEndDateInsteadOfMatchDays(t *testing.T) {
 		t.Error("a season pass has no list of match days")
 	}
 }
+
+func TestPlayerTicketEmailShowsTheMatchAndCode(t *testing.T) {
+	body := PlayerTicketEmailHTML(PlayerTicketEmailData{
+		PlayerName: "Ada <b>", TeamName: "Lions", Fixture: "Lions vs Eagles", Competition: "League",
+		Date: "Sat, Nov 07 2026", Kickoff: "14:30", Venue: "Showtime Arena", TicketCode: "SFFL-ABCD2345",
+	})
+	for _, want := range []string{"SFFL-ABCD2345", "League: Lions vs Eagles", "Sat, Nov 07 2026 · 14:30", "Showtime Arena", "Player Ticket", "Ada &lt;b&gt;"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("player ticket email is missing %q", want)
+		}
+	}
+}

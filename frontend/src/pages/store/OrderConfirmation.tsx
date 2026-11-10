@@ -8,7 +8,7 @@ import {
   PrinterIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { getOrderByReference, verifyStorePayment } from "../../services/api";
+import { getOrderByReference, verifyStorePayment } from "../../services";
 import { Loader, Button, ButtonLink, OrderLifecycleStepper } from "../../components";
 import { useCart } from "../../contexts";
 

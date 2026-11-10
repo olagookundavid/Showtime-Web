@@ -5,7 +5,7 @@ import { LockClosedIcon, TrashIcon } from '@heroicons/react/24/outline';
 import {
     getStandings, getCompetitions,
     deleteStanding,
-} from '../../services/api';
+} from '../../services';
 import type { Standing, Competition } from '../../types';
 import { ConfirmDialog, ConfirmSummary, DataTable, type Column, RowActions, LightboxImage, Select, DashboardPageHeader } from '../../components';
 import { usePermissions } from '../../hooks';

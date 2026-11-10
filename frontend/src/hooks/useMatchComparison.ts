@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getMatchPlays, getPublicMatchStats } from '../services/api';
+import { getMatchPlays, getPublicMatchStats } from '../services';
 import { computeTeamComparison } from '../utils';
 import type { SceneData } from '../types';
 

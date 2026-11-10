@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { loginUser, registerUser, logoutUser, getUserProfile } from '../services/api';
+import { loginUser, registerUser, logoutUser, getUserProfile } from '../services';
 import type { AuthUser } from '../types';
 
 export interface User {
@@ -121,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const forgotPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
         try {
-            const { forgotPassword: forgotPasswordApi } = await import('../services/api');
+            const { forgotPassword: forgotPasswordApi } = await import('../services');
             await forgotPasswordApi(email);
             return { success: true };
         } catch (err: any) {
@@ -132,7 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const resetPasswordWithOTP = async (email: string, otp: string, new_password: string): Promise<{ success: boolean; error?: string }> => {
         try {
-            const { resetPassword: resetPasswordApi } = await import('../services/api');
+            const { resetPassword: resetPasswordApi } = await import('../services');
             await resetPasswordApi({ email, otp, new_password });
             return { success: true };
         } catch (err: any) {

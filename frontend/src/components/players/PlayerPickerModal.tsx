@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getPlayers, getTeams } from "../../services/api";
+import { getPlayers, getTeams } from "../../services";
 import { normalizePosition } from "../../utils";
 import type { NormalizedPosition, Player } from "../../types";
 import { Modal, Input, Select, Spinner } from "../ui";

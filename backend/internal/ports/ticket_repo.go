@@ -70,6 +70,10 @@ type TicketRepository interface {
 	GetByCode(ctx context.Context, code string) (*domain.Ticket, error)
 	SearchByEmail(ctx context.Context, email string, page, limit int) ([]domain.Ticket, int, error)
 	UpdateStatus(ctx context.Context, id string, status domain.TicketStatus) error
+	// MarkPaid moves a PENDING or FAILED ticket to PAID. changed is false when it
+	// was already paid: the webhook and the buyer's confirmation page can both get
+	// there, and only the first should send the confirmation.
+	MarkPaid(ctx context.Context, id string) (changed bool, err error)
 	// CheckinDay marks one day of a PAID ticket as attended. The ticket becomes
 	// USED once every day has been.
 	CheckinDay(ctx context.Context, ticketID, eventDayID, checkedInBy string) error
@@ -644,7 +648,9 @@ const ticketColumns = `t.id, t.product_id, t.product_name, t.purchase_type, t.em
 	t.total_amount, t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 	t.referral_code, t.created_at, t.updated_at, t.discount_code, t.discount_amount,
 	t.game_pass_discount_percent::float8, t.game_pass_discount_amount, t.season_pass_id::text,
-	(SELECT to_char(sp.ends_on, 'YYYY-MM-DD') FROM season_passes sp WHERE sp.id = t.season_pass_id)`
+	(SELECT to_char(sp.ends_on, 'YYYY-MM-DD') FROM season_passes sp WHERE sp.id = t.season_pass_id),
+	t.player_id::text, t.match_id::text, COALESCE(t.team_role, ''),
+	(SELECT MAX(e.created_at) FROM season_pass_entries e WHERE e.ticket_id = t.id)`
 
 func scanTicket(row pgx.Row, t *domain.Ticket) error {
 	return row.Scan(
@@ -653,6 +659,7 @@ func scanTicket(row pgx.Row, t *domain.Ticket) error {
 		&t.TotalAmount, &t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.ReferralCode, &t.CreatedAt, &t.UpdatedAt, &t.DiscountCode, &t.DiscountAmount,
 		&t.GamePassDiscountPercent, &t.GamePassDiscountAmount, &t.SeasonPassID, &t.ValidUntil,
+		&t.PlayerID, &t.MatchID, &t.TeamRole, &t.LastEntryAt,
 	)
 }
 
@@ -720,7 +727,8 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 	}
 	defer tx.Rollback(ctx)
 
-	if len(ticket.Days) > 0 {
+	// A player ticket covers its day without taking a seat from any product.
+	if len(ticket.Days) > 0 && ticket.PurchaseType != domain.PurchaseTypePlayer {
 		if err := reserveSeatsTx(ctx, tx, ticket); err != nil {
 			return err
 		}
@@ -730,8 +738,8 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		INSERT INTO tickets (product_id, product_name, purchase_type, email, phone, name, user_id, quantity,
 			unit_price, subtotal, total_amount, status, paystack_reference, paystack_access_code, ticket_code,
 			team_id, referral_code, discount_code, discount_amount, game_pass_discount_percent, game_pass_discount_amount,
-			season_pass_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+			season_pass_id, player_id, match_id, team_role)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NULLIF($25, ''))
 		ON CONFLICT (paystack_reference) DO NOTHING
 		RETURNING id, created_at, updated_at`,
 		ticket.ProductID, ticket.ProductName, ticket.PurchaseType, ticket.Email, ticket.Phone, ticket.Name,
@@ -739,6 +747,7 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
 		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
 		ticket.GamePassDiscountPercent, ticket.GamePassDiscountAmount, ticket.SeasonPassID,
+		ticket.PlayerID, ticket.MatchID, string(ticket.TeamRole),
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
 	if err != nil {
 		return err
@@ -747,7 +756,7 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 	for _, d := range ticket.Days {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO ticket_days (ticket_id, event_day_id, product_day_id, unit_price, day_title, day_date, day_venue)
-			SELECT $1::uuid, ed.id, $3::uuid, $4::int, ed.title, ed.date, ed.venue FROM event_days ed WHERE ed.id = $2`,
+			SELECT $1::uuid, ed.id, NULLIF($3, '')::uuid, $4::int, ed.title, ed.date, ed.venue FROM event_days ed WHERE ed.id = $2`,
 			ticket.ID, d.EventDayID, d.ProductDayID, d.UnitPrice); err != nil {
 			return err
 		}
@@ -925,6 +934,15 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 		return nil, 0, err
 	}
 	return tickets, total, nil
+}
+
+func (r *PostgresTicketRepository) MarkPaid(ctx context.Context, id string) (bool, error) {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE tickets SET status = 'PAID', updated_at = NOW() WHERE id = $1 AND status IN ('PENDING', 'FAILED')`, id)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 func (r *PostgresTicketRepository) UpdateStatus(ctx context.Context, id string, status domain.TicketStatus) error {
@@ -1114,7 +1132,8 @@ func (r *PostgresTicketRepository) GetTotalRevenue(ctx context.Context) (int, er
 }
 
 func (r *PostgresTicketRepository) GetTotalTicketsSold(ctx context.Context) (int, error) {
-	query := `SELECT COALESCE(SUM(quantity), 0) FROM tickets WHERE status IN ('PAID', 'USED')`
+	// Player tickets are given, not sold.
+	query := `SELECT COALESCE(SUM(quantity), 0) FROM tickets WHERE status IN ('PAID', 'USED') AND purchase_type <> 'PLAYER'`
 	var total int
 	err := r.db.QueryRow(ctx, query).Scan(&total)
 	return total, err
@@ -1124,7 +1143,7 @@ func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int
 	rows, err := r.db.Query(ctx, `
 		SELECT `+ticketColumns+`
 		FROM tickets t
-		WHERE t.status IN ('PAID', 'USED')
+		WHERE t.status IN ('PAID', 'USED') AND t.purchase_type <> 'PLAYER'
 		ORDER BY t.created_at DESC
 		LIMIT $1`, limit)
 	if err != nil {
@@ -1134,9 +1153,10 @@ func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int
 }
 
 func (r *PostgresTicketRepository) CountByTeamAndEventDay(ctx context.Context, teamID string, eventDayID string) (int, error) {
+	// A team's allocation is for guests; its players' own tickets do not use it.
 	query := `SELECT COUNT(DISTINCT t.id) FROM tickets t
 		JOIN ticket_days td ON td.ticket_id = t.id
-		WHERE t.team_id = $1 AND td.event_day_id = $2`
+		WHERE t.team_id = $1 AND td.event_day_id = $2 AND t.purchase_type <> 'PLAYER'`
 	var count int
 	err := r.db.QueryRow(ctx, query, teamID, eventDayID).Scan(&count)
 	return count, err

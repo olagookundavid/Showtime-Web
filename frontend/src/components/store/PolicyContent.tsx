@@ -97,7 +97,7 @@ export const PrivacyPolicyContent = () => (
             <h3 className="font-black text-sffl-navy dark:text-white uppercase tracking-wider text-xs">Information We Collect</h3>
             <p>We may collect the following types of information:</p>
             <p className="font-bold">Personal Information</p>
-            <p>When you place an order, sign up for our newsletter, or contact us, we may collect:</p>
+            <p>When you place an order, create an account, buy a ticket, or contact us, we may collect:</p>
             <ul className="list-disc pl-5 space-y-1">
                 <li>Full name</li>
                 <li>Phone number</li>
@@ -121,7 +121,7 @@ export const PrivacyPolicyContent = () => (
                 <li>Process and fulfill your orders</li>
                 <li>Provide customer support</li>
                 <li>Send order confirmations and shipping updates</li>
-                <li>Communicate promotional offers (with your consent)</li>
+                <li>Email you Showtime news, fixtures and offers when you create an account or buy a ticket (every email has an unsubscribe link)</li>
                 <li>Improve our website and services</li>
             </ul>
             <p className="font-bold">We do not sell, rent, or lease your personal data to any third parties.</p>

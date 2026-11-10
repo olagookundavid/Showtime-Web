@@ -16,10 +16,11 @@ import {
   EyeIcon,
 } from "@heroicons/react/24/outline";
 import {
-  fantasyApi,
+  fantasyCoreApi,
+  fantasyLeaguesApi,
   fantasySeasonApi,
   formatKobo,
-} from "../../services/api";
+} from "../../services";
 import type { LeaderboardEntry } from "../../types";
 import { useAuth } from "../../contexts";
 import { useFantasyLeaderboard, num, rankBadgeClass } from "../../hooks";
@@ -47,7 +48,7 @@ export function FantasyLeaderboard() {
 
   const { data: season } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   // When the route is the overall table, its :id IS the season id.
@@ -56,7 +57,7 @@ export function FantasyLeaderboard() {
   const { data: gameweeks } = useQuery({
     queryKey: ["fantasyGameweeks", season?.id],
     queryFn: () =>
-      season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([]),
+      season?.id ? fantasyCoreApi.getGameweeks(season.id) : Promise.resolve([]),
     enabled: !!season?.id,
   });
 
@@ -64,7 +65,7 @@ export function FantasyLeaderboard() {
   const { data: myLeagues } = useQuery({
     queryKey: ["myFantasyLeagues", season?.id],
     queryFn: () =>
-      season?.id ? fantasyApi.listMyLeagues(season.id) : Promise.resolve([]),
+      season?.id ? fantasyLeaguesApi.listMyLeagues(season.id) : Promise.resolve([]),
     enabled: !!season?.id,
     retry: false,
   });
@@ -133,7 +134,7 @@ export function FantasyLeaderboard() {
   const leaveEntryFeeKobo = num(leavableLeague?.entry_fee);
 
   const leaveMutation = useMutation({
-    mutationFn: () => fantasyApi.leaveLeague(scope),
+    mutationFn: () => fantasyLeaguesApi.leaveLeague(scope),
     onSuccess: () => {
       toast.success(`You have left ${leavableLeague?.name || "the league"}.`);
       setConfirmLeave(false);

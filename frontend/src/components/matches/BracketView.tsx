@@ -8,10 +8,12 @@ import {
 } from "@heroicons/react/24/outline";
 import { FootballIcon } from "../icons/FootballIcon";
 import { useQuery } from "@tanstack/react-query";
-import { getMatches } from "../../services/api";
+import { getMatches } from "../../services";
 import type { Match, BracketColumn } from "../../types";
 import { Spinner } from "../ui";
+import type { Shape } from "../ui/buttonStyles";
 import { TeamLink } from "../domain";
+import { formatMatchTime } from "../../utils";
 
 /**
  * Knockout bracket for a KNOCKOUT-format competition.
@@ -30,11 +32,51 @@ interface BracketViewProps {
   compact?: boolean;
   viewAllLink?: string;
   /**
-   * Cup competition: show only its knockout tree (the matches with a
-   * bracket_pos, not the Swiss rounds) under cup stage names.
+   * Cup competition: one bracket from Round 1 to the Final. The three Swiss
+   * rounds come first, each card showing the record its teams carried into
+   * that round, then the knockout tree. Every slot exists from the start, so
+   * rounds not yet filled show their date with "TBD" teams.
    */
   cup?: boolean;
+  /** `square` for sharp corners (the Standings page uses this). */
+  shape?: Shape;
 }
+
+// A cup's rounds in playing order, with their column titles.
+const CUP_ROUNDS = [
+  { round: "ROUND_1", title: "Round 1" },
+  { round: "ROUND_2", title: "Round 2" },
+  { round: "ROUND_3", title: "Round 3" },
+  { round: "QUARTERFINAL", title: "Quarterfinals" },
+  { round: "SEMIFINAL", title: "Semifinals" },
+  { round: "FINAL", title: "Final" },
+] as const;
+const CUP_SWISS_ROUNDS: readonly string[] = ["ROUND_1", "ROUND_2", "ROUND_3"];
+
+type WinLoss = { w: number; l: number };
+
+// A record sits in an outlined chip so it doesn't read as a score; the
+// legend above the bracket uses the same chip to explain it.
+const RECORD_CHIP =
+  "shrink-0 px-1 rounded border border-gray-200 dark:border-gray-600 text-[10px] font-bold tabular-nums text-gray-400 dark:text-gray-500";
+
+const RecordLegend = () => (
+  <p className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+    <span className={RECORD_CHIP} aria-hidden="true">
+      1-0
+    </span>
+    Wins-losses going into the round, not a score
+  </p>
+);
+
+// hasRecords reports whether any of these cards shows a record: a Round 2
+// or 3 match with a team in it.
+const hasRecords = (matches: Match[]) =>
+  matches.some(
+    (m) =>
+      (m.round === "ROUND_2" || m.round === "ROUND_3") &&
+      (m.home_team?.id || m.away_team?.id),
+  );
 
 // Friendly column titles per stage rank.
 const STAGE_TITLES = ["Wildcards", "Playoffs 1", "Playoffs 2", "Bowl"];
@@ -140,14 +182,55 @@ export const buildBracketColumns = (
     });
 };
 
+// buildCupColumns lays a cup out by its round tags: Swiss rounds by kickoff,
+// knockout rounds top to bottom by bracket_pos.
+export const buildCupColumns = (matches: Match[]): BracketColumn[] =>
+  CUP_ROUNDS.map(({ round, title }) => ({
+    title,
+    matches: matches
+      .filter((m) => m.round === round)
+      .sort((a, b) =>
+        CUP_SWISS_ROUNDS.includes(round)
+          ? a.date.localeCompare(b.date) || (a.start_time || "").localeCompare(b.start_time || "")
+          : (a.bracket_pos ?? 999) - (b.bracket_pos ?? 999),
+      ),
+  })).filter((col) => col.matches.length > 0);
+
+// cupRecordsBefore gives each team's Swiss win-loss record going into each
+// round: recordsBefore.get("ROUND_2")?.get(teamId). Rounds 2 and 3 pair teams
+// with the same record, so this is what each of their cards shows.
+export const cupRecordsBefore = (matches: Match[]) => {
+  const before = new Map<string, Map<string, WinLoss>>();
+  const running = new Map<string, WinLoss>();
+  const bump = (id: string | undefined, won: boolean) => {
+    if (!id) return;
+    const r = running.get(id) ?? { w: 0, l: 0 };
+    running.set(id, won ? { ...r, w: r.w + 1 } : { ...r, l: r.l + 1 });
+  };
+  for (const round of CUP_SWISS_ROUNDS) {
+    before.set(round, new Map([...running].map(([id, r]) => [id, { ...r }])));
+    for (const m of matches) {
+      if (m.round !== round) continue;
+      const side = winnerSide(m);
+      if (!side) continue;
+      bump(m.home_team?.id, side === "HOME");
+      bump(m.away_team?.id, side === "AWAY");
+    }
+  }
+  return before;
+};
+
 const TeamRow = ({
   m,
   side,
   secondLeg,
+  record,
 }: {
   m: Match;
   side: "HOME" | "AWAY";
   secondLeg?: Match;
+  /** The team's record going into this match, e.g. "1-0" (cup Swiss rounds). */
+  record?: string;
 }) => {
   const team = side === "HOME" ? m.home_team : m.away_team;
   const isBye =
@@ -262,6 +345,11 @@ const TeamRow = ({
             ? "BYE"
             : (team.short_name || team.name).toUpperCase()}
       </span>
+      {record && !isTbd && (
+        <span className={RECORD_CHIP} title="Wins-losses going into this round">
+          {record}
+        </span>
+      )}
       {secondLeg ? (
         <div className="flex gap-4 text-xs font-semibold tabular-nums text-gray-500 dark:text-gray-400">
           <span className="w-6 text-center">{scoreL1}</span>
@@ -321,10 +409,12 @@ export const ChampionCard = ({
   team,
   compact = false,
   cup = false,
+  shape = "round",
 }: {
   team: NonNullable<Match["home_team"]>;
   compact?: boolean;
   cup?: boolean;
+  shape?: Shape;
 }) => {
   const trophy = cup
     ? { src: "/images/branding/showtime-community-cup-shield.webp", alt: "Showtime Cup shield" }
@@ -362,12 +452,14 @@ export const ChampionCard = ({
       </div>
     );
   }
+  const pillRadius = shape === "square" ? "rounded-none" : "rounded-lg";
+  const radius = shape === "square" ? "rounded-none" : "rounded-xl";
   return (
     <div className="flex flex-col w-56 md:w-64">
-      <div className="text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 shadow-md">
+      <div className={`text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 ${pillRadius} bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 shadow-md`}>
         Champion
       </div>
-      <div className="flex flex-col justify-center items-center flex-1 gap-3 rounded-xl border-2 border-amber-400/70 bg-linear-to-b from-amber-50 via-yellow-50 to-amber-100 dark:from-amber-900/30 dark:via-yellow-900/20 dark:to-amber-900/10 shadow-lg p-6 text-center">
+      <div className={`flex flex-col justify-center items-center flex-1 gap-3 ${radius} border-2 border-amber-400/70 bg-linear-to-b from-amber-50 via-yellow-50 to-amber-100 dark:from-amber-900/30 dark:via-yellow-900/20 dark:to-amber-900/10 shadow-lg p-6 text-center`}>
         <img
           src={trophy.src}
           alt={trophy.alt}
@@ -404,13 +496,27 @@ export const MatchCard = ({
   m,
   secondLeg,
   isFinal,
+  records,
+  showTime = false,
+  shape = "round",
 }: {
   m: Match;
   secondLeg?: Match;
   isFinal: boolean;
-}) => (
+  /** Records going into this match by team ID; shown beside each team. */
+  records?: Map<string, WinLoss>;
+  /** Show the kickoff time beside the date (cup days have several games). */
+  showTime?: boolean;
+  shape?: Shape;
+}) => {
+  const recordOf = (id?: string) => {
+    const r = id ? records?.get(id) : undefined;
+    return r ? `${r.w}-${r.l}` : undefined;
+  };
+  const radius = shape === "square" ? "rounded-none" : "rounded-xl";
+  return (
   <div
-    className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm overflow-hidden w-full ${isFinal ? "border-sffl-red/40 ring-1 ring-sffl-red/20" : "border-gray-100 dark:border-gray-700"}`}
+    className={`bg-white dark:bg-gray-800 ${radius} border shadow-sm overflow-hidden w-full ${isFinal ? "border-sffl-red/40 ring-1 ring-sffl-red/20" : "border-gray-100 dark:border-gray-700"}`}
   >
     <Link
       to={`/matches/${m.id}`}
@@ -421,6 +527,7 @@ export const MatchCard = ({
           month: "short",
           day: "numeric",
         })}
+        {showTime && m.start_time && ` · ${formatMatchTime(m.start_time, m.date)}`}
       </span>
       {secondLeg ? (
         <div className="flex gap-4 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
@@ -437,28 +544,29 @@ export const MatchCard = ({
       )}
     </Link>
     <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-      <TeamRow m={m} side="HOME" secondLeg={secondLeg} />
-      <TeamRow m={m} side="AWAY" secondLeg={secondLeg} />
+      <TeamRow m={m} side="HOME" secondLeg={secondLeg} record={recordOf(m.home_team?.id)} />
+      <TeamRow m={m} side="AWAY" secondLeg={secondLeg} record={recordOf(m.away_team?.id)} />
     </div>
   </div>
-);
+  );
+};
 
 export const BracketView = ({
   competitionId,
   compact = false,
   viewAllLink,
   cup = false,
+  shape = "round",
 }: BracketViewProps) => {
+  const cardRadius = shape === "square" ? "rounded-none" : "rounded-xl";
+  const pillRadius = shape === "square" ? "rounded-none" : "rounded-lg";
   const { data, isLoading } = useQuery({
     queryKey: ["bracketMatches", competitionId],
     queryFn: () => getMatches(competitionId, 1, 100),
     enabled: !!competitionId,
   });
 
-  const allMatches = useMemo(() => {
-    const list = data?.data || [];
-    return cup ? list.filter((m) => m.bracket_pos != null) : list;
-  }, [data, cup]);
+  const allMatches = useMemo(() => data?.data || [], [data]);
   const finalTitle = cup ? "Final" : "Bowl";
 
   // Build a lookup: leg1.id -> leg2 match object
@@ -489,9 +597,16 @@ export const BracketView = ({
   }, [allMatches, secondLegIds]);
 
   const columns = useMemo(
-    () => buildBracketColumns(filteredMatches, { cup }),
+    () => (cup ? buildCupColumns(filteredMatches) : buildBracketColumns(filteredMatches)),
     [filteredMatches, cup],
   );
+  const recordsBefore = useMemo(
+    () => (cup ? cupRecordsBefore(filteredMatches) : undefined),
+    [filteredMatches, cup],
+  );
+  // Rounds 2 and 3 show the records teams carried in; Round 1 starts level.
+  const recordsFor = (m: Match) =>
+    m.round && m.round !== "ROUND_1" ? recordsBefore?.get(m.round) : undefined;
   const champion = useMemo(
     () => championOf(filteredMatches),
     [filteredMatches],
@@ -501,6 +616,15 @@ export const BracketView = ({
   // and sort matches within each stage latest first.
   const compactColumns = useMemo(() => {
     if (!compact) return columns;
+    // A cup has 22 slots; the sidebar shows the round being played (the
+    // latest with teams in it) and the one after, in playing order.
+    if (cup) {
+      let current = 0;
+      columns.forEach((col, i) => {
+        if (col.matches.some((m) => m.home_team?.id || m.away_team?.id)) current = i;
+      });
+      return columns.slice(current, current + 2);
+    }
     return [...columns].reverse().map((col) => ({
       ...col,
       matches: [...col.matches].sort((a, b) => {
@@ -509,7 +633,7 @@ export const BracketView = ({
         return (b.bracket_pos ?? 0) - (a.bracket_pos ?? 0);
       }),
     }));
-  }, [columns, compact]);
+  }, [columns, compact, cup]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -527,7 +651,7 @@ export const BracketView = ({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+      <div className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 ${cardRadius} shadow-sm`}>
         <Spinner label="Loading bracket…" className="py-12" />
       </div>
     );
@@ -535,7 +659,7 @@ export const BracketView = ({
 
   if (columns.length === 0) {
     return (
-      <div className="bg-gray-100 dark:bg-gray-800 p-8 rounded-xl text-center">
+      <div className={`bg-gray-100 dark:bg-gray-800 p-8 ${cardRadius} text-center`}>
         <FootballIcon
           className="w-10 h-10 mx-auto mb-3 text-gray-400"
           aria-hidden="true"
@@ -549,7 +673,7 @@ export const BracketView = ({
 
   if (compact) {
     return (
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+      <div className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 ${cardRadius} shadow-sm overflow-hidden`}>
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 bg-sffl-navy text-white">
           <h3 className="text-sm font-black uppercase tracking-wider">
             {cup ? "Cup Bracket" : "Playoff Bracket"}
@@ -564,8 +688,13 @@ export const BracketView = ({
             </Link>
           )}
         </div>
-        {champion && <ChampionCard team={champion} compact cup={cup} />}
+        {champion && <ChampionCard team={champion} compact cup={cup} shape={shape} />}
         <div className="p-3 space-y-4">
+          {cup && hasRecords(compactColumns.flatMap((c) => c.matches)) && (
+            <div className="px-1">
+              <RecordLegend />
+            </div>
+          )}
           {compactColumns.map((col) => (
             <div key={col.title}>
               <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">
@@ -585,6 +714,9 @@ export const BracketView = ({
                     m={m}
                     secondLeg={secondLegMap.get(m.id)}
                     isFinal={isBowlStage(m.round) || col.title === finalTitle}
+                    records={recordsFor(m)}
+                    showTime={cup}
+                    shape={shape}
                   />
                 ))}
               </div>
@@ -601,6 +733,11 @@ export const BracketView = ({
         Swipe to follow the road to the {finalTitle}
         <ArrowRightIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
       </div>
+      {cup && hasRecords(filteredMatches) && (
+        <div className="mb-3 px-1">
+          <RecordLegend />
+        </div>
+      )}
       <div ref={scrollContainerRef} className="overflow-x-auto pb-4 -mx-2 px-2">
         <div className="flex gap-4 md:gap-8 min-w-max items-stretch">
           {columns.map((col, i) => {
@@ -613,7 +750,7 @@ export const BracketView = ({
             return (
               <div key={col.title} className={`flex flex-col ${colWidth}`}>
                 <div
-                  className={`flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? "bg-sffl-red text-white" : "bg-sffl-navy text-white"}`}
+                  className={`flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 ${pillRadius} ${isLast ? "bg-sffl-red text-white" : "bg-sffl-navy text-white"}`}
                 >
                   {isLast && (
                     <TrophyIcon className="w-4 h-4" aria-hidden="true" />
@@ -632,13 +769,16 @@ export const BracketView = ({
                       m={m}
                       secondLeg={secondLegMap.get(m.id)}
                       isFinal={isLast}
+                      records={recordsFor(m)}
+                      showTime={cup}
+                      shape={shape}
                     />
                   ))}
                 </div>
               </div>
             );
           })}
-          {champion && <ChampionCard team={champion} cup={cup} />}
+          {champion && <ChampionCard team={champion} cup={cup} shape={shape} />}
         </div>
       </div>
     </div>

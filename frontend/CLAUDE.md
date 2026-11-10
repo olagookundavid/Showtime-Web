@@ -112,7 +112,9 @@ Every domain/API type lives in `src/types/<domain>.ts` (fantasy module: `src/typ
 
 ## 9. Barrel imports (index.ts)
 
-Every folder under `src/components/` (plus `utils/`, `hooks/`, `types/`, `contexts/`, `constants/`, and the eagerly-loaded part of `src/pages/`) re-exports its contents through that folder's `index.ts` — not just components, every colocated helper too (`adminNav.ts`, `potwUtils.ts`, `buttonStyles.ts`, `useTeamActions.ts`, ...). A new file isn't done until its barrel export is added in the same change.
+Every folder under `src/components/` (plus `utils/`, `hooks/`, `types/`, `contexts/`, `constants/`, `services/`, and the eagerly-loaded part of `src/pages/`) re-exports its contents through that folder's `index.ts` — not just components, every colocated helper too (`adminNav.ts`, `potwUtils.ts`, `buttonStyles.ts`, `useTeamActions.ts`, ...). A new file isn't done until its barrel export is added in the same change.
+
+- **`services/` is named re-exports, not `export *`.** `services/index.ts` lists every exported symbol by name (matching `hooks/`/`utils/`), since a blanket `export *` would hide which domain file backs which function.
 
 - **Cross-folder imports go through the barrel:** `from '../domain'`, not `from '../domain/seasonStages'`. The top-level `src/components/index.ts` re-aggregates every subfolder's barrel, so pages typically import from `../../components`, `../../utils`, `../../hooks` or `../../types`.
 - **Same-folder sibling imports stay direct** (`./seasonStages` from a file in the same folder) — the rule is about crossing folder boundaries, not internal organization.

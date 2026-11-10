@@ -170,29 +170,41 @@ type GenerateBracketRequest struct {
 }
 
 // --- Cup Tournament System ---
-type InitializeCupRequest struct {
-	Date  string `json:"date"`  // first-round date, YYYY-MM-DD
-	Time  string `json:"time"`  // HH:MM, optional
-	Venue string `json:"venue"`
+// CupRoundDate is one round's match day in a cup's schedule.
+type CupRoundDate struct {
+	Round        string `json:"round"`         // ROUND_1 … FINAL
+	Date         string `json:"date"`          // YYYY-MM-DD
+	FirstKickoff string `json:"first_kickoff"` // HH:MM, the day's first game
 }
 
-type AdvanceCupRequest struct {
-	Date  string `json:"date"`  // next-round date, YYYY-MM-DD
-	Time  string `json:"time"`  // HH:MM, optional
-	Venue string `json:"venue"`
+// SetupCupRequest dates every round that has no match slots yet. Setting up
+// an unstarted cup also draws Round 1, or adopts a Round 1 entered by hand.
+type SetupCupRequest struct {
+	Rounds     []CupRoundDate `json:"rounds"`
+	GapMinutes int            `json:"gap_minutes"` // between kickoffs on a day; 80 if 0
+	Venue      string         `json:"venue"`
 }
 
 type CupStateResponse struct {
-	CompetitionID   string `json:"competition_id"`
-	CurrentRound    string `json:"current_round"` // UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3 | QUARTERFINAL | SEMIFINAL | FINAL | COMPLETED
+	CompetitionID string `json:"competition_id"`
+	// UNINITIALIZED | ROUND_1 | ROUND_2 | ROUND_3: the latest Swiss round with
+	// teams filled in. QUARTERFINAL: the knockout is filled; winners move up
+	// on their own from here. COMPLETED: closed.
+	CurrentRound    string `json:"current_round"`
 	MatchesTotal    int    `json:"matches_total"`
 	MatchesFinished int    `json:"matches_finished"`
-	CanAdvance      bool   `json:"can_advance"`
+	// CanAdvance: the current round is finished and NextRound's slots can be
+	// filled now (before the cup starts: it can be set up).
+	CanAdvance bool   `json:"can_advance"`
+	NextRound  string `json:"next_round"`
 	// Before the cup starts: the matches already entered form a complete
-	// Round 1, so starting adopts them instead of drawing new fixtures.
+	// Round 1, so setup adopts them instead of drawing new fixtures.
 	AdoptsExistingMatches bool `json:"adopts_existing_matches"`
-	NextRound       string `json:"next_round"`
-	StatusMessage   string `json:"status_message"`
+	// Rounds with no match slots yet; setup must give each one a date.
+	MissingRounds []string `json:"missing_rounds"`
+	// When NextRound fills itself if no admin has (YYYY-MM-DD, Lagos).
+	AutoFillOn    string `json:"auto_fill_on,omitempty"`
+	StatusMessage string `json:"status_message"`
 }
 
 // --- Team Sheets ---

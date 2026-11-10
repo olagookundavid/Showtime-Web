@@ -9,7 +9,7 @@ import {
   Modal,
   Loader,
   PlayerAvatar,
-  PlayerLink,
+  FantasyPlayerLink,
   FantasyPitch,
   type PitchSubstitute,
   FantasyStandingRow,
@@ -32,11 +32,12 @@ import {
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import {
-  fantasyApi,
+  fantasyCoreApi,
   fantasySeasonApi,
   fantasySquadApi,
+  getPlayerForm,
   formatFantasyPrice,
-} from "../../services/api";
+} from "../../services";
 import type {
   FantasySlot,
   FantasyPlayerListItem,
@@ -87,13 +88,13 @@ export function FantasyPickTeam() {
   // Active Season & Gameweek
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const { data: gameweeks = [], isLoading: gwLoading } = useQuery({
     queryKey: ["fantasyGameweeks", season?.id],
     queryFn: () =>
-      season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([]),
+      season?.id ? fantasyCoreApi.getGameweeks(season.id) : Promise.resolve([]),
     enabled: !!season?.id,
   });
 
@@ -114,7 +115,7 @@ export function FantasyPickTeam() {
     queryKey: ["myFantasyLineup", season?.id, scheduledGW?.id],
     queryFn: () =>
       season?.id && scheduledGW?.id
-        ? fantasyApi.getMyLineup(season.id, scheduledGW.id)
+        ? fantasyCoreApi.getMyLineup(season.id, scheduledGW.id)
         : Promise.resolve(null),
     enabled: !!season?.id && !!scheduledGW?.id,
   });
@@ -214,7 +215,7 @@ export function FantasyPickTeam() {
   const { data: actionPlayerForm, isLoading: actionPlayerFormLoading } =
     useQuery({
       queryKey: ["fantasyPlayerForm", actionPlayerFormId, season?.id],
-      queryFn: () => fantasyApi.getPlayerForm(actionPlayerFormId!, season?.id),
+      queryFn: () => getPlayerForm(actionPlayerFormId!, season?.id),
       enabled: !!actionPlayerFormId && !!season?.id,
       staleTime: 30000,
     });
@@ -879,7 +880,7 @@ export function FantasyPickTeam() {
     }) => {
       if (!season || !scheduledGW)
         throw new Error("No active season or scheduled gameweek");
-      return fantasyApi.saveLineup({
+      return fantasyCoreApi.saveLineup({
         season_id: season.id,
         gameweek_id: scheduledGW.id,
         team_name: teamName.trim() || getDefaultTeamName(user?.name),
@@ -2333,15 +2334,13 @@ export function FantasyPickTeam() {
                       }
                     </span>
                   </div>
-                  {/* Opens the player's profile. There is no fantasy player
-                      page yet, so this is the league one for now. */}
                   <h3 className="text-base font-black truncate text-gray-900 dark:text-white mt-0.5">
-                    <PlayerLink
+                    <FantasyPlayerLink
                       id={squad[actionSlot]!.player_id}
                       title={`View ${squad[actionSlot]!.player_name}'s profile`}
                     >
                       {squad[actionSlot]!.player_name}
-                    </PlayerLink>
+                    </FantasyPlayerLink>
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     <span className="font-bold text-gray-700 dark:text-gray-200">
@@ -2496,12 +2495,12 @@ export function FantasyPickTeam() {
                     </span>
                   </div>
                   <h3 className="text-base font-black truncate text-gray-900 dark:text-white mt-0.5">
-                    <PlayerLink
+                    <FantasyPlayerLink
                       id={actionSubstitutePlayer.player_id}
                       title={`View ${actionSubstitutePlayer.name}'s profile`}
                     >
                       {actionSubstitutePlayer.name}
-                    </PlayerLink>
+                    </FantasyPlayerLink>
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     <span className="font-bold text-gray-700 dark:text-gray-200">
@@ -2878,7 +2877,7 @@ interface PlayerFormStatsProps {
 
 // The season stats + "Last 5 Games" strip shown in both the Manage Starter
 // and substitute details panels — identical markup, fed each player's own
-// squad price and fantasyApi.getPlayerForm() result.
+// squad price and getPlayerForm() result.
 function PlayerFormStats({
   price,
   loading,

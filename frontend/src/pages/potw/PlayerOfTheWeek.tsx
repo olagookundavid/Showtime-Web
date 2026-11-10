@@ -19,7 +19,7 @@ import {
   getPOTWPoll,
   getPOTWWinners,
   voteForPOTW,
-} from "../../services/api";
+} from "../../services";
 import type { POTWNominee, POTWPoll, POTWWinner } from "../../types";
 import { useAuth } from "../../contexts";
 import { withReturnUrl } from "../../hooks";

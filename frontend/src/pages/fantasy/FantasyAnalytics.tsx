@@ -10,9 +10,9 @@ import {
   ArrowPathIcon,
   FireIcon,
 } from "@heroicons/react/24/outline";
-import { fantasyApi } from "../../services/api";
+import { fantasyCoreApi, getGameweekReport } from "../../services";
 import type { FantasyLineupPick } from "../../types";
-import { Button, ButtonLink, Select, DataTable } from "../../components";
+import { Button, ButtonLink, FantasyPlayerLink, Select, DataTable } from "../../components";
 
 type AnalyticsTab =
   | "ownership"
@@ -31,7 +31,7 @@ export function FantasyAnalytics() {
   // 1. Fetch active fantasy season
   const { data: season, isLoading: seasonLoading } = useQuery({
     queryKey: ["fantasySeason"],
-    queryFn: fantasyApi.getActiveSeason,
+    queryFn: fantasyCoreApi.getActiveSeason,
   });
 
   const seasonId = season?.id || "";
@@ -40,7 +40,7 @@ export function FantasyAnalytics() {
   const { data: gameweeks, isLoading: gwLoading } = useQuery({
     queryKey: ["fantasyGameweeks", seasonId],
     queryFn: () =>
-      seasonId ? fantasyApi.getGameweeks(seasonId) : Promise.resolve([]),
+      seasonId ? fantasyCoreApi.getGameweeks(seasonId) : Promise.resolve([]),
     enabled: Boolean(seasonId),
   });
 
@@ -73,7 +73,7 @@ export function FantasyAnalytics() {
     queryKey: ["fantasyGameweekReport", seasonId, selectedGwId],
     queryFn: () =>
       seasonId && selectedGwId
-        ? fantasyApi.getGameweekReport(seasonId, selectedGwId)
+        ? getGameweekReport(seasonId, selectedGwId)
         : null,
     enabled: Boolean(seasonId) && Boolean(selectedGwId),
     staleTime: 30000,
@@ -387,8 +387,8 @@ export function FantasyAnalytics() {
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
-                                <span className="truncate">{p.player_name}</span>
-                                <span className="text-[10px] font-bold px-1 py-0.2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                <FantasyPlayerLink id={p.player_id} className="truncate">{p.player_name}</FantasyPlayerLink>
+                                <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                                   {p.gender}
                                 </span>
                               </p>
@@ -523,8 +523,8 @@ export function FantasyAnalytics() {
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5">
-                                <span className="truncate">{p.player_name}</span>
-                                <span className="text-[10px] font-bold px-1 py-0.2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                <FantasyPlayerLink id={p.player_id} className="truncate">{p.player_name}</FantasyPlayerLink>
+                                <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                                   {p.gender}
                                 </span>
                               </p>
@@ -800,7 +800,7 @@ export function FantasyAnalytics() {
 
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-sm text-gray-900 dark:text-white truncate">
-                              {p.player_name}
+                              <FantasyPlayerLink id={p.player_id}>{p.player_name}</FantasyPlayerLink>
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
                               <span>{p.team_short_name || p.team_name}</span>
@@ -853,7 +853,7 @@ function DreamTeamRow({ pick }: { pick: FantasyLineupPick }) {
         </span>
         <div className="min-w-0">
           <p className="font-bold text-gray-900 dark:text-white truncate flex items-center gap-1">
-            <span>{pick.player_name}</span>
+            <FantasyPlayerLink id={pick.player_id}>{pick.player_name}</FantasyPlayerLink>
             <span className="text-[10px] font-bold text-gray-500">
               ({pick.gender})
             </span>

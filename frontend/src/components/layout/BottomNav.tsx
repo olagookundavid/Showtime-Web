@@ -1,14 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
     TableCellsIcon,
-    ChartBarIcon,
+    TicketIcon,
     HomeIcon,
     TrophyIcon,
     Bars3Icon,
 } from '@heroicons/react/24/outline';
 import {
     TableCellsIcon as TableSolid,
-    ChartBarIcon as ChartBarSolid,
+    TicketIcon as TicketSolid,
     HomeIcon as HomeSolid,
     TrophyIcon as TrophySolid,
     Bars3Icon as Bars3Solid,
@@ -25,7 +25,7 @@ export const BottomNav = ({ onMoreClick, isMoreOpen = false }: BottomNavProps) =
     const navItems = [
         { name: 'Home', path: '/', icon: HomeIcon, solidIcon: HomeSolid, exact: true },
         { name: 'Standings', path: '/standings', icon: TableCellsIcon, solidIcon: TableSolid },
-        { name: 'Stats', path: '/stats', icon: ChartBarIcon, solidIcon: ChartBarSolid },
+        { name: 'Tickets', path: '/tickets', icon: TicketIcon, solidIcon: TicketSolid },
         { name: 'Fantasy', path: '/fantasy/dashboard', activePath: '/fantasy', icon: TrophyIcon, solidIcon: TrophySolid, isFantasy: true },
     ];
 

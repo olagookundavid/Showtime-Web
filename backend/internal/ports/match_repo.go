@@ -7,7 +7,6 @@ import (
 	"log"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -23,8 +22,8 @@ type MatchRepository interface {
 	CreateCompetition(ctx context.Context, comp *domain.Competition) error
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
 	DeleteCompetition(ctx context.Context, id string) error
-	AdvanceCupStage(ctx context.Context, competitionID string, from *string, to string, matches []*domain.Match) error
-	AdoptCupMatches(ctx context.Context, competitionID string, round string, matchIDs []string) error
+	SetupCupSchedule(ctx context.Context, competitionID string, start bool, adoptRound1 []string, slots []*domain.Match) error
+	FillCupRound(ctx context.Context, competitionID string, from, to string, assignments []domain.CupSlotAssignment) error
 
 	// Teams
 	GetTeams(ctx context.Context, page, limit int, search string, status string) ([]domain.Team, int64, error)
@@ -189,7 +188,7 @@ func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *d
 	}
 	defer tx.Rollback(ctx)
 
-	// cup_round is left alone: only AdvanceCupStage moves a cup between stages,
+	// cup_round is left alone: only the cup setup and fill steps move it,
 	// so editing the competition's details can't reset its progress.
 	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, season_id=$5, tie_breaker_rule=$6, updated_at=NOW() WHERE id=$7`
 	if _, err := tx.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, seasonID, comp.TieBreakerRule, comp.ID); err != nil {
@@ -223,82 +222,127 @@ func (r *PostgresMatchRepository) DeleteCompetition(ctx context.Context, id stri
 	return err
 }
 
-// AdvanceCupStage moves a cup competition from stage `from` (nil: not started)
-// to stage `to` in one transaction: it locks the competition row, checks the
-// cup is still at `from`, inserts the new stage's matches and records `to`.
-// A second request for the same step finds the stage already moved and fails,
-// so a stage is never generated twice or left half-created.
+// lockCupRound locks a competition row for the rest of tx and returns its
+// cup_round ("" when the cup hasn't started).
+func lockCupRound(ctx context.Context, tx pgx.Tx, competitionID string) (string, error) {
+	var current *string
+	if err := tx.QueryRow(ctx, `SELECT cup_round FROM competitions WHERE id = $1 FOR UPDATE`, competitionID).Scan(&current); err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", nil
+	}
+	return *current, nil
+}
+
+// SetupCupSchedule creates a cup's dated match slots in one transaction that
+// locks the competition. start: the cup hasn't started and is being started
+// now (cup_round becomes ROUND_1); otherwise it must already have started.
+// adoptRound1 tags matches entered by hand as Round 1, keeping their IDs so
+// results, play-by-play and stats stay attached. A round that already has
+// matches is never given a second set, so a repeated request fails cleanly.
 //
-// Matches are inserted in slice order and get their IDs filled in, so a
-// match's FeedsMatchID may point at the ID field of a match earlier in the
-// slice. Moving to CupRoundCompleted also marks the competition completed.
-func (r *PostgresMatchRepository) AdvanceCupStage(ctx context.Context, competitionID string, from *string, to string, matches []*domain.Match) error {
+// Slots are inserted in slice order and get their IDs filled in, so a slot's
+// FeedsMatchID may point at the ID field of a slot earlier in the slice.
+func (r *PostgresMatchRepository) SetupCupSchedule(ctx context.Context, competitionID string, start bool, adoptRound1 []string, slots []*domain.Match) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	var current *string
-	if err := tx.QueryRow(ctx, `SELECT cup_round FROM competitions WHERE id = $1 FOR UPDATE`, competitionID).Scan(&current); err != nil {
+	current, err := lockCupRound(ctx, tx, competitionID)
+	if err != nil {
 		return err
 	}
-	stage := func(s *string) string {
-		if s == nil || *s == "" {
-			return "not started"
-		}
-		return *s
+	if start && current != "" {
+		return fmt.Errorf("the cup has already started (now %s); reload and try again", current)
 	}
-	if stage(current) != stage(from) {
-		return fmt.Errorf("the cup has moved on from %s (now %s); reload and try again", stage(from), stage(current))
+	if !start && current == "" {
+		return fmt.Errorf("the cup hasn't started yet; reload and try again")
 	}
 
-	for _, m := range matches {
+	rounds := make([]string, 0, len(slots))
+	seen := map[string]bool{}
+	for _, m := range slots {
+		if !seen[m.Round] {
+			seen[m.Round] = true
+			rounds = append(rounds, m.Round)
+		}
+	}
+	if len(adoptRound1) > 0 {
+		rounds = append(rounds, domain.CupRound1)
+	}
+	var taken int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM matches WHERE competition_id = $1 AND round = ANY($2)`, competitionID, rounds).Scan(&taken); err != nil {
+		return err
+	}
+	if taken > 0 {
+		return fmt.Errorf("some of these rounds already have fixtures; reload and try again")
+	}
+
+	if len(adoptRound1) > 0 {
+		tag, err := tx.Exec(ctx,
+			`UPDATE matches SET round = $1, updated_at = NOW() WHERE competition_id = $2 AND id = ANY($3::uuid[])`,
+			domain.CupRound1, competitionID, adoptRound1,
+		)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != int64(len(adoptRound1)) {
+			return fmt.Errorf("expected to tag %d matches as Round 1, tagged %d; reload and try again", len(adoptRound1), tag.RowsAffected())
+		}
+	}
+
+	for _, m := range slots {
 		if err := tx.QueryRow(ctx, insertMatchQuery, matchInsertArgs(m)...).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt); err != nil {
 			return err
 		}
 	}
 
-	if _, err := tx.Exec(ctx,
-		`UPDATE competitions SET cup_round = $1, status = CASE WHEN $2 THEN 'completed' ELSE status END, updated_at = NOW() WHERE id = $3`,
-		to, to == domain.CupRoundCompleted, competitionID,
-	); err != nil {
-		return err
+	if start {
+		if _, err := tx.Exec(ctx, `UPDATE competitions SET cup_round = $1, updated_at = NOW() WHERE id = $2`, domain.CupRound1, competitionID); err != nil {
+			return err
+		}
 	}
 	return tx.Commit(ctx)
 }
 
-// AdoptCupMatches starts a cup from matches that were entered by hand rather
-// than drawn: in one transaction it checks the cup hasn't started, tags those
-// matches with `round` and records `round` as the cup's stage. The matches
-// keep their IDs, so their results, play-by-play and stats are untouched.
-func (r *PostgresMatchRepository) AdoptCupMatches(ctx context.Context, competitionID string, round string, matchIDs []string) error {
+// FillCupRound puts teams into the empty slots of round `to` and records it
+// as the cup's stage, in one transaction that locks the competition and
+// checks the cup is still at `from`. Each slot must belong to the cup, be in
+// round `to` and still have no teams, so a fill that has already happened (an
+// admin's click and the automatic fill racing) fails instead of re-pairing.
+func (r *PostgresMatchRepository) FillCupRound(ctx context.Context, competitionID string, from, to string, assignments []domain.CupSlotAssignment) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	var current *string
-	if err := tx.QueryRow(ctx, `SELECT cup_round FROM competitions WHERE id = $1 FOR UPDATE`, competitionID).Scan(&current); err != nil {
-		return err
-	}
-	if current != nil && *current != "" {
-		return fmt.Errorf("the cup has already started (now %s); reload and try again", *current)
-	}
-
-	tag, err := tx.Exec(ctx,
-		`UPDATE matches SET round = $1, updated_at = NOW() WHERE competition_id = $2 AND id = ANY($3::uuid[])`,
-		round, competitionID, matchIDs,
-	)
+	current, err := lockCupRound(ctx, tx, competitionID)
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() != int64(len(matchIDs)) {
-		return fmt.Errorf("expected to tag %d matches as %s, tagged %d; reload and try again", len(matchIDs), round, tag.RowsAffected())
+	if current != from {
+		return fmt.Errorf("the cup has moved on from %s (now %s); reload and try again", from, current)
 	}
 
-	if _, err := tx.Exec(ctx, `UPDATE competitions SET cup_round = $1, updated_at = NOW() WHERE id = $2`, round, competitionID); err != nil {
+	for _, a := range assignments {
+		tag, err := tx.Exec(ctx,
+			`UPDATE matches SET home_team_id = $1::uuid, away_team_id = $2::uuid, updated_at = NOW()
+			 WHERE id = $3 AND competition_id = $4 AND round = $5 AND home_team_id IS NULL AND away_team_id IS NULL`,
+			a.HomeTeamID, a.AwayTeamID, a.MatchID, competitionID, to,
+		)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return fmt.Errorf("a %s slot already has teams or no longer exists; reload and try again", to)
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE competitions SET cup_round = $1, updated_at = NOW() WHERE id = $2`, to, competitionID); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -989,89 +1033,35 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 		return standings, nil
 	}
 
-	ruleUpper := strings.ToUpper(strings.TrimSpace(tieBreakerRule))
-	isH2H := ruleUpper == domain.TieBreakerRuleH2H_PCT_PD_PF_PA_NAME ||
-		ruleUpper == "RULE_2" ||
-		ruleUpper == "RULE 2" ||
-		strings.Contains(ruleUpper, "H2H") ||
-		strings.Contains(ruleUpper, "RULE_2") ||
-		strings.Contains(ruleUpper, "RULE 2")
-
-	h2hPoints := make(map[string]map[string]int)
-	if isH2H {
+	// Head-to-head uses the same games as the standings themselves: scored,
+	// finished or live, and not playoff bracket games.
+	var results []domain.StandingsResult
+	if domain.IsH2HTieBreakerRule(tieBreakerRule) {
 		mRows, err := r.db.Query(ctx, `
-			SELECT home_team_id, away_team_id, home_score, away_score 
-			FROM matches 
-			WHERE competition_id::text = $1 AND status IN ('FINISHED', 'LIVE') AND home_score IS NOT NULL AND away_score IS NOT NULL
+			SELECT home_team_id::text, away_team_id::text, home_score, away_score
+			FROM matches
+			WHERE competition_id::text = $1 AND status IN ('FINISHED', 'LIVE')
+			  AND home_team_id IS NOT NULL AND away_team_id IS NOT NULL
+			  AND home_score IS NOT NULL AND away_score IS NOT NULL
+			  AND bracket_pos IS NULL
 		`, competitionID)
-		if err == nil {
-			defer mRows.Close()
-			for mRows.Next() {
-				var hID, aID string
-				var hScore, aScore int
-				if err := mRows.Scan(&hID, &aID, &hScore, &aScore); err == nil {
-					if h2hPoints[hID] == nil {
-						h2hPoints[hID] = make(map[string]int)
-					}
-					if h2hPoints[aID] == nil {
-						h2hPoints[aID] = make(map[string]int)
-					}
-					if hScore > aScore {
-						h2hPoints[hID][aID] += 3
-					} else if aScore > hScore {
-						h2hPoints[aID][hID] += 3
-					} else {
-						h2hPoints[hID][aID] += 1
-						h2hPoints[aID][hID] += 1
-					}
-				}
+		if err != nil {
+			return nil, err
+		}
+		defer mRows.Close()
+		for mRows.Next() {
+			var res domain.StandingsResult
+			if err := mRows.Scan(&res.HomeTeamID, &res.AwayTeamID, &res.HomeScore, &res.AwayScore); err != nil {
+				return nil, err
 			}
+			results = append(results, res)
+		}
+		if err := mRows.Err(); err != nil {
+			return nil, err
 		}
 	}
 
-	getTeamSortKey := func(t *domain.Team) string {
-		if t == nil {
-			return ""
-		}
-		name := strings.TrimSpace(t.Name)
-		if name == "" {
-			name = strings.TrimSpace(t.ShortName)
-		}
-		return strings.ToLower(name)
-	}
-
-	sort.SliceStable(standings, func(i, j int) bool {
-		a, b := standings[i], standings[j]
-		if isH2H {
-			ptsA := h2hPoints[a.TeamID][b.TeamID]
-			ptsB := h2hPoints[b.TeamID][a.TeamID]
-			if ptsA != ptsB {
-				return ptsA > ptsB
-			}
-		}
-		if a.PCT != b.PCT {
-			return a.PCT > b.PCT
-		}
-		if a.GoalDiff != b.GoalDiff {
-			return a.GoalDiff > b.GoalDiff
-		}
-		if a.GoalsFor != b.GoalsFor {
-			return a.GoalsFor > b.GoalsFor
-		}
-		if a.GoalsAgainst != b.GoalsAgainst {
-			return a.GoalsAgainst < b.GoalsAgainst
-		}
-		keyA := getTeamSortKey(a.Team)
-		keyB := getTeamSortKey(b.Team)
-		if keyA != keyB {
-			return keyA < keyB
-		}
-		return a.TeamID < b.TeamID
-	})
-
-	for i := range standings {
-		standings[i].Position = i + 1
-	}
+	domain.RankStandings(standings, tieBreakerRule, results)
 
 	return standings, nil
 }

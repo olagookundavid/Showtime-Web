@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"showtime-backend/pkg/email"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type ITicketService interface {
@@ -70,7 +72,13 @@ type TicketService struct {
 	seasonRepo    ports.SeasonPassRepository
 	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
 	// profile after they pay.
-	userPhones      UserPhoneSaver
+	userPhones UserPhoneSaver
+	// contacts is optional: when set, whoever pays for a ticket is added to the
+	// marketing list.
+	contacts ports.ContactSyncer
+	// playerHolders is optional: when set, a player ticket looked up at the gate
+	// says which player it admits.
+	playerHolders   playerHolderSource
 	matchRepo       ports.MatchRepository
 	paystack        *PaystackClient
 	email           ports.EmailService
@@ -439,37 +447,6 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 	}{in.email, in.name, in.phone, in.quantity, in.referralCode}
 	callbackURL, userID := in.callbackURL, in.userID
 
-	// Generate unique reference
-	reference := "SFFL-" + uuid.New().String()[:12]
-
-	var paystackRef *string
-	var paystackAccessCode *string
-	var authURL string
-	var ticketStatus = domain.TicketStatusPending
-
-	// If the ticket is free, bypass Paystack entirely
-	if totalAmount == 0 {
-		paystackRef = &reference
-		ticketStatus = domain.TicketStatusPaid
-	} else {
-		// 4. Initialize Paystack transaction
-		paystackReq := PaystackInitRequest{
-			Email:       req.Email,
-			Amount:      totalAmount * 100, // Convert Naira to kobo
-			Reference:   reference,
-			CallbackURL: callbackURL,
-		}
-
-		paystackResp, err := s.paystack.InitializeTransaction(paystackReq)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize payment: %w", err)
-		}
-
-		paystackRef = &paystackResp.Data.Reference
-		paystackAccessCode = &paystackResp.Data.AccessCode
-		authURL = paystackResp.Data.AuthorizationURL
-	}
-
 	var referralCode *string
 	if req.ReferralCode != nil && *req.ReferralCode != "" {
 		rc, err := s.ticketRepo.GetReferralCode(ctx, *req.ReferralCode)
@@ -478,12 +455,41 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 		}
 	}
 
-	// 5. Create ticket with collision protection
+	// The ticket code is also the Paystack reference, so the receipt Paystack
+	// emails the buyer carries the code they show at the gate, and either one
+	// finds the ticket. A code is drawn afresh if it is already taken, and the
+	// payment started again with it (a clash is a one in a trillion event).
 	var ticket *domain.Ticket
+	var authURL string
 	maxRetries := 5
 	var lastErr error
 
 	for i := 0; i < maxRetries; i++ {
+		code := GenerateTicketCode()
+		reference := code
+		paystackRef := &reference
+		var paystackAccessCode *string
+		ticketStatus := domain.TicketStatusPending
+
+		if totalAmount == 0 {
+			// A free ticket bypasses Paystack entirely.
+			ticketStatus = domain.TicketStatusPaid
+			authURL = ""
+		} else {
+			paystackResp, err := s.paystack.InitializeTransaction(PaystackInitRequest{
+				Email:       req.Email,
+				Amount:      totalAmount * 100, // Convert Naira to kobo
+				Reference:   reference,
+				CallbackURL: callbackURL,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize payment: %w", err)
+			}
+			paystackRef = &paystackResp.Data.Reference
+			paystackAccessCode = &paystackResp.Data.AccessCode
+			authURL = paystackResp.Data.AuthorizationURL
+		}
+
 		// A season pass is not made from a ticket, so it has no product.
 		var productID *string
 		if sel != nil {
@@ -506,7 +512,7 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 			Status:                  ticketStatus,
 			PaystackReference:       paystackRef,
 			PaystackAccessCode:      paystackAccessCode,
-			TicketCode:              GenerateTicketCode(),
+			TicketCode:              code,
 			ReferralCode:            referralCode,
 			GamePassDiscountPercent: pricing.GamePassPercent,
 			GamePassDiscountAmount:  pricing.GamePassAmount,
@@ -514,8 +520,7 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 		}
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
-			// Check if it's a unique constraint violation on ticket_code
-			// If so, loop and try again with a new code
+			// The code (or the reference made from it) is taken: draw another.
 			if strings.Contains(err.Error(), "tickets_ticket_code_key") || strings.Contains(err.Error(), "duplicate key value") {
 				lastErr = err
 				continue
@@ -523,7 +528,6 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 			return nil, fmt.Errorf("failed to create ticket: %w", err)
 		}
 
-		// Success
 		lastErr = nil
 		break
 	}
@@ -534,6 +538,7 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 
 	if ticket.Status == domain.TicketStatusPaid {
 		s.OnTicketPaid(ctx, ticket)
+		s.addBuyerToMarketingList(ticket)
 	}
 
 	res := ticketToResponse(ticket)
@@ -615,6 +620,19 @@ func (s *TicketService) OnTicketPaid(ctx context.Context, ticket *domain.Ticket)
 	rememberBuyerPhone(ctx, s.userPhones, ticket.UserID, ticket.Phone)
 }
 
+// addBuyerToMarketingList adds the person who paid. It runs only on the buying
+// paths, not for gifts or team allocations, whose holders never chose to buy.
+func (s *TicketService) addBuyerToMarketingList(ticket *domain.Ticket) {
+	first, last := splitFullName(ticket.Name)
+	addMarketingContact(s.contacts, ticket.Email, first, last)
+}
+
+// WithContactSyncer wires in the marketing list that buyers are added to.
+func (s *TicketService) WithContactSyncer(syncer ports.ContactSyncer) *TicketService {
+	s.contacts = syncer
+	return s
+}
+
 // WithUserPhoneSaver wires in where a signed-in buyer's phone is kept. Separate
 // from the constructor because environments that only read tickets do not need it.
 func (s *TicketService) WithUserPhoneSaver(saver UserPhoneSaver) *TicketService {
@@ -644,43 +662,68 @@ func verifyTicketPayment(verifyResp *PaystackVerifyResponse, ticket *domain.Tick
 }
 
 func (s *TicketService) HandleWebhook(ctx context.Context, reference string) error {
-	// 1. Verify with Paystack
-	verifyResp, err := s.paystack.VerifyTransaction(reference)
-	if err != nil {
-		return fmt.Errorf("failed to verify transaction: %w", err)
-	}
-
-	// 2. Get ticket
 	ticket, err := s.ticketRepo.GetByReference(ctx, reference)
 	if err != nil {
 		return fmt.Errorf("ticket not found for reference %s: %w", reference, err)
 	}
-
-	// 3. Idempotency: if already paid, skip
-	if ticket.Status == domain.TicketStatusPaid {
-		return nil
+	if ticket.Status == domain.TicketStatusPaid || ticket.Status == domain.TicketStatusUsed {
+		return nil // already settled; a webhook retry changes nothing
 	}
+	verifyResp, err := s.paystack.VerifyTransaction(reference)
+	if err != nil {
+		return fmt.Errorf("failed to verify transaction: %w", err)
+	}
+	_, err = s.settlePayment(ctx, ticket, verifyResp)
+	return err
+}
 
-	// 4. Update based on payment status — verify the money, not just the status.
-	if err := verifyTicketPayment(verifyResp, ticket); err == nil {
-		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid); err != nil {
-			return err
+// paystackStillOpen says a transaction has not finished yet: the buyer may still
+// be paying (a bank transfer can take minutes). Such a ticket is left PENDING
+// rather than marked FAILED.
+func paystackStillOpen(resp *PaystackVerifyResponse) bool {
+	if resp == nil {
+		return true
+	}
+	switch resp.Data.Status {
+	case "ongoing", "pending", "processing", "queued", "abandoned":
+		return true
+	}
+	return false
+}
+
+// settlePayment records what Paystack says about a ticket's payment. Paid, it is
+// marked PAID and confirmed once, however many callers get here; failed, it is
+// marked FAILED and its discount hold released; still open, it is left alone.
+func (s *TicketService) settlePayment(ctx context.Context, ticket *domain.Ticket, resp *PaystackVerifyResponse) (domain.TicketStatus, error) {
+	if err := verifyTicketPayment(resp, ticket); err == nil {
+		changed, err := s.ticketRepo.MarkPaid(ctx, ticket.ID)
+		if err != nil {
+			return ticket.Status, err
 		}
 		ticket.Status = domain.TicketStatusPaid
-		// Settle the discount hold. Only 'reserved' rows move, so a webhook retry
-		// changes nothing.
-		if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
-			fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
+		if changed {
+			// Settle the discount hold. Only 'reserved' rows move, so a retry
+			// changes nothing.
+			if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
+				fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
+			}
+			s.OnTicketPaid(ctx, ticket)
+			s.addBuyerToMarketingList(ticket)
 		}
-		s.OnTicketPaid(ctx, ticket)
-		return nil
+		return ticket.Status, nil
 	}
-
-	// Payment failed — hand the code use back rather than burning it.
+	if paystackStillOpen(resp) {
+		return ticket.Status, nil
+	}
+	// Payment failed: hand the code use back rather than burning it.
+	if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed); err != nil {
+		return ticket.Status, err
+	}
 	if err := s.discountRepo.ReleaseRedemption(ctx, nil, &ticket.ID); err != nil {
 		fmt.Printf("⚠️ WARNING: failed to release discount on ticket %s: %s\n", ticket.ID, err.Error())
 	}
-	return s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed)
+	ticket.Status = domain.TicketStatusFailed
+	return ticket.Status, nil
 }
 
 func (s *TicketService) GetByReference(ctx context.Context, reference string) (*dto.TicketResponse, error) {
@@ -693,50 +736,37 @@ func (s *TicketService) GetByReference(ctx context.Context, reference string) (*
 
 func (s *TicketService) GetByCode(ctx context.Context, code string) (*dto.TicketResponse, error) {
 	ticket, err := s.ticketRepo.GetByCode(ctx, code)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// The reference on the buyer's Paystack receipt finds the ticket too. New
+		// tickets use the code as the reference; older ones had their own.
+		ticket, err = s.ticketRepo.GetByReference(ctx, code)
+		if errors.Is(err, pgx.ErrNoRows) {
+			ticket, err = s.ticketRepo.GetByReference(ctx, strings.ToLower(code))
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
-	return ticketToResponse(ticket), nil
+	res := ticketToResponse(ticket)
+	s.attachPlayer(ctx, ticket, res)
+	return res, nil
 }
 
 func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (*dto.TicketResponse, error) {
-	// 1. Find the ticket
 	ticket, err := s.ticketRepo.GetByReference(ctx, reference)
 	if err != nil {
 		return nil, fmt.Errorf("ticket not found for reference %s: %w", reference, err)
 	}
-
-	// 2. If already paid, just return
-	if ticket.Status == domain.TicketStatusPaid {
+	if ticket.Status == domain.TicketStatusPaid || ticket.Status == domain.TicketStatusUsed {
 		return ticketToResponse(ticket), nil
 	}
-
-	// 3. Verify with Paystack
 	verifyResp, err := s.paystack.VerifyTransaction(reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify transaction: %w", err)
 	}
-
-	// 4. Update status based on Paystack response — verify the money, not just status.
-	if err := verifyTicketPayment(verifyResp, ticket); err == nil {
-		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid); err != nil {
-			return nil, err
-		}
-		if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
-			fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
-		}
-		ticket.Status = domain.TicketStatusPaid
-		s.OnTicketPaid(ctx, ticket)
-	} else {
-		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed); err != nil {
-			return nil, err
-		}
-		if err := s.discountRepo.ReleaseRedemption(ctx, nil, &ticket.ID); err != nil {
-			fmt.Printf("⚠️ WARNING: failed to release discount on ticket %s: %s\n", ticket.ID, err.Error())
-		}
-		ticket.Status = domain.TicketStatusFailed
+	if _, err := s.settlePayment(ctx, ticket, verifyResp); err != nil {
+		return nil, err
 	}
-
 	return ticketToResponse(ticket), nil
 }
 
@@ -869,9 +899,12 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 		if verifyErr != nil || verifyTicketPayment(verifyResp, ticket) != nil {
 			return fmt.Errorf("could not verify that this ticket has been paid for")
 		}
-		_ = s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid)
+		if changed, err := s.ticketRepo.MarkPaid(ctx, ticket.ID); err != nil {
+			return err
+		} else if changed {
+			s.OnTicketPaid(ctx, ticket)
+		}
 		ticket.Status = domain.TicketStatusPaid
-		s.OnTicketPaid(ctx, ticket)
 	default:
 		return fmt.Errorf("ticket is %s and payment could not be verified", ticket.Status)
 	}
@@ -895,8 +928,11 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 
 // passNameFor is what a purchase is called in emails.
 func passNameFor(ticket *domain.Ticket) string {
-	if ticket.PurchaseType == domain.PurchaseTypeSeasonPass {
+	switch ticket.PurchaseType {
+	case domain.PurchaseTypeSeasonPass:
 		return "Season Pass"
+	case domain.PurchaseTypePlayer:
+		return "Player Ticket"
 	}
 	return "Game Pass"
 }
@@ -1033,6 +1069,9 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 	}
 	if t.SeasonPassID != nil {
 		res.SeasonPassID = *t.SeasonPassID
+	}
+	if t.LastEntryAt != nil {
+		res.LastEntryAt = t.LastEntryAt.UTC().Format(time.RFC3339)
 	}
 	if t.ValidUntil != nil {
 		res.ValidUntil = *t.ValidUntil

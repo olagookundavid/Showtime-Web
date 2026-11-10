@@ -10,7 +10,7 @@ import {
   TagIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
-import { getStoreProducts } from "../../services/api";
+import { getStoreProducts } from "../../services";
 import type { StoreProduct } from "../../types";
 import { Button, Input, Select, ProductCard, QuickViewModal, StoreHeroCarousel } from "../../components";
 import { htmlToPlainText } from "../../utils";

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { isAxiosError } from "axios";
 import {
-  adminTransfersApi,
+  adminContractsApi,
   contractsApi,
-} from "../../services/api";
+} from "../../services";
 import type { ContractData } from "../../types";
 import toast from "react-hot-toast";
 import {
@@ -127,7 +127,7 @@ export const AdminContracts: React.FC = () => {
 
   const handleOverride = async (contractId: string, newStatus: string) => {
     try {
-      await adminTransfersApi.overrideContract(
+      await adminContractsApi.overrideContract(
         contractId,
         newStatus,
         reason.trim() || undefined,
@@ -143,7 +143,7 @@ export const AdminContracts: React.FC = () => {
 
   const handleForceAccept = async (contractId: string) => {
     try {
-      const result = await adminTransfersApi.forceAcceptContract(contractId);
+      const result = await adminContractsApi.forceAcceptContract(contractId);
       toast.success(result.message || "Contract force-accepted successfully");
       fetchContracts();
     } catch (err: unknown) {

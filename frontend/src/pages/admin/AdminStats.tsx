@@ -8,7 +8,7 @@ import {
   upsertPlayerStat,
   getPlayerStatById,
   recomputeAllStats,
-} from "../../services/api";
+} from "../../services";
 import type {
   Competition,
   Match,

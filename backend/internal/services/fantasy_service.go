@@ -46,6 +46,7 @@ type IFantasyService interface {
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
 	ListMarketFilters(ctx context.Context, seasonID string) (*dto.MarketFiltersResponse, error)
 	GetPlayerLeaderboard(ctx context.Context, seasonID string, q dto.PlayerLeaderboardQuery) (*dto.PlayerLeaderboardResponse, error)
+	GetFantasyPlayerDetail(ctx context.Context, seasonID, playerID, gameweekID string) (*dto.FantasyPlayerDetailResponse, error)
 	EnterSeason(ctx context.Context, userID, seasonID string, req dto.EnterSeasonRequest) (*dto.DashboardTeam, error)
 	GetDashboard(ctx context.Context, userID, seasonID string) (*dto.FantasyDashboardResponse, error)
 	SaveLineup(ctx context.Context, userID string, req dto.SaveLineupRequest) (*dto.FantasyLineupResponse, error)

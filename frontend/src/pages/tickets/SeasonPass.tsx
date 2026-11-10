@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSeasonPasses } from "../../services/api";
+import { getSeasonPasses } from "../../services";
 import type { SeasonPassResponse } from "../../types";
 import {
   Button,

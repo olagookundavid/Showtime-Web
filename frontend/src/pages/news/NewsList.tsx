@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getNews } from '../../services/api';
+import { getNews } from '../../services';
 import { Pagination, LightboxImage, Spinner } from '../../components';
 import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils';
 import { NewspaperIcon, PlayIcon } from '@heroicons/react/24/solid';

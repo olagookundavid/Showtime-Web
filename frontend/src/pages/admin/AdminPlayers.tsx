@@ -21,7 +21,7 @@ import {
   restorePlayer,
   moveToReserve,
   graduatePlayer,
-} from "../../services/api";
+} from "../../services";
 import type { Team, Player, CreatePlayerPayload } from "../../types";
 import {
   PLAYER_POSITIONS_WITH_UNASSIGNED as POSITIONS,

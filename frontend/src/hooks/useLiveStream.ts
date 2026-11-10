@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getLiveStatus } from '../services/api';
+import { getLiveStatus } from '../services';
 
 /** How often every client re-asks whether the channel is live. The backend
  *  caches detection for 45s, so this is one YouTube hit per minute regardless

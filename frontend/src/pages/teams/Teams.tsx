@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { getTeams } from "../../services/api";
+import { getTeams } from "../../services";
 import type { PaginatedResponse, Team } from "../../types";
 import { Loader, Spinner } from "../../components";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";

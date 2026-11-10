@@ -21,7 +21,7 @@ import {
     quickAddFantasyArticle,
     removeFantasyCarouselSlide,
     updateFantasyCarouselSlide,
-} from '../../services/api';
+} from '../../services';
 import type { FantasyCarouselArticle, FantasyCarouselSlide, News } from '../../types';
 import {
     Button,

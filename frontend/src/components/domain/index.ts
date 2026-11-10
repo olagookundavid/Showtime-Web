@@ -1,5 +1,5 @@
 export { BadgeImage } from './BadgeImage';
-export { PlayerLink, TeamLink } from './EntityLinks';
+export { FantasyPlayerLink, PlayerLink, TeamLink } from './EntityLinks';
 export { isDeletedPlayer, deletedRowClass, DeletedPlayerName, DELETED_TITLE } from './DeletedPlayer';
 export { SeasonStageTabs } from './SeasonStageTabs';
 export {

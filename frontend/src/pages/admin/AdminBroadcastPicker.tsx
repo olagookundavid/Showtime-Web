@@ -17,8 +17,8 @@ import {
   getCompetitions,
   getMatches,
   sortCompetitionsBySeason,
-} from "../../services/api";
-import { getBroadcastDays } from "../../services/broadcastApi";
+} from "../../services";
+import { getBroadcastDays } from "../../services";
 import { usePermissions } from "../../hooks";
 import { formatMatchDate, lagosToday } from "../../utils";
 import {

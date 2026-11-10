@@ -14,12 +14,6 @@ export const AboutLayout = () => {
 
   return (
     <div className="space-y-4 md:space-y-8">
-      {/* Full-bleed to the real viewport edges, regardless of <main>'s own
-          max-width/padding — see PageHeader usage elsewhere for the normal,
-          contained case. Uses --viewport-w (Layout.tsx), not raw vw units,
-          so a desktop scrollbar's width doesn't push the right edge into
-          overflow. -mt cancels <main>'s own top padding so this sits flush
-          under the navbar's red line (no scores strip on /about/*). */}
       <div className="relative -mt-3 w-[var(--viewport-w)] ml-[calc(50%_-_var(--viewport-w)/2)] md:-mt-8">
         <PageHeader
           eyebrow={active.eyebrow}

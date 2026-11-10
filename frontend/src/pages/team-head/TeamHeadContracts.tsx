@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { contractsApi } from '../../services/api';
+import { contractsApi } from '../../services';
 import type { ContractData, Player } from '../../types';
 import toast from 'react-hot-toast';
 import {

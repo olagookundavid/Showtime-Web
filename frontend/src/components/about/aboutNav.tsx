@@ -23,8 +23,6 @@ export const ABOUT_NAV: AboutNavItem[] = [
     eyebrow: LEAGUE_EYEBROW,
     title: "ABOUT SHOWTIME",
     subtitle: "The standard of co-ed flag football.",
-    backgroundImage:
-      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop",
   },
   {
     to: "/about/our-team",
@@ -32,7 +30,6 @@ export const ABOUT_NAV: AboutNavItem[] = [
     eyebrow: LEAGUE_EYEBROW,
     title: "OUR TEAM",
     subtitle: "Showtime Leadership & Sporting Operations",
-    backgroundImage: "/images/team/team-photo-cropped.webp",
     backgroundFit: "width",
   },
   {
