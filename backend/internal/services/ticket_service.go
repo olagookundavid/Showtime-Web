@@ -73,6 +73,9 @@ type TicketService struct {
 	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
 	// profile after they pay.
 	userPhones UserPhoneSaver
+	// contacts is optional: when set, whoever pays for a ticket is added to the
+	// marketing list.
+	contacts ports.ContactSyncer
 	// playerHolders is optional: when set, a player ticket looked up at the gate
 	// says which player it admits.
 	playerHolders   playerHolderSource
@@ -535,6 +538,7 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 
 	if ticket.Status == domain.TicketStatusPaid {
 		s.OnTicketPaid(ctx, ticket)
+		s.addBuyerToMarketingList(ticket)
 	}
 
 	res := ticketToResponse(ticket)
@@ -616,6 +620,19 @@ func (s *TicketService) OnTicketPaid(ctx context.Context, ticket *domain.Ticket)
 	rememberBuyerPhone(ctx, s.userPhones, ticket.UserID, ticket.Phone)
 }
 
+// addBuyerToMarketingList adds the person who paid. It runs only on the buying
+// paths, not for gifts or team allocations, whose holders never chose to buy.
+func (s *TicketService) addBuyerToMarketingList(ticket *domain.Ticket) {
+	first, last := splitFullName(ticket.Name)
+	addMarketingContact(s.contacts, ticket.Email, first, last)
+}
+
+// WithContactSyncer wires in the marketing list that buyers are added to.
+func (s *TicketService) WithContactSyncer(syncer ports.ContactSyncer) *TicketService {
+	s.contacts = syncer
+	return s
+}
+
 // WithUserPhoneSaver wires in where a signed-in buyer's phone is kept. Separate
 // from the constructor because environments that only read tickets do not need it.
 func (s *TicketService) WithUserPhoneSaver(saver UserPhoneSaver) *TicketService {
@@ -691,6 +708,7 @@ func (s *TicketService) settlePayment(ctx context.Context, ticket *domain.Ticket
 				fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
 			}
 			s.OnTicketPaid(ctx, ticket)
+			s.addBuyerToMarketingList(ticket)
 		}
 		return ticket.Status, nil
 	}

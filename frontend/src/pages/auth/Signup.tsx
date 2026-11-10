@@ -158,6 +158,11 @@ export const Signup = () => {
             }
           />
 
+          <p className="text-center text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            You will also get Showtime fixtures, match news and ticket drops by
+            email. Unsubscribe any time.
+          </p>
+
           <Button type="submit" fullWidth size="lg" loading={loading} disabled={!acceptedTerms}>
             {loading ? "Creating account…" : "Create Account"}
           </Button>

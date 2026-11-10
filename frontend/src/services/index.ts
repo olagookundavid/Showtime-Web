@@ -323,7 +323,6 @@ export {
 
 export { getBroadcastDays, getBroadcastDay, setBroadcastDayOnAir, getBroadcastScenes } from './broadcast';
 
-export * from './newsletter';
 export * from './siteTracker';
 export * from './privacyNotice';
 

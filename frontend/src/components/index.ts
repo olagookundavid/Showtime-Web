@@ -14,7 +14,6 @@ export * from './legal';
 export * from './matches';
 export * from './monetization';
 export * from './news';
-export * from './newsletter';
 export * from './player-portal';
 export * from './players';
 export * from './potw';

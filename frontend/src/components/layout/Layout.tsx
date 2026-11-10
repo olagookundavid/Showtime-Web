@@ -9,7 +9,6 @@ import {
   LatestMatchesInfoStrip,
 } from "./LatestMatchesCarousel";
 import { useHideOnScrollDown, useScrollLock } from "../../hooks";
-import { NewsletterPopup } from "../newsletter/NewsletterPopup";
 import { CompleteProfileModal } from "../auth";
 import { PrivacyPolicyUpdateModal } from "../legal";
 import { portalLinkFor, type PortalKind } from "./portalLink";
@@ -188,8 +187,6 @@ export const Layout = () => {
         onMoreClick={() => setIsMoreMenuOpen((prev) => !prev)}
         isMoreOpen={isMoreMenuOpen}
       />
-
-      <NewsletterPopup />
 
       {isAuthenticated && user && (!user.firstName || !user.lastName) ? (
         <CompleteProfileModal />

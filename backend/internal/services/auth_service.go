@@ -36,6 +36,17 @@ type AuthService struct {
 	TokenMaker     token.Maker
 	EmailService   ports.EmailService
 	RoleService    IRoleService
+	// contacts is optional: when set, every new account is added to the
+	// marketing list.
+	contacts ports.ContactSyncer
+}
+
+// WithContactSyncer wires in the marketing list that new accounts are added to.
+// Separate from the constructor because environments that never register users
+// do not need it.
+func (s *AuthService) WithContactSyncer(syncer ports.ContactSyncer) *AuthService {
+	s.contacts = syncer
+	return s
 }
 
 func NewAuthService(repo ports.IAuthRepository, playerRepo ports.PlayerRepository, tokenMaker token.Maker, emailService ports.EmailService, roleService IRoleService) *AuthService {
@@ -98,6 +109,7 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 		return err
 	}
 
+	addMarketingContact(s.contacts, emailAddr, req.FirstName, req.LastName)
 	return nil
 }
 

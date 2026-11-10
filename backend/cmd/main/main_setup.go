@@ -477,7 +477,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	auditService := services.NewAuditService(auditRepo, authRepo)
 	emailService := email.NewResendService() // Move this up
 	roleService := services.NewRoleService(roleRepo, authRepo)
-	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService, roleService)
+	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService, roleService).WithContactSyncer(emailService)
 	notifService := services.NewNotificationService(notifRepo)
 	windowService := services.NewTransferWindowService(windowRepo)
 	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo)
@@ -489,7 +489,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	newsService := services.NewNewsService(newsRepo, storageService)
 	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
-	ticketService := services.NewTicketService(eventDayRepo, productRepo, ticketRepo, scheduledEmailRepo, seasonPassRepo, matchRepo, paystackClient, emailService, discountService, discountRepo).WithUserPhoneSaver(authRepo)
+	ticketService := services.NewTicketService(eventDayRepo, productRepo, ticketRepo, scheduledEmailRepo, seasonPassRepo, matchRepo, paystackClient, emailService, discountService, discountRepo).WithUserPhoneSaver(authRepo).WithContactSyncer(emailService)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo, roleService)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 	siteEventsService := services.NewSiteEventsService(siteEventsRepo)

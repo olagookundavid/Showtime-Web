@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CreditCardIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, StarIcon } from '@heroicons/react/24/outline';
 import { getUserProfile, purchaseSeasonPass } from '../../services';
-import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
 import type { AuthUser, PurchaseSeasonPassPayload, SeasonPassResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';
 import { formatDayLong, naira } from './ticketFormat';
@@ -31,9 +30,6 @@ export const SeasonPassCheckout = ({ pass, onClose }: SeasonPassCheckoutProps) =
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
-    // Consent must be given actively, so this starts unticked and stays out of
-    // the purchase validation — it can never block or fail a purchase.
-    const [joinNewsletter, setJoinNewsletter] = useState(false);
     // A purchase creates a ticket order, so it waits for an explicit confirm.
     const [confirmPurchase, setConfirmPurchase] = useState(false);
 
@@ -82,14 +78,6 @@ export const SeasonPassCheckout = ({ pass, onClose }: SeasonPassCheckoutProps) =
             };
 
             const result = await purchaseSeasonPass(payload);
-
-            // Fire-and-forget, deliberately after the sale succeeded and never
-            // awaited: `keepalive` lets it complete even though the next line
-            // navigates away to Paystack, and a failure here is invisible to
-            // the buyer rather than costing them their pass.
-            if (joinNewsletter) {
-                void subscribeToNewsletter({ firstName: toFirstName(name), email }, { keepalive: true });
-            }
 
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
@@ -280,21 +268,9 @@ export const SeasonPassCheckout = ({ pass, onClose }: SeasonPassCheckoutProps) =
                         </div>
                     )}
 
-                    {/* Optional newsletter opt-in. Unticked by default — a pre-ticked box isn't consent. */}
-                    {newsletterEnabled && (
-                        <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/40">
-                            <Checkbox
-                                className="mt-0.5"
-                                checked={joinNewsletter}
-                                onChange={(e) => setJoinNewsletter(e.target.checked)}
-                            />
-                            <span className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-                                <span className="font-bold text-gray-800 dark:text-white">Send me the Showtime newsletter</span>
-                                <br />
-                                Fixtures, match news and ticket drops. Unsubscribe any time.
-                            </span>
-                        </label>
-                    )}
+                    <p className="text-center text-[11px] leading-relaxed text-gray-500">
+                        You will also get Showtime fixtures, match news and ticket drops by email. Unsubscribe any time.
+                    </p>
                     <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-gray-500">
                         {free ? (
                             <SparklesIcon className="h-4 w-4 shrink-0" aria-hidden="true" />

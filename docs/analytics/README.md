@@ -4,13 +4,12 @@ Our own traffic tracking: every page view and meaningful action is saved to our
 Postgres database and shown to admins on **Admin → Traffic** (`/admin/traffic`).
 Admins can download CSV reports to share with the rest of the team.
 
-This sits beside two third-party tools. Nothing here replaces them:
+This sits beside one third-party tool. Nothing here replaces it:
 
 | Tool | What it is for | Where it lives |
 |---|---|---|
 | **This system (site_events)** | Our own record of visits and actions. We own the data, keep it forever, export it. | Postgres + `/admin/traffic` |
 | **Vercel Web Analytics** | Quick aggregate dashboard in Vercel. Fully automatic: the `<Analytics />` component in `App.tsx` is all it needs. | Vercel dashboard |
-| **Brevo tracker** | Ties page visits to newsletter *contacts* for email automation. Not a traffic counter. | `components/analytics/BrevoTracker.tsx`, Brevo dashboard |
 
 ## What it does and does not do
 
