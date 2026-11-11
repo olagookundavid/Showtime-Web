@@ -121,7 +121,7 @@ func (f *cupFixture) setCupRound(t *testing.T, round string) {
 
 func (f *cupFixture) matches(t *testing.T) map[string][]domain.Match {
 	t.Helper()
-	all, _, err := f.repo.GetMatches(context.Background(), f.compID, "", "", 1, 100, "")
+	all, _, err := f.repo.GetMatches(context.Background(), f.compID, "", "", 1, 100, "", "")
 	if err != nil {
 		t.Fatalf("get matches: %v", err)
 	}

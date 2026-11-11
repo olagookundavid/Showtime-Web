@@ -1540,7 +1540,7 @@ func TestMatchListingOrder(t *testing.T) {
 
 	dates := func(t *testing.T, status string) []string {
 		t.Helper()
-		ms, _, err := repo.GetMatches(ctx, f.compID, "", status, 1, 50, "")
+		ms, _, err := repo.GetMatches(ctx, f.compID, "", status, 1, 50, "", "")
 		if err != nil {
 			t.Fatalf("GetMatches(%q): %v", status, err)
 		}
