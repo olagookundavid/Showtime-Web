@@ -34,6 +34,7 @@ import {
   MinusIcon,
   Squares2X2Icon,
   ListBulletIcon,
+  ArrowsRightLeftIcon,
 } from "@heroicons/react/24/outline";
 import {
   fantasyCoreApi,
@@ -385,12 +386,15 @@ export function FantasyTransfers() {
   };
 
   // Signing a player onto the squad. No slot placement here — that's Pick
-  // Team's job; this just buys them.
+  // Team's job; this just buys them. `silent` skips the toast: Select
+  // Replacement calls this itself and reports the swap as one combined
+  // toast instead (see handlePickForSlot).
   const buyMutation = useMutation({
-    mutationFn: (playerId: string) =>
+    mutationFn: ({ playerId }: { playerId: string; silent?: boolean }) =>
       fantasySquadApi.buyPlayer(season!.id, playerId),
-    onSuccess: (next, playerId) => {
+    onSuccess: (next, { playerId, silent }) => {
       refreshSquad(next);
+      if (silent) return;
       const signed = next.players.find((p) => p.player_id === playerId);
       if (signed) toast.success(`Signed ${signed.name}.`);
     },
@@ -399,14 +403,15 @@ export function FantasyTransfers() {
     },
   });
 
-  // Selling a player from the squad entirely.
+  // Selling a player from the squad entirely. `silent` skips the toast —
+  // see buyMutation above.
   const sellMutation = useMutation({
-    mutationFn: (playerId: string) =>
+    mutationFn: ({ playerId }: { playerId: string; silent?: boolean }) =>
       fantasySquadApi.sellPlayer(season!.id, playerId),
-    onSuccess: (next) => {
+    onSuccess: (next, { silent }) => {
       refreshSquad(next);
       setConfirmSell(null);
-      toast.success("Sold. Money is back in your bank.");
+      if (!silent) toast.success("Sold. Money is back in your bank.");
     },
     onError: (err: unknown) => {
       toast.error(formatErrorMessage(err, "Could not sell this player."));
@@ -420,8 +425,9 @@ export function FantasyTransfers() {
   // every signing, the same way Pick Team autosaves after every pick. Also
   // doubles as "replace": if the target slot is already occupied (Select
   // Replacement, opened from an existing starter), that pick is dropped
-  // before the new one is added, rather than sending the slot twice —
-  // the old occupant is still owned, so they simply fall back to the bench.
+  // before the new one is added, rather than sending the slot twice — by
+  // then handlePickForSlot has already sold the old occupant, so this is
+  // just placing their replacement, not displacing someone still owned.
   const assignSlotMutation = useMutation({
     mutationFn: ({ playerId, slot }: { playerId: string; slot: FantasySlot }) => {
       if (!season?.id || !scheduledGW?.id) {
@@ -701,6 +707,31 @@ export function FantasyTransfers() {
     ? SLOT_DEFINITIONS.find((def) => def.slot === slotPickerSlot) ?? null
     : null;
 
+  // Who currently holds the slot the picker is open for, if anyone — set
+  // when opened via "Select Replacement" on an existing starter, null when
+  // filling a genuinely empty slot. Looked up in mySquad (not just the
+  // lineup pick) so its sell_price is available to credit toward the
+  // afford-check, the same way hasDefenseAllrounder above already excludes
+  // this slot from the All-Rounder quota for the same reason.
+  const slotPickerDeparting = useMemo(() => {
+    if (!slotPickerSlot) return null;
+    const pick = (currentLineup?.picks ?? []).find(
+      (p) => p.slot === slotPickerSlot,
+    );
+    if (!pick) return null;
+    return mySquad?.players.find((p) => p.player_id === pick.player_id) ?? null;
+  }, [slotPickerSlot, currentLineup, mySquad]);
+
+  // Effective bank/room the picker's Add buttons should check against — as
+  // if slotPickerDeparting (if any) has already been sold, since picking a
+  // replacement now does exactly that (see handlePickForSlot below), rather
+  // than just benching them.
+  const slotPickerBank =
+    (mySquad?.bank ?? 0) + (slotPickerDeparting?.sell_price ?? 0);
+  const slotPickerSquadFull =
+    !!mySquad &&
+    mySquad.squad_size - (slotPickerDeparting ? 1 : 0) >= mySquad.squad_max;
+
   // Fill Slot's own player pool — the leaderboard, not the market list, so
   // the picker can show price, points, selected% and form together instead
   // of just one. It only filters by gender server-side (its position filter
@@ -801,36 +832,67 @@ export function FantasyTransfers() {
   // Signing from the market list: buy, then drop them straight onto the
   // pitch if an open slot fits them — no separate placement step needed.
   const handleBuy = (playerId: string, player: FantasyPlayerListItem) => {
-    buyMutation.mutate(playerId, {
-      onSuccess: () => {
-        if (!scheduledGW?.id) return;
-        const slot = findOpenSlotFor(player);
-        if (!slot) return;
-        addPendingAssign(playerId);
-        assignSlotMutation.mutate(
-          { playerId, slot },
-          { onSettled: () => removePendingAssign(playerId) },
-        );
+    buyMutation.mutate(
+      { playerId },
+      {
+        onSuccess: () => {
+          if (!scheduledGW?.id) return;
+          const slot = findOpenSlotFor(player);
+          if (!slot) return;
+          addPendingAssign(playerId);
+          assignSlotMutation.mutate(
+            { playerId, slot },
+            { onSettled: () => removePendingAssign(playerId) },
+          );
+        },
       },
-    });
+    );
   };
 
   // Fill Slot: buy whoever was picked and drop them straight into the slot
   // the picker was opened for, regardless of whether another slot might
-  // also fit them — the picker was opened for this one.
+  // also fit them — the picker was opened for this one. Select Replacement
+  // opens the same picker for an already-occupied slot, so there's a
+  // departing starter to sell first — a transfer out before the transfer
+  // in, crediting their sell price and freeing a squad slot, rather than
+  // just benching them. Both legs stay silent in that case so a single
+  // "X replaced by Y" toast can report the swap instead of a sell toast
+  // immediately followed by a sign toast.
   const handlePickForSlot = (playerId: string) => {
     const slot = slotPickerSlot;
     if (!slot) return;
-    buyMutation.mutate(playerId, {
-      onSuccess: () => {
-        addPendingAssign(playerId);
-        assignSlotMutation.mutate(
-          { playerId, slot },
-          { onSettled: () => removePendingAssign(playerId) },
-        );
-        setSlotPickerSlot(null);
-      },
-    });
+    const departing = slotPickerDeparting;
+
+    const buyAndAssign = () => {
+      buyMutation.mutate(
+        { playerId, silent: !!departing },
+        {
+          onSuccess: (next) => {
+            addPendingAssign(playerId);
+            assignSlotMutation.mutate(
+              { playerId, slot },
+              { onSettled: () => removePendingAssign(playerId) },
+            );
+            setSlotPickerSlot(null);
+            if (departing) {
+              const signed = next.players.find((p) => p.player_id === playerId);
+              toast.success(
+                `${departing.name} replaced by ${signed?.name ?? "new signing"}.`,
+              );
+            }
+          },
+        },
+      );
+    };
+
+    if (departing) {
+      sellMutation.mutate(
+        { playerId: departing.player_id, silent: true },
+        { onSuccess: buyAndAssign },
+      );
+    } else {
+      buyAndAssign();
+    }
   };
 
   const handleResetMarketFilters = () => {
@@ -1417,7 +1479,9 @@ export function FantasyTransfers() {
           squad={mySquad}
           pending={sellMutation.isPending}
           onCancel={() => setConfirmSell(null)}
-          onConfirm={() => sellMutation.mutate(confirmSell.player_id)}
+          onConfirm={() =>
+            sellMutation.mutate({ playerId: confirmSell.player_id })
+          }
         />
       )}
 
@@ -1436,10 +1500,22 @@ export function FantasyTransfers() {
           }
           players={slotPickerPlayers}
           loading={slotMarketLoading}
-          bank={mySquad.bank}
-          squadFull={squadFull}
+          bank={slotPickerBank}
+          squadFull={slotPickerSquadFull}
           marketClosed={marketClosed}
-          buying={buyMutation.isPending || assignSlotMutation.isPending}
+          buying={
+            sellMutation.isPending ||
+            buyMutation.isPending ||
+            assignSlotMutation.isPending
+          }
+          departing={
+            slotPickerDeparting
+              ? {
+                  name: slotPickerDeparting.name,
+                  sellPrice: slotPickerDeparting.sell_price,
+                }
+              : undefined
+          }
           onPick={handlePickForSlot}
           onClose={() => setSlotPickerSlot(null)}
         />
@@ -1922,6 +1998,7 @@ function SlotFillPicker({
   squadFull,
   marketClosed,
   buying,
+  departing,
   onPick,
   onClose,
 }: {
@@ -1933,6 +2010,9 @@ function SlotFillPicker({
   squadFull: boolean;
   marketClosed?: string;
   buying: boolean;
+  /** Set when this picker is replacing an existing starter rather than
+   * filling an empty slot — names who picking someone sells. */
+  departing?: { name: string; sellPrice: number };
   onPick: (playerId: string) => void;
   onClose: () => void;
 }) {
@@ -1949,11 +2029,21 @@ function SlotFillPicker({
       shape="square"
       position="right"
       onClose={onClose}
-      title={`Fill ${slotLabel}`}
+      title={departing ? `Replace ${departing.name}` : `Fill ${slotLabel}`}
       subtitle={`Eligible: ${requirementLabel}`}
       maxWidth="md"
     >
       <div className="space-y-3">
+        {departing && (
+          <div className="flex items-center gap-2 rounded-none border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+            <ArrowsRightLeftIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span>
+              Picking someone sells <strong>{departing.name}</strong> for{" "}
+              {formatFantasyPrice(departing.sellPrice)} to make room.
+            </span>
+          </div>
+        )}
+
         <Input
           type="search"
           shape="square"
