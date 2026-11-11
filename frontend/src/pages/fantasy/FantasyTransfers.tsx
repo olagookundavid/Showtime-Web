@@ -950,8 +950,18 @@ export function FantasyTransfers() {
           // default row stretch), so it runs top to bottom of the page
           // rather than stopping at the readiness card's height.
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6 md:gap-8">
-            {/* Player Selection */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm min-w-0 lg:flex lg:flex-col">
+            {/* Player Selection — on a phone, only shown for a first,
+                empty squad; once there's at least one player, Fill Slot,
+                Select Replacement and Substitute on the pitch cover
+                signing and swapping, and this list would otherwise be the
+                first long, scrollable thing in the way of the squad
+                itself. Always shown from lg (desktop/tablet) up, where
+                there's room for it beside the pitch. */}
+            <div
+              className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm min-w-0 lg:flex lg:flex-col ${
+                mySquad && mySquad.players.length > 0 ? "hidden" : ""
+              }`}
+            >
               <div className="p-5 md:p-6 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-base font-black uppercase tracking-tight text-sffl-navy dark:text-white">
                   Player Selection
