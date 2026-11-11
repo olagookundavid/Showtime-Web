@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   isDeletedPlayer,
   FemaleIcon,
   Button,
+  ButtonLink,
   Field,
   Input,
   Modal,
@@ -13,8 +14,16 @@ import {
   FantasyPitch,
   type PitchSubstitute,
   FantasyStandingRow,
+  Tabs,
+  DataTable,
+  type Column,
 } from "../../components";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueries,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
   UsersIcon,
@@ -24,18 +33,22 @@ import {
   SparklesIcon,
   ArrowsRightLeftIcon,
   ArrowUturnDownIcon,
+  ArrowTopRightOnSquareIcon,
   ExclamationTriangleIcon,
-  ClockIcon,
   PencilSquareIcon,
   ArrowPathIcon,
   PlayCircleIcon,
   ChevronDownIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
 } from "@heroicons/react/24/outline";
 import {
   fantasyCoreApi,
   fantasySeasonApi,
   fantasySquadApi,
   getPlayerForm,
+  getPlayerLeaderboard,
+  getMatches,
   formatFantasyPrice,
 } from "../../services";
 import type {
@@ -45,6 +58,8 @@ import type {
   Squad,
   SquadPlayer,
   PlayerFormGame,
+  PlayerLeaderboardItem,
+  Match,
 } from "../../types";
 import {
   SLOT_DEFINITIONS,
@@ -72,6 +87,18 @@ const getDraftKey = (seasonId?: string, gwId?: string, userId?: string) => {
  *  legitimately has no team, no lineup and no managers yet. */
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
+
+/** The list view's Next Fixture cell: who a club's earliest scheduled match
+ *  is against, from the player's own club's point of view. */
+const formatNextFixture = (match: Match, clubId: string): string => {
+  const isHome = match.home_team.id === clubId;
+  const opponent = isHome ? match.away_team : match.home_team;
+  const dateLabel = new Date(match.date).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `${isHome ? "vs" : "@"} ${opponent.short_name || opponent.name} • ${dateLabel}`;
+};
 
 // House style for every fantasy toast: short, dash-free, sentence-capitalized.
 // Applied once here so a backend error (lowercase by Go convention, and
@@ -196,23 +223,28 @@ export function FantasyPickTeam() {
   const [selectedUnitTab, setSelectedUnitTab] = useState<
     "ALL" | "OFFENSE" | "DEFENSE"
   >("ALL");
+  // Pitch vs. a stats-first list of the same fourteen + bench.
+  const [squadViewMode, setSquadViewMode] = useState<"pitch" | "list">(
+    "pitch",
+  );
   const [activeModalSlot, setActiveModalSlot] = useState<SlotDefinition | null>(
     null,
   );
   // Player action popover: which slot's player is showing actions
   const [actionSlot, setActionSlot] = useState<FantasySlot | null>(null);
-  // Whether the Manage Starter panel's "Substitute" dropdown is expanded —
-  // reset whenever the panel targets a different slot (or closes).
-  const [showSubstituteOptions, setShowSubstituteOptions] = useState(false);
-  useEffect(() => {
-    setShowSubstituteOptions(false);
-  }, [actionSlot]);
   // Which pitch substitute (owned, start-eligible, not yet in a slot) is
   // showing its own details panel — a separate id since a substitute isn't
   // keyed by FantasySlot the way a starter is.
   const [actionSubstituteId, setActionSubstituteId] = useState<string | null>(
     null,
   );
+  // Whether the Manage Starter / Substitute details panel's "Substitute"
+  // dropdown is expanded — shared by both panels (only one is ever open at
+  // once), reset whenever either targets a different player (or closes).
+  const [showSubstituteOptions, setShowSubstituteOptions] = useState(false);
+  useEffect(() => {
+    setShowSubstituteOptions(false);
+  }, [actionSlot, actionSubstituteId]);
   const actionSubstitutePlayer = useMemo(
     () =>
       mySquad?.players.find((p) => p.player_id === actionSubstituteId) ??
@@ -231,6 +263,72 @@ export function FantasyPickTeam() {
       enabled: !!actionPlayerFormId && !!season?.id,
       staleTime: 30000,
     });
+
+  // Every distinct club among the squad — starters and bench alike, since
+  // every starter is already an owned player, this covers both without
+  // needing the bench list (not computed until later in the file).
+  const squadClubIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (mySquad?.players ?? []).map((p) => p.club_id).filter(Boolean),
+        ),
+      ),
+    [mySquad],
+  );
+
+  // Form, gameweek points and total points for the list view — the season
+  // leaderboard already carries all three, so one bulk fetch (filtered down
+  // to the squad client-side) beats a request per player. Only fetched once
+  // the list view is actually open.
+  const { data: listLeaderboardData } = useQuery({
+    queryKey: ["playerLeaderboard", season?.id, "pickTeamList"],
+    queryFn: () => getPlayerLeaderboard(season!.id, { limit: 1000 }),
+    enabled: squadViewMode === "list" && !!season?.id,
+    staleTime: 30000,
+  });
+  const listStatsLookup = useMemo(() => {
+    const map = new Map<string, PlayerLeaderboardItem>();
+    for (const p of listLeaderboardData?.data ?? []) {
+      map.set(p.player_id, p);
+    }
+    return map;
+  }, [listLeaderboardData]);
+
+  // Each squad club's next scheduled fixture, for the list view's Next
+  // Fixture column — no fantasy field carries this, so it's derived from the
+  // real-world Matches API already used elsewhere (Fantasy Points) to
+  // cross-reference fixtures. One small request per distinct club, run in
+  // parallel, only while the list view is open.
+  const nextFixtureQueries = useQueries({
+    queries: squadClubIds.map((clubId) => ({
+      queryKey: ["clubNextFixture", season?.competition_id, clubId],
+      queryFn: () =>
+        getMatches(
+          season!.competition_id,
+          1,
+          5,
+          "SCHEDULED",
+          undefined,
+          clubId,
+        ),
+      enabled:
+        squadViewMode === "list" && !!season?.competition_id && !!clubId,
+      staleTime: 60000,
+    })),
+  });
+  const nextFixtureLookup = useMemo(() => {
+    const map = new Map<string, Match>();
+    squadClubIds.forEach((clubId, i) => {
+      const matches = nextFixtureQueries[i]?.data?.data ?? [];
+      const earliest = [...matches].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      )[0];
+      if (earliest) map.set(clubId, earliest);
+    });
+    return map;
+  }, [squadClubIds, nextFixtureQueries]);
+
   // Rule violation modal dialog
   const [violationModal, setViolationModal] = useState<{
     title: string;
@@ -297,7 +395,6 @@ export function FantasyPickTeam() {
               setSquad(nextSquad);
               if (draft.teamName) setTeamName(draft.teamName);
               restoredFromDraft = true;
-              persistSquad(nextSquad);
             }
           }
         }
@@ -369,11 +466,10 @@ export function FantasyPickTeam() {
     playerMetadataLookup,
   ]);
 
-  // Cleanup: immediately evict any player from the active starting berth who was
-  // sold or is no longer owned. Computed from the current `squad` and saved
-  // outside setSquad on purpose — React invokes a functional updater twice
-  // under StrictMode, which would fire two saves for the same eviction (see
-  // commitSquad).
+  // Cleanup: evict any player from the active starting berth who was sold
+  // or is no longer owned. Local only, like every other edit now — if this
+  // leaves the sheet differing from what's saved, Save Team / Reset Team
+  // pick it up same as any other change.
   useEffect(() => {
     if (!mySquad?.players) return;
     const ownedSet = new Set(mySquad.players.map((p) => p.player_id));
@@ -387,7 +483,6 @@ export function FantasyPickTeam() {
     }
     if (changed) {
       setSquad(next);
-      persistSquad(next);
     }
   }, [mySquad, squad]);
 
@@ -754,8 +849,6 @@ export function FantasyPickTeam() {
     [calculations],
   );
 
-  const passedChecks = publishChecks.filter((c) => c.ok).length;
-
   // Who is actually on the pitch right now, in this editing session — not
   // who the server last had starting. Squad picks and Start promotions only
   // ever touch local `squad` state until Save Lineup is clicked, so this is
@@ -822,6 +915,166 @@ export function FantasyPickTeam() {
     [trueSubstitutes, playerMetadataLookup],
   );
 
+  // List view: the same fourteen plus every bench player (subs and
+  // reserves alike), as plain rows instead of pitch cards.
+  const squadListRows = useMemo(() => {
+    const starterRows = SLOT_DEFINITIONS.flatMap((def) => {
+      const p = squad[def.slot];
+      if (!p) return [];
+      return [
+        {
+          key: `slot-${def.slot}`,
+          slot: def.slot,
+          playerId: p.player_id,
+          playerName: p.player_name,
+          playerImage: p.player_image,
+          gender: p.gender,
+          position: p.position,
+          clubId: p.team_id,
+          clubName: p.team_short_name || p.team_name || "",
+          badge: def.label,
+        },
+      ];
+    });
+    const benchRows = benchPlayers.map((p) => ({
+      key: `bench-${p.player_id}`,
+      slot: undefined as FantasySlot | undefined,
+      playerId: p.player_id,
+      playerName: p.name,
+      playerImage: p.image || playerMetadataLookup.get(p.player_id)?.image || "",
+      gender: p.gender,
+      position: p.position,
+      clubId: p.club_id,
+      clubName: p.club_short_name || p.club_name || "",
+      badge: "Bench",
+    }));
+    return [...starterRows, ...benchRows];
+  }, [squad, benchPlayers, playerMetadataLookup]);
+
+  type SquadListRow = (typeof squadListRows)[number];
+
+  // Opens the same panel a pitch click would, for the row's player.
+  const handleListRowOpen = useCallback(
+    (row: SquadListRow) => {
+      if (row.slot) {
+        setActionSubstituteId(null);
+        setActionSlot(actionSlot === row.slot ? null : row.slot);
+      } else {
+        setActionSlot(null);
+        setActionSubstituteId(row.playerId);
+      }
+    },
+    [actionSlot],
+  );
+
+  const squadListColumns = useMemo<Column<SquadListRow>[]>(
+    () => [
+      {
+        header: "Player",
+        cell: (row) => (
+          <button
+            type="button"
+            onClick={() => handleListRowOpen(row)}
+            className="w-full flex items-center gap-2.5 min-w-0 text-left cursor-pointer"
+          >
+            <PlayerAvatar
+              name={row.playerName}
+              image={row.playerImage || undefined}
+              gender={row.gender}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <span className="block text-sm font-bold text-gray-900 dark:text-white truncate">
+                {row.playerName}
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {row.badge}
+              </span>
+            </div>
+          </button>
+        ),
+        className: "px-3 py-2",
+      },
+      {
+        header: "Position",
+        cell: (row) => (
+          <span className="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            {row.position}
+          </span>
+        ),
+        className: "px-3 py-2",
+      },
+      {
+        header: "Club",
+        cell: (row) => (
+          <span className="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            {row.clubName || "—"}
+          </span>
+        ),
+        className: "px-3 py-2",
+      },
+      {
+        header: "Form",
+        align: "right",
+        sortable: true,
+        sortValue: (row) => listStatsLookup.get(row.playerId)?.form ?? null,
+        cell: (row) => {
+          const v = listStatsLookup.get(row.playerId)?.form;
+          return (
+            <span className="tabular-nums text-xs">
+              {typeof v === "number" ? formatStatDecimal(v, 1) : "—"}
+            </span>
+          );
+        },
+        className: "px-3 py-2 whitespace-nowrap",
+      },
+      {
+        header: "GW Points",
+        align: "right",
+        sortable: true,
+        sortValue: (row) =>
+          listStatsLookup.get(row.playerId)?.gameweek_points ?? null,
+        cell: (row) => {
+          const v = listStatsLookup.get(row.playerId)?.gameweek_points;
+          return (
+            <span className="font-bold tabular-nums text-xs">
+              {typeof v === "number" ? formatStatNumber(v) : "—"}
+            </span>
+          );
+        },
+        className: "px-3 py-2 whitespace-nowrap",
+      },
+      {
+        header: "Total Points",
+        align: "right",
+        sortable: true,
+        sortValue: (row) => listStatsLookup.get(row.playerId)?.points ?? null,
+        cell: (row) => {
+          const v = listStatsLookup.get(row.playerId)?.points;
+          return (
+            <span className="font-black tabular-nums text-xs">
+              {typeof v === "number" ? formatStatNumber(v) : "—"}
+            </span>
+          );
+        },
+        className: "px-3 py-2 whitespace-nowrap",
+      },
+      {
+        header: "Next Fixture",
+        cell: (row) => {
+          const match = nextFixtureLookup.get(row.clubId);
+          return (
+            <span className="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+              {match ? formatNextFixture(match, row.clubId) : "—"}
+            </span>
+          );
+        },
+        className: "px-3 py-2",
+      },
+    ],
+    [listStatsLookup, nextFixtureLookup, handleListRowOpen],
+  );
+
   // Bench players the Manage Starter panel's "Substitute" dropdown offers
   // for the slot it's open on — position- and gender-eligible, same rule
   // ownedForSlot applies for the full player-selection modal. Squad-rule
@@ -838,6 +1091,63 @@ export function FantasyPickTeam() {
           (p.gender || "M").toUpperCase().startsWith(def.requiredGender)),
     );
   }, [actionSlot, trueSubstitutes]);
+
+  // Empty slots that fit the bench player open in the Substitute details
+  // panel — the same coarse candidate list handleStartReserve filters down
+  // with full rule validation. Computed once here so the Start button's
+  // disabled state and the handler it fires can never disagree.
+  const reserveOpenSlots = useMemo(() => {
+    if (!actionSubstitutePlayer) return [];
+    return SLOT_DEFINITIONS.filter(
+      (def) =>
+        squad[def.slot] === null &&
+        positionFitsSlot(def, actionSubstitutePlayer.position),
+    );
+  }, [actionSubstitutePlayer, squad]);
+
+  // Starters the Substitute details panel's bench player is eligible to
+  // swap in for — the inverse of eligibleSubstitutesForSlot, and the same
+  // rule FantasyTransfers' bench-player modal uses, just read from the local
+  // `squad` draft instead of the server's currentLineup.
+  const reserveSubstituteCandidates = useMemo(() => {
+    if (!actionSubstitutePlayer) return [];
+    return SLOT_DEFINITIONS.filter((def) => {
+      const occupant = squad[def.slot];
+      if (!occupant) return false;
+      if (
+        def.requiredGender &&
+        (actionSubstitutePlayer.gender || "M").toUpperCase() !==
+          def.requiredGender
+      ) {
+        return false;
+      }
+      if (!positionFitsSlot(def, actionSubstitutePlayer.position)) {
+        return false;
+      }
+      if (
+        def.unit === "DEFENSE" &&
+        isAllrounderPosition(actionSubstitutePlayer.position)
+      ) {
+        // Defence allows only one All-Rounder — count every other defence
+        // slot's occupant, not this one, since they're who'd leave.
+        const othersHaveOne = SLOT_DEFINITIONS.some(
+          (other) =>
+            other.slot !== def.slot &&
+            other.unit === "DEFENSE" &&
+            isAllrounderPosition(squad[other.slot]?.position || ""),
+        );
+        if (othersHaveOne) return false;
+      }
+      return true;
+    }).map((def) => ({
+      slot: def.slot,
+      playerId: squad[def.slot]!.player_id,
+      playerName: squad[def.slot]!.player_name,
+      playerImage: squad[def.slot]!.player_image,
+      gender: squad[def.slot]!.gender,
+      slotLabel: def.label,
+    }));
+  }, [actionSubstitutePlayer, squad]);
 
   // Tapping an on-pitch substitute token opens its own details panel — same
   // as tapping a starter — rather than starting them immediately. Starting
@@ -969,10 +1279,46 @@ export function FantasyPickTeam() {
     saveMutation.mutate({ picks, publish: opts?.publish ?? false });
   }
 
-  // Whether the sheet on the server is live. Held by the server rather than
-  // inferred locally, so a published lineup still reads as published after a
-  // reload, and an edit that breaks it reads as unpublished straight away.
-  const isPublished = currentLineup?.published ?? false;
+  // The squad exactly as the server has it saved right now — independent of
+  // any local draft restoration — so Reset Team has something concrete to
+  // revert to, and dirty-checking can't be fooled by an in-progress edit.
+  const savedSquad = useMemo(() => {
+    const next = emptySquad();
+    (currentLineup?.picks ?? []).forEach((p) => {
+      const meta = playerMetadataLookup.get(p.player_id);
+      next[p.slot] = {
+        player_id: p.player_id,
+        player_name: p.player_name || "Unknown Player",
+        player_image: p.player_image || meta?.image || "",
+        position: p.position || "",
+        gender: p.gender || "M",
+        team_id: p.team_id || "",
+        team_name: p.team_name || meta?.team_name || "",
+        team_short_name: p.team_short_name || meta?.team_short_name || "",
+        team_logo: p.team_logo || meta?.team_logo || "",
+        price: p.purchase_price || 0,
+        rating: 5,
+        total_points: p.points || 0,
+        owned_by: meta?.owned_by ?? 0,
+        selected_by_pct: meta?.selected_by_pct ?? 0,
+        transfers_in: 0,
+        transfers_out: 0,
+      };
+    });
+    return next;
+  }, [currentLineup, playerMetadataLookup]);
+
+  // Whether the sheet differs from what the server has saved — the only
+  // condition under which Save Team / Reset Team show up at all.
+  const isDirty = useMemo(
+    () =>
+      SLOT_DEFINITIONS.some(
+        (def) =>
+          (squad[def.slot]?.player_id ?? null) !==
+          (savedSquad[def.slot]?.player_id ?? null),
+      ),
+    [squad, savedSquad],
+  );
 
   // Applies a change to the sheet and saves it in the same step, so the two
   // can never drift apart — every path that edits the fourteen goes through
@@ -1217,9 +1563,9 @@ export function FantasyPickTeam() {
     return { valid: true };
   };
 
-  // Applies a change to the sheet and saves it in the same step, so the two
-  // can never drift apart — every path that edits the fourteen goes through
-  // here rather than calling setSquad directly.
+  // Applies a change to the sheet, keeping it purely local — nothing reaches
+  // the server until Save Team is clicked — so every path that edits the
+  // fourteen goes through here rather than calling setSquad directly.
   // Also saves to localStorage working draft for immediate persistence across reloads.
   const commitSquad = (
     update: (
@@ -1240,8 +1586,6 @@ export function FantasyPickTeam() {
         console.warn("Failed to write lineup draft to localStorage:", err);
       }
     }
-
-    persistSquad(next);
   };
 
   const handleSelectPlayer = (player: FantasyPlayerListItem) => {
@@ -1354,6 +1698,47 @@ export function FantasyPickTeam() {
     toast.success("Moved to bench.");
   };
 
+  // "Save Team" — the only thing that still reaches the server from this
+  // page. An invalid sheet never gets a silent no-op: it explains exactly
+  // what's missing via the same violation modal every other rule uses.
+  const handleSaveTeam = () => {
+    if (!calculations.isValid) {
+      const missing = publishChecks
+        .filter((c) => !c.ok)
+        .map((c) => c.label);
+      const benchFirst = blockedStarters.map(({ player }) => player.player_name);
+      setViolationModal({
+        title: "Can't save yet",
+        message: [
+          missing.length > 0 ? `Still needed: ${missing.join("; ")}.` : null,
+          benchFirst.length > 0
+            ? `Bench or replace ${joinNames(benchFirst)} first.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+      return;
+    }
+    persistSquad(squad, { publish: true });
+  };
+
+  // "Reset Team" — discards every local edit and returns to whatever the
+  // server currently has saved, clearing the local draft so a reload
+  // doesn't bring the discarded edits back.
+  const handleResetTeam = () => {
+    setSquad(savedSquad);
+    const draftKey = getDraftKey(season?.id, scheduledGW?.id, user?.id);
+    if (draftKey) {
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        // ignore
+      }
+    }
+    toast.success("Team reset to your last saved lineup.");
+  };
+
   // Drag-and-drop on the pitch: move a starter into an empty slot, or swap two starters.
   const handleSwapSlots = (from: FantasySlot, to: FantasySlot) => {
     if (from === to) return;
@@ -1397,8 +1782,13 @@ export function FantasyPickTeam() {
     );
   };
 
-  // "Start" — promote a bench reserve into an open matching slot
-  const handleStartReserve = (reservePlayer: SquadPlayer) => {
+  // "Start" — promote a bench reserve into an open matching slot. Takes the
+  // same eligible-slots list the Start button's disabled state reads
+  // (reserveOpenSlots), so the two can never disagree.
+  const handleStartReserve = (
+    reservePlayer: SquadPlayer,
+    eligibleSlots: SlotDefinition[],
+  ) => {
     // Club reserves and inactive players may sit on the bench but never start.
     if (
       reservePlayer.is_reserve ||
@@ -1408,12 +1798,6 @@ export function FantasyPickTeam() {
       toast.error(`${reservePlayer.name} can sit on the bench but cannot start.`);
       return;
     }
-
-    // Find all empty slots that match position
-    const eligibleSlots = SLOT_DEFINITIONS.filter((def) => {
-      if (squad[def.slot] !== null) return false;
-      return positionFitsSlot(def, reservePlayer.position);
-    });
 
     if (eligibleSlots.length === 0) {
       setViolationModal({
@@ -1795,42 +2179,14 @@ export function FantasyPickTeam() {
         <div className="order-1 lg:order-2 lg:col-span-2 space-y-6 md:space-y-8 min-w-0">
           {/* Slim gameweek strip */}
           <div className="bg-sffl-navy text-white rounded-none shadow-xl p-4 sm:p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="min-w-0 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-black px-2.5 py-0.5 rounded bg-sffl-red text-white uppercase tracking-wider">
-                  Gameweek {scheduledGW.number}
-                </span>
-                <span className="text-xs text-gray-300 font-medium">
-                  Lock Deadline: {new Date(scheduledGW.deadline).toLocaleString()}
-                </span>
-              </div>
-
-              {/* Live/draft state at a glance. The action that changes it
-                            lives at the foot of the fourteen, where the lineup it
-                            publishes actually is. */}
-              <div className="flex items-center gap-2 shrink-0" aria-live="polite">
-                {saveMutation.isPending ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white/70 text-[11px] font-bold">
-                    <ArrowPathIcon
-                      className="w-3.5 h-3.5 animate-spin"
-                      aria-hidden="true"
-                    />
-                    Saving…
-                  </span>
-                ) : isPublished ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-black uppercase tracking-wider">
-                    <CheckCircleIcon className="w-3.5 h-3.5" />
-                    Published
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-200 text-[11px] font-black uppercase tracking-wider">
-                    <ClockIcon className="w-3.5 h-3.5" />
-                    Draft — not scoring
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <span className="text-xs font-black px-2.5 py-0.5 rounded bg-sffl-red text-white uppercase tracking-wider">
+                Gameweek {scheduledGW.number}
+              </span>
+              <span className="text-xs text-gray-300 font-medium">
+                Lock Deadline: {new Date(scheduledGW.deadline).toLocaleString()}
+              </span>
             </div>
-
           </div>
 
           {/* Squad-size mini row — the other two tiles from the old
@@ -1995,233 +2351,116 @@ export function FantasyPickTeam() {
             </div>
           )}
 
-          {/* Starting 14 Tactical Pitch View */}
-          <div>
-            <FantasyPitch
-              squad={squad}
-              mode="builder"
-              title="Starting 14 Lineup"
-              onSwapSlots={handleSwapSlots}
-              onSwapWithSubstitute={(slot, playerId) =>
-                handleReserveDrop(playerId, slot)
-              }
-              selectedUnitTab={selectedUnitTab}
-              reserveDragActive={!!reserveDrag}
-              dropHighlightSlot={reserveDrag?.over ?? null}
-              onUnitTabChange={setSelectedUnitTab}
-              actionSlot={actionSlot}
-              onSlotClick={(slot, player) => {
-                if (player) {
-                  // A blocked starter opens the same Manage menu as anyone else,
-                  // so they can be benched or replaced, not only swapped.
-                  setActionSubstituteId(null);
-                  setActionSlot(actionSlot === slot ? null : slot);
-                } else {
-                  const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
-                  if (def) setActiveModalSlot(def);
+          {/* Starting 14 — Pitch or List */}
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <Tabs
+                items={[
+                  { value: "pitch", label: "Pitch", icon: Squares2X2Icon },
+                  { value: "list", label: "List", icon: ListBulletIcon },
+                ]}
+                value={squadViewMode}
+                onChange={setSquadViewMode}
+                aria-label="Squad view"
+              />
+            </div>
+
+            {squadViewMode === "pitch" ? (
+              <FantasyPitch
+                squad={squad}
+                mode="builder"
+                title="Starting 14 Lineup"
+                onSwapSlots={handleSwapSlots}
+                onSwapWithSubstitute={(slot, playerId) =>
+                  handleReserveDrop(playerId, slot)
                 }
-              }}
-              isSlotInvalid={(slot) => {
-                const issue = starterIssue(slot);
-                return issue ? { invalid: true, reason: issue.reason } : false;
-              }}
-              isSlotInactive={(slot) => {
-                const player = squad[slot];
-                if (!player) return false;
-                const squadMember = mySquad?.players?.find(
-                  (sp) => sp.player_id === player.player_id,
-                );
-                return squadMember?.team_active === false;
-              }}
-              isSlotDeleted={(slot) => {
-                const player = squad[slot];
-                if (!player) return false;
-                const squadMember = mySquad?.players?.find(
-                  (sp) => sp.player_id === player.player_id,
-                );
-                return isDeletedPlayer({ status: squadMember?.player_status });
-              }}
-              substitutes={pitchSubstitutes}
-              onSubstituteClick={handleSubstituteClick}
-              onSubstitutePointerDown={(e, playerId) =>
-                startReserveDrag(e, playerId)
-              }
-              draggingSubstituteId={reserveDrag?.playerId ?? null}
-            />
+                selectedUnitTab={selectedUnitTab}
+                reserveDragActive={!!reserveDrag}
+                dropHighlightSlot={reserveDrag?.over ?? null}
+                onUnitTabChange={setSelectedUnitTab}
+                actionSlot={actionSlot}
+                onSlotClick={(slot, player) => {
+                  if (player) {
+                    // A blocked starter opens the same Manage menu as anyone else,
+                    // so they can be benched or replaced, not only swapped.
+                    setActionSubstituteId(null);
+                    setActionSlot(actionSlot === slot ? null : slot);
+                  } else {
+                    const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
+                    if (def) setActiveModalSlot(def);
+                  }
+                }}
+                isSlotInvalid={(slot) => {
+                  const issue = starterIssue(slot);
+                  return issue ? { invalid: true, reason: issue.reason } : false;
+                }}
+                isSlotInactive={(slot) => {
+                  const player = squad[slot];
+                  if (!player) return false;
+                  const squadMember = mySquad?.players?.find(
+                    (sp) => sp.player_id === player.player_id,
+                  );
+                  return squadMember?.team_active === false;
+                }}
+                isSlotDeleted={(slot) => {
+                  const player = squad[slot];
+                  if (!player) return false;
+                  const squadMember = mySquad?.players?.find(
+                    (sp) => sp.player_id === player.player_id,
+                  );
+                  return isDeletedPlayer({ status: squadMember?.player_status });
+                }}
+                substitutes={pitchSubstitutes}
+                onSubstituteClick={handleSubstituteClick}
+                onSubstitutePointerDown={(e, playerId) =>
+                  startReserveDrag(e, playerId)
+                }
+                draggingSubstituteId={reserveDrag?.playerId ?? null}
+              />
+            ) : (
+              <DataTable
+                shape="square"
+                data={squadListRows}
+                columns={squadListColumns}
+                searchable={false}
+                paginated={false}
+                getRowId={(row) => row.key}
+                emptyMessage="No players yet — pick your squad on Transfers first."
+              />
+            )}
           </div>
 
           {/* ──────────────────────────────────────────────────────────────
-                        PUBLISH PANEL
+                        SAVE / RESET
 
-                        Sits at the foot of the fourteen because that is the lineup it
-                        publishes — and it is where a manager arrives once the last slot
-                        is filled. Picks are already saved by the time they get here, so
-                        this is not a save button: it is the deliberate act that puts the
-                        squad into the scoring run, and the one place the rules blocking
-                        that are spelled out.
+                        Picks stay purely local now, so these are the only two
+                        controls that touch the server from this page. They only
+                        show up once the sheet actually differs from what's
+                        saved — nothing to save, nothing shown.
                     ────────────────────────────────────────────────────────────── */}
-          <div
-            className={`rounded-none border shadow-sm overflow-hidden ${
-              isPublished
-                ? "bg-emerald-50 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-800"
-                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-            }`}
-          >
-            <div className="p-5 md:p-6 flex flex-col lg:flex-row lg:items-center gap-5 justify-between">
-              <div className="min-w-0">
-                {isPublished ? (
-                  <>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                      <CheckCircleIcon className="w-4.5 h-4.5" />
-                      Lineup published
-                    </h2>
-                    <p className="text-xs text-emerald-800/80 dark:text-emerald-200/70 mt-1 max-w-prose">
-                      This squad is live and earning points. It stays that way — you
-                      only need to publish again if you change it.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
-                      <RocketLaunchIcon className="w-4.5 h-4.5 text-sffl-red" />
-                      Publish your lineup
-                    </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-prose">
-                      Your picks are saved as you make them, but they don't score
-                      until you publish. Publish once and it stays live until you
-                      change it.
-                    </p>
-                  </>
-                )}
-              </div>
-
+          {isDirty && (
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 size="lg"
-                variant={isPublished ? "success" : "primary"}
-                className="w-full lg:w-auto shrink-0"
-                disabled={!calculations.isValid}
+                variant="primary"
+                className="w-full sm:w-auto"
                 loading={saveMutation.isPending}
                 icon={RocketLaunchIcon}
-                onClick={() => persistSquad(squad, { publish: true })}
+                onClick={handleSaveTeam}
               >
-                {isPublished
-                  ? "Republish changes"
-                  : `Publish Lineup (${calculations.filledCount}/14)`}
+                Save Team
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                icon={ArrowUturnDownIcon}
+                onClick={handleResetTeam}
+              >
+                Reset Team
               </Button>
             </div>
-
-            {/* The requirements, live, directly under the button that is
-                            gated on them — so a manager can watch each one turn as they
-                            pick rather than guessing why Publish is still greyed out. */}
-            <div
-              className={`border-t px-5 md:px-6 py-4 ${
-                isPublished
-                  ? "border-emerald-200/70 dark:border-emerald-800/70 bg-emerald-100/30 dark:bg-emerald-900/10"
-                  : "border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Publishing requirements
-                </span>
-                <span
-                  className={`text-[10px] font-black uppercase tracking-wider tabular-nums ${
-                    calculations.isValid
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-gray-500 dark:text-gray-400"
-                  }`}
-                >
-                  {passedChecks} / {publishChecks.length} met
-                </span>
-              </div>
-
-              {/* aria-live so the state change is announced, not just seen. */}
-              <ul
-                className="grid sm:grid-cols-2 gap-x-6 gap-y-2"
-                aria-live="polite"
-              >
-                {publishChecks.map((check) => (
-                  <li
-                    key={check.label}
-                    className={`flex items-center gap-2 text-xs rounded-none px-2 py-1.5 transition-colors ${
-                      check.ok
-                        ? "text-gray-600 dark:text-gray-300"
-                        : "text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30"
-                    }`}
-                  >
-                    {check.ok ? (
-                      <CheckCircleIcon className="w-4 h-4 shrink-0 text-emerald-500" />
-                    ) : (
-                      <ExclamationCircleIcon className="w-4 h-4 shrink-0 text-amber-500" />
-                    )}
-                    <span
-                      className={`min-w-0 flex-1 ${check.ok ? "" : "font-bold"}`}
-                    >
-                      {check.label}
-                    </span>
-                    <span
-                      className={`shrink-0 tabular-nums text-[11px] font-black ${
-                        check.ok
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-amber-700 dark:text-amber-300"
-                      }`}
-                    >
-                      {check.detail}
-                    </span>
-                    <span className="sr-only">
-                      {check.ok ? " — met" : " — not yet met"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              {blockedStarters.length > 0 && (
-                <div className="mt-3 rounded-none border border-amber-200 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-200 mb-2">
-                    Can't start — bench them
-                  </p>
-                  <ul className="space-y-2">
-                    {blockedStarters.map(({ def, player, issue }) => (
-                      <li
-                        key={def.slot}
-                        className="flex flex-wrap items-center gap-2 text-xs"
-                      >
-                        <span className="min-w-0 flex-1 text-gray-800 dark:text-gray-100">
-                          <strong className="font-black">
-                            {player.player_name}
-                          </strong>{" "}
-                          <span className="text-gray-500 dark:text-gray-400">
-                            ({def.label}) · {issue.reason}
-                          </span>
-                        </span>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={ArrowUturnDownIcon}
-                          onClick={() => handleMoveToBench(def.slot)}
-                        >
-                          {issue.owned ? "Bench" : "Remove"}
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* The server decides what is publishable, not this list. The
-                            checks above are a local preview that exists so feedback is
-                            instant; they mirror the rules rather than being them. When
-                            the two disagree the server is right, so its own words are
-                            shown instead of leaving a manager staring at a full set of
-                            ticks and a sheet that will not publish. */}
-              {calculations.isValid && currentLineup?.blocking_reason && (
-                <p className="mt-3 flex items-start gap-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 rounded-none px-2.5 py-2">
-                  <ExclamationCircleIcon className="w-4 h-4 shrink-0 text-amber-500 mt-px" />
-                  <span>{currentLineup.blocking_reason}</span>
-                </p>
-              )}
-            </div>
-          </div>
+          )}
 
           {/* ──────────────────────────────────────────────────────────────
                         RESERVES SECTION — owned players who can never start
@@ -2417,6 +2656,24 @@ export function FantasyPickTeam() {
             <div className="p-4 space-y-2">
               <button
                 type="button"
+                onClick={() => handleMoveToBench(actionSlot)}
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+              >
+                <div className="p-2.5 rounded-none bg-amber-600/10 text-amber-600 dark:text-amber-400">
+                  <ArrowUturnDownIcon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-black text-gray-900 dark:text-white block">
+                    Move to Bench
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                    Free up this slot
+                  </span>
+                </div>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setShowSubstituteOptions((v) => !v)}
                 aria-expanded={showSubstituteOptions}
                 className="w-full flex items-center gap-3.5 p-3.5 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
@@ -2480,6 +2737,16 @@ export function FantasyPickTeam() {
 
             {/* Footer */}
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <ButtonLink
+                to={`/fantasy/players/${squad[actionSlot]!.player_id}`}
+                variant="ghost"
+                icon={ArrowTopRightOnSquareIcon}
+                iconPosition="right"
+                shape="square"
+                className="sm:mr-auto"
+              >
+                Full Profile
+              </ButtonLink>
               <Button variant="secondary" size="sm" onClick={() => setActionSlot(null)}>
                 Cancel
               </Button>
@@ -2560,11 +2827,12 @@ export function FantasyPickTeam() {
             <div className="p-4 space-y-2">
               <button
                 type="button"
+                disabled={reserveOpenSlots.length === 0}
                 onClick={() => {
                   setActionSubstituteId(null);
-                  handleStartReserve(actionSubstitutePlayer);
+                  handleStartReserve(actionSubstitutePlayer, reserveOpenSlots);
                 }}
-                className="w-full flex items-center gap-3.5 p-3.5 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               >
                 <div className="p-2.5 rounded-none bg-emerald-600/10 text-emerald-600 dark:text-emerald-400">
                   <PlayCircleIcon className="w-5 h-5" />
@@ -2574,21 +2842,87 @@ export function FantasyPickTeam() {
                     Start
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                    Promote into an open matching slot
+                    {reserveOpenSlots.length === 0
+                      ? "No open slot for this position"
+                      : "Promote into an open matching slot"}
                   </span>
                 </div>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSubstituteOptions((v) => !v)}
+                aria-expanded={showSubstituteOptions}
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+              >
+                <div className="p-2.5 rounded-none bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-white">
+                  <ArrowsRightLeftIcon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-black text-gray-900 dark:text-white block">
+                    Substitute
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                    Swap in for an eligible starter
+                  </span>
+                </div>
+                <ChevronDownIcon
+                  className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${
+                    showSubstituteOptions ? "rotate-180" : ""
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
+
+              {showSubstituteOptions && (
+                <div className="border border-gray-200 dark:border-gray-700 rounded-none divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden max-h-64 overflow-y-auto">
+                  {reserveSubstituteCandidates.length === 0 ? (
+                    <p className="p-3.5 text-xs text-gray-500 dark:text-gray-400 text-center">
+                      No eligible starter to swap them in for right now.
+                    </p>
+                  ) : (
+                    reserveSubstituteCandidates.map((c) => (
+                      <button
+                        key={c.slot}
+                        type="button"
+                        onClick={() => {
+                          setActionSubstituteId(null);
+                          handleReserveDrop(actionSubstitutePlayer.player_id, c.slot);
+                        }}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+                      >
+                        <PlayerAvatar
+                          name={c.playerName}
+                          image={c.playerImage}
+                          gender={c.gender}
+                          size="sm"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm font-bold text-gray-900 dark:text-white block truncate">
+                            {c.playerName}
+                          </span>
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {c.slotLabel}
+                          </span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setActionSubstituteId(null)}
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-start">
+              <ButtonLink
+                to={`/fantasy/players/${actionSubstitutePlayer.player_id}`}
+                variant="ghost"
+                icon={ArrowTopRightOnSquareIcon}
+                iconPosition="right"
+                shape="square"
               >
-                Cancel
-              </Button>
+                Full Profile
+              </ButtonLink>
             </div>
           </div>
         )}

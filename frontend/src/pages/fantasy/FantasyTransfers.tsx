@@ -1161,27 +1161,29 @@ export function FantasyTransfers() {
                   inside Your Squad, under its Pitch/List toggle. */}
               <div className="bg-sffl-navy text-white shadow-xl p-4 sm:p-6 md:p-8 flex items-center justify-between gap-3 flex-wrap">
                 {scheduledGW ? (
-                  <div className="min-w-0">
-                    <span className="text-xs font-black px-2.5 py-0.5 bg-sffl-red text-white uppercase tracking-wider inline-block">
-                      Gameweek {scheduledGW.number}
-                    </span>
-                    <p className="text-[11px] text-gray-300 mt-1">
-                      Deadline:{" "}
-                      {new Date(scheduledGW.deadline).toLocaleString()}
-                    </p>
-                  </div>
+                  <span className="text-xs font-black px-2.5 py-0.5 bg-sffl-red text-white uppercase tracking-wider inline-block">
+                    Gameweek {scheduledGW.number}
+                  </span>
                 ) : (
                   <p className="text-xs text-gray-300">
                     No upcoming gameweek scheduled.
                   </p>
                 )}
 
-                {marketClosed && (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-300 shrink-0">
-                    <LockClosedIcon className="w-4 h-4" aria-hidden="true" />
-                    Market closed
-                  </span>
-                )}
+                <div className="flex items-center gap-3 shrink-0">
+                  {marketClosed && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-300">
+                      <LockClosedIcon className="w-4 h-4" aria-hidden="true" />
+                      Market closed
+                    </span>
+                  )}
+                  {scheduledGW && (
+                    <span className="text-[11px] text-gray-300">
+                      Deadline:{" "}
+                      {new Date(scheduledGW.deadline).toLocaleString()}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Your Squad */}

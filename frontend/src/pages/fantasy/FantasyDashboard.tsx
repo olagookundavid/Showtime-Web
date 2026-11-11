@@ -802,6 +802,8 @@ export function FantasyDashboard() {
             gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
             gameweekId={dashboard?.lineup?.gameweek_id || gameweek?.id}
             showPoints={deadlinePassed}
+            playerModalPosition="right"
+            hideDetailStrip
           />
         )}
       </div>

@@ -404,12 +404,12 @@ export interface FantasyPitchProps {
    * (sell, with its own confirmation) and when it's available (e.g. not
    * while the transfer market is closed). */
   onRemovePlayer?: (playerId: string) => void;
-  /** Drop the navy header band (eyebrow/title + "filled/14" count) and the
-   * Full Roster/Offense/Defense filter row below it, leaving just the green
-   * field. Opt in per caller — the filter row is a real, useful control in
-   * builder mode (it scopes which slots you're editing), but on a read-only
-   * history view (e.g. Points, where the gameweek is already named one level
-   * up and there's nothing to filter toward) it was pure chrome. */
+  /** Drop the navy header band (eyebrow/title + the Full Roster/Offense/
+   * Defense filters), leaving just the green field. Opt in per caller — the
+   * filters are a real, useful control in builder mode (they scope which
+   * slots you're editing), but on a read-only history view (e.g. Points,
+   * where the gameweek is already named one level up and there's nothing to
+   * filter toward) it was pure chrome. */
   hideHeader?: boolean;
   /** Display mode only, when `onPlayerClick` is omitted: position of the
    * player profile this pitch opens on its own (Points, Transfers want the
@@ -735,12 +735,6 @@ export function FantasyPitch({
   };
 
   const filled = PITCH_SPOTS.filter((s) => bySlot.has(s.slot)).length;
-  const offenseFilled = PITCH_SPOTS.filter(
-    (s) => s.unit === "OFFENSE" && bySlot.has(s.slot),
-  ).length;
-  const defenseFilled = PITCH_SPOTS.filter(
-    (s) => s.unit === "DEFENSE" && bySlot.has(s.slot),
-  ).length;
 
   const activeSpot =
     PITCH_SPOTS.find((s) => s.slot === currentSelected) ?? PITCH_SPOTS[0];
@@ -751,8 +745,9 @@ export function FantasyPitch({
     <div className="rounded-none overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-sffl-navy">
       {!hideHeader && (
         <>
-          {/* Header */}
-          <div className="flex items-center gap-3 px-5 py-4 bg-linear-to-br from-[#102447] to-[#07162b] border-b border-white/15">
+          {/* Header — title on the left, the unit filters (which also
+              double as the old filled-count readout) on the right. */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 bg-linear-to-br from-[#102447] to-[#07162b] border-b border-white/15">
             <div className="min-w-0 flex-1">
               {gameweekLabel && (
                 <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#91a6c7]">
@@ -763,19 +758,8 @@ export function FantasyPitch({
                 {title}
               </h3>
             </div>
-            <div className="text-right shrink-0">
-              <span className="block text-white font-black text-xl md:text-2xl leading-tight tabular-nums">
-                {filled} / 14
-              </span>
-              <span className="block text-[10px] uppercase tracking-widest text-[#aebdd0]">
-                Starting players
-              </span>
-            </div>
-          </div>
 
-          {/* Filter Controls & Formation Info */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
-            <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-stretch gap-1.5 p-1 rounded-none bg-white/5 border border-white/10">
+            <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto shrink-0 items-stretch gap-1.5 p-1 rounded-none bg-white/5 border border-white/10">
               <Button
                 size="sm"
                 variant={currentUnitTab === "ALL" ? "navy" : "ghost"}
@@ -785,10 +769,7 @@ export function FantasyPitch({
                 aria-pressed={currentUnitTab === "ALL"}
                 onClick={() => handleUnitChange("ALL")}
               >
-                <span>
-                  <span className="hidden sm:inline">Full </span>Roster
-                </span>
-                <span>({filled}/14)</span>
+                <span className="hidden sm:inline">Full </span>Roster
               </Button>
               <Button
                 size="sm"
@@ -800,8 +781,7 @@ export function FantasyPitch({
                 onClick={() => handleUnitChange("OFFENSE")}
               >
                 <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
-                <span>Offense</span>
-                <span>({offenseFilled}/7)</span>
+                Offense
               </Button>
               <Button
                 size="sm"
@@ -813,19 +793,20 @@ export function FantasyPitch({
                 onClick={() => handleUnitChange("DEFENSE")}
               >
                 <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
-                <span>Defense</span>
-                <span>({defenseFilled}/7)</span>
+                Defense
               </Button>
             </div>
-
-            <span
-              className={`${canDrag ? "" : "hidden sm:inline"} text-[#aebdd0] text-xs font-medium`}
-            >
-              {canDrag
-                ? "Drag a player onto another slot to swap (hold first on touch)"
-                : "7 v 7 tactical formation"}
-            </span>
           </div>
+
+          {/* Drag hint — builder mode only. Display mode has nothing left
+              to say here now that the filters moved into the header. */}
+          {canDrag && (
+            <div className="px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
+              <span className="text-[#aebdd0] text-xs font-medium">
+                Drag a player onto another slot to swap (hold first on touch)
+              </span>
+            </div>
+          )}
         </>
       )}
 
