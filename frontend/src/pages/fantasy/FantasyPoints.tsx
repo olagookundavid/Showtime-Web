@@ -161,7 +161,7 @@ export function FantasyPoints() {
                     Same block as Pick Team and Transfers, so a manager sees
                     the same summary wherever they are in Fantasy.
                 ──────────────────────────────────────────────────────────────── */}
-        <div className="lg:col-span-1 min-w-0">
+        <div className="order-2 lg:order-1 lg:col-span-1 min-w-0">
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm divide-y divide-gray-200 dark:divide-gray-700">
             {/* Team identity */}
             <div className="p-5">
@@ -307,7 +307,7 @@ export function FantasyPoints() {
         {/* ────────────────────────────────────────────────────────────────
                     MAIN COLUMN — gameweek breakdown, best/worst, history
                 ──────────────────────────────────────────────────────────────── */}
-        <div className="lg:col-span-2 space-y-6 md:space-y-8 min-w-0">
+        <div className="order-1 lg:order-2 lg:col-span-2 space-y-6 md:space-y-8 min-w-0">
           {rows.length === 0 ? (
             <div className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-center shadow-sm">
               <p className="text-sm text-gray-600 dark:text-gray-300">

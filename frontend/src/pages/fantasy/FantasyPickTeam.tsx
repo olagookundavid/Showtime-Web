@@ -1652,7 +1652,7 @@ export function FantasyPickTeam() {
         {/* ────────────────────────────────────────────────────────────────
                     STICKY SIDEBAR — identity, points/rank, finance, leagues
                 ──────────────────────────────────────────────────────────────── */}
-        <div className="lg:col-span-1 min-w-0">
+        <div className="order-2 lg:order-1 lg:col-span-1 min-w-0">
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm divide-y divide-gray-200 dark:divide-gray-700">
             {/* Team identity */}
             <div className="p-5">
@@ -1792,7 +1792,7 @@ export function FantasyPickTeam() {
         {/* ────────────────────────────────────────────────────────────────
                     MAIN COLUMN — gameweek strip, pitch, publish, bench
                 ──────────────────────────────────────────────────────────────── */}
-        <div className="lg:col-span-2 space-y-6 md:space-y-8 min-w-0">
+        <div className="order-1 lg:order-2 lg:col-span-2 space-y-6 md:space-y-8 min-w-0">
           {/* Slim gameweek strip */}
           <div className="bg-sffl-navy text-white rounded-none shadow-xl p-4 sm:p-6 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
