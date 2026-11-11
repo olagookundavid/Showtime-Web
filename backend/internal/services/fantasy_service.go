@@ -53,8 +53,10 @@ type IFantasyService interface {
 	GetMyLineup(ctx context.Context, userID, seasonID, gameweekID string) (*dto.FantasyLineupResponse, error)
 	GetTeamLineup(ctx context.Context, requestingUserID, teamID, gameweekID string) (*dto.FantasyTeamLineupDetailResponse, error)
 	GetGameweekReport(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error)
+	GetMyPointsHistory(ctx context.Context, userID, seasonID string) (*dto.TeamPointsHistoryResponse, error)
 	GetPlayerBreakdown(ctx context.Context, playerID, gameweekID string) (*dto.PlayerGWBreakdownResponse, error)
 	GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error)
+	GetPlayerForm(ctx context.Context, seasonID, playerID string) (*dto.PlayerFormResponse, error)
 
 	// Core Engine
 	ComputeGameweekScores(ctx context.Context, gameweekID string) error
@@ -935,13 +937,13 @@ func (s *FantasyService) GetDashboard(ctx context.Context, userID, seasonID stri
 	}
 	res.Entered = true
 
-	rank, total, err := s.repo.GetTeamOverallRank(ctx, season.ID, team.ID)
+	rank, total, movement, err := s.repo.GetTeamOverallRankTrend(ctx, season.ID, team.ID)
 	if err != nil {
 		return nil, err
 	}
 	res.Team = &dto.DashboardTeam{
 		ID: team.ID, Name: team.Name, TotalPoints: team.TotalPoints,
-		OverallRank: rank, TotalManagers: total,
+		OverallRank: rank, TotalManagers: total, RankMovement: movement,
 	}
 
 	if leagues, err := s.leagueRepo.ListMyLeaguesWithRank(ctx, userID, season.ID); err == nil {
@@ -1456,6 +1458,30 @@ func (s *FantasyService) GetTeamLineup(ctx context.Context, requestingUserID, te
 
 func (s *FantasyService) GetGameweekReport(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error) {
 	return s.repo.GetGameweekAnalytics(ctx, seasonID, gameweekID)
+}
+
+// GetMyPointsHistory is a manager's own gameweek-by-gameweek score history for
+// a season. nil, nil means the manager never entered this season — same shape
+// as GetMyLineup, so the handler can tell "never played" apart from a real error.
+func (s *FantasyService) GetMyPointsHistory(ctx context.Context, userID, seasonID string) (*dto.TeamPointsHistoryResponse, error) {
+	team, err := s.repo.GetTeamByUserAndSeason(ctx, userID, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	if team == nil {
+		return nil, nil
+	}
+
+	history, err := s.repo.GetTeamPointsHistory(ctx, seasonID, team.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.TeamPointsHistoryResponse{
+		SeasonID: seasonID,
+		TeamID:   team.ID,
+		History:  history,
+	}, nil
 }
 
 // ErrGameweekNotFound means the gameweek in the URL does not exist — a real

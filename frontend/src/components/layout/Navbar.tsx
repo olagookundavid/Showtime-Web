@@ -275,7 +275,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               News
             </Link>
             <Link
-              to="/fantasy"
+              to="/fantasy/dashboard"
               aria-current={isActive("/fantasy") ? "page" : undefined}
               className={navItem(isActive("/fantasy"), "text-yellow-400")}
             >

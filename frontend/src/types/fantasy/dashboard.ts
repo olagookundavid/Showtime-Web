@@ -1,6 +1,10 @@
 import type { FantasySeason, FantasyLineupResponse, FantasyGameweek } from './core';
 import type { LeaderboardEntry } from './leagues';
 
+/** "UP"/"DOWN" against the rank before the last scored gameweek, "SAME" if
+ *  unchanged, or "" when there's no prior gameweek to compare against. */
+export type RankMovement = 'UP' | 'DOWN' | 'SAME' | '';
+
 export interface DashboardTeam {
     id: string;
     name: string;
@@ -8,6 +12,7 @@ export interface DashboardTeam {
     gameweek_points: number;
     overall_rank: number;
     total_managers: number;
+    rank_movement?: RankMovement;
 }
 
 export interface DashboardLeagueRow {
@@ -17,6 +22,7 @@ export interface DashboardLeagueRow {
     member_count: number;
     my_rank: number;
     entry_fee_kobo: number;
+    rank_movement?: RankMovement;
 }
 
 export interface FantasyDashboard {

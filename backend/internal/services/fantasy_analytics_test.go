@@ -132,6 +132,46 @@ func TestGameweekReportService(t *testing.T) {
 	}
 }
 
+func TestGetMyPointsHistoryService(t *testing.T) {
+	team := &domain.FantasyTeam{ID: "team-1", UserID: "user-1", SeasonID: "season-1", Name: "Test Squad"}
+	rows := []dto.TeamPointsHistoryRow{
+		{GameweekNumber: 1, Points: 40.5, RunningTotal: 40.5, Rank: 2, TotalTeams: 5, AveragePoints: 35.0, HighestPoints: 50.0, LowestPoints: 10.0},
+		{GameweekNumber: 2, Points: 60.0, RunningTotal: 100.5, Rank: 1, TotalTeams: 5, AveragePoints: 38.0, HighestPoints: 60.0, LowestPoints: 12.0},
+	}
+
+	t.Run("entered manager gets their history", func(t *testing.T) {
+		repo := &fakeFantasyRepo{enteredTeam: team, pointsHistory: rows}
+		svc := NewFantasyService(repo, nil, nil, nil, nil)
+
+		res, err := svc.GetMyPointsHistory(context.Background(), "user-1", "season-1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == nil {
+			t.Fatal("expected a response, got nil")
+		}
+		if res.TeamID != "team-1" || res.SeasonID != "season-1" {
+			t.Errorf("expected team-1/season-1, got %s/%s", res.TeamID, res.SeasonID)
+		}
+		if len(res.History) != 2 || res.History[1].RunningTotal != 100.5 {
+			t.Errorf("expected pass-through history, got %+v", res.History)
+		}
+	})
+
+	t.Run("manager who never entered gets nil, not an error", func(t *testing.T) {
+		repo := &fakeFantasyRepo{enteredTeam: nil, pointsHistory: rows}
+		svc := NewFantasyService(repo, nil, nil, nil, nil)
+
+		res, err := svc.GetMyPointsHistory(context.Background(), "user-2", "season-1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res != nil {
+			t.Errorf("expected nil response for a manager with no team, got %+v", res)
+		}
+	})
+}
+
 func TestDreamTeamBuilder(t *testing.T) {
 	scorers := []dto.TopScoringPlayerItem{
 		{PlayerID: "p-qbm", Position: "QB", Gender: "M", TeamID: "c1", Points: 30},

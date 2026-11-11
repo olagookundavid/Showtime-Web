@@ -10,7 +10,6 @@ import {
 import {
   ButtonLink,
   DataTable,
-  FantasyBackLink,
   Field,
   Loader,
   PlayerAvatar,
@@ -317,7 +316,6 @@ export function FantasyPlayerDetail() {
   if (!season) {
     return (
       <div className="space-y-4">
-        <FantasyBackLink to="/fantasy" label="Back to Fantasy Hub" />
         <p className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center text-sm text-gray-600 dark:text-gray-300">
           There's no fantasy season running right now, so there are no fantasy stats to show.
         </p>
@@ -328,7 +326,6 @@ export function FantasyPlayerDetail() {
   if (notFound || isError || !data) {
     return (
       <div className="space-y-4">
-        <FantasyBackLink to="/fantasy/players" label="Back to Player Leaderboard" />
         <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center">
           <p className="font-bold text-gray-800 dark:text-gray-100">
             {notFound ? "This player isn't in the fantasy game." : "Couldn't load this player."}
@@ -363,8 +360,6 @@ export function FantasyPlayerDetail() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <FantasyBackLink to="/fantasy/players" label="Back to Player Leaderboard" />
-
       {/* Header */}
       <div className="bg-sffl-navy text-white rounded-2xl shadow-xl p-4 sm:p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">

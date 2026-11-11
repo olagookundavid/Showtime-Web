@@ -72,8 +72,15 @@ export function useReserveDrag(
 
   const startDrag = (e: ReactPointerEvent<HTMLElement>, playerId: string) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    // Let the row's own buttons (Start, Sell) behave normally.
-    if ((e.target as HTMLElement).closest("button, a, input, select")) return;
+    // Let a nested control (a row's own "Start"/"Sell" button, say) behave
+    // normally instead of starting a drag. A pitch substitute token is
+    // itself the drag handle AND a button, so only bail when the closest
+    // interactive ancestor is some other, more deeply nested element — not
+    // when it resolves back to the handle currentTarget was attached to.
+    const closestInteractive = (e.target as HTMLElement).closest(
+      "button, a, input, select",
+    );
+    if (closestInteractive && closestInteractive !== e.currentTarget) return;
     stopRef.current?.();
 
     const { pointerId, pointerType } = e;

@@ -1,6 +1,7 @@
 import api from "../client";
 import type {
   GameweekReportResponse,
+  PlayerFormResponse,
   PlayerGWBreakdownResponse,
   PlayerPriceHistoryResponse,
 } from "../../types";
@@ -21,6 +22,17 @@ export const getPlayerPriceHistory = async (
 ): Promise<PlayerPriceHistoryResponse> => {
   const res = await api.get<{ data: PlayerPriceHistoryResponse }>(
     `/fantasy/players/${playerId}/price-history`,
+    { params: seasonId ? { season_id: seasonId } : undefined },
+  );
+  return res.data.data;
+};
+
+export const getPlayerForm = async (
+  playerId: string,
+  seasonId?: string,
+): Promise<PlayerFormResponse> => {
+  const res = await api.get<{ data: PlayerFormResponse }>(
+    `/fantasy/players/${playerId}/form`,
     { params: seasonId ? { season_id: seasonId } : undefined },
   );
   return res.data.data;

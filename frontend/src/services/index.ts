@@ -336,7 +336,7 @@ export { getPlayerLeaderboard } from './fantasy/playerLeaderboard';
 
 export { getFantasyPlayerDetail } from './fantasy/playerDetail';
 
-export { getPlayerBreakdown, getPlayerPriceHistory, getGameweekReport } from './fantasy/reports';
+export { getPlayerBreakdown, getPlayerPriceHistory, getPlayerForm, getGameweekReport } from './fantasy/reports';
 
 export { fantasyLeaguesApi, fantasyLeagueApi } from './fantasy/leagues';
 

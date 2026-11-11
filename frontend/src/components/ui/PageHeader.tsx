@@ -45,7 +45,7 @@ export const PageHeader = ({ eyebrow, title, subtitle, actions, backgroundImage,
                             {title}
                         </h1>
                         {subtitle && (
-                            <p className="max-w-md text-sm text-white/85 sm:text-base">{subtitle}</p>
+                            <p className="text-sm text-white/85 sm:text-base">{subtitle}</p>
                         )}
                     </div>
                     {actions}

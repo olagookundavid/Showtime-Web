@@ -531,7 +531,7 @@ export function DataTable<T extends Record<string, any>>({
     <div className="space-y-4">
       {/* Header Actions & Search - Condensed */}
       {showToolbar && (
-        <div className="flex flex-col sm:flex-row justify-between gap-3 bg-white dark:bg-gray-800 p-2 md:p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className={`flex flex-col sm:flex-row justify-between gap-3 bg-white dark:bg-gray-800 p-2 md:p-4 ${square ? "rounded-none" : "rounded-xl"} shadow-sm border border-gray-100 dark:border-gray-700`}>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {searchable && (
               <div className="flex gap-2 w-full sm:w-auto">

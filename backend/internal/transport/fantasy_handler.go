@@ -23,12 +23,14 @@ type IFantasyHandler interface {
 	GetFantasyPlayerDetail(c *gin.Context)
 	GetPlayerBreakdown(c *gin.Context)
 	GetPlayerPriceHistory(c *gin.Context)
+	GetPlayerForm(c *gin.Context)
 	EnterSeason(c *gin.Context)
 	GetDashboard(c *gin.Context)
 	SaveLineup(c *gin.Context)
 	GetMyLineup(c *gin.Context)
 	GetTeamLineup(c *gin.Context)
 	GetGameweekReport(c *gin.Context)
+	GetMyPointsHistory(c *gin.Context)
 
 	// Admin
 	AdminListSeasons(c *gin.Context)
@@ -204,6 +206,25 @@ func (h *FantasyHandler) GetPlayerPriceHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": history})
 }
 
+// GetPlayerForm is the rolling stats (form, points per game, ownership) and
+// recent-match strip for a player's detail panel.
+func (h *FantasyHandler) GetPlayerForm(c *gin.Context) {
+	playerID := c.Param("id")
+	seasonID := c.Query("season_id")
+
+	form, err := h.service.GetPlayerForm(c.Request.Context(), seasonID, playerID)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": form})
+}
+
 // EnterSeason signs the manager up for a season — the deliberate opt-in that
 // replaces being enrolled as a side effect of saving a squad.
 func (h *FantasyHandler) EnterSeason(c *gin.Context) {
@@ -310,6 +331,28 @@ func (h *FantasyHandler) GetTeamLineup(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": res})
+}
+
+func (h *FantasyHandler) GetMyPointsHistory(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	seasonID := c.Query("season_id")
+	if seasonID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "season_id is required"})
+		return
+	}
+
+	res, err := h.service.GetMyPointsHistory(c.Request.Context(), payload.UserId, seasonID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

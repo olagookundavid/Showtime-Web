@@ -17,8 +17,8 @@ import type {
 import { FantasyPlayerModal } from "./FantasyPlayerModal";
 import {
   PlusIcon,
-  ArrowsRightLeftIcon,
   ExclamationTriangleIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { FemaleIcon } from "../icons/FemaleIcon";
 import { MaleIcon } from "../icons/MaleIcon";
@@ -294,6 +294,20 @@ function styleFor(position: string | undefined, unit: "OFFENSE" | "DEFENSE") {
   return unit === "DEFENSE" ? POSITION_STYLE.Defender : POSITION_STYLE.QB;
 }
 
+/**
+ * A bench player eligible to start (not a club reserve, not inactive, not
+ * deleted) — deliberately lighter than SquadPlayer, which lives in the
+ * squad-page domain and would pull a cross-domain type into a shared
+ * component. Callers map their own owned-players shape into this.
+ */
+export interface PitchSubstitute {
+  playerId: string;
+  name: string;
+  image?: string;
+  position: string;
+  gender: string;
+}
+
 const DRAG_THRESHOLD_PX = 6; // mouse: movement before a press becomes a drag
 const TOUCH_HOLD_MS = 220; // touch: press-and-hold before a drag starts
 const TOUCH_SLOP_PX = 10; // touch: moving more than this first means "scrolling"
@@ -304,6 +318,16 @@ function slotAtPoint(x: number, y: number): FantasySlot | null {
     .elementFromPoint(x, y)
     ?.closest<HTMLElement>("[data-pitch-slot]");
   return (el?.dataset.pitchSlot as FantasySlot | undefined) ?? null;
+}
+
+/** The substitute token under a screen point, so a starter dragged down onto
+ * the bench strip can swap with it — the other end of the same gesture as
+ * dragging that substitute up onto the slot. */
+function substituteAtPoint(x: number, y: number): string | null {
+  const el = document
+    .elementFromPoint(x, y)
+    ?.closest<HTMLElement>("[data-substitute-id]");
+  return el?.dataset.substituteId ?? null;
 }
 
 export interface FantasyPitchProps {
@@ -337,9 +361,54 @@ export interface FantasyPitchProps {
   ) => { invalid: boolean; reason?: string } | boolean;
   /** Builder mode only: drag a starter onto another slot (empty = move, filled = swap). */
   onSwapSlots?: (from: FantasySlot, to: FantasySlot) => void;
+  /** Builder mode only: drag a starter down onto a substitute token to swap them — the reverse of dragging the substitute up onto that slot. */
+  onSwapWithSubstitute?: (from: FantasySlot, substitutePlayerId: string) => void;
   /** A reserve is being dragged in from outside; these highlight and un-dim slots for the drop. */
   dropHighlightSlot?: FantasySlot | null;
   reserveDragActive?: boolean;
+  /**
+   * Everyone owned but not starting, rendered as a row of avatar tokens at
+   * the foot of the pitch, below the FANTASY end zone, instead of a plain
+   * list underneath. Builder mode sends only start-eligible substitutes
+   * (club reserves, inactive and deleted players can never start, so the
+   * caller keeps those in its own separate reserves list); display mode has
+   * no start action to restrict, so the caller can send everyone benched.
+   */
+  substitutes?: PitchSubstitute[];
+  /** Tap a substitute token to promote them (mirrors the pitch's own slot click). */
+  onSubstituteClick?: (sub: PitchSubstitute) => void;
+  /** Wire a substitute token into the same drag-to-promote gesture a pitch slot drop expects. */
+  onSubstitutePointerDown?: (
+    e: ReactPointerEvent<HTMLElement>,
+    playerId: string,
+  ) => void;
+  /** The substitute currently being dragged, so its token can dim mid-drag. */
+  draggingSubstituteId?: string | null;
+  /** Drop the detail strip below the pitch (the selected slot's name/price/
+   * points plus a Manage/Draft/Breakdown button). Opt in per caller — most
+   * display pages still use it as their only way to open a player's points
+   * breakdown; a caller that already shows that info elsewhere can hide it. */
+  hideDetailStrip?: boolean;
+  /** Opt in per caller: a small X badge on every filled starting slot and
+   * substitute token, for removing someone from the squad straight from the
+   * pitch (e.g. Transfers — selling, so another player can be signed in
+   * their place) instead of only through a separate list. Omit it and no
+   * badge renders; pass it and the caller owns what "remove" means
+   * (sell, with its own confirmation) and when it's available (e.g. not
+   * while the transfer market is closed). */
+  onRemovePlayer?: (playerId: string) => void;
+  /** Drop the navy header band (eyebrow/title + "filled/14" count) and the
+   * Full Roster/Offense/Defense filter row below it, leaving just the green
+   * field. Opt in per caller — the filter row is a real, useful control in
+   * builder mode (it scopes which slots you're editing), but on a read-only
+   * history view (e.g. Points, where the gameweek is already named one level
+   * up and there's nothing to filter toward) it was pure chrome. */
+  hideHeader?: boolean;
+  /** Display mode only, when `onPlayerClick` is omitted: position of the
+   * player profile this pitch opens on its own (Points, Transfers want the
+   * same right-side panel the Squad Builder uses; other display pages keep
+   * the centered dialog). */
+  playerModalPosition?: "center" | "right";
 }
 
 export function FantasyPitch({
@@ -355,12 +424,21 @@ export function FantasyPitch({
   selectedUnitTab,
   onUnitTabChange,
   actionSlot,
+  substitutes,
+  onSubstituteClick,
+  onSubstitutePointerDown,
+  draggingSubstituteId,
   isSlotInactive,
   isSlotDeleted,
   isSlotInvalid,
   onSwapSlots,
+  onSwapWithSubstitute,
   dropHighlightSlot,
   reserveDragActive,
+  hideDetailStrip,
+  onRemovePlayer,
+  hideHeader,
+  playerModalPosition = "center",
 }: FantasyPitchProps) {
   const bySlot = useMemo(() => {
     const map = new Map<FantasySlot, PitchPlayerItem>();
@@ -479,12 +557,13 @@ export function FantasyPitch({
   const [inspectingPlayer, setInspectingPlayer] =
     useState<FantasyPlayerModalData | null>(null);
 
-  const canDrag = mode === "builder" && !!onSwapSlots;
+  const canDrag = mode === "builder" && !!(onSwapSlots || onSwapWithSubstitute);
   const [drag, setDrag] = useState<{
     slot: FantasySlot;
     x: number;
     y: number;
     over: FantasySlot | null;
+    overSubstitute: string | null;
   } | null>(null);
   const suppressClickRef = useRef(false);
   const stopDragRef = useRef<(() => void) | null>(null);
@@ -492,10 +571,14 @@ export function FantasyPitch({
   useEffect(() => {
     onSwapRef.current = onSwapSlots;
   }, [onSwapSlots]);
+  const onSwapWithSubstituteRef = useRef(onSwapWithSubstitute);
+  useEffect(() => {
+    onSwapWithSubstituteRef.current = onSwapWithSubstitute;
+  }, [onSwapWithSubstitute]);
   useEffect(() => () => stopDragRef.current?.(), []);
 
   const handleSpotPointerDown = (
-    e: ReactPointerEvent<HTMLButtonElement>,
+    e: ReactPointerEvent<HTMLElement>,
     spot: PitchSpot,
   ) => {
     if (!canDrag || !bySlot.has(spot.slot)) return;
@@ -511,7 +594,7 @@ export function FantasyPitch({
       active = true;
       suppressClickRef.current = true;
       navigator.vibrate?.(8);
-      setDrag({ slot: from, x, y, over: null });
+      setDrag({ slot: from, x, y, over: null, overSubstitute: null });
     }
 
     function onMove(ev: PointerEvent) {
@@ -527,11 +610,15 @@ export function FantasyPitch({
         begin(ev.clientX, ev.clientY);
       }
       const over = slotAtPoint(ev.clientX, ev.clientY);
+      const overSubstitute = over
+        ? null
+        : substituteAtPoint(ev.clientX, ev.clientY);
       setDrag({
         slot: from,
         x: ev.clientX,
         y: ev.clientY,
         over: over && over !== from ? over : null,
+        overSubstitute,
       });
     }
 
@@ -539,9 +626,13 @@ export function FantasyPitch({
       if (ev.pointerId !== pointerId) return;
       const wasActive = active;
       const over = wasActive ? slotAtPoint(ev.clientX, ev.clientY) : null;
+      const overSubstitute =
+        wasActive && !over ? substituteAtPoint(ev.clientX, ev.clientY) : null;
       stop();
       if (wasActive) {
         if (over && over !== from) onSwapRef.current?.(from, over);
+        else if (overSubstitute)
+          onSwapWithSubstituteRef.current?.(from, overSubstitute);
         // The click that follows pointerup must not open the slot.
         window.setTimeout(() => (suppressClickRef.current = false), 0);
       }
@@ -647,84 +738,91 @@ export function FantasyPitch({
   const activeStyle = styleFor(activePick?.position, activeSpot.unit);
 
   return (
-    <div className="rounded-2xl md:rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-sffl-navy">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 bg-linear-to-br from-[#102447] to-[#07162b] border-b border-white/15">
-        <div className="min-w-0 flex-1">
-          {gameweekLabel && (
-            <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#91a6c7]">
-              Fantasy · {gameweekLabel}
-            </span>
-          )}
-          <h3 className="text-lg md:text-xl font-black text-white leading-tight mt-0.5">
-            {title}
-          </h3>
-        </div>
-        <div className="text-right shrink-0">
-          <span className="block text-white font-black text-xl md:text-2xl leading-tight tabular-nums">
-            {filled} / 14
-          </span>
-          <span className="block text-[10px] uppercase tracking-widest text-[#aebdd0]">
-            Starting players
-          </span>
-        </div>
-      </div>
+    <div className="rounded-none overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-sffl-navy">
+      {!hideHeader && (
+        <>
+          {/* Header */}
+          <div className="flex items-center gap-3 px-5 py-4 bg-linear-to-br from-[#102447] to-[#07162b] border-b border-white/15">
+            <div className="min-w-0 flex-1">
+              {gameweekLabel && (
+                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#91a6c7]">
+                  Fantasy · {gameweekLabel}
+                </span>
+              )}
+              <h3 className="text-lg md:text-xl font-black text-white leading-tight mt-0.5">
+                {title}
+              </h3>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="block text-white font-black text-xl md:text-2xl leading-tight tabular-nums">
+                {filled} / 14
+              </span>
+              <span className="block text-[10px] uppercase tracking-widest text-[#aebdd0]">
+                Starting players
+              </span>
+            </div>
+          </div>
 
-      {/* Filter Controls & Formation Info */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
-        <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-stretch gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
-          <Button
-            size="sm"
-            variant={currentUnitTab === "ALL" ? "navy" : "ghost"}
-            tone={currentUnitTab === "ALL" ? "light" : "dark"}
-            className="flex-wrap gap-x-1 leading-tight text-center"
-            aria-pressed={currentUnitTab === "ALL"}
-            onClick={() => handleUnitChange("ALL")}
-          >
-            <span>
-              <span className="hidden sm:inline">Full </span>Roster
-            </span>
-            <span>({filled}/14)</span>
-          </Button>
-          <Button
-            size="sm"
-            variant={currentUnitTab === "OFFENSE" ? "primary" : "ghost"}
-            tone="dark"
-            className="flex-wrap gap-x-1.5 leading-tight text-center"
-            aria-pressed={currentUnitTab === "OFFENSE"}
-            onClick={() => handleUnitChange("OFFENSE")}
-          >
-            <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
-            <span>Offense</span>
-            <span>({offenseFilled}/7)</span>
-          </Button>
-          <Button
-            size="sm"
-            variant={currentUnitTab === "DEFENSE" ? "info" : "ghost"}
-            tone="dark"
-            className="flex-wrap gap-x-1.5 leading-tight text-center"
-            aria-pressed={currentUnitTab === "DEFENSE"}
-            onClick={() => handleUnitChange("DEFENSE")}
-          >
-            <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
-            <span>Defense</span>
-            <span>({defenseFilled}/7)</span>
-          </Button>
-        </div>
+          {/* Filter Controls & Formation Info */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
+            <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-stretch gap-1.5 p-1 rounded-none bg-white/5 border border-white/10">
+              <Button
+                size="sm"
+                variant={currentUnitTab === "ALL" ? "navy" : "ghost"}
+                tone={currentUnitTab === "ALL" ? "light" : "dark"}
+                shape="square"
+                className="flex-wrap gap-x-1 leading-tight text-center"
+                aria-pressed={currentUnitTab === "ALL"}
+                onClick={() => handleUnitChange("ALL")}
+              >
+                <span>
+                  <span className="hidden sm:inline">Full </span>Roster
+                </span>
+                <span>({filled}/14)</span>
+              </Button>
+              <Button
+                size="sm"
+                variant={currentUnitTab === "OFFENSE" ? "primary" : "ghost"}
+                tone="dark"
+                shape="square"
+                className="flex-wrap gap-x-1.5 leading-tight text-center"
+                aria-pressed={currentUnitTab === "OFFENSE"}
+                onClick={() => handleUnitChange("OFFENSE")}
+              >
+                <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
+                <span>Offense</span>
+                <span>({offenseFilled}/7)</span>
+              </Button>
+              <Button
+                size="sm"
+                variant={currentUnitTab === "DEFENSE" ? "info" : "ghost"}
+                tone="dark"
+                shape="square"
+                className="flex-wrap gap-x-1.5 leading-tight text-center"
+                aria-pressed={currentUnitTab === "DEFENSE"}
+                onClick={() => handleUnitChange("DEFENSE")}
+              >
+                <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
+                <span>Defense</span>
+                <span>({defenseFilled}/7)</span>
+              </Button>
+            </div>
 
-        <span
-          className={`${canDrag ? "" : "hidden sm:inline"} text-[#aebdd0] text-xs font-medium`}
-        >
-          {canDrag
-            ? "Drag a player onto another slot to swap (hold first on touch)"
-            : "7 v 7 tactical formation"}
-        </span>
-      </div>
+            <span
+              className={`${canDrag ? "" : "hidden sm:inline"} text-[#aebdd0] text-xs font-medium`}
+            >
+              {canDrag
+                ? "Drag a player onto another slot to swap (hold first on touch)"
+                : "7 v 7 tactical formation"}
+            </span>
+          </div>
+        </>
+      )}
 
       {/* Field */}
       <div className="p-2 sm:p-3 bg-[#102746]">
         <div
-          className="relative h-160 sm:h-180 overflow-hidden rounded-xl border-2 border-[#d1ebd15c]"
+          className="relative h-160 sm:h-180 overflow-hidden rounded-none border-2 border-[#d1ebd15c]"
           style={{
             backgroundImage:
               "repeating-linear-gradient(to bottom, transparent 0, transparent calc(20% - 2px), #e3f6d222 calc(20% - 1px), #e3f6d222 20%), repeating-linear-gradient(to bottom, #194b3b 0, #194b3b 20%, #164535 20%, #164535 40%)",
@@ -755,7 +853,7 @@ export function FantasyPitch({
 
           {/* Line of scrimmage */}
           <div className="absolute left-[3%] right-[3%] top-[49%] border-t-2 border-dashed border-[#efede6ac] pointer-events-none" />
-          <span className="absolute top-[49%] right-[2.5%] -translate-y-1/2 bg-[#f5f1e8] text-[#123b31] rounded px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black tracking-[0.12em] pointer-events-none shadow-sm z-2">
+          <span className="absolute top-[49%] right-[2.5%] -translate-y-1/2 bg-[#f5f1e8] text-[#123b31] rounded-none px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black tracking-[0.12em] pointer-events-none shadow-sm z-2">
             LINE OF SCRIMMAGE
           </span>
 
@@ -783,11 +881,22 @@ export function FantasyPitch({
               drag?.over === spot.slot || dropHighlightSlot === spot.slot;
 
             return (
-              <button
+              // A div, not a button: a filled slot can carry a nested real
+              // <button> remove badge (see onRemovePlayer below), and a
+              // button can't validly contain another one. role/tabIndex/
+              // onKeyDown reproduce button semantics for click and keyboard.
+              <div
                 key={spot.slot}
-                type="button"
+                role="button"
+                tabIndex={0}
                 data-pitch-slot={spot.slot}
                 onClick={() => handleSpotClick(spot)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleSpotClick(spot);
+                  }
+                }}
                 onPointerDown={(e) => handleSpotPointerDown(e, spot)}
                 onDragStart={(e) => e.preventDefault()}
                 onContextMenu={(e) => {
@@ -881,15 +990,46 @@ export function FantasyPitch({
                     </span>
                   )}
 
-                  {/* Inactive club or deleted player warning icon */}
+                  {/* Inactive club or deleted player warning icon. Normally
+                      top-left; when a remove badge is also present it takes
+                      top-left instead (more useful there — the remove badge
+                      is exactly what you want on an invalid player), so this
+                      drops to bottom-left to avoid overlapping it. */}
                   {isSpotInvalid && (
                     <span
                       aria-hidden="true"
                       title={pick.invalidReason || "Cannot start"}
-                      className="absolute -top-1.5 -left-1.5 z-20 flex items-center justify-center w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-lg bg-red-600 text-white animate-pulse"
+                      className={`absolute z-20 flex items-center justify-center w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-lg bg-red-600 text-white animate-pulse ${
+                        onRemovePlayer
+                          ? "-bottom-1.5 -left-1.5"
+                          : "-top-1.5 -left-1.5"
+                      }`}
                     >
                       <ExclamationTriangleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
                     </span>
+                  )}
+
+                  {/* Remove badge — opt in via onRemovePlayer (e.g.
+                      Transfers: sell, so another signing can take the
+                      slot). A real nested button, valid here because the
+                      slot itself is a div, not a button. before: expands
+                      the 20px dot to a 44px tap target without growing it
+                      visually. Top-left: bottom-right sat right against the
+                      name/position labels just below the avatar and read as
+                      invisible. */}
+                  {onRemovePlayer && !empty && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemovePlayer(pick.player_id || "");
+                      }}
+                      aria-label={`Remove ${pick.player_name ?? "this player"} from your squad`}
+                      title="Remove from squad"
+                      className="absolute -top-1.5 -left-1.5 z-30 w-5 h-5 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow-lg transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-3"
+                    >
+                      <XMarkIcon className="w-3 h-3 stroke-[3]" aria-hidden="true" />
+                    </button>
                   )}
                 </div>
 
@@ -912,7 +1052,7 @@ export function FantasyPitch({
 
                 {/* Position, Price or Inactive status in brackets */}
                 {isSpotInvalid ? (
-                  <span className="block max-w-full truncate px-1 py-0.5 rounded bg-red-600 text-white text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow leading-none border border-red-400/50 mt-0.5">
+                  <span className="block max-w-full truncate px-1 py-0.5 rounded-none bg-red-600 text-white text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow leading-none border border-red-400/50 mt-0.5">
                     {pick.invalidReason
                       ? pick.invalidReason.replace(/player/i, "").trim()
                       : "Cannot start"}
@@ -947,113 +1087,216 @@ export function FantasyPitch({
                       {pick.points.toFixed(1)} pts
                     </span>
                   )}
-              </button>
+              </div>
             );
           })}
         </div>
+
+        {/* Bench — everyone owned but not starting, right on the pitch card
+            beneath the FANTASY end zone, using the same avatar-circle
+            styling as the fourteen above rather than a plain list. In
+            builder mode the caller sends only start-eligible substitutes
+            (reserves who can never start stay in its own separate list);
+            display pages (e.g. Transfers' read-only "Your Squad") send
+            everyone not starting, since there's no start action here to
+            restrict. */}
+        {substitutes && substitutes.length > 0 && (
+          <div className="mt-2 sm:mt-3 pt-3 border-t border-dashed border-white/15">
+            <span className="block text-center text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] text-[#dcf0dfad] mb-2">
+              {mode === "builder" ? "Substitutes" : "Bench"}
+            </span>
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-2.5 px-1">
+              {substitutes.map((sub) => {
+                const style = styleFor(sub.position, "OFFENSE");
+                const isFemaleSub = (sub.gender || "")
+                  .toUpperCase()
+                  .startsWith("F");
+                const isDragging = draggingSubstituteId === sub.playerId;
+                const isSubDropTarget = drag?.overSubstitute === sub.playerId;
+                return (
+                  // A div, not a button — see the starting-slot comment
+                  // above: onRemovePlayer nests a real <button> here.
+                  <div
+                    key={sub.playerId}
+                    role="button"
+                    tabIndex={0}
+                    data-substitute-id={sub.playerId}
+                    onClick={() => onSubstituteClick?.(sub)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSubstituteClick?.(sub);
+                      }
+                    }}
+                    onPointerDown={(e) =>
+                      onSubstitutePointerDown?.(e, sub.playerId)
+                    }
+                    onDragStart={(e) => e.preventDefault()}
+                    onContextMenu={(e) => e.preventDefault()}
+                    aria-label={
+                      mode === "builder"
+                        ? `${sub.name}, ${normalizePosition(sub.position)} — tap or drag onto the pitch to start`
+                        : `${sub.name}, ${normalizePosition(sub.position)}`
+                    }
+                    className={`flex flex-col items-center gap-0.5 w-14 min-[400px]:w-16 px-0.5 py-0.5 select-none [-webkit-touch-callout:none] ${mode === "builder" ? "cursor-grab" : "cursor-default"} transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:brightness-110 ${
+                      isDragging ? "opacity-40" : "opacity-100"
+                    }`}
+                  >
+                    {/* Outer wrapper carries no overflow clipping, so the
+                        corner badges below aren't cut off by the inner
+                        circle's own overflow-hidden (it clips to the
+                        rounded shape, not just the box). */}
+                    <span className="relative block w-8 h-8 min-[400px]:w-9 min-[400px]:h-9">
+                      <span
+                        className={`relative block w-full h-full rounded-full border-2 overflow-hidden ${
+                          isSubDropTarget
+                            ? "border-white/75 ring-[3px] ring-amber-300 ring-offset-2 ring-offset-sffl-navy scale-110"
+                            : "border-white/75"
+                        }`}
+                        style={{
+                          backgroundImage: style.avatar,
+                          boxShadow: "0 5px 13px #051a13a8",
+                        }}
+                      >
+                        {sub.image ? (
+                          <img
+                            src={sub.image}
+                            alt=""
+                            draggable={false}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        ) : (
+                          <>
+                            <span className="absolute top-[18%] left-1/2 -translate-x-1/2 w-[22%] h-[24%] rounded-full bg-white" />
+                            <span className="absolute bottom-[8%] left-1/2 -translate-x-1/2 w-[56%] h-[40%] rounded-t-full bg-white" />
+                          </>
+                        )}
+                      </span>
+
+                      <span
+                        aria-hidden="true"
+                        className={`absolute -top-1 -right-1 z-10 flex items-center justify-center w-3.5 h-3.5 rounded-full border-2 border-white shadow ${
+                          isFemaleSub
+                            ? "bg-pink-500 text-white"
+                            : "bg-blue-500 text-white"
+                        }`}
+                      >
+                        {isFemaleSub ? (
+                          <FemaleIcon className="w-2 h-2" strokeWidth={2.5} />
+                        ) : (
+                          <MaleIcon className="w-2 h-2" strokeWidth={2.5} />
+                        )}
+                      </span>
+
+                      {/* Remove badge — see the starting-slot comment above. */}
+                      {onRemovePlayer && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemovePlayer(sub.playerId);
+                          }}
+                          aria-label={`Remove ${sub.name} from your squad`}
+                          title="Remove from squad"
+                          className="absolute -top-1 -left-1 z-20 w-4 h-4 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-3"
+                        >
+                          <XMarkIcon
+                            className="w-2.5 h-2.5 stroke-[3]"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      )}
+                    </span>
+                    <span className="block max-w-full truncate text-[8px] sm:text-[9px] font-bold text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                      {shortName(sub.name)}
+                    </span>
+                    <span
+                      className="block max-w-full truncate text-[7px] sm:text-[8px] font-bold leading-tight"
+                      style={{ color: style.label }}
+                    >
+                      ({normalizePosition(sub.position)})
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Detail strip */}
-      <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3 border-t border-white/15 bg-[#0c203a] min-h-16"
-        aria-live="polite"
-      >
-        <span
-          className={`flex items-center justify-center min-w-11.5 h-9 px-1.5 rounded text-[11px] font-black shrink-0 ${activeStyle.chipBg} ${activeStyle.chipText}`}
+      {/* Detail strip — display pages only (Dashboard, Hub, Modal, My Team).
+          Builder mode (Pick Team) drops it: every slot is already managed
+          by tapping its avatar on the pitch or dragging a substitute onto
+          it, so a second, always-visible "Manage" shortcut for whichever
+          slot happens to be selected was redundant. A display caller can
+          opt out too (hideDetailStrip) — Transfers' read-only "Your Squad"
+          pitch renders with showPoints={false} (there's no gameweek score
+          to break down here), so the strip's only job left was "View
+          Profile", already one tap away via the List view's own rows. */}
+      {mode !== "builder" && !hideDetailStrip && (
+        <div
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3 border-t border-white/15 bg-[#0c203a] min-h-16"
+          aria-live="polite"
         >
-          <SpotCode spot={activeSpot} />
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <strong className="block text-sm text-white truncate">
-              {activePick?.player_name ?? activeSpot.role}
-            </strong>
-            {activePick?.isInvalid && (
-              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-600 text-white shadow shrink-0">
-                {activePick.invalidReason || "Inactive"}
-              </span>
-            )}
-          </div>
-          <small
-            className={`flex items-center gap-1 mt-0.5 text-[11px] truncate ${activePick?.isInvalid ? "text-red-300 font-bold" : "text-[#afc1d4]"}`}
+          <span
+            className={`flex items-center justify-center min-w-11.5 h-9 px-1.5 rounded-none text-[11px] font-black shrink-0 ${activeStyle.chipBg} ${activeStyle.chipText}`}
           >
-            {activePick?.isInvalid && (
-              <ExclamationTriangleIcon
-                className="w-3 h-3 shrink-0"
-                aria-hidden="true"
-              />
-            )}
-            {activePick
-              ? activePick.isInvalid
-                ? `${activePick.invalidReason || "Cannot start"} — can sit on the bench but not start. Move to bench or replace.`
-                : `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || "—"}`
-              : mode === "builder"
-                ? `Empty slot · Tap here or on the pitch to draft an athlete`
+            <SpotCode spot={activeSpot} />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <strong className="block text-sm text-white truncate">
+                {activePick?.player_name ?? activeSpot.role}
+              </strong>
+              {activePick?.isInvalid && (
+                <span className="px-2 py-0.5 rounded-none text-[9px] font-black uppercase tracking-wider bg-red-600 text-white shadow shrink-0">
+                  {activePick.invalidReason || "Inactive"}
+                </span>
+              )}
+            </div>
+            <small
+              className={`flex items-center gap-1 mt-0.5 text-[11px] truncate ${activePick?.isInvalid ? "text-red-300 font-bold" : "text-[#afc1d4]"}`}
+            >
+              {activePick?.isInvalid && (
+                <ExclamationTriangleIcon
+                  className="w-3 h-3 shrink-0"
+                  aria-hidden="true"
+                />
+              )}
+              {activePick
+                ? activePick.isInvalid
+                  ? `${activePick.invalidReason || "Cannot start"} — can sit on the bench but not start. Move to bench or replace.`
+                  : `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || "—"}`
                 : "No player in this position yet"}
-          </small>
-        </div>
-
-        {/* Pricing / Points metrics */}
-        {activePick && mode === "builder" && activePick.price !== undefined && (
-          <div className="text-right shrink-0">
-            <span className="block text-sm sm:text-base font-black text-sffl-red tabular-nums leading-none">
-              {formatFantasyPrice(activePick.price)}
-            </span>
-            <span className="block text-[9px] uppercase tracking-wider text-[#afc1d4] mt-0.5">
-              price
-            </span>
+            </small>
           </div>
-        )}
 
-        {activePick && mode === "display" && showPoints && (
-          <div className="text-right shrink-0">
-            <span className="block text-lg font-black text-white tabular-nums leading-none">
-              {(activePick.points ?? 0).toFixed(2)}
-            </span>
-            <span className="block text-[10px] uppercase tracking-wider text-[#afc1d4] mt-0.5">
-              pts
-            </span>
-          </div>
-        )}
+          {activePick && showPoints && (
+            <div className="text-right shrink-0">
+              <span className="block text-lg font-black text-white tabular-nums leading-none">
+                {(activePick.points ?? 0).toFixed(2)}
+              </span>
+              <span className="block text-[10px] uppercase tracking-wider text-[#afc1d4] mt-0.5">
+                pts
+              </span>
+            </div>
+          )}
 
-        {/* Primary action button */}
-        {mode === "builder" ? (
-          activePick ? (
-            <Button
-              size="sm"
-              variant={activePick.isInvalid ? "danger" : "primary"}
-              icon={activePick.isInvalid ? ExclamationTriangleIcon : ArrowsRightLeftIcon}
-              className={`ml-auto shrink-0 uppercase tracking-wider ${activePick.isInvalid ? "animate-pulse" : ""}`}
-              onClick={() => onSlotClick?.(activeSpot.slot, activePick)}
-            >
-              {activePick.isInvalid ? "Replace Player" : "Manage"}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="primary"
-              icon={PlusIcon}
-              className="ml-auto shrink-0 uppercase tracking-wider"
-              onClick={() => onSlotClick?.(activeSpot.slot, null)}
-            >
-              Draft
-            </Button>
-          )
-        ) : (
-          activePick && (
+          {activePick && (
             <Button
               size="sm"
               variant="secondary"
               tone="dark"
+              shape="square"
               className="ml-auto shrink-0 uppercase tracking-wider"
               onClick={() => handleSpotClick(activeSpot)}
             >
               {onPlayerClick ? "Breakdown" : "View Profile"}
             </Button>
-          )
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Standalone Player Fantasy Profile Modal (for display mode when no onPlayerClick is provided) */}
       {!onPlayerClick && (
@@ -1061,6 +1304,7 @@ export function FantasyPitch({
           isOpen={Boolean(inspectingPlayer)}
           onClose={() => setInspectingPlayer(null)}
           player={inspectingPlayer}
+          position={playerModalPosition}
         />
       )}
 

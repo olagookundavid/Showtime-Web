@@ -442,25 +442,55 @@ func (r *FantasyLeagueRepository) UpdateMemberPaymentStatus(ctx context.Context,
 
 // ListMyLeaguesWithRank returns every league the manager belongs to in a
 // season, with their position in each. Ranking happens per league in one pass
-// rather than a query per league.
+// rather than a query per league. It also compares that position to the rank
+// each league would have shown before the most recently completed gameweek,
+// computed on the fly from locked lineup points rather than any stored
+// history.
 func (r *FantasyLeagueRepository) ListMyLeaguesWithRank(ctx context.Context, userID, seasonID string) ([]dto.DashboardLeagueRow, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	query := `
-		WITH ranked AS (
-			SELECT flm.league_id, flm.user_id,
-			       ROW_NUMBER() OVER (PARTITION BY flm.league_id ORDER BY ft.total_points DESC, COALESCE(u.full_name, '') ASC, ft.id ASC) AS rnk
+		WITH latest_gw AS (
+			SELECT fg.id
+			FROM fantasy_gameweeks fg
+			WHERE fg.season_id = $2
+			  AND EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = fg.id AND fl.status = 'LOCKED')
+			ORDER BY fg.number DESC
+			LIMIT 1
+		),
+		members AS (
+			SELECT flm.league_id, flm.user_id, flm.team_id
 			FROM fantasy_league_members flm
-			JOIN fantasy_teams ft ON flm.team_id = ft.id
-			LEFT JOIN users u ON flm.user_id = u.id
 			WHERE flm.payment_status IN ('FREE', 'PAID') AND flm.left_at IS NULL
+		),
+		team_prev AS (
+			SELECT m.league_id, m.user_id,
+			       ft.total_points - COALESCE(fl.points, 0) AS prev_points
+			FROM members m
+			JOIN fantasy_teams ft ON ft.id = m.team_id
+			LEFT JOIN latest_gw lg ON true
+			LEFT JOIN fantasy_lineups fl ON fl.team_id = ft.id AND fl.gameweek_id = lg.id AND fl.status = 'LOCKED'
+		),
+		ranked AS (
+			SELECT m.league_id, m.user_id,
+			       ROW_NUMBER() OVER (PARTITION BY m.league_id ORDER BY ft.total_points DESC, COALESCE(u.full_name, '') ASC, ft.id ASC) AS rnk
+			FROM members m
+			JOIN fantasy_teams ft ON m.team_id = ft.id
+			LEFT JOIN users u ON m.user_id = u.id
+		),
+		ranked_prev AS (
+			SELECT tp.league_id, tp.user_id,
+			       ROW_NUMBER() OVER (PARTITION BY tp.league_id ORDER BY tp.prev_points DESC, COALESCE(u.full_name, '') ASC, tp.user_id ASC) AS rnk
+			FROM team_prev tp
+			LEFT JOIN users u ON tp.user_id = u.id
 		)
 		SELECT l.id, l.name, l.type, l.entry_fee,
 		       (SELECT COUNT(*) FROM fantasy_league_members m
 		        WHERE m.league_id = l.id AND m.payment_status IN ('FREE', 'PAID') AND m.left_at IS NULL),
-		       r.rnk
+		       r.rnk, rp.rnk, (SELECT id FROM latest_gw) IS NOT NULL AS has_history
 		FROM ranked r
+		JOIN ranked_prev rp ON rp.league_id = r.league_id AND rp.user_id = r.user_id
 		JOIN fantasy_leagues l ON r.league_id = l.id
 		WHERE r.user_id = $1 AND l.season_id = $2
 		ORDER BY l.entry_fee DESC, l.name ASC
@@ -474,10 +504,13 @@ func (r *FantasyLeagueRepository) ListMyLeaguesWithRank(ctx context.Context, use
 	list := make([]dto.DashboardLeagueRow, 0)
 	for rows.Next() {
 		var row dto.DashboardLeagueRow
+		var prevRank int
+		var hasHistory bool
 		if err := rows.Scan(&row.LeagueID, &row.Name, &row.Type, &row.EntryFeeKobo,
-			&row.MemberCount, &row.MyRank); err != nil {
+			&row.MemberCount, &row.MyRank, &prevRank, &hasHistory); err != nil {
 			return nil, err
 		}
+		row.RankMovement = rankMovement(row.MyRank, prevRank, hasHistory)
 		list = append(list, row)
 	}
 	return list, rows.Err()

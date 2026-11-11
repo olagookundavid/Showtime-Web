@@ -131,3 +131,47 @@ export interface PlayerPriceHistoryResponse {
     selected_by_pct?: number;
     history: PlayerPriceHistoryItem[];
 }
+
+export interface PlayerFormGame {
+    gameweek_id: string;
+    gameweek_number: number;
+    opponent_name?: string;
+    opponent_short_name?: string;
+    opponent_logo?: string;
+    points: number;
+}
+
+/** The player leaderboard's rolling stats for one player (form, points per
+ * game, ownership), plus the recent matches "form" is averaged from — for the
+ * player detail panel opened from a pitch avatar. */
+export interface PlayerFormResponse {
+    player_id: string;
+    form: number;
+    points_per_game: number;
+    selected_by_pct: number;
+    /** Last up to 5 played gameweeks, oldest first. */
+    recent_games: PlayerFormGame[];
+}
+
+/** One gameweek of a manager's season: their own score, their running total,
+ * where that total ranked once the gameweek was in (rank), where that single
+ * gameweek's score alone ranked (gameweek_rank — "how did I do this week" vs.
+ * "where do I stand overall"), and the community benchmarks for that gameweek. */
+export interface TeamPointsHistoryRow {
+    gameweek_id: string;
+    gameweek_number: number;
+    points: number;
+    running_total: number;
+    rank: number;
+    gameweek_rank: number;
+    total_teams: number;
+    average_points: number;
+    highest_points: number;
+    lowest_points: number;
+}
+
+export interface TeamPointsHistoryResponse {
+    season_id: string;
+    team_id: string;
+    history: TeamPointsHistoryRow[];
+}

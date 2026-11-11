@@ -113,6 +113,10 @@ export const getMatches = async (
   /** Narrow to one club. Filtered server-side so a club's fixtures aren't
    *  scattered across pages the client would have to fetch to find them. */
   teamId?: string,
+  /** Narrow to the real-world fixtures a single event day covers — how the
+   *  Fantasy Points page shows what a gameweek's score was actually earned
+   *  against. */
+  eventDayId?: string,
 ): Promise<PaginatedResponse<Match>> => {
   let url = `/matches?page=${page}&limit=${limit}`;
   if (competitionId) {
@@ -126,6 +130,9 @@ export const getMatches = async (
   }
   if (teamId) {
     url += `&team_id=${teamId}`;
+  }
+  if (eventDayId) {
+    url += `&event_day_id=${eventDayId}`;
   }
   const response = await api.get<PaginatedResponse<Match>>(url);
   return response.data;

@@ -528,6 +528,73 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 		}
 	})
 
+	// Powers the Points page: a manager's score and standing as of each
+	// gameweek they actually played, not just where they stand today.
+	t.Run("team points history ranks a team as of each gameweek it played", func(t *testing.T) {
+		gw2EventDayID := mustScan(t, f.pool,
+			`INSERT INTO event_days (title, date) VALUES ('ITest Day 2', CURRENT_DATE + $1::int) RETURNING id`,
+			f.dayOffset+1)
+		gw2ID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_gameweeks (season_id, number, event_day_id, deadline)
+			 VALUES ($1, 2, $2, NOW() + INTERVAL '2 day') RETURNING id`,
+			f.seasonID, gw2EventDayID)
+		rivalUserID := mustScan(t, f.pool,
+			`INSERT INTO users (full_name, email, password_hash, role)
+			 VALUES ('ITest Rival', $1, ''::bytea, 'user') RETURNING id`,
+			fmt.Sprintf("itest-rival-%d@example.invalid", time.Now().UnixNano()))
+		rivalTeamID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_teams (user_id, season_id, name, total_points)
+			 VALUES ($1, $2, 'ITest Rivals', 0) RETURNING id`,
+			rivalUserID, f.seasonID)
+
+		// Self-contained teardown, deleted in dependency order, so it does not
+		// depend on (or race) the outer fixture's own cleanup running later.
+		t.Cleanup(func() {
+			mustExec(t, f.pool, `DELETE FROM fantasy_lineups WHERE team_id = $1 OR gameweek_id = $2`, rivalTeamID, gw2ID)
+			mustExec(t, f.pool, `DELETE FROM fantasy_teams WHERE id = $1`, rivalTeamID)
+			mustExec(t, f.pool, `DELETE FROM fantasy_gameweeks WHERE id = $1`, gw2ID)
+			mustExec(t, f.pool, `DELETE FROM event_days WHERE id = $1`, gw2EventDayID)
+			mustExec(t, f.pool, `DELETE FROM users WHERE id = $1`, rivalUserID)
+		})
+
+		// Gameweek 1: the rival outscores the fixture's own team.
+		mustExec(t, f.pool, `UPDATE fantasy_lineups SET points = 40.0 WHERE team_id = $1 AND gameweek_id = $2`, f.teamID, f.gameweekID)
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_lineups (team_id, gameweek_id, status, locked_at, points) VALUES ($1, $2, 'LOCKED', NOW(), 60.0)`,
+			rivalTeamID, f.gameweekID)
+
+		// Gameweek 2: the fixture's own team has the bigger week and overtakes.
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_lineups (team_id, gameweek_id, status, locked_at, points) VALUES ($1, $2, 'LOCKED', NOW(), 70.0)`,
+			f.teamID, gw2ID)
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_lineups (team_id, gameweek_id, status, locked_at, points) VALUES ($1, $2, 'LOCKED', NOW(), 20.0)`,
+			rivalTeamID, gw2ID)
+
+		history, err := repo.GetTeamPointsHistory(ctx, f.seasonID, f.teamID)
+		if err != nil {
+			t.Fatalf("GetTeamPointsHistory: %v", err)
+		}
+		if len(history) != 2 {
+			t.Fatalf("expected 2 gameweeks of history, got %d: %+v", len(history), history)
+		}
+
+		gw1, gw2 := history[0], history[1]
+		if gw1.GameweekNumber != 1 || gw1.Points != 40.0 || gw1.RunningTotal != 40.0 {
+			t.Errorf("gw1 row wrong: %+v", gw1)
+		}
+		if gw1.Rank != 2 || gw1.TotalTeams != 2 {
+			t.Errorf("expected to trail the rival 2 of 2 after gw1, got rank %d of %d", gw1.Rank, gw1.TotalTeams)
+		}
+
+		if gw2.GameweekNumber != 2 || gw2.Points != 70.0 || gw2.RunningTotal != 110.0 {
+			t.Errorf("gw2 row wrong: %+v", gw2)
+		}
+		if gw2.Rank != 1 || gw2.TotalTeams != 2 {
+			t.Errorf("expected to lead 1 of 2 after gw2, got rank %d of %d", gw2.Rank, gw2.TotalTeams)
+		}
+	})
+
 	t.Run("team reads and total recalculation", func(t *testing.T) {
 		if _, err := repo.GetTeamByUserAndSeason(ctx, f.userID, f.seasonID); err != nil {
 			t.Errorf("GetTeamByUserAndSeason: %v", err)

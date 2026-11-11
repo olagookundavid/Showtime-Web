@@ -24,7 +24,7 @@ import {
 } from "../../services";
 import type { FantasyLeague } from "../../types";
 import { useAuth } from "../../contexts";
-import { Loader, FantasyBackLink, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner } from "../../components";
+import { Loader, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner } from "../../components";
 import { rankBadgeClass } from "../../hooks";
 
 /** Nothing off the wire is trusted to be a finite number. */
@@ -394,8 +394,8 @@ export function FantasyLeagues() {
 
   if (!season) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-        <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+        <div className="w-16 h-16 rounded-none bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
           <ShieldCheckIcon className="w-10 h-10" />
         </div>
         <h1 className="text-2xl font-black uppercase text-sffl-navy dark:text-white mb-2">
@@ -410,51 +410,35 @@ export function FantasyLeagues() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
-      {/* Header Showtime Navy Banner */}
-      <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-bold uppercase mb-2">
-              <TrophyIcon className="w-3.5 h-3.5" /> Leagues & Pools
-            </div>
-            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white">
-              Compete & Win
-            </h1>
-            <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
-              Join private friend leagues, company pools, or official Showtime
-              cash prize tournaments.
-            </p>
-          </div>
-
-          <div className="flex flex-col min-[400px]:flex-row gap-3 w-full md:w-auto">
-            <Button
-              variant="secondary"
-              icon={KeyIcon}
-              onClick={() => {
-                if (!isAuthenticated) {
-                  navigate("/login?redirect=/fantasy/leagues");
-                  return;
-                }
-                setShowJoinModal(true);
-              }}
-            >
-              Join via Code
-            </Button>
-            <Button
-              icon={PlusIcon}
-              onClick={() => {
-                if (!isAuthenticated) {
-                  navigate("/login?redirect=/fantasy/leagues");
-                  return;
-                }
-                setShowCreateModal(true);
-              }}
-            >
-              Create League
-            </Button>
-          </div>
-        </div>
+      {/* Action band: title/subtitle already come from PageHeader via FantasyLayout */}
+      <div className="flex flex-col min-[400px]:flex-row items-stretch min-[400px]:items-center justify-end gap-3">
+        <Button
+          variant="secondary"
+          shape="square"
+          icon={KeyIcon}
+          onClick={() => {
+            if (!isAuthenticated) {
+              navigate("/login?redirect=/fantasy/leagues");
+              return;
+            }
+            setShowJoinModal(true);
+          }}
+        >
+          Join via Code
+        </Button>
+        <Button
+          shape="square"
+          icon={PlusIcon}
+          onClick={() => {
+            if (!isAuthenticated) {
+              navigate("/login?redirect=/fantasy/leagues");
+              return;
+            }
+            setShowCreateModal(true);
+          }}
+        >
+          Create League
+        </Button>
       </div>
 
       <div className="space-y-8">
@@ -468,21 +452,25 @@ export function FantasyLeagues() {
             {myLeaguesLoading ? (
               <Spinner label="Loading your leagues…" className="py-8" />
             ) : (myLeagues ?? []).length === 0 ? (
-              <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
+              <div className="p-6 bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 text-center shadow-sm">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   You haven't joined any custom leagues yet.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(myLeagues ?? []).map((l) => (
+                {(myLeagues ?? []).map((l, idx) => (
                   <div
                     key={l.id}
-                    className="p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition"
+                    className="relative p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition"
                   >
+                    <span
+                      className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${idx % 2 === 0 ? "bg-sffl-red" : "bg-sffl-navy"}`}
+                      aria-hidden="true"
+                    />
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                           {l.type}
                         </span>
                         {l.invite_code && (
@@ -494,6 +482,7 @@ export function FantasyLeagues() {
                           <Button
                             variant="warning"
                             size="sm"
+                            shape="square"
                             icon={TrophyIcon}
                             onClick={() => openTermsForLeague(l)}
                           >
@@ -517,6 +506,7 @@ export function FantasyLeagues() {
                       to={`/fantasy/leaderboard/${l.id}`}
                       variant="secondary"
                       size="sm"
+                      shape="square"
                       icon={ArrowRightIcon}
                       iconPosition="right"
                     >
@@ -539,14 +529,14 @@ export function FantasyLeagues() {
           {publicLeaguesLoading ? (
             <Spinner label="Loading leagues…" className="py-8" />
           ) : (publicLeagues ?? []).length === 0 ? (
-            <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 text-center shadow-sm">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 No public leagues open at this moment.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(publicLeagues ?? []).map((l) => {
+              {(publicLeagues ?? []).map((l, idx) => {
                 const full = isLeagueFull(l);
                 const joined = joinedLeagueIds.has(l.id);
                 const fee = num(l.entry_fee);
@@ -554,23 +544,27 @@ export function FantasyLeagues() {
                 return (
                   <div
                     key={l.id}
-                    className="p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition"
+                    className="relative p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition"
                   >
+                    <span
+                      className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${idx % 2 === 0 ? "bg-sffl-red" : "bg-sffl-navy"}`}
+                      aria-hidden="true"
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                           {l.type}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           {fee > 0 ? `Entry: ${formatKobo(fee)}` : "Free Entry"}
                         </span>
                         {joined && (
-                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                             Joined
                           </span>
                         )}
                         {full && !joined && (
-                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
                             Full
                           </span>
                         )}
@@ -578,6 +572,7 @@ export function FantasyLeagues() {
                           <Button
                             variant="warning"
                             size="sm"
+                            shape="square"
                             icon={TrophyIcon}
                             onClick={() => openTermsForLeague(l)}
                           >
@@ -598,6 +593,7 @@ export function FantasyLeagues() {
                         to={`/fantasy/leaderboard/${l.id}`}
                         variant="secondary"
                         size="sm"
+                        shape="square"
                         icon={ArrowRightIcon}
                         iconPosition="right"
                       >
@@ -605,12 +601,13 @@ export function FantasyLeagues() {
                       </ButtonLink>
 
                       {joined ? (
-                        <span className="min-h-11 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs font-black uppercase flex items-center gap-1.5">
+                        <span className="min-h-11 px-4 py-2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs font-black uppercase flex items-center gap-1.5">
                           <CheckBadgeIcon className="w-4 h-4" /> Joined
                         </span>
                       ) : full ? (
                         <Button
                           variant="secondary"
+                          shape="square"
                           disabled
                           icon={LockClosedIcon}
                           title="This league has reached its member limit"
@@ -619,6 +616,7 @@ export function FantasyLeagues() {
                         </Button>
                       ) : (
                         <Button
+                          shape="square"
                           icon={PlusIcon}
                           loading={pending}
                           onClick={() => openTermsForLeague(l)}
@@ -640,7 +638,7 @@ export function FantasyLeagues() {
           )}
 
           {publicTotalPages > 1 && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
               <span className="text-[11px] text-gray-500 dark:text-gray-400">
                 Page {publicLeaguesPaged?.page || publicPage} of{" "}
                 {publicTotalPages} · {publicLeaguesPaged?.total ?? 0} leagues
@@ -649,6 +647,7 @@ export function FantasyLeagues() {
                 <Button
                   variant="secondary"
                   size="sm"
+                  shape="square"
                   disabled={publicPage <= 1}
                   onClick={() => setPublicPage((p) => Math.max(1, p - 1))}
                 >
@@ -657,6 +656,7 @@ export function FantasyLeagues() {
                 <Button
                   variant="secondary"
                   size="sm"
+                  shape="square"
                   disabled={publicPage >= publicTotalPages}
                   onClick={() =>
                     setPublicPage((p) => Math.min(publicTotalPages, p + 1))
@@ -676,6 +676,7 @@ export function FantasyLeagues() {
         onClose={() => setShowJoinModal(false)}
         title="Join with Invite Code"
         maxWidth="md"
+        shape="square"
       >
           <div>
             <p className="text-xs text-gray-600 dark:text-gray-300 mb-4">
@@ -683,6 +684,7 @@ export function FantasyLeagues() {
               commissioner.
             </p>
             <Input
+              shape="square"
               type="text"
               value={inviteCodeInput}
               onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
@@ -693,6 +695,7 @@ export function FantasyLeagues() {
             />
             <Button
               size="lg"
+              shape="square"
               fullWidth
               onClick={() => {
                 setShowJoinModal(false);
@@ -714,11 +717,13 @@ export function FantasyLeagues() {
         onClose={() => setShowCreateModal(false)}
         title="Create New League"
         maxWidth="md"
+        shape="square"
       >
             <div className="space-y-4">
               <Field label="League Name" htmlFor="create-league-name">
                 <Input
                   id="create-league-name"
+                  shape="square"
                   type="text"
                   value={createForm.name}
                   onChange={(e) =>
@@ -732,6 +737,7 @@ export function FantasyLeagues() {
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     size="md"
+                    shape="square"
                     variant={createForm.type === "PUBLIC" ? "navy" : "secondary"}
                     onClick={() =>
                       setCreateForm({ ...createForm, type: "PUBLIC" })
@@ -741,6 +747,7 @@ export function FantasyLeagues() {
                   </Button>
                   <Button
                     size="md"
+                    shape="square"
                     variant={createForm.type === "PRIVATE" ? "navy" : "secondary"}
                     onClick={() =>
                       setCreateForm({ ...createForm, type: "PRIVATE" })
@@ -754,6 +761,7 @@ export function FantasyLeagues() {
               <Field label="Entry Fee (₦ Naira, 0 for Free)" htmlFor="create-league-fee">
                 <Input
                   id="create-league-fee"
+                  shape="square"
                   type="number"
                   value={createForm.entryFeeNaira}
                   onChange={(e) =>
@@ -768,6 +776,7 @@ export function FantasyLeagues() {
               <Field label="Max Managers (0 for Unlimited)" htmlFor="create-league-max">
                 <Input
                   id="create-league-max"
+                  shape="square"
                   type="number"
                   min={0}
                   value={createForm.maxMembers}
@@ -781,7 +790,7 @@ export function FantasyLeagues() {
               </Field>
 
               {/* ── Prize split ─────────────────────────────── */}
-              <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4">
+              <div className="rounded-none border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-1.5">
                     <BanknotesIcon className="w-4 h-4 text-sffl-red" /> Prize
@@ -789,7 +798,7 @@ export function FantasyLeagues() {
                   </h4>
                   {createIsPaid && (
                     <span
-                      className={`text-[11px] font-black uppercase px-2 py-0.5 rounded ${
+                      className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-full ${
                         prizeTotal > 100.0001
                           ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
                           : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
@@ -832,6 +841,7 @@ export function FantasyLeagues() {
                               {ordinal(i + 1)}
                             </span>
                             <Input
+                              shape="square"
                               type="number"
                               min={0}
                               max={100}
@@ -854,6 +864,7 @@ export function FantasyLeagues() {
                             )}
                             <IconButton
                               variant="danger"
+                              shape="square"
                               icon={TrashIcon}
                               label={`Remove ${ordinal(i + 1)} place`}
                               disabled={(prizeRows ?? []).length <= 1}
@@ -868,6 +879,7 @@ export function FantasyLeagues() {
                       <Button
                         variant="secondary"
                         size="sm"
+                        shape="square"
                         icon={PlusIcon}
                         onClick={addPrizeRow}
                         disabled={(prizeRows ?? []).length >= 20}
@@ -877,6 +889,7 @@ export function FantasyLeagues() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        shape="square"
                         onClick={() => setPrizeRows(DEFAULT_PRIZE_ROWS)}
                       >
                         Reset 50 / 30 / 20
@@ -917,6 +930,7 @@ export function FantasyLeagues() {
 
               <Button
                 size="lg"
+                shape="square"
                 fullWidth
                 className="mt-2"
                 loading={createMutation.isPending}
@@ -942,6 +956,7 @@ export function FantasyLeagues() {
             : "Before you join"
         }
         maxWidth="lg"
+        shape="square"
       >
         {termsTarget && (
           <div>
@@ -949,7 +964,7 @@ export function FantasyLeagues() {
               <Spinner label="Loading league terms…" className="py-10" />
             ) : previewError || !preview ? (
               <div className="space-y-3">
-                <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
+                <div className="p-4 rounded-none bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
                   <p className="text-xs font-bold text-red-700 dark:text-red-300">
                     {previewErrorMessage}
                   </p>
@@ -957,6 +972,7 @@ export function FantasyLeagues() {
                 <Button
                   variant="secondary"
                   size="lg"
+                  shape="square"
                   fullWidth
                   onClick={() => setTermsTarget(null)}
                 >
@@ -966,7 +982,7 @@ export function FantasyLeagues() {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                     {preview.type || "LEAGUE"}
                   </span>
                   {termsInviteCode && (
@@ -988,7 +1004,7 @@ export function FantasyLeagues() {
 
                 {/* States that make joining pointless, said plainly */}
                 {preview.settled && (
-                  <div className="p-3 rounded-2xl bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                  <div className="p-3 rounded-none bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                     <p className="text-xs font-bold text-gray-700 dark:text-gray-200">
                       This league has already been settled and paid out. It is
                       closed to new entries.
@@ -996,7 +1012,7 @@ export function FantasyLeagues() {
                   </div>
                 )}
                 {preview.already_member && (
-                  <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                  <div className="p-3 rounded-none bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
                     <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                       <CheckBadgeIcon className="w-4 h-4" /> You're already in
                       this league.
@@ -1013,7 +1029,7 @@ export function FantasyLeagues() {
                   </div>
                 )}
                 {preview.forfeited && (
-                  <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
+                  <div className="p-3 rounded-none bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
                     <p className="text-xs font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5">
                       <ExclamationTriangleIcon className="w-4 h-4" /> You left
                       this league and gave up your entry fee.
@@ -1026,7 +1042,7 @@ export function FantasyLeagues() {
                 )}
                 {!preview.already_member &&
                   preview.membership_status === "PENDING" && (
-                    <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                    <div className="p-3 rounded-none bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
                       <p className="text-xs font-bold text-amber-700 dark:text-amber-300">
                         Your entry payment hasn't been confirmed yet. If you
                         already paid, give Paystack a moment before trying
@@ -1035,7 +1051,7 @@ export function FantasyLeagues() {
                     </div>
                   )}
                 {!preview.already_member && preview.is_full && (
-                  <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
+                  <div className="p-3 rounded-none bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
                     <p className="text-xs font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5">
                       <LockClosedIcon className="w-4 h-4" /> This league is full
                       — every place has been taken.
@@ -1069,7 +1085,7 @@ export function FantasyLeagues() {
                     <div
                       className={`grid grid-cols-1 ${previewMaxMembers > 0 ? "min-[400px]:grid-cols-3" : "min-[400px]:grid-cols-2"} gap-2`}
                     >
-                      <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700">
+                      <div className="p-3 rounded-none bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700">
                         <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                           You Pay
                         </p>
@@ -1081,7 +1097,7 @@ export function FantasyLeagues() {
                         </p>
                       </div>
 
-                      <div className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60">
+                      <div className="p-3 rounded-none bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60">
                         <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
                           Current Pool
                         </p>
@@ -1097,7 +1113,7 @@ export function FantasyLeagues() {
                       </div>
 
                       {previewMaxMembers > 0 ? (
-                        <div className="p-3 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60">
+                        <div className="p-3 rounded-none bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60">
                           <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                             Max Potential
                           </p>
@@ -1109,7 +1125,7 @@ export function FantasyLeagues() {
                           </p>
                         </div>
                       ) : (
-                        <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700">
+                        <div className="p-3 rounded-none bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700">
                           <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                             Pool Type
                           </p>
@@ -1124,7 +1140,7 @@ export function FantasyLeagues() {
                     </div>
 
                     {/* Prize Pool Sharing Formula Table */}
-                    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                    <div className="border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
                       <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <TrophyIcon className="w-4 h-4 text-amber-500 shrink-0" />
@@ -1202,7 +1218,7 @@ export function FantasyLeagues() {
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2.5">
+                    <div className="p-3.5 rounded-none bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2.5">
                       <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
                       <div>
                         <p className="text-xs font-black uppercase tracking-wider text-red-700 dark:text-red-300">
@@ -1234,6 +1250,7 @@ export function FantasyLeagues() {
                           to={`/fantasy/leaderboard/${previewStandingsId}`}
                           variant="secondary"
                           size="lg"
+                          shape="square"
                           className="flex-1"
                           onClick={() => setTermsTarget(null)}
                         >
@@ -1243,6 +1260,7 @@ export function FantasyLeagues() {
                       <Button
                         variant="secondary"
                         size="lg"
+                        shape="square"
                         className="flex-1"
                         onClick={() => setTermsTarget(null)}
                       >
@@ -1254,6 +1272,7 @@ export function FantasyLeagues() {
                       <Button
                         variant="secondary"
                         size="lg"
+                        shape="square"
                         onClick={() => setTermsTarget(null)}
                       >
                         Cancel
@@ -1261,6 +1280,7 @@ export function FantasyLeagues() {
                       {!isAuthenticated ? (
                         <Button
                           size="lg"
+                          shape="square"
                           className="flex-1"
                           onClick={() => {
                             setTermsTarget(null);
@@ -1274,6 +1294,7 @@ export function FantasyLeagues() {
                       ) : (
                         <Button
                           size="lg"
+                          shape="square"
                           className="flex-1"
                           loading={joinMutation.isPending}
                           disabled={joinMutation.isPending}

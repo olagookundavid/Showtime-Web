@@ -1,5 +1,9 @@
 import api from "../client";
-import type { DashboardTeam, FantasyDashboard } from "../../types";
+import type {
+  DashboardTeam,
+  FantasyDashboard,
+  TeamPointsHistoryResponse,
+} from "../../types";
 
 export const fantasySeasonApi = {
   // Works before entry too: an un-entered visitor gets the season and
@@ -23,6 +27,16 @@ export const fantasySeasonApi = {
       {
         team_name: teamName,
       },
+    );
+    return res.data.data;
+  },
+  // null, not an empty list, when the manager never entered this season.
+  getPointsHistory: async (
+    seasonId: string,
+  ): Promise<TeamPointsHistoryResponse | null> => {
+    const res = await api.get<{ data: TeamPointsHistoryResponse | null }>(
+      "/fantasy/points-history",
+      { params: { season_id: seasonId } },
     );
     return res.data.data;
   },

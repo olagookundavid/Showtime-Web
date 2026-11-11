@@ -87,3 +87,28 @@ type GameweekReportResponse struct {
 	DreamTeamTotalPoints float64                     `json:"dream_team_total_points"`
 	Differentials        []TopScoringPlayerItem      `json:"differentials"`
 }
+
+// TeamPointsHistoryRow is one gameweek of a manager's season: their own score,
+// where they ranked once that gameweek's points were added to everyone's
+// running total (Rank), where they ranked on that gameweek's score alone
+// (GameweekRank — "how did I do this week" vs. "where do I stand overall"),
+// and the community benchmarks for that gameweek.
+type TeamPointsHistoryRow struct {
+	GameweekID     string  `json:"gameweek_id"`
+	GameweekNumber int     `json:"gameweek_number"`
+	Points         float64 `json:"points"`
+	RunningTotal   float64 `json:"running_total"`
+	Rank           int     `json:"rank"`
+	GameweekRank   int     `json:"gameweek_rank"`
+	TotalTeams     int     `json:"total_teams"`
+	AveragePoints  float64 `json:"average_points"`
+	HighestPoints  float64 `json:"highest_points"`
+	LowestPoints   float64 `json:"lowest_points"`
+}
+
+// TeamPointsHistoryResponse is a manager's full points history for a season.
+type TeamPointsHistoryResponse struct {
+	SeasonID string                 `json:"season_id"`
+	TeamID   string                 `json:"team_id"`
+	History  []TeamPointsHistoryRow `json:"history"`
+}

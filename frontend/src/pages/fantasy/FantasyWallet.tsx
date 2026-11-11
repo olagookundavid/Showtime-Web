@@ -13,7 +13,7 @@ import {
     BuildingLibraryIcon,
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
-import { Button, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Spinner, Loader, FantasyBackLink } from '../../components';
+import { Button, ButtonLink, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Spinner, Loader } from '../../components';
 import {
     fantasyWalletApi,
     formatKobo,
@@ -142,20 +142,17 @@ export function FantasyWallet() {
 
     if (!wallet) {
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-                <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
+            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+                <div className="w-16 h-16 rounded-none bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
                     <BanknotesIcon className="w-10 h-10" />
                 </div>
                 <h1 className="text-2xl font-black uppercase text-sffl-navy dark:text-white mb-2">Wallet Unavailable</h1>
                 <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
                     We couldn't load your fantasy wallet right now. Please refresh and try again.
                 </p>
-                <Link
-                    to="/fantasy"
-                    className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
-                >
+                <ButtonLink to="/fantasy/dashboard" shape="square">
                     Back to Fantasy
-                </Link>
+                </ButtonLink>
             </div>
         );
     }
@@ -187,24 +184,30 @@ export function FantasyWallet() {
 
     const canSubmit = disabledReason === '' && !requestMutation.isPending;
     const transactions = wallet.transactions || [];
+    // True for both "never joined a season" and "joined but hasn't won yet" —
+    // the wallet API returns the same empty shape for both, so the notice
+    // below covers both without guessing which one it is.
+    const walletIsEmpty =
+        wallet.balance_kobo === 0 && wallet.lifetime_won_kobo === 0 && transactions.length === 0;
 
     return (
         <div className="space-y-6 md:space-y-8">
-            <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
-            {/* Header Showtime Navy Banner */}
-            <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-bold uppercase mb-2">
-                    <BanknotesIcon className="w-3.5 h-3.5" /> Fantasy Wallet
+            {walletIsEmpty && (
+                <div className="flex items-start gap-3 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 p-4 sm:p-5">
+                    <InformationCircleIcon className="w-5 h-5 text-sffl-navy dark:text-white shrink-0 mt-0.5" />
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Nothing here yet. Winnings land in this wallet once your squad places in a
+                        scoring league.{' '}
+                        <Link to="/fantasy/dashboard" className="font-bold text-sffl-red hover:text-[#A52323]">
+                            Haven't joined a season? Start here.
+                        </Link>
+                    </p>
                 </div>
-                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white">Your Winnings</h1>
-                <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
-                    Prize money from your leagues lands here. Request a payout and we'll transfer it directly to your bank account.
-                </p>
-            </div>
+            )}
 
             <div className="space-y-8">
                 {/* ── Balance Hero ──────────────────────────────────────────── */}
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-8 shadow-sm">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 sm:p-8 shadow-sm">
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                         <div className="min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -228,7 +231,7 @@ export function FantasyWallet() {
                         </div>
 
                         <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3 lg:min-w-80">
-                            <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
+                            <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-none px-4 py-3">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <TrophyIcon className="w-3.5 h-3.5 text-amber-500" /> Lifetime Won
                                 </span>
@@ -236,7 +239,7 @@ export function FantasyWallet() {
                                     {formatKobo(wallet.lifetime_won_kobo)}
                                 </p>
                             </div>
-                            <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
+                            <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-none px-4 py-3">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <ArrowUpTrayIcon className="w-3.5 h-3.5 text-emerald-500" /> Lifetime Paid Out
                                 </span>
@@ -250,7 +253,7 @@ export function FantasyWallet() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
                     {/* ── Request Payout ────────────────────────────────────── */}
-                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-6 shadow-sm">
+                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none p-4 sm:p-6 shadow-sm">
                         <h2 className="text-xl font-black uppercase tracking-wider text-sffl-navy dark:text-white mb-1 flex items-center gap-2">
                             <ArrowDownTrayIcon className="w-5 h-5 text-sffl-red" /> Request Payout
                         </h2>
@@ -260,7 +263,7 @@ export function FantasyWallet() {
                         </p>
 
                         {!wallet.can_request_payout ? (
-                            <div className="bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-5 text-center">
+                            <div className="bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-none p-5 text-center">
                                 <TrophyIcon className="w-10 h-10 text-amber-500 mx-auto mb-3" />
                                 <h3 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white mb-1">
                                     Keep Stacking Those Wins
@@ -274,12 +277,15 @@ export function FantasyWallet() {
                                     eating your winnings. You currently have{' '}
                                     <span className="text-gray-900 dark:text-white font-bold">{formatKobo(wallet.balance_kobo)}</span>.
                                 </p>
-                                <Link
+                                <ButtonLink
                                     to="/fantasy/leagues"
-                                    className="mt-4 inline-flex items-center gap-1.5 min-h-11 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-extrabold text-xs uppercase transition shadow-md"
+                                    icon={ArrowRightIcon}
+                                    iconPosition="right"
+                                    shape="square"
+                                    className="mt-4"
                                 >
-                                    Find a Prize League <ArrowRightIcon className="w-3.5 h-3.5" />
-                                </Link>
+                                    Find a Prize League
+                                </ButtonLink>
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -290,6 +296,7 @@ export function FantasyWallet() {
                                 >
                                     <Input
                                         id="payout-amount"
+                                        shape="square"
                                         type="number"
                                         inputMode="decimal"
                                         min={0}
@@ -303,6 +310,7 @@ export function FantasyWallet() {
                                 <Field label="Bank Name" htmlFor="payout-bank">
                                     <Input
                                         id="payout-bank"
+                                        shape="square"
                                         type="text"
                                         value={form.bankName}
                                         onChange={(e) => setForm({ ...form, bankName: e.target.value })}
@@ -313,6 +321,7 @@ export function FantasyWallet() {
                                 <Field label="Account Number" htmlFor="payout-account-number">
                                     <Input
                                         id="payout-account-number"
+                                        shape="square"
                                         type="text"
                                         inputMode="numeric"
                                         value={form.accountNumber}
@@ -325,6 +334,7 @@ export function FantasyWallet() {
                                 <Field label="Account Name" htmlFor="payout-account-name">
                                     <Input
                                         id="payout-account-name"
+                                        shape="square"
                                         type="text"
                                         value={form.accountName}
                                         onChange={(e) => setForm({ ...form, accountName: e.target.value })}
@@ -339,6 +349,7 @@ export function FantasyWallet() {
                                 >
                                     <Textarea
                                         id="payout-notes"
+                                        shape="square"
                                         value={form.userNotes}
                                         onChange={(e) => setForm({ ...form, userNotes: e.target.value.slice(0, 500) })}
                                         rows={3}
@@ -350,6 +361,7 @@ export function FantasyWallet() {
                                 <Button
                                     fullWidth
                                     size="lg"
+                                    shape="square"
                                     loading={requestMutation.isPending}
                                     disabled={!canSubmit}
                                     onClick={() => requestMutation.mutate()}
@@ -376,23 +388,27 @@ export function FantasyWallet() {
                         {payoutsLoading ? (
                             <Spinner label="Loading payout requests…" className="py-8" />
                         ) : payouts.length === 0 ? (
-                            <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
+                            <div className="p-6 bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 text-center shadow-sm">
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
                                     You haven't requested a payout yet. Requests you make will be tracked here.
                                 </p>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {payouts.map((p) => (
+                                {payouts.map((p, idx) => (
                                     <div
                                         key={p.id}
-                                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-5 shadow-sm"
+                                        className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-5 shadow-sm"
                                     >
+                                        <span
+                                            className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${idx % 2 === 0 ? "bg-sffl-red" : "bg-sffl-navy"}`}
+                                            aria-hidden="true"
+                                        />
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span
-                                                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${STATUS_STYLES[p.status]}`}
+                                                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${STATUS_STYLES[p.status]}`}
                                                     >
                                                         {p.status}
                                                     </span>
@@ -413,7 +429,7 @@ export function FantasyWallet() {
                                             </div>
 
                                             {p.status === 'PENDING' && (
-                                                <Button variant="secondary" size="sm" onClick={() => setCancelTarget(p)}>
+                                                <Button variant="secondary" size="sm" shape="square" onClick={() => setCancelTarget(p)}>
                                                     Cancel Request
                                                 </Button>
                                             )}
@@ -453,6 +469,7 @@ export function FantasyWallet() {
                                     <Button
                                         variant="secondary"
                                         size="sm"
+                                        shape="square"
                                         disabled={payoutsPage <= 1}
                                         onClick={() => setPayoutsPage((p) => Math.max(1, p - 1))}
                                     >
@@ -461,6 +478,7 @@ export function FantasyWallet() {
                                     <Button
                                         variant="secondary"
                                         size="sm"
+                                        shape="square"
                                         disabled={payoutsPage >= (payoutsPaged?.total_pages ?? 1)}
                                         onClick={() =>
                                             setPayoutsPage((p) => Math.min(payoutsPaged?.total_pages ?? 1, p + 1))
@@ -480,7 +498,7 @@ export function FantasyWallet() {
                         <ReceiptRefundIcon className="w-5 h-5 text-sffl-red" /> Wallet Statement
                     </h2>
 
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none shadow-sm overflow-hidden">
                         {transactions.length === 0 ? (
                             <div className="p-6 text-center">
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -496,7 +514,7 @@ export function FantasyWallet() {
                                     >
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                                                     {TX_LABEL[tx.type]}
                                                 </span>
                                                 {tx.league_name && (

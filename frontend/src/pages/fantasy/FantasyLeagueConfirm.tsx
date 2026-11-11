@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     CheckCircleIcon,
@@ -7,7 +7,7 @@ import {
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { fantasyLeaguesApi } from '../../services';
-import { Loader } from '../../components';
+import { ButtonLink, Loader } from '../../components';
 
 /**
  * Where Paystack returns a manager after paying a league entry fee.
@@ -69,9 +69,9 @@ export function FantasyLeagueConfirm() {
     const ok = state === 'paid';
 
     return (
-        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
             <div
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
+                className={`w-16 h-16 rounded-none flex items-center justify-center mb-4 ${
                     ok
                         ? 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                         : 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
@@ -101,18 +101,17 @@ export function FantasyLeagueConfirm() {
             )}
 
             <div className="flex flex-wrap items-center justify-center gap-3">
-                <Link
+                <ButtonLink
                     to="/fantasy/leagues"
-                    className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95 inline-flex items-center gap-1.5"
+                    icon={ArrowRightIcon}
+                    iconPosition="right"
+                    shape="square"
                 >
-                    My Leagues <ArrowRightIcon className="w-4 h-4" />
-                </Link>
-                <Link
-                    to="/fantasy/dashboard"
-                    className="px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm transition"
-                >
+                    My Leagues
+                </ButtonLink>
+                <ButtonLink to="/fantasy/dashboard" variant="secondary" shape="square">
                     Dashboard
-                </Link>
+                </ButtonLink>
             </div>
         </div>
     );
