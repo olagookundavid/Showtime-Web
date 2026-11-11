@@ -73,6 +73,18 @@ const getDraftKey = (seasonId?: string, gwId?: string, userId?: string) => {
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
 
+// House style for every fantasy toast: short, dash-free, sentence-capitalized.
+// Applied once here so a backend error (lowercase by Go convention, and
+// sometimes dash-joined) always reads the way a toast should, without every
+// call site having to write it that way itself.
+function tidyMessage(msg: string): string {
+  const clean = msg
+    .replace(/\s+[-–—]\s+/g, ". ")
+    .replace(/\.\s+([a-z])/g, (_, c: string) => `. ${c.toUpperCase()}`)
+    .trim();
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : clean;
+}
+
 export function FantasyPickTeam() {
   // Shares the hub/dashboard query key, so this is a cache hit rather than
   // an extra request.
@@ -244,7 +256,22 @@ export function FantasyPickTeam() {
         const raw = localStorage.getItem(draftKey);
         if (raw) {
           const draft = JSON.parse(raw);
-          if (draft && draft.squad) {
+          // A draft only wins over the freshly-fetched lineup when it still
+          // agrees with it. Buying (and auto-placing) a player from
+          // Transfers changes the server's lineup without ever touching
+          // this draft, so a draft that no longer matches the server is
+          // stale, not more current — fall through to hydrating from the
+          // server below instead of restoring it.
+          const draftMatchesServer =
+            !currentLineup ||
+            SLOT_DEFINITIONS.every((def) => {
+              const serverPick = currentLineup.picks.find(
+                (p) => p.slot === def.slot,
+              );
+              const draftPlayerId = draft?.squad?.[def.slot]?.player_id ?? null;
+              return (serverPick?.player_id ?? null) === draftPlayerId;
+            });
+          if (draft && draft.squad && draftMatchesServer) {
             const ownedSet = new Set(
               (mySquad?.players ?? []).map((p) => p.player_id),
             );
@@ -446,7 +473,7 @@ export function FantasyPickTeam() {
         msg = errObj.message;
       }
     }
-    if (!msg) return fallback;
+    if (!msg) return tidyMessage(fallback);
 
     // Pattern 1: "player <UUID> not found or belongs to an inactive team"
     const inactiveMatch = msg.match(
@@ -457,11 +484,17 @@ export function FantasyPickTeam() {
       const info = getPlayerFriendlyInfo(id);
       if (info) {
         if (info.slotLabel) {
-          return `${info.name} (${info.slotLabel}) is not eligible to play because the player or their team is inactive. Please replace them.`;
+          return tidyMessage(
+            `${info.name} (${info.slotLabel}) is not eligible to play: their team is inactive. Replace them.`,
+          );
         }
-        return `${info.name} is not eligible to play because the player or their team is inactive. Please replace them.`;
+        return tidyMessage(
+          `${info.name} is not eligible to play: their team is inactive. Replace them.`,
+        );
       }
-      return "One of your selected players is not eligible to play because they or their team is inactive. Please replace them in your lineup.";
+      return tidyMessage(
+        "One of your selected players is not eligible to play: their team is inactive. Replace them in your lineup.",
+      );
     }
 
     // Pattern 2: Replace any remaining raw UUID in the error message with the player's name if known, or "selected player"
@@ -475,7 +508,7 @@ export function FantasyPickTeam() {
     // Clean up grammatical artifacts like "player selected player"
     msg = msg.replace(/\bplayer\s+selected player\b/gi, "selected player");
 
-    return msg;
+    return tidyMessage(msg);
   };
 
   // Calculations & Invariant Validations
@@ -898,7 +931,7 @@ export function FantasyPickTeam() {
       queryClient.invalidateQueries({ queryKey: ["fantasyDashboard"] });
       if (vars.publish && res.published) {
         toast.success(
-          "Lineup published — it starts earning points this match day.",
+          "Lineup published. It starts earning points this match day.",
         );
         const draftKey = getDraftKey(season?.id, scheduledGW?.id, user?.id);
         if (draftKey) {
@@ -1029,7 +1062,7 @@ export function FantasyPickTeam() {
       return {
         valid: false,
         title: "Club Reserve",
-        error: `${candidateName} is on their club's reserve list — they can sit on your bench but cannot start.`,
+        error: `${candidateName} is on their club's reserve list. They can sit on your bench but cannot start.`,
       };
     }
 
@@ -1038,7 +1071,7 @@ export function FantasyPickTeam() {
       return {
         valid: false,
         title: "Invalid Position",
-        error: `${describePlayer(candidateName, candidatePos)} can't play ${targetSlot.label} — that slot needs a ${formatPositions(targetSlot.allowedPositions)}.`,
+        error: `${describePlayer(candidateName, candidatePos)} can't play ${targetSlot.label}. That slot needs a ${formatPositions(targetSlot.allowedPositions)}.`,
       };
     }
 
@@ -1050,7 +1083,7 @@ export function FantasyPickTeam() {
       return {
         valid: false,
         title: "Gender Requirement",
-        error: `${candidateName} can't play ${targetSlot.label} — that slot needs a ${targetSlot.requiredGender === "F" ? "female" : "male"} player.`,
+        error: `${candidateName} can't play ${targetSlot.label}. That slot needs a ${targetSlot.requiredGender === "F" ? "female" : "male"} player.`,
       };
     }
 
@@ -1108,7 +1141,7 @@ export function FantasyPickTeam() {
         return {
           valid: false,
           title: "Club Quota Exceeded",
-          error: `${candidateName} would make ${clubmates.length + 1} from ${candidateClubName || "one club"} — you already start ${joinNames(clubmates)}, and the limit is ${maxPerClub}.`,
+          error: `${candidateName} would make ${clubmates.length + 1} from ${candidateClubName || "one club"}. You already start ${joinNames(clubmates)}, and the limit is ${maxPerClub}.`,
         };
       }
     }
@@ -1298,7 +1331,7 @@ export function FantasyPickTeam() {
       return {
         reason: "Club reserve",
         detail:
-          "On their club's reserve list — they can sit on your bench but cannot start.",
+          "On their club's reserve list, so they can sit on your bench but cannot start.",
         owned: true,
       };
     }

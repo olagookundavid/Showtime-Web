@@ -81,7 +81,7 @@ export const Modal = ({
 
   const node = (
     <div
-      className={`fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex ${isRight ? "items-stretch justify-end" : "items-center justify-center p-3 sm:p-6"} overflow-hidden animate-modal-backdrop-in`}
+      className={`fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex ${isRight ? "items-stretch justify-end" : "items-center justify-center p-3 sm:p-6"} overflow-hidden ${isRight ? "animate-backdrop-slide-in-left" : "animate-modal-backdrop-in"}`}
       data-dialog
       onClick={closeOnBackdrop ? onClose : undefined}
       role="dialog"

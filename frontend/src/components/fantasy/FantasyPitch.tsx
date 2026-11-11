@@ -1036,7 +1036,7 @@ export function FantasyPitch({
                       }}
                       aria-label={`Remove ${pick.player_name ?? "this player"} from your squad`}
                       title="Remove from squad"
-                      className="absolute -top-1.5 -left-1.5 z-30 w-5 h-5 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow-lg transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-3"
+                      className="absolute -top-1.5 -left-1.5 z-30 w-5 h-5 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow-lg transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-1"
                     >
                       <XMarkIcon
                         className="w-3 h-3 stroke-3"
@@ -1211,7 +1211,7 @@ export function FantasyPitch({
                           }}
                           aria-label={`Remove ${sub.name} from your squad`}
                           title="Remove from squad"
-                          className="absolute -top-1 -left-1 z-20 w-4 h-4 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-3"
+                          className="absolute -top-1 -left-1 z-20 w-4 h-4 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-1"
                         >
                           <XMarkIcon
                             className="w-2.5 h-2.5 stroke-3"

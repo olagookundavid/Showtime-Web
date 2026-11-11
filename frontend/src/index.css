@@ -122,10 +122,29 @@ body:has([role="dialog"]) nav.fixed.bottom-0 {
   animation: panel-slide-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* The side panel's own backdrop: slides in from the opposite edge (left)
+   instead of just fading, so the whole thing reads as one panel sliding
+   into view rather than a dialog popping up. */
+@keyframes backdrop-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-backdrop-slide-in-left {
+  animation: backdrop-slide-in-left 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-modal-backdrop-in,
   .animate-modal-in,
-  .animate-panel-in {
+  .animate-panel-in,
+  .animate-backdrop-slide-in-left {
     animation: none;
   }
 }

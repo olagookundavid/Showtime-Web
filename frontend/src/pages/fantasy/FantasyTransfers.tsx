@@ -12,6 +12,7 @@ import {
   Loader,
   PlayerAvatar,
   FantasyPitch,
+  FantasyPlayerModal,
   Tabs,
 } from "../../components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +31,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
+  MinusIcon,
   Squares2X2Icon,
   ListBulletIcon,
 } from "@heroicons/react/24/outline";
@@ -38,10 +40,13 @@ import {
   fantasySeasonApi,
   fantasySquadApi,
   formatFantasyPrice,
+  getPlayerLeaderboard,
 } from "../../services";
 import type {
   FantasyPlayerListItem,
+  FantasyPlayerModalData,
   FantasySlot,
+  PlayerLeaderboardItem,
   Squad,
   SquadPlayer,
 } from "../../types";
@@ -50,6 +55,7 @@ import {
   unitOf,
   getDefaultTeamName,
   formatStatNumber,
+  formatStatDecimal,
   groupPlayersByPosition,
   normalizeFantasyPosition,
   SLOT_DEFINITIONS,
@@ -85,6 +91,18 @@ const PRICE_RANGE_OPTIONS: {
   { value: "8to10", label: "₦8m – ₦10m", min: 8, max: 10 },
   { value: "10plus", label: "₦10m & above", min: 10, max: Infinity },
 ];
+
+// House style for every fantasy toast: short, dash-free, sentence-capitalized.
+// Applied once here so a backend error (lowercase by Go convention, and
+// sometimes dash-joined) always reads the way a toast should, without every
+// call site having to write it that way itself.
+function tidyMessage(msg: string): string {
+  const clean = msg
+    .replace(/\s+[-–—]\s+/g, ". ")
+    .replace(/\.\s+([a-z])/g, (_, c: string) => `. ${c.toUpperCase()}`)
+    .trim();
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : clean;
+}
 
 export function FantasyTransfers() {
   // Shares the hub/dashboard query key, so this is a cache hit rather than
@@ -222,6 +240,31 @@ export function FantasyTransfers() {
   const [slotPickerSlot, setSlotPickerSlot] = useState<FantasySlot | null>(
     null,
   );
+  // A player between "bought" and "placed in their slot" — hidden from the
+  // bench row for that instant so they don't flash there before landing on
+  // the pitch.
+  const [pendingAssignIds, setPendingAssignIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const addPendingAssign = (playerId: string) =>
+    setPendingAssignIds((prev) => new Set(prev).add(playerId));
+  const removePendingAssign = (playerId: string) =>
+    setPendingAssignIds((prev) => {
+      if (!prev.has(playerId)) return prev;
+      const next = new Set(prev);
+      next.delete(playerId);
+      return next;
+    });
+
+  // The pitch's own profile panel — starters and bench players alike open
+  // here now, instead of starters getting a profile and bench players
+  // getting the sell confirmation by accident (see the FantasyPitch remove-
+  // badge hit-area fix). `slot` is only set for a starter, since only a
+  // starter has a slot "Select Replacement" could hand to someone else.
+  const [inspectingPlayer, setInspectingPlayer] = useState<{
+    data: FantasyPlayerModalData;
+    slot?: FantasySlot;
+  } | null>(null);
 
   // If an entered manager still has the legacy placeholder name, prompt them
   // to pick one — but never once the season has started, since naming is
@@ -311,7 +354,7 @@ export function FantasyTransfers() {
         msg = errObj.message;
       }
     }
-    if (!msg) return fallback;
+    if (!msg) return tidyMessage(fallback);
 
     // Pattern 1: "player <UUID> not found or belongs to an inactive team"
     const inactiveMatch = msg.match(
@@ -320,9 +363,11 @@ export function FantasyTransfers() {
     if (inactiveMatch) {
       const id = inactiveMatch[1];
       const info = getPlayerFriendlyInfo(id);
-      return info
-        ? `${info.name} is not eligible to sign because the player or their club is inactive.`
-        : "That player is not eligible to sign because they or their club is inactive.";
+      return tidyMessage(
+        info
+          ? `${info.name} is not eligible: their club is inactive.`
+          : "That player is not eligible: their club is inactive.",
+      );
     }
 
     // Pattern 2: Replace any remaining raw UUID in the error message with the player's name if known, or "selected player"
@@ -336,7 +381,7 @@ export function FantasyTransfers() {
     // Clean up grammatical artifacts like "player selected player"
     msg = msg.replace(/\bplayer\s+selected player\b/gi, "selected player");
 
-    return msg;
+    return tidyMessage(msg);
   };
 
   // Signing a player onto the squad. No slot placement here — that's Pick
@@ -361,7 +406,7 @@ export function FantasyTransfers() {
     onSuccess: (next) => {
       refreshSquad(next);
       setConfirmSell(null);
-      toast.success("Sold — the money is back in your bank.");
+      toast.success("Sold. Money is back in your bank.");
     },
     onError: (err: unknown) => {
       toast.error(formatErrorMessage(err, "Could not sell this player."));
@@ -372,17 +417,23 @@ export function FantasyTransfers() {
   // both the Fill Slot picker and Player Selection's auto-place call this
   // right after a buy. saveLineup always takes the whole sheet, so this
   // resends every pick already on it plus the new one; safe to call after
-  // every signing, the same way Pick Team autosaves after every pick.
+  // every signing, the same way Pick Team autosaves after every pick. Also
+  // doubles as "replace": if the target slot is already occupied (Select
+  // Replacement, opened from an existing starter), that pick is dropped
+  // before the new one is added, rather than sending the slot twice —
+  // the old occupant is still owned, so they simply fall back to the bench.
   const assignSlotMutation = useMutation({
     mutationFn: ({ playerId, slot }: { playerId: string; slot: FantasySlot }) => {
       if (!season?.id || !scheduledGW?.id) {
         throw new Error("No scheduled gameweek to add them to.");
       }
       const picks = [
-        ...(currentLineup?.picks ?? []).map((p) => ({
-          player_id: p.player_id,
-          slot: p.slot,
-        })),
+        ...(currentLineup?.picks ?? [])
+          .filter((p) => p.slot !== slot)
+          .map((p) => ({
+            player_id: p.player_id,
+            slot: p.slot,
+          })),
         { player_id: playerId, slot },
       ];
       return fantasyCoreApi.saveLineup({
@@ -404,7 +455,7 @@ export function FantasyTransfers() {
       toast.error(
         formatErrorMessage(
           err,
-          "Signed, but couldn't add them to your lineup — place them from Pick Team.",
+          "Signed, but not placed. Add them from Pick Team.",
         ),
       );
     },
@@ -462,18 +513,19 @@ export function FantasyTransfers() {
     PRICE_RANGE_OPTIONS.find((opt) => opt.value === marketPriceRange) ??
     PRICE_RANGE_OPTIONS[0];
 
-  // Anyone already owned shows up in Your Squad instead, so Player Selection
-  // lists only players who'd actually need signing.
-  const buyableMarketPlayers = useMemo(
+  // Player Selection shows everyone on the market, owned or not — an owned
+  // player's row swaps the buy button for a remove one (see MarketPlayerRow)
+  // rather than disappearing, so selling doesn't require switching to Your
+  // Squad.
+  const marketListPlayers = useMemo(
     () =>
       marketPlayers.filter(
         (p) =>
-          !ownedIds.has(p.player_id) &&
           p.price > 0 &&
           p.price >= activePriceRange.min &&
           p.price < activePriceRange.max,
       ),
-    [marketPlayers, ownedIds, activePriceRange],
+    [marketPlayers, activePriceRange],
   );
 
   const groupedSquad = useMemo(
@@ -487,15 +539,15 @@ export function FantasyTransfers() {
   // list to slice.
   const marketTotalPages = Math.max(
     1,
-    Math.ceil(buyableMarketPlayers.length / MARKET_PAGE_SIZE),
+    Math.ceil(marketListPlayers.length / MARKET_PAGE_SIZE),
   );
   const pagedMarketPlayers = useMemo(
     () =>
-      buyableMarketPlayers.slice(
+      marketListPlayers.slice(
         (marketPage - 1) * MARKET_PAGE_SIZE,
         marketPage * MARKET_PAGE_SIZE,
       ),
-    [buyableMarketPlayers, marketPage],
+    [marketListPlayers, marketPage],
   );
 
   // Each readiness card is solid green or red, never a neutral/default
@@ -558,8 +610,12 @@ export function FantasyTransfers() {
     [currentLineup],
   );
   const benchPlayers = useMemo(
-    () => (mySquad?.players ?? []).filter((p) => !startingIds.has(p.player_id)),
-    [mySquad, startingIds],
+    () =>
+      (mySquad?.players ?? []).filter(
+        (p) =>
+          !startingIds.has(p.player_id) && !pendingAssignIds.has(p.player_id),
+      ),
+    [mySquad, startingIds, pendingAssignIds],
   );
   const pitchBench = useMemo(
     () =>
@@ -590,14 +646,19 @@ export function FantasyTransfers() {
     () => new Set((currentLineup?.picks ?? []).map((p) => p.slot)),
     [currentLineup],
   );
+  // Excludes whichever slot the picker is currently open for: if that slot
+  // is itself held by the one permitted All-Rounder, replacing them is
+  // exactly what frees that quota back up, not a reason to keep blocking it.
   const hasDefenseAllrounder = useMemo(
     () =>
       (currentLineup?.picks ?? []).some(
         (p) =>
+          p.slot !== slotPickerSlot &&
           SLOT_DEFINITIONS.find((def) => def.slot === p.slot)?.unit ===
-            "DEFENSE" && isAllrounderPosition(p.position),
+            "DEFENSE" &&
+          isAllrounderPosition(p.position),
       ),
-    [currentLineup],
+    [currentLineup, slotPickerSlot],
   );
 
   // Whether a player (owned or just bought) is eligible for a given open
@@ -640,33 +701,102 @@ export function FantasyTransfers() {
     ? SLOT_DEFINITIONS.find((def) => def.slot === slotPickerSlot) ?? null
     : null;
 
-  // Fill Slot's own market query — scoped to exactly the positions (and
-  // gender, if any) that slot accepts, independent of whatever Filter 1-4
-  // happen to be set to in Player Selection.
-  const { data: slotMarketData, isLoading: slotMarketLoading } = useQuery({
-    queryKey: ["playerMarket", season?.id, "slotPicker", slotPickerSlot],
-    queryFn: () =>
-      fantasyCoreApi.listPlayerMarket(season!.id, {
-        position: slotPickerDef!.allowedPositions.join(","),
-        gender: slotPickerDef!.requiredGender,
-        sort: "points",
-        limit: 200,
-      }),
-    enabled: !!season?.id && !!slotPickerDef,
-  });
+  // Fill Slot's own player pool — the leaderboard, not the market list, so
+  // the picker can show price, points, selected% and form together instead
+  // of just one. It only filters by gender server-side (its position filter
+  // is a single exact match, not the "any of these" a slot like REC or QB_F
+  // needs), so position and the rest are applied client-side below,
+  // independent of whatever Filter 1-4 happen to be set to in Player
+  // Selection.
+  const { data: slotLeaderboardData, isLoading: slotMarketLoading } =
+    useQuery({
+      queryKey: ["playerLeaderboard", season?.id, "slotPicker", slotPickerSlot],
+      queryFn: () =>
+        getPlayerLeaderboard(season!.id, {
+          gender: slotPickerDef!.requiredGender,
+          sort: "points",
+          limit: 100,
+        }),
+      enabled: !!season?.id && !!slotPickerDef,
+    });
 
-  // Market players for the open picker, already bought-out and (for
-  // defence, once it has its one All-Rounder) over-quota All-Rounders
-  // filtered out.
+  // Candidates for the open picker: available to buy, eligible for this
+  // slot's position, not already owned, and (for defence, once it has its
+  // one All-Rounder) not an over-quota All-Rounder.
   const slotPickerPlayers = useMemo(() => {
     if (!slotPickerDef) return [];
-    const list = (slotMarketData?.data ?? []).filter(
-      (p) => !ownedIds.has(p.player_id) && p.price > 0,
+    return (slotLeaderboardData?.data ?? []).filter((p) => {
+      if (!p.available || p.price <= 0 || ownedIds.has(p.player_id)) {
+        return false;
+      }
+      if (!positionFitsSlot(slotPickerDef, p.position)) return false;
+      if (
+        slotPickerDef.unit === "DEFENSE" &&
+        hasDefenseAllrounder &&
+        isAllrounderPosition(p.position)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [slotLeaderboardData, slotPickerDef, hasDefenseAllrounder, ownedIds]);
+
+  // Which starters a bench player open in the profile modal could swap in
+  // for — the same slot-eligibility rule Fill Slot and auto-place use,
+  // evaluated against every occupied slot instead of one open one.
+  const substituteCandidates = useMemo(() => {
+    if (!inspectingPlayer || inspectingPlayer.slot) return [];
+    const benchPlayer = inspectingPlayer.data;
+    return (currentLineup?.picks ?? [])
+      .filter((pick) => {
+        const def = SLOT_DEFINITIONS.find((d) => d.slot === pick.slot);
+        if (!def) return false;
+        if (
+          def.requiredGender &&
+          (benchPlayer.gender || "").toUpperCase() !== def.requiredGender
+        ) {
+          return false;
+        }
+        if (!positionFitsSlot(def, benchPlayer.position)) return false;
+        if (def.unit === "DEFENSE" && isAllrounderPosition(benchPlayer.position)) {
+          // Defence allows only one All-Rounder — count every other
+          // defence pick, not this one, since its occupant is who'd leave.
+          const othersHaveOne = (currentLineup?.picks ?? []).some(
+            (p) =>
+              p.slot !== pick.slot &&
+              SLOT_DEFINITIONS.find((d) => d.slot === p.slot)?.unit ===
+                "DEFENSE" &&
+              isAllrounderPosition(p.position),
+          );
+          if (othersHaveOne) return false;
+        }
+        return true;
+      })
+      .map((pick) => ({
+        playerId: pick.player_id,
+        playerName: pick.player_name || "Player",
+        playerImage: pick.player_image,
+        gender: pick.gender,
+        slotLabel:
+          SLOT_DEFINITIONS.find((d) => d.slot === pick.slot)?.label ||
+          pick.slot,
+      }));
+  }, [inspectingPlayer, currentLineup]);
+
+  // Swaps the inspected bench player into an eligible starter's slot.
+  // assignSlotMutation already drops whoever currently holds that slot
+  // before adding the new pick, so the ousted starter just falls back to
+  // the bench, still owned.
+  const handleSubstitute = (starterPlayerId: string) => {
+    if (!inspectingPlayer) return;
+    const benchPlayerId = inspectingPlayer.data.playerId;
+    const starterPick = (currentLineup?.picks ?? []).find(
+      (p) => p.player_id === starterPlayerId,
     );
-    return slotPickerDef.unit === "DEFENSE" && hasDefenseAllrounder
-      ? list.filter((p) => !isAllrounderPosition(p.position))
-      : list;
-  }, [slotMarketData, slotPickerDef, hasDefenseAllrounder, ownedIds]);
+    if (!starterPick) return;
+    setInspectingPlayer(null);
+    assignSlotMutation.mutate({ playerId: benchPlayerId, slot: starterPick.slot });
+  };
 
   // Signing from the market list: buy, then drop them straight onto the
   // pitch if an open slot fits them — no separate placement step needed.
@@ -675,7 +805,12 @@ export function FantasyTransfers() {
       onSuccess: () => {
         if (!scheduledGW?.id) return;
         const slot = findOpenSlotFor(player);
-        if (slot) assignSlotMutation.mutate({ playerId, slot });
+        if (!slot) return;
+        addPendingAssign(playerId);
+        assignSlotMutation.mutate(
+          { playerId, slot },
+          { onSettled: () => removePendingAssign(playerId) },
+        );
       },
     });
   };
@@ -688,7 +823,11 @@ export function FantasyTransfers() {
     if (!slot) return;
     buyMutation.mutate(playerId, {
       onSuccess: () => {
-        assignSlotMutation.mutate({ playerId, slot });
+        addPendingAssign(playerId);
+        assignSlotMutation.mutate(
+          { playerId, slot },
+          { onSettled: () => removePendingAssign(playerId) },
+        );
         setSlotPickerSlot(null);
       },
     });
@@ -925,7 +1064,7 @@ export function FantasyTransfers() {
               <div className="p-4 md:p-5 space-y-3 lg:flex-1 lg:overflow-y-auto">
                 {marketLoading ? (
                   <Spinner label="Loading players…" className="py-12" />
-                ) : buyableMarketPlayers.length === 0 ? (
+                ) : marketListPlayers.length === 0 ? (
                   <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400 space-y-3">
                     <p>No players match your filters.</p>
                     <Button
@@ -942,8 +1081,8 @@ export function FantasyTransfers() {
                     {/* Total matching the current filters, declared up
                         front rather than buried after the list. */}
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                      {buyableMarketPlayers.length} player
-                      {buyableMarketPlayers.length === 1 ? "" : "s"} shown
+                      {marketListPlayers.length} player
+                      {marketListPlayers.length === 1 ? "" : "s"} shown
                     </p>
 
                     <div className="space-y-2">
@@ -955,8 +1094,15 @@ export function FantasyTransfers() {
                           bank={mySquad.bank}
                           squadFull={squadFull}
                           marketClosed={marketClosed}
-                          buying={buyMutation.isPending}
+                          pending={buyMutation.isPending || sellMutation.isPending}
+                          owned={ownedIds.has(p.player_id)}
                           onBuy={() => handleBuy(p.player_id, p)}
+                          onSell={() => {
+                            const squadPlayer = mySquad.players.find(
+                              (sp) => sp.player_id === p.player_id,
+                            );
+                            if (squadPlayer) setConfirmSell(squadPlayer);
+                          }}
                         />
                       ))}
                     </div>
@@ -1105,7 +1251,6 @@ export function FantasyTransfers() {
                         title="Your Squad"
                         substitutes={pitchBench}
                         hideDetailStrip
-                        playerModalPosition="right"
                         onRemovePlayer={
                           mySquad.market_open
                             ? (playerId) => {
@@ -1121,6 +1266,52 @@ export function FantasyTransfers() {
                             ? (slot) => setSlotPickerSlot(slot)
                             : undefined
                         }
+                        onPlayerClick={(pick) =>
+                          setInspectingPlayer({
+                            data: {
+                              playerId: pick.player_id,
+                              playerName: pick.player_name || "Player",
+                              playerImage: pick.player_image,
+                              position: pick.position,
+                              gender: pick.gender,
+                              teamName: pick.team_name,
+                              teamShortName: pick.team_short_name,
+                              teamLogo: pick.team_logo,
+                              price: pick.current_price ?? pick.purchase_price,
+                              currentPrice: pick.current_price,
+                              purchasePrice: pick.purchase_price,
+                              points: pick.points,
+                            },
+                            slot: pick.slot,
+                          })
+                        }
+                        onSubstituteClick={(sub) => {
+                          const sp = mySquad.players.find(
+                            (p) => p.player_id === sub.playerId,
+                          );
+                          if (!sp) return;
+                          setInspectingPlayer({
+                            data: {
+                              playerId: sp.player_id,
+                              playerName: sp.name,
+                              playerImage:
+                                sp.image ||
+                                playerMetadataLookup.get(sp.player_id)?.image,
+                              position: sp.position,
+                              gender: sp.gender,
+                              teamName: sp.club_name,
+                              teamShortName: sp.club_short_name,
+                              teamLogo: sp.club_logo,
+                              price: sp.current_price,
+                              currentPrice: sp.current_price,
+                              purchasePrice: sp.purchase_price,
+                              ownedByPct: sp.selected_by_pct,
+                            },
+                            // No slot: a bench player isn't occupying one,
+                            // so there's nothing for Select Replacement to
+                            // act on.
+                          });
+                        }}
                       />
                     )}
                   </div>
@@ -1165,6 +1356,45 @@ export function FantasyTransfers() {
           </div>
         )}
       </div>
+
+      {/* ──────────────────────────────────────────────────────────────────
+                PLAYER PROFILE PANEL (pitch starters and bench alike)
+            ────────────────────────────────────────────────────────────────── */}
+      <FantasyPlayerModal
+        isOpen={!!inspectingPlayer}
+        onClose={() => setInspectingPlayer(null)}
+        player={inspectingPlayer?.data ?? null}
+        position="right"
+        onRemove={
+          inspectingPlayer && mySquad?.market_open
+            ? () => {
+                const sp = mySquad.players.find(
+                  (p) => p.player_id === inspectingPlayer.data.playerId,
+                );
+                setInspectingPlayer(null);
+                if (sp) setConfirmSell(sp);
+              }
+            : undefined
+        }
+        onSelectReplacement={
+          inspectingPlayer?.slot && mySquad?.market_open && scheduledGW?.id
+            ? () => {
+                const slot = inspectingPlayer.slot!;
+                setInspectingPlayer(null);
+                setSlotPickerSlot(slot);
+              }
+            : undefined
+        }
+        substituteCandidates={substituteCandidates}
+        onSubstitute={
+          inspectingPlayer &&
+          !inspectingPlayer.slot &&
+          mySquad?.market_open &&
+          scheduledGW?.id
+            ? handleSubstitute
+            : undefined
+        }
+      />
 
       {/* ──────────────────────────────────────────────────────────────────
                 SELL CONFIRMATION MODAL
@@ -1321,19 +1551,28 @@ function MarketPlayerRow({
   bank,
   squadFull,
   marketClosed,
-  buying,
+  pending,
+  owned,
   onBuy,
+  onSell,
 }: {
   player: FantasyPlayerListItem;
   marketSort: MarketSortKey;
   bank: number;
   squadFull: boolean;
   marketClosed?: string;
-  buying: boolean;
+  pending: boolean;
+  /** Already on the squad — the row shows a remove button instead of a
+   * sign one, rather than disappearing from the list. */
+  owned: boolean;
   onBuy: () => void;
+  onSell: () => void;
 }) {
   const affordable = player.price <= bank;
   const stat = statForSort(marketSort, player);
+  // Price is always shown; Filter 2's own stat joins it unless that stat
+  // already is price, which would just show the same figure twice.
+  const showSortStat = marketSort !== "price_desc";
 
   return (
     <div className="px-3 py-2.5 border flex items-center gap-3 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm">
@@ -1365,40 +1604,66 @@ function MarketPlayerRow({
         </div>
       </div>
 
-      <div className="flex flex-col items-end gap-1 shrink-0">
+      <div className="flex items-center gap-2.5 shrink-0">
         <div className="text-right">
           <span className="block text-sm font-black tabular-nums text-gray-900 dark:text-white">
-            {stat.value}
+            {formatFantasyPrice(player.price)}
           </span>
           <span className="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            {stat.label}
+            Price
           </span>
         </div>
-        <IconButton
-          icon={PlusIcon}
-          shape="circle"
-          variant="ghost"
-          onClick={onBuy}
-          disabled={
-            !affordable ||
-            squadFull ||
-            !!marketClosed ||
-            buying ||
-            player.price <= 0
-          }
-          label={
-            marketClosed
-              ? `Cannot sign ${player.player_name}: ${marketClosed}`
-              : player.price <= 0
-                ? `${player.player_name} is not on the market this season`
-                : squadFull
-                  ? `Cannot sign ${player.player_name}: your squad is full`
-                  : !affordable
-                    ? `Cannot sign ${player.player_name}: not enough in the bank`
-                    : `Sign ${player.player_name} for ${formatFantasyPrice(player.price)}`
-          }
-          className="bg-sffl-navy hover:bg-sffl-navy/90 text-white"
-        />
+        {showSortStat && (
+          <div className="text-right">
+            <span className="block text-sm font-black tabular-nums text-gray-900 dark:text-white">
+              {stat.value}
+            </span>
+            <span className="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
+              {stat.label}
+            </span>
+          </div>
+        )}
+        {owned ? (
+          <IconButton
+            icon={MinusIcon}
+            shape="circle"
+            variant="ghost"
+            onClick={onSell}
+            disabled={!!marketClosed || pending}
+            label={
+              marketClosed
+                ? `Cannot remove ${player.player_name}: ${marketClosed}`
+                : `Remove ${player.player_name} from your squad`
+            }
+            className="bg-gray-500 hover:bg-red-600 text-white"
+          />
+        ) : (
+          <IconButton
+            icon={PlusIcon}
+            shape="circle"
+            variant="ghost"
+            onClick={onBuy}
+            disabled={
+              !affordable ||
+              squadFull ||
+              !!marketClosed ||
+              pending ||
+              player.price <= 0
+            }
+            label={
+              marketClosed
+                ? `Cannot sign ${player.player_name}: ${marketClosed}`
+                : player.price <= 0
+                  ? `${player.player_name} is not on the market this season`
+                  : squadFull
+                    ? `Cannot sign ${player.player_name}: your squad is full`
+                    : !affordable
+                      ? `Cannot sign ${player.player_name}: not enough in the bank`
+                      : `Sign ${player.player_name} for ${formatFantasyPrice(player.price)}`
+            }
+            className="bg-sffl-navy hover:bg-sffl-navy/90 text-white"
+          />
+        )}
       </div>
     </div>
   );
@@ -1650,7 +1915,7 @@ function SlotFillPicker({
 }: {
   slotLabel: string;
   requirementLabel: string;
-  players: FantasyPlayerListItem[];
+  players: PlayerLeaderboardItem[];
   loading: boolean;
   bank: number;
   squadFull: boolean;
@@ -1697,10 +1962,9 @@ function SlotFillPicker({
         ) : (
           <div className="space-y-2">
             {filtered.map((p) => (
-              <MarketPlayerRow
+              <SlotCandidateRow
                 key={p.player_id}
                 player={p}
-                marketSort="points"
                 bank={bank}
                 squadFull={squadFull}
                 marketClosed={marketClosed}
@@ -1712,5 +1976,120 @@ function SlotFillPicker({
         )}
       </div>
     </Modal>
+  );
+}
+
+// A Fill Slot candidate row — unlike MarketPlayerRow (one stat, matching
+// whatever Filter 2 is sorted by), this always shows all four figures a
+// manager would want before signing someone sight-specific to a slot:
+// points, price, selected% and form.
+function SlotCandidateRow({
+  player,
+  bank,
+  squadFull,
+  marketClosed,
+  buying,
+  onBuy,
+}: {
+  player: PlayerLeaderboardItem;
+  bank: number;
+  squadFull: boolean;
+  marketClosed?: string;
+  buying: boolean;
+  onBuy: () => void;
+}) {
+  const affordable = player.price <= bank;
+
+  return (
+    <div className="px-3 py-2.5 border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm space-y-2.5">
+      <div className="flex items-center gap-3">
+        <PlayerAvatar
+          name={player.player_name}
+          image={player.player_image}
+          gender={player.gender}
+        />
+
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+            {player.player_name}
+          </h4>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            {player.team_logo && (
+              <img
+                src={player.team_logo}
+                alt=""
+                className="w-3.5 h-3.5 object-contain shrink-0"
+              />
+            )}
+            <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+              {player.team_short_name || player.team_name || "—"}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600 shrink-0">·</span>
+            <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 truncate">
+              {normalizeFantasyPosition(player.position)}
+            </span>
+          </div>
+        </div>
+
+        <IconButton
+          icon={PlusIcon}
+          shape="circle"
+          variant="ghost"
+          onClick={onBuy}
+          disabled={
+            !affordable ||
+            squadFull ||
+            !!marketClosed ||
+            buying ||
+            player.price <= 0
+          }
+          label={
+            marketClosed
+              ? `Cannot sign ${player.player_name}: ${marketClosed}`
+              : squadFull
+                ? `Cannot sign ${player.player_name}: your squad is full`
+                : !affordable
+                  ? `Cannot sign ${player.player_name}: not enough in the bank`
+                  : `Sign ${player.player_name} for ${formatFantasyPrice(player.price)}`
+          }
+          className="bg-sffl-navy hover:bg-sffl-navy/90 text-white shrink-0"
+        />
+      </div>
+
+      <div className="grid grid-cols-4 gap-1.5 text-center pt-2 border-t border-gray-100 dark:border-gray-700/60">
+        <div>
+          <span className="block text-xs font-black tabular-nums text-gray-900 dark:text-white">
+            {formatStatNumber(Math.round(player.season_points))}
+          </span>
+          <span className="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Points
+          </span>
+        </div>
+        <div>
+          <span className="block text-xs font-black tabular-nums text-gray-900 dark:text-white">
+            {formatFantasyPrice(player.price)}
+          </span>
+          <span className="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Price
+          </span>
+        </div>
+        <div>
+          <span className="block text-xs font-black tabular-nums text-gray-900 dark:text-white">
+            {player.selected_by_pct.toFixed(0)}%
+          </span>
+          <span className="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Selected
+          </span>
+        </div>
+        <div>
+          <span className="block text-xs font-black tabular-nums text-gray-900 dark:text-white">
+            {formatStatDecimal(player.form, 1)}
+          </span>
+          <span className="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Form
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

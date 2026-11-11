@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowTopRightOnSquareIcon,
+  ArrowsRightLeftIcon,
+  ChevronDownIcon,
   SparklesIcon,
   UserIcon,
+  UserMinusIcon,
   ArrowTrendingUpIcon,
   ScaleIcon,
   BoltIcon,
@@ -10,6 +14,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { FemaleIcon } from "../icons/FemaleIcon";
 import { MaleIcon } from "../icons/MaleIcon";
+import { PlayerAvatar } from "./PlayerAvatar";
 import { Button, ButtonLink, Modal, DataTable, type Column } from "../ui";
 import {
   getPlayerBreakdown,
@@ -19,12 +24,37 @@ import {
 import type { PlayerPriceHistoryItem, FantasyPlayerModalData } from "../../types";
 import { formatStatDecimal, formatStatNumber } from "../../utils";
 
+/** One starter a bench player (open in this modal) could swap in for. */
+export interface SubstituteCandidate {
+  playerId: string;
+  playerName: string;
+  playerImage?: string;
+  gender?: string;
+  /** The slot they'd be leaving, named for the list ("Defender 3"). */
+  slotLabel: string;
+}
+
 interface FantasyPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
   player: FantasyPlayerModalData | null;
   /** `right` slides in as a side panel instead of the centered dialog. */
   position?: "center" | "right";
+  /** Opt in per caller: a "Remove" footer button (sell, bench — whatever
+   * the caller's page means by it). Omit it and no button renders. */
+  onRemove?: () => void;
+  /** Label for the remove button, since "Remove" means something different
+   * per caller (sell from the squad, bench a starter, ...). */
+  removeLabel?: string;
+  /** Opt in per caller: a "Select Replacement" footer button, for a starter
+   * whose slot can be handed to someone else. Omit it on a bench player or
+   * any page without that concept, and no button renders. */
+  onSelectReplacement?: () => void;
+  /** Opt in per caller: a "Substitute" dropdown button for a bench player,
+   * listing the starters they're eligible to swap in for. Omit it (or pass
+   * an empty list) on a starter, and no button renders. */
+  substituteCandidates?: SubstituteCandidate[];
+  onSubstitute?: (playerId: string) => void;
 }
 
 function normalizePosition(pos?: string): string {
@@ -114,6 +144,11 @@ export function FantasyPlayerModal({
   onClose,
   player,
   position = "center",
+  onRemove,
+  removeLabel = "Remove",
+  onSelectReplacement,
+  substituteCandidates = [],
+  onSubstitute,
 }: FantasyPlayerModalProps) {
 
   const { data: breakdownData, isLoading: loadingBreakdown } = useQuery({
@@ -138,6 +173,19 @@ export function FantasyPlayerModal({
     enabled: isOpen && Boolean(player?.playerId),
     staleTime: 30000,
   });
+
+  // Collapsed again every time a different player opens, so it doesn't
+  // carry over expanded from whoever was last inspected. Adjusted during
+  // render (comparing against last render's id) rather than in an effect,
+  // so there's no extra render pass.
+  const [showSubstituteOptions, setShowSubstituteOptions] = useState(false);
+  const [lastSubstitutePlayerId, setLastSubstitutePlayerId] = useState(
+    player?.playerId,
+  );
+  if (player?.playerId !== lastSubstitutePlayerId) {
+    setLastSubstitutePlayerId(player?.playerId);
+    setShowSubstituteOptions(false);
+  }
 
   if (!isOpen || !player) return null;
 
@@ -182,11 +230,28 @@ export function FantasyPlayerModal({
             shape="square"
             className="sm:mr-auto"
           >
-            View Full Season Stats
+            Full Profile
           </ButtonLink>
-          <Button variant="secondary" shape="square" className="uppercase tracking-wider" onClick={onClose}>
-            Close
-          </Button>
+          {onSelectReplacement && (
+            <Button
+              variant="secondary"
+              shape="square"
+              icon={ArrowsRightLeftIcon}
+              onClick={onSelectReplacement}
+            >
+              Select Replacement
+            </Button>
+          )}
+          {onRemove && (
+            <Button
+              variant="danger"
+              shape="square"
+              icon={UserMinusIcon}
+              onClick={onRemove}
+            >
+              {removeLabel}
+            </Button>
+          )}
         </>
       }
     >
@@ -265,6 +330,75 @@ export function FantasyPlayerModal({
             </div>
           </div>
         </div>
+
+        {/* Substitute — bench players only. Swaps them straight into an
+            eligible starter's slot without leaving this panel; the ousted
+            starter simply falls back to the bench, still owned. */}
+        {onSubstitute && (
+          <div className="px-5 md:px-6 py-3 border-b border-gray-100 dark:border-gray-700/60">
+            <button
+              type="button"
+              onClick={() => setShowSubstituteOptions((v) => !v)}
+              aria-expanded={showSubstituteOptions}
+              className="w-full flex items-center gap-3 p-3 rounded-none border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+            >
+              <div className="p-2 rounded-none bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-white">
+                <ArrowsRightLeftIcon className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-black text-gray-900 dark:text-white block">
+                  Substitute
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                  Swap in for an eligible starter
+                </span>
+              </div>
+              <ChevronDownIcon
+                className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${
+                  showSubstituteOptions ? "rotate-180" : ""
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {showSubstituteOptions && (
+              <div className="mt-2 border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden max-h-56 overflow-y-auto">
+                {substituteCandidates.length === 0 ? (
+                  <p className="p-3 text-xs text-gray-500 dark:text-gray-400 text-center">
+                    No eligible starter to swap them in for right now.
+                  </p>
+                ) : (
+                  substituteCandidates.map((c) => (
+                    <button
+                      key={c.playerId}
+                      type="button"
+                      onClick={() => {
+                        setShowSubstituteOptions(false);
+                        onSubstitute(c.playerId);
+                      }}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+                    >
+                      <PlayerAvatar
+                        name={c.playerName}
+                        image={c.playerImage}
+                        gender={c.gender}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white block truncate">
+                          {c.playerName}
+                        </span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          {c.slotLabel}
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* KPI Metrics Strip */}
         <div className="p-5 md:p-6 overflow-y-auto space-y-5 flex-1">
