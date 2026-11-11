@@ -39,7 +39,12 @@ import {
   fantasySquadApi,
   formatFantasyPrice,
 } from "../../services";
-import type { FantasyPlayerListItem, Squad, SquadPlayer } from "../../types";
+import type {
+  FantasyPlayerListItem,
+  FantasySlot,
+  Squad,
+  SquadPlayer,
+} from "../../types";
 import {
   isFemale,
   unitOf,
@@ -47,6 +52,11 @@ import {
   formatStatNumber,
   groupPlayersByPosition,
   normalizeFantasyPosition,
+  SLOT_DEFINITIONS,
+  positionFitsSlot,
+  isAllrounderPosition,
+  formatPositions,
+  type SlotDefinition,
 } from "../../utils";
 import { useAuth } from "../../contexts";
 
@@ -133,7 +143,7 @@ export function FantasyTransfers() {
   const refreshSquad = (next: Squad) => {
     queryClient.setQueryData(["fantasySquad", season?.id], next);
     queryClient.invalidateQueries({ queryKey: ["fantasyDashboard"] });
-    queryClient.invalidateQueries({ queryKey: ["fantasyLineup"] });
+    queryClient.invalidateQueries({ queryKey: ["myFantasyLineup"] });
   };
 
   // Clubs and positions on this season's market, for the filter chips. Served
@@ -208,6 +218,10 @@ export function FantasyTransfers() {
   }
 
   const [confirmSell, setConfirmSell] = useState<SquadPlayer | null>(null);
+  // Which empty pitch slot the "Fill Slot" picker is open for, if any.
+  const [slotPickerSlot, setSlotPickerSlot] = useState<FantasySlot | null>(
+    null,
+  );
 
   // If an entered manager still has the legacy placeholder name, prompt them
   // to pick one — but never once the season has started, since naming is
@@ -351,6 +365,48 @@ export function FantasyTransfers() {
     },
     onError: (err: unknown) => {
       toast.error(formatErrorMessage(err, "Could not sell this player."));
+    },
+  });
+
+  // Slots a bought (or already owned) player straight into the pitch —
+  // both the Fill Slot picker and Player Selection's auto-place call this
+  // right after a buy. saveLineup always takes the whole sheet, so this
+  // resends every pick already on it plus the new one; safe to call after
+  // every signing, the same way Pick Team autosaves after every pick.
+  const assignSlotMutation = useMutation({
+    mutationFn: ({ playerId, slot }: { playerId: string; slot: FantasySlot }) => {
+      if (!season?.id || !scheduledGW?.id) {
+        throw new Error("No scheduled gameweek to add them to.");
+      }
+      const picks = [
+        ...(currentLineup?.picks ?? []).map((p) => ({
+          player_id: p.player_id,
+          slot: p.slot,
+        })),
+        { player_id: playerId, slot },
+      ];
+      return fantasyCoreApi.saveLineup({
+        season_id: season.id,
+        gameweek_id: scheduledGW.id,
+        team_name: dashboard?.team?.name || getDefaultTeamName(user?.name),
+        picks,
+        publish: false,
+      });
+    },
+    onSuccess: (res) => {
+      queryClient.setQueryData(
+        ["myFantasyLineup", season?.id, scheduledGW?.id],
+        res,
+      );
+      queryClient.invalidateQueries({ queryKey: ["fantasyDashboard"] });
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        formatErrorMessage(
+          err,
+          "Signed, but couldn't add them to your lineup — place them from Pick Team.",
+        ),
+      );
     },
   });
 
@@ -527,8 +583,116 @@ export function FantasyTransfers() {
 
   const squadFull = !!mySquad && mySquad.squad_size >= mySquad.squad_max;
 
-  // Signing from the market list: one plain buy, no slot placement.
-  const handleBuy = (playerId: string) => buyMutation.mutate(playerId);
+  // Pitch slots with no starter yet, and whether defence already holds its
+  // one permitted All-Rounder — both needed to work out which signings a
+  // slot (or a fresh signing) is actually eligible for.
+  const filledSlots = useMemo(
+    () => new Set((currentLineup?.picks ?? []).map((p) => p.slot)),
+    [currentLineup],
+  );
+  const hasDefenseAllrounder = useMemo(
+    () =>
+      (currentLineup?.picks ?? []).some(
+        (p) =>
+          SLOT_DEFINITIONS.find((def) => def.slot === p.slot)?.unit ===
+            "DEFENSE" && isAllrounderPosition(p.position),
+      ),
+    [currentLineup],
+  );
+
+  // Whether a player (owned or just bought) is eligible for a given open
+  // slot — mirrors domain.SlotSpec.Accepts on the backend: gender and
+  // position both have to fit, and defence allows only one All-Rounder.
+  const slotAccepts = (
+    def: SlotDefinition,
+    player: { position?: string; gender?: string },
+  ): boolean => {
+    if (
+      def.requiredGender &&
+      (player.gender || "").toUpperCase() !== def.requiredGender
+    ) {
+      return false;
+    }
+    if (!positionFitsSlot(def, player.position)) return false;
+    if (
+      def.unit === "DEFENSE" &&
+      isAllrounderPosition(player.position) &&
+      hasDefenseAllrounder
+    ) {
+      return false;
+    }
+    return true;
+  };
+
+  // The first open slot a freshly bought player can start in, so Player
+  // Selection signings land straight on the pitch instead of the bench.
+  const findOpenSlotFor = (player: {
+    position?: string;
+    gender?: string;
+  }): FantasySlot | null => {
+    const open = SLOT_DEFINITIONS.find(
+      (def) => !filledSlots.has(def.slot) && slotAccepts(def, player),
+    );
+    return open?.slot ?? null;
+  };
+
+  const slotPickerDef = slotPickerSlot
+    ? SLOT_DEFINITIONS.find((def) => def.slot === slotPickerSlot) ?? null
+    : null;
+
+  // Fill Slot's own market query — scoped to exactly the positions (and
+  // gender, if any) that slot accepts, independent of whatever Filter 1-4
+  // happen to be set to in Player Selection.
+  const { data: slotMarketData, isLoading: slotMarketLoading } = useQuery({
+    queryKey: ["playerMarket", season?.id, "slotPicker", slotPickerSlot],
+    queryFn: () =>
+      fantasyCoreApi.listPlayerMarket(season!.id, {
+        position: slotPickerDef!.allowedPositions.join(","),
+        gender: slotPickerDef!.requiredGender,
+        sort: "points",
+        limit: 200,
+      }),
+    enabled: !!season?.id && !!slotPickerDef,
+  });
+
+  // Market players for the open picker, already bought-out and (for
+  // defence, once it has its one All-Rounder) over-quota All-Rounders
+  // filtered out.
+  const slotPickerPlayers = useMemo(() => {
+    if (!slotPickerDef) return [];
+    const list = (slotMarketData?.data ?? []).filter(
+      (p) => !ownedIds.has(p.player_id) && p.price > 0,
+    );
+    return slotPickerDef.unit === "DEFENSE" && hasDefenseAllrounder
+      ? list.filter((p) => !isAllrounderPosition(p.position))
+      : list;
+  }, [slotMarketData, slotPickerDef, hasDefenseAllrounder, ownedIds]);
+
+  // Signing from the market list: buy, then drop them straight onto the
+  // pitch if an open slot fits them — no separate placement step needed.
+  const handleBuy = (playerId: string, player: FantasyPlayerListItem) => {
+    buyMutation.mutate(playerId, {
+      onSuccess: () => {
+        if (!scheduledGW?.id) return;
+        const slot = findOpenSlotFor(player);
+        if (slot) assignSlotMutation.mutate({ playerId, slot });
+      },
+    });
+  };
+
+  // Fill Slot: buy whoever was picked and drop them straight into the slot
+  // the picker was opened for, regardless of whether another slot might
+  // also fit them — the picker was opened for this one.
+  const handlePickForSlot = (playerId: string) => {
+    const slot = slotPickerSlot;
+    if (!slot) return;
+    buyMutation.mutate(playerId, {
+      onSuccess: () => {
+        assignSlotMutation.mutate({ playerId, slot });
+        setSlotPickerSlot(null);
+      },
+    });
+  };
 
   const handleResetMarketFilters = () => {
     setMarketSearch("");
@@ -792,7 +956,7 @@ export function FantasyTransfers() {
                           squadFull={squadFull}
                           marketClosed={marketClosed}
                           buying={buyMutation.isPending}
-                          onBuy={() => handleBuy(p.player_id)}
+                          onBuy={() => handleBuy(p.player_id, p)}
                         />
                       ))}
                     </div>
@@ -952,6 +1116,11 @@ export function FantasyTransfers() {
                               }
                             : undefined
                         }
+                        onEmptySlotClick={
+                          mySquad.market_open && scheduledGW?.id
+                            ? (slot) => setSlotPickerSlot(slot)
+                            : undefined
+                        }
                       />
                     )}
                   </div>
@@ -1007,6 +1176,30 @@ export function FantasyTransfers() {
           pending={sellMutation.isPending}
           onCancel={() => setConfirmSell(null)}
           onConfirm={() => sellMutation.mutate(confirmSell.player_id)}
+        />
+      )}
+
+      {/* ──────────────────────────────────────────────────────────────────
+                FILL SLOT PICKER
+            ────────────────────────────────────────────────────────────────── */}
+      {slotPickerSlot && slotPickerDef && mySquad && (
+        <SlotFillPicker
+          slotLabel={slotPickerDef.label}
+          requirementLabel={
+            slotPickerDef.requiredGender
+              ? `${formatPositions(slotPickerDef.allowedPositions)} (${
+                  slotPickerDef.requiredGender === "F" ? "women" : "men"
+                } only)`
+              : formatPositions(slotPickerDef.allowedPositions)
+          }
+          players={slotPickerPlayers}
+          loading={slotMarketLoading}
+          bank={mySquad.bank}
+          squadFull={squadFull}
+          marketClosed={marketClosed}
+          buying={buyMutation.isPending || assignSlotMutation.isPending}
+          onPick={handlePickForSlot}
+          onClose={() => setSlotPickerSlot(null)}
         />
       )}
 
@@ -1434,6 +1627,87 @@ function SellConfirmation({
                 ? `You would be down to ${squad.squad_size - 1} players. Under ${squad.squad_min} you cannot field a lineup at all, and you forfeit your points for that match day.`
                 : "With them gone you could not put out a legal starting fourteen. You can still sell — but buy a replacement before the deadline or you forfeit the match day."}
             </p>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Fill Slot picker (side panel opened from an empty pitch slot) ─────────
+
+function SlotFillPicker({
+  slotLabel,
+  requirementLabel,
+  players,
+  loading,
+  bank,
+  squadFull,
+  marketClosed,
+  buying,
+  onPick,
+  onClose,
+}: {
+  slotLabel: string;
+  requirementLabel: string;
+  players: FantasyPlayerListItem[];
+  loading: boolean;
+  bank: number;
+  squadFull: boolean;
+  marketClosed?: string;
+  buying: boolean;
+  onPick: (playerId: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return players;
+    return players.filter((p) => p.player_name.toLowerCase().includes(q));
+  }, [players, search]);
+
+  return (
+    <Modal
+      open
+      shape="square"
+      position="right"
+      onClose={onClose}
+      title={`Fill ${slotLabel}`}
+      subtitle={`Eligible: ${requirementLabel}`}
+      maxWidth="md"
+    >
+      <div className="space-y-3">
+        <Input
+          type="search"
+          shape="square"
+          icon={MagnifyingGlassIcon}
+          placeholder="Search players..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        {loading ? (
+          <Spinner label="Loading eligible players…" className="py-12" />
+        ) : filtered.length === 0 ? (
+          <p className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+            {players.length === 0
+              ? `No one left on the market fits ${slotLabel}.`
+              : "No players match your search."}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((p) => (
+              <MarketPlayerRow
+                key={p.player_id}
+                player={p}
+                marketSort="points"
+                bank={bank}
+                squadFull={squadFull}
+                marketClosed={marketClosed}
+                buying={buying}
+                onBuy={() => onPick(p.player_id)}
+              />
+            ))}
           </div>
         )}
       </div>

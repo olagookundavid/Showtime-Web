@@ -348,6 +348,10 @@ export interface FantasyPitchProps {
   onPlayerClick?: (pick: FantasyLineupPick) => void;
   /** Handler for slot clicks in builder mode */
   onSlotClick?: (slot: FantasySlot, player: PitchPlayerItem | null) => void;
+  /** Display mode only: tapping an empty slot's "+" — opens whatever the
+   * caller uses to fill it (e.g. Transfers' Fill Slot picker). Omit it and
+   * an empty slot stays inert, same as before. */
+  onEmptySlotClick?: (slot: FantasySlot) => void;
   /** Unit filter control ('ALL' | 'OFFENSE' | 'DEFENSE') */
   selectedUnitTab?: "ALL" | "OFFENSE" | "DEFENSE";
   onUnitTabChange?: (tab: "ALL" | "OFFENSE" | "DEFENSE") => void;
@@ -362,7 +366,10 @@ export interface FantasyPitchProps {
   /** Builder mode only: drag a starter onto another slot (empty = move, filled = swap). */
   onSwapSlots?: (from: FantasySlot, to: FantasySlot) => void;
   /** Builder mode only: drag a starter down onto a substitute token to swap them — the reverse of dragging the substitute up onto that slot. */
-  onSwapWithSubstitute?: (from: FantasySlot, substitutePlayerId: string) => void;
+  onSwapWithSubstitute?: (
+    from: FantasySlot,
+    substitutePlayerId: string,
+  ) => void;
   /** A reserve is being dragged in from outside; these highlight and un-dim slots for the drop. */
   dropHighlightSlot?: FantasySlot | null;
   reserveDragActive?: boolean;
@@ -421,6 +428,7 @@ export function FantasyPitch({
   title = "My starting lineup",
   onPlayerClick,
   onSlotClick,
+  onEmptySlotClick,
   selectedUnitTab,
   onUnitTabChange,
   actionSlot,
@@ -721,6 +729,8 @@ export function FantasyPitch({
       } else {
         openPlayerProfile(item);
       }
+    } else if (onEmptySlotClick) {
+      onEmptySlotClick(spot.slot);
     }
   };
 
@@ -905,7 +915,7 @@ export function FantasyPitch({
                 aria-pressed={isSpotSelected}
                 aria-label={
                   empty
-                    ? `${spot.role} — ${mode === "builder" ? "Tap to draft athlete" : "no player selected"}`
+                    ? `${spot.role} — ${mode === "builder" ? "Tap to draft athlete" : onEmptySlotClick ? "tap to sign a player for this slot" : "no player selected"}`
                     : `${spot.role}: ${pick.player_name ?? "Unnamed player"}, ${positionLabel}, ${isFemale ? "female" : "male"}${isSpotInvalid ? `, cannot start: ${pick.invalidReason}` : ""} - ${mode === "builder" ? "click to manage" : "click to view details"}`
                 }
                 className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 sm:gap-1 w-14 min-[400px]:w-17 sm:w-21.5 px-0.5 py-0.5 select-none [-webkit-touch-callout:none] ${
@@ -1028,7 +1038,10 @@ export function FantasyPitch({
                       title="Remove from squad"
                       className="absolute -top-1.5 -left-1.5 z-30 w-5 h-5 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow-lg transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-3"
                     >
-                      <XMarkIcon className="w-3 h-3 stroke-[3]" aria-hidden="true" />
+                      <XMarkIcon
+                        className="w-3 h-3 stroke-3"
+                        aria-hidden="true"
+                      />
                     </button>
                   )}
                 </div>
@@ -1201,7 +1214,7 @@ export function FantasyPitch({
                           className="absolute -top-1 -left-1 z-20 w-4 h-4 rounded-full bg-gray-500 hover:bg-red-600 text-white flex items-center justify-center border-2 border-white shadow transition-all opacity-90 hover:opacity-100 before:absolute before:-inset-3"
                         >
                           <XMarkIcon
-                            className="w-2.5 h-2.5 stroke-[3]"
+                            className="w-2.5 h-2.5 stroke-3"
                             aria-hidden="true"
                           />
                         </button>
