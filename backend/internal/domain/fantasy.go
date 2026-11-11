@@ -182,6 +182,14 @@ type LineupCandidate struct {
 	Gender   string
 	TeamID   string
 	Price    float64
+	// Image and the TeamX fields are display-only — the validation rules
+	// never read them — but SaveLineup's response reuses this struct to
+	// build the pitch's picks, so it needs them to avoid handing back a
+	// lineup with every avatar blank until the next full refetch.
+	Image         string
+	TeamName      string
+	TeamShortName string
+	TeamLogo      string
 }
 
 // LineupRules are the season's configurable squad constraints.

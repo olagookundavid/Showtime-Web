@@ -1433,7 +1433,8 @@ func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, g
 
 	query := `
 		SELECT p.id, p.name, COALESCE(p.position, '-'), COALESCE(p.gender, 'M'), COALESCE(p.team_id::text, ''),
-		       COALESCE(gwp.price, openp.price, 3.00)
+		       COALESCE(gwp.price, openp.price, 3.00),
+		       COALESCE(p.image, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN fantasy_player_prices gwp
@@ -1459,7 +1460,10 @@ func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, g
 	out := make(map[string]domain.LineupCandidate, len(playerIDs))
 	for rows.Next() {
 		var c domain.LineupCandidate
-		if err := rows.Scan(&c.PlayerID, &c.Name, &c.Position, &c.Gender, &c.TeamID, &c.Price); err != nil {
+		if err := rows.Scan(
+			&c.PlayerID, &c.Name, &c.Position, &c.Gender, &c.TeamID, &c.Price,
+			&c.Image, &c.TeamName, &c.TeamShortName, &c.TeamLogo,
+		); err != nil {
 			return nil, err
 		}
 		out[c.PlayerID] = c

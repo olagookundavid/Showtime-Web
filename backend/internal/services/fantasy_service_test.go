@@ -450,6 +450,13 @@ func ownsPool(repo *fakeFantasyRepo) *fakeSquadRepo {
 type fakeSquadRepo struct {
 	owned []domain.LineupCandidate
 
+	// marketPrice and marketClub are what GetMarketPlayer hands back for
+	// whichever player a test is about to buy. Left at zero values, a buy
+	// reads as "not on the market" — the same refusal every test before the
+	// club cap relied on without needing to set these.
+	marketPrice float64
+	marketClub  string
+
 	// bought and sold count the trades that actually reached the database, so a
 	// test can tell "refused" from "went through and was undone".
 	bought, sold int
@@ -470,7 +477,7 @@ func (f *fakeSquadRepo) ListSquad(_ context.Context, teamID, _ string) ([]domain
 func (f *fakeSquadRepo) GetBank(context.Context, string) (float64, error) { return 0, nil }
 
 func (f *fakeSquadRepo) GetMarketPlayer(context.Context, string, string) (float64, string, error) {
-	return 0, "", nil
+	return f.marketPrice, f.marketClub, nil
 }
 
 func (f *fakeSquadRepo) BuyPlayer(context.Context, string, string, float64) error {

@@ -25,10 +25,14 @@ const (
 	SquadSubs = SquadMax - SquadMin
 )
 
-// The squad itself carries no positional, gender or club restrictions. A
-// manager may own any nineteen players they can afford. Every rule — the slots,
-// the female minimums, the club cap — is enforced where it decides the outcome:
-// on the fourteen who take the field. The squad screen shows those rules as a
+// The squad itself carries no positional or gender restrictions — a manager
+// may own any nineteen players they can afford, of any mix of positions and
+// genders. The club cap is the one squad-level rule (FantasySquadService.
+// BuyPlayer refuses a buy that would break it), because unlike the others it
+// cannot be fixed later: an over-subscribed club's extra players can never
+// start no matter how the rest of the squad changes. The slots and the female
+// minimums stay lineup-only, enforced where they decide the outcome — on the
+// fourteen who take the field. The squad screen shows those rules as a
 // checklist so nobody assembles nineteen players and only then discovers they
 // cannot field a legal team.
 

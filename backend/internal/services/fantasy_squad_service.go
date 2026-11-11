@@ -139,16 +139,16 @@ func (s *FantasySquadService) BuyPlayer(ctx context.Context, userID, seasonID, p
 		return nil, err
 	}
 
-	team, _, squad, _, err := s.squadContext(ctx, userID, seasonID)
+	team, season, squad, _, err := s.squadContext(ctx, userID, seasonID)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(squad) >= domain.SquadMax {
-		return nil, fmt.Errorf("your squad is full at %d players — sell someone before signing another", domain.SquadMax)
+		return nil, fmt.Errorf("your squad is full at %d players, sell someone before signing another", domain.SquadMax)
 	}
 
-	price, _, err := s.repo.GetMarketPlayer(ctx, seasonID, playerID)
+	price, clubID, err := s.repo.GetMarketPlayer(ctx, seasonID, playerID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,10 +156,25 @@ func (s *FantasySquadService) BuyPlayer(ctx context.Context, userID, seasonID, p
 		return nil, errors.New("this player is not on the market for this season")
 	}
 
-	// No club cap, no positional quota and no gender rule here: the squad is
-	// unrestricted, and every one of those is enforced on the starting fourteen
-	// instead. The readiness checklist in the response is what warns a manager
-	// that the squad they are assembling cannot field a legal team sheet.
+	// The club cap is the one squad-level restriction: it is the only rule
+	// that gets harder to fix the more a manager ignores it (every extra
+	// buy from an over-subscribed club is one more player who can never
+	// start), so it is enforced here rather than left to the readiness
+	// checklist. No positional quota and no gender rule here, though — the
+	// squad stays unrestricted on those, and both are enforced on the
+	// starting fourteen instead.
+	if season.MaxPerClub > 0 && clubID != "" {
+		fromClub := 0
+		for _, p := range squad {
+			if p.ClubID == clubID {
+				fromClub++
+			}
+		}
+		if fromClub >= season.MaxPerClub {
+			return nil, fmt.Errorf("you already own %d players from this club, the most your squad can hold", season.MaxPerClub)
+		}
+	}
+
 	if err := s.repo.BuyPlayer(ctx, team.ID, playerID, price); err != nil {
 		return nil, err
 	}
