@@ -1073,6 +1073,7 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 	if t.LastEntryAt != nil {
 		res.LastEntryAt = t.LastEntryAt.UTC().Format(time.RFC3339)
 	}
+	res.PriorPurchases = t.PriorPurchases
 	if t.ValidUntil != nil {
 		res.ValidUntil = *t.ValidUntil
 	}

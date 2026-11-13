@@ -13,12 +13,11 @@ import {
     SectionKicker,
     MetricCard,
     RankedBarList,
-    DataTable,
-    type Column,
+    RepeatCustomersReport,
 } from '../../components';
 import { getAdminAnalytics } from '../../services';
 import { formatNaira } from '../../utils';
-import type { TicketResponse, SiteBreakdownRow } from '../../types';
+import type { SiteBreakdownRow } from '../../types';
 
 const QUICK_ACTIONS = [
     {
@@ -66,51 +65,6 @@ const QUICK_ACTIONS = [
 // "team_head" -> "Team Head"
 const formatRoleName = (role: string) => role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-// A stable empty list, so the table isn't handed a fresh array on every render.
-const NO_SALES: TicketResponse[] = [];
-
-// No dependencies, so the columns live here rather than in a useMemo.
-const SALES_COLUMNS: Column<TicketResponse>[] = [
-    {
-        header: 'Match day',
-        cell: (sale) => (
-            <span className="font-bold text-sffl-navy dark:text-white">
-                {sale.days.length > 1
-                    ? `Game Pass · ${sale.days.length} match days`
-                    : sale.days[0]?.title || '—'}
-            </span>
-        ),
-    },
-    {
-        header: 'Ticket',
-        cell: (sale) => (
-            <span className="text-sm font-bold bg-gray-100 dark:bg-gray-600 dark:text-gray-200 px-2 py-1 rounded">
-                {sale.product_name || '—'}
-            </span>
-        ),
-    },
-    { header: 'Qty', align: 'center', cell: (sale) => sale.quantity },
-    {
-        header: 'Amount',
-        align: 'right',
-        sortable: true,
-        sortValue: (sale) => sale.total_amount,
-        cell: (sale) => <span className="font-bold text-green-600">{formatNaira(sale.total_amount)}</span>,
-    },
-    {
-        header: 'Purchaser',
-        cell: (sale) => <span className="text-sm text-gray-600 dark:text-gray-400 break-all">{sale.email}</span>,
-    },
-    {
-        header: 'Time',
-        sortable: true,
-        sortValue: (sale) => sale.created_at,
-        cell: (sale) => (
-            <span className="text-xs text-gray-500 dark:text-gray-400">{new Date(sale.created_at).toLocaleString()}</span>
-        ),
-    },
-];
-
 export const Dashboard = () => {
     const {
         data: analytics,
@@ -147,7 +101,6 @@ export const Dashboard = () => {
         users_by_role = {},
         sales_by_tier = [],
     } = analytics || {};
-    const recentSales = analytics?.recent_sales ?? NO_SALES;
 
     const usersByRoleRows: SiteBreakdownRow[] = Object.entries(users_by_role)
         .map(([name, count]) => ({ name, count }))
@@ -209,17 +162,6 @@ export const Dashboard = () => {
 
             {/* Charts */}
             <div className="space-y-6 sm:space-y-8">
-                <div>
-                    <SectionKicker>Platform</SectionKicker>
-                    <RankedBarList
-                        title="Users Breakdown"
-                        countLabel="users"
-                        rows={usersByRoleRows}
-                        formatName={formatRoleName}
-                        showShareOfTotal
-                        emptyMessage="No user data available to chart."
-                    />
-                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                     <div>
                         <SectionKicker>Sales</SectionKicker>
@@ -246,21 +188,10 @@ export const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Recent Sales Table */}
+            {/* Weekly repeat-customer report, with a game day filter */}
             <div>
                 <SectionKicker>Sales</SectionKicker>
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 border-gray-200 dark:border-gray-700 border">
-                    <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white mb-4">Recent Ticket Sales</h2>
-                    {/* The API sends at most the 10 latest sales, so there is nothing to page. */}
-                    <DataTable
-                        data={recentSales}
-                        columns={SALES_COLUMNS}
-                        searchable={false}
-                        paginated={false}
-                        getRowId={(sale) => sale.id}
-                        emptyMessage="No recent ticket sales found."
-                    />
-                </div>
+                <RepeatCustomersReport />
             </div>
         </div>
     );

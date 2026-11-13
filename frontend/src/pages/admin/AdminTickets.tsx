@@ -575,6 +575,26 @@ export const AdminTickets = () => {
         ),
       },
       {
+        header: "Repeat customer",
+        sortable: true,
+        sortValue: (t) => t.prior_purchases ?? -1,
+        cell: (t) =>
+          t.prior_purchases === undefined ? (
+            <span className="text-gray-400">—</span>
+          ) : t.prior_purchases === 0 ? (
+            <span className="text-sm text-gray-600 dark:text-gray-300">New</span>
+          ) : (
+            <div>
+              <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                Returning
+              </span>
+              <p className="mt-1 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                {t.prior_purchases} earlier {t.prior_purchases === 1 ? "purchase" : "purchases"}
+              </p>
+            </div>
+          ),
+      },
+      {
         header: "Checked in",
         sortable: true,
         sortValue: (t) => checkinAt(t, selectedEventDay) ?? "",

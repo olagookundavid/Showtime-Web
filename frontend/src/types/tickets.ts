@@ -145,6 +145,8 @@ export interface TicketResponse {
     valid_until?: string;
     /** Set for a Season Pass: when it last got its holder in (it has no match days to carry a check-in). */
     last_entry_at?: string;
+    /** Earlier purchases by the same buyer; 0 is a new customer. Absent for tickets that aren't paid purchases. */
+    prior_purchases?: number;
     /** Set on a player ticket looked up by code: who it admits and for which match. */
     player?: PlayerTicketHolder;
     days: TicketDayResponse[];

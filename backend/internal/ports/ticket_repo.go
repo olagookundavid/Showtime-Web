@@ -86,7 +86,6 @@ type TicketRepository interface {
 	ExpirePastTickets(ctx context.Context) (int64, error)
 	GetTotalRevenue(ctx context.Context) (int, error)
 	GetTotalTicketsSold(ctx context.Context) (int, error)
-	GetRecentSales(ctx context.Context, limit int) ([]domain.Ticket, error)
 	CountByTeamAndEventDay(ctx context.Context, teamID string, eventDayID string) (int, error)
 	CreateReferralCode(ctx context.Context, rc *domain.TicketReferralCode) error
 	GetReferralCode(ctx context.Context, code string) (*domain.TicketReferralCode, error)
@@ -933,7 +932,19 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := r.attachPriorPurchases(ctx, tickets); err != nil {
+		return nil, 0, err
+	}
 	return tickets, total, nil
+}
+
+// attachPriorPurchases tells the admin lists whether each buyer is a repeat customer.
+func (r *PostgresTicketRepository) attachPriorPurchases(ctx context.Context, tickets []domain.Ticket) error {
+	ptrs := make([]*domain.Ticket, len(tickets))
+	for i := range tickets {
+		ptrs[i] = &tickets[i]
+	}
+	return loadPriorPurchases(ctx, r.db, ptrs)
 }
 
 func (r *PostgresTicketRepository) MarkPaid(ctx context.Context, id string) (bool, error) {
@@ -1086,6 +1097,9 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := r.attachPriorPurchases(ctx, tickets); err != nil {
+		return nil, 0, err
+	}
 	return tickets, total, nil
 }
 
@@ -1137,19 +1151,6 @@ func (r *PostgresTicketRepository) GetTotalTicketsSold(ctx context.Context) (int
 	var total int
 	err := r.db.QueryRow(ctx, query).Scan(&total)
 	return total, err
-}
-
-func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int) ([]domain.Ticket, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT `+ticketColumns+`
-		FROM tickets t
-		WHERE t.status IN ('PAID', 'USED') AND t.purchase_type <> 'PLAYER'
-		ORDER BY t.created_at DESC
-		LIMIT $1`, limit)
-	if err != nil {
-		return nil, err
-	}
-	return r.scanTickets(ctx, rows)
 }
 
 func (r *PostgresTicketRepository) CountByTeamAndEventDay(ctx context.Context, teamID string, eventDayID string) (int, error) {

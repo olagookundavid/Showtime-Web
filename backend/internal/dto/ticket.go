@@ -206,6 +206,9 @@ type TicketResponse struct {
 	ReferralCode            string  `json:"referral_code,omitempty"`
 	// LastEntryAt is set for a season pass: when it last got its holder in.
 	LastEntryAt string `json:"last_entry_at,omitempty"`
+	// PriorPurchases is how many earlier purchases this buyer made; 0 is a new
+	// customer. Left out where it was not worked out.
+	PriorPurchases *int `json:"prior_purchases,omitempty"`
 	// Player is set on a player ticket when it is looked up at the gate: who it
 	// admits and the match they are named for.
 	Player *PlayerTicketHolderResponse `json:"player,omitempty"`

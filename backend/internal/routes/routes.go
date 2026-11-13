@@ -229,6 +229,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	analyticsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "dashboard"))
 	{
 		analyticsGroup.GET("", app.Handlers.AnalyticsHandler.GetAnalytics)
+		analyticsGroup.GET("/repeat-customers", app.Handlers.AnalyticsHandler.GetRepeatCustomers)
 	}
 
 	// Visitor traffic. Same "dashboard" feature as the sales analytics above,
