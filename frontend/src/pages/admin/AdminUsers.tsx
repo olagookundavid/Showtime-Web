@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, Input, Modal, Select, DashboardPageHeader, RankedBarList } from '../../components';
 import { getAdminUsers, getAdminRoleOptions, updateUserRole, updateUserInfo, getAdminAnalytics } from '../../services';
 import { usePermissions } from '../../hooks';
@@ -61,6 +61,7 @@ const AdminUsers = () => {
                 .sort((a, b) => b.count - a.count),
         [roleCounts],
     );
+    const [breakdownOpen, setBreakdownOpen] = useState(false);
     const roleLabel = useCallback((role: string) => roleOptions.find((r) => r.key === role)?.name ?? role, [roleOptions]);
 
     const users: UserResponse[] = usersData?.data ?? NO_ROWS;
@@ -245,14 +246,11 @@ const AdminUsers = () => {
             )}
 
             {canSeeBreakdown && (
-                <RankedBarList
-                    title="Users Breakdown"
-                    countLabel="users"
-                    rows={roleBreakdownRows}
-                    formatName={roleLabel}
-                    showShareOfTotal
-                    emptyMessage="No user data available to chart."
-                />
+                <div>
+                    <Button variant="link" icon={ChartBarIcon} onClick={() => setBreakdownOpen(true)}>
+                        See breakdown
+                    </Button>
+                </div>
             )}
 
             {/* Users Table */}
@@ -271,6 +269,26 @@ const AdminUsers = () => {
                     setPage(1);
                 }}
             />
+
+            {breakdownOpen && (
+                <Modal
+                    open
+                    onClose={() => setBreakdownOpen(false)}
+                    title="Users Breakdown"
+                    subtitle="How many users hold each role."
+                    maxWidth="full"
+                    footer={<Button variant="secondary" onClick={() => setBreakdownOpen(false)}>Close</Button>}
+                >
+                    <RankedBarList
+                        title="Users by role"
+                        countLabel="users"
+                        rows={roleBreakdownRows}
+                        formatName={roleLabel}
+                        showShareOfTotal
+                        emptyMessage="No user data available to chart."
+                    />
+                </Modal>
+            )}
 
             {/* Edit User Modal */}
             {editingUser && (
