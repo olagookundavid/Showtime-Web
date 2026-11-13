@@ -76,6 +76,7 @@ const (
 	FeatureAppSettings        = "app_settings"
 	FeatureCommentModeration  = "comment_moderation"
 	FeatureRoles              = "roles"
+	FeatureAuditLog           = "audit_log"
 	FeatureSellerTools        = "seller_tools"
 	FeatureAdministratorTools = "administrator_tools"
 )
@@ -123,6 +124,7 @@ var FeatureCatalog = []FeatureDef{
 
 	{FeatureUserManagement, "Users", "System", "View users and change their role.", true},
 	{FeatureRoles, "Roles & permissions", "System", "Create roles and decide what each can do.", true},
+	{FeatureAuditLog, "Audit trail", "System", "See who changed what, and what the system did on its own.", true},
 	{FeatureAppSettings, "App settings", "System", "Site-wide settings.", true},
 	{FeatureAdministratorTools, "Administrator tools", "System", "Superuser-only tools. Only App Admin has these.", true},
 }

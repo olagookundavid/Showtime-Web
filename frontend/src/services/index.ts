@@ -347,3 +347,4 @@ export { fantasySquadApi } from './fantasy/squad';
 export { fantasyWalletApi, koboToNaira, formatKobo } from './fantasy/wallet';
 
 export { fantasyAdminApi } from './fantasy/admin';
+export { auditApi } from './audit';

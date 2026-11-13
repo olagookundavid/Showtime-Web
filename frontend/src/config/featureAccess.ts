@@ -41,6 +41,7 @@ export type FeatureKey =
   | "fantasy_carousel"
   | "faqs"
   | "media"
+  | "audit_log"
   | "live_stream"
   | "comment_moderation"
   | "season_mvps"

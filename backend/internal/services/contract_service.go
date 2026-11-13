@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -25,6 +26,9 @@ type IContractService interface {
 	CheckAndExpireContracts(ctx context.Context, teamIDs ...string) (int, error)
 	AdminOverrideContract(ctx context.Context, id string, status string, reason string) error
 	AdminForceAcceptContract(ctx context.Context, contractID string, adminUserID string, adminName string) error
+	GetResignablePlayers(ctx context.Context, teamID string) ([]dto.ResignablePlayerResponse, error)
+	// SendLeagueExpiryDigest sends commissioners the weekly league-wide summary.
+	SendLeagueExpiryDigest(ctx context.Context) error
 }
 
 type ContractService struct {
@@ -32,15 +36,36 @@ type ContractService struct {
 	playerRepo   ports.PlayerRepository
 	notifService INotificationService
 	windowRepo   ports.ITransferWindowRepository
+	// auditService records what the platform does on its own (contract expiry), which
+	// the request-level audit middleware can never see. May be nil in tests.
+	auditService IAuditService
+	// digest sends team managers their "contracts running out" summary whenever an
+	// expiry run changes something for their team. May be nil in tests.
+	digest IContractDigestService
+	// settings supplies the admin-editable contract numbers. May be nil in tests, in
+	// which case the built-in defaults apply.
+	settings IAppSettingService
 }
 
-func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerRepository, notifService INotificationService, windowRepo ports.ITransferWindowRepository) IContractService {
+func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerRepository, notifService INotificationService, windowRepo ports.ITransferWindowRepository, auditService IAuditService, digest IContractDigestService, settings IAppSettingService) IContractService {
 	return &ContractService{
 		repo:         repo,
 		playerRepo:   playerRepo,
 		notifService: notifService,
 		windowRepo:   windowRepo,
+		auditService: auditService,
+		digest:       digest,
+		settings:     settings,
 	}
+}
+
+// contractSettings is the admin-editable contract numbers, or the defaults when no
+// settings source is wired in.
+func (s *ContractService) contractSettings(ctx context.Context) domain.ContractSettings {
+	if s.settings == nil {
+		return domain.DefaultContractSettings()
+	}
+	return s.settings.ContractSettings(ctx)
 }
 
 // ProvisionInitialContract gives a newly onboarded player their first contract:
@@ -68,7 +93,7 @@ func (s *ContractService) ProvisionInitialContract(ctx context.Context, playerID
 		return nil
 	}
 
-	length := domain.InitialContractMatches
+	length := s.contractSettings(ctx).OnboardingLength
 	if contractLength != nil && *contractLength > 0 {
 		length = *contractLength
 	}
@@ -90,20 +115,35 @@ func (s *ContractService) ProvisionInitialContract(ctx context.Context, playerID
 	})
 }
 
-func (s *ContractService) IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error) {
-	// Verify transfer window is open for signing free agents
-	open, err := s.windowRepo.IsWindowOpen(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check transfer window: %w", err)
+// isOwnExpiredPlayer reports whether the player is a free agent whose last contract
+// ran out with this team. A team may re-sign its own such players at any time: the
+// window exists to govern moves between clubs, and an expiry in mid-season would
+// otherwise strand a team's whole roster until the next window.
+func (s *ContractService) isOwnExpiredPlayer(ctx context.Context, player *domain.Player, teamID string) bool {
+	if player.TeamID != "" {
+		return false
 	}
-	if !open {
-		return nil, fmt.Errorf("transfer window is currently closed: free agents can only be signed during an open transfer window")
-	}
+	last, err := s.repo.GetLastContractByPlayerID(ctx, player.ID)
+	return err == nil && last != nil && last.Status == "EXPIRED" && last.TeamID == teamID
+}
 
+func (s *ContractService) IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error) {
 	// Verify player exists
 	player, err := s.playerRepo.GetPlayerByID(ctx, req.PlayerID)
 	if err != nil || player == nil {
 		return nil, fmt.Errorf("player not found")
+	}
+
+	resign := s.isOwnExpiredPlayer(ctx, player, teamID)
+	if !resign {
+		// Signing someone else's player, or a free agent, needs an open window.
+		open, err := s.windowRepo.IsWindowOpen(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check transfer window: %w", err)
+		}
+		if !open {
+			return nil, fmt.Errorf("transfer window is currently closed: free agents can only be signed during an open transfer window. Your own players whose contracts expired can still be re-signed")
+		}
 	}
 
 	// Verify no active contract exists for player
@@ -118,7 +158,7 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 		return nil, fmt.Errorf("cannot issue contract: team already has %d main players (maximum 25). Move players to reserve or release players before signing new players", mainCount)
 	}
 
-	contractLength := 13
+	contractLength := s.contractSettings(ctx).DefaultLength
 	if req.ContractLength != nil && *req.ContractLength > 0 {
 		contractLength = *req.ContractLength
 	}
@@ -130,19 +170,43 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 
 	matchesAtStart, _ := s.repo.GetTeamFinishedMatchCount(ctx, teamID)
 
+	hasAccount := player.UserID != nil && *player.UserID != ""
+
+	// Re-signing an own player who has no account starts the contract straight away,
+	// for the same reason a newly onboarded player's does: there is nobody to accept
+	// an offer, so a PENDING one would sit forever and the player could never play.
+	status := "PENDING"
+	notes := req.Notes
+	if resign && !hasAccount {
+		status = "ACTIVE"
+		if notes == "" {
+			notes = "Re-signed after contract expiry"
+		}
+	}
+
 	c := &domain.Contract{
 		PlayerID:       req.PlayerID,
 		TeamID:         teamID,
-		Status:         "PENDING",
+		Status:         status,
 		ContractLength: contractLength,
 		MatchesAtStart: matchesAtStart,
 		PlayerValue:    playerValue,
 		OfferedBy:      managerUserID,
-		Notes:          req.Notes,
+		Notes:          notes,
 	}
 
 	if err := s.repo.CreateContract(ctx, c); err != nil {
 		return nil, fmt.Errorf("failed to issue contract: %w", err)
+	}
+
+	if status == "ACTIVE" {
+		player.TeamID = teamID
+		if err := s.playerRepo.UpdatePlayer(ctx, player); err != nil {
+			// Never leave an ACTIVE contract on a player who isn't on the team.
+			_ = s.repo.UpdateContractStatus(ctx, c.ID, "TERMINATED", "RESIGN_FAILED", nil, nil, ptrTime(time.Now()))
+			return nil, fmt.Errorf("failed to add the player back to the team: %w", err)
+		}
+		return s.GetContractByID(ctx, c.ID)
 	}
 
 	// Send notification if player has user_id
@@ -248,7 +312,7 @@ func (s *ContractService) RenewContract(ctx context.Context, contractID string, 
 		currentRemaining = 0
 	}
 
-	extension := 13
+	extension := s.contractSettings(ctx).DefaultLength
 	if req.ContractLength != nil && *req.ContractLength > 0 {
 		extension = *req.ContractLength
 	}
@@ -443,6 +507,32 @@ func (s *ContractService) GetContractByID(ctx context.Context, id string) (*dto.
 	return &res, nil
 }
 
+// auditExpiry records a contract expiring and its player being released to free agency.
+// Nobody clicked anything, so without this the only trace is the contract row itself and
+// a roster that quietly shrank.
+func (s *ContractService) auditExpiry(c domain.Contract, player *domain.Player, teamName string, teamMatches int) {
+	if s.auditService == nil {
+		return
+	}
+	details, err := json.Marshal(map[string]interface{}{
+		"summary":          fmt.Sprintf("%s's %d-match contract with %s ran out; released to free agency", player.Name, c.ContractLength, teamName),
+		"contract_id":      c.ID,
+		"player_id":        player.ID,
+		"player_name":      player.Name,
+		"team_id":          c.TeamID,
+		"team_name":        teamName,
+		"contract_length":  c.ContractLength,
+		"matches_at_start": c.MatchesAtStart,
+		"team_matches":     teamMatches,
+	})
+	if err != nil {
+		return
+	}
+	detailsStr := string(details)
+	playerID := player.ID
+	s.auditService.LogAction(nil, "CONTRACT_EXPIRED", "player", &playerID, &detailsStr)
+}
+
 func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs ...string) (int, error) {
 	contracts, err := s.repo.GetExpiringContracts(ctx, teamIDs...)
 	if err != nil {
@@ -451,6 +541,10 @@ func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs .
 
 	expiredCount := 0
 	now := time.Now()
+	// Teams whose managers get a fresh summary at the end of this run: a player
+	// expired, or crossed into the last three matches.
+	changedTeams := map[string]bool{}
+	warnMatches := s.contractSettings(ctx).WarningMatches
 
 	for _, c := range contracts {
 		currentMatches, err := s.repo.GetTeamFinishedMatchCount(ctx, c.TeamID)
@@ -497,6 +591,9 @@ func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs .
 				continue
 			}
 			expiredCount++
+			changedTeams[c.TeamID] = true
+
+			s.auditExpiry(c, player, teamName, currentMatches)
 
 			if oldTeamID != "" {
 				_ = s.repo.RemovePlayerFromScheduledTeamSheets(ctx, player.ID, oldTeamID)
@@ -511,44 +608,78 @@ func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs .
 				_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_EXPIRED", "Contract Expired", msg, "contract", &refID)
 			}
 
-			// Notify manager
-			if c.OfferedBy != "" {
-				msg := fmt.Sprintf("Player %s's contract has expired. They are now a free agent.", player.Name)
-				refID := c.ID
-				_ = s.notifService.Send(ctx, c.OfferedBy, "CONTRACT_EXPIRED", "Player Contract Expired", msg, "contract", &refID)
-			}
-
-			_ = s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, 0)
+			// The team's managers hear about it in the summary sent after this loop.
+			_, _ = s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, 0)
 			continue
 		}
 
-		// 2. Send 3-matches, 2-matches, 1-match remaining notifications (only once per threshold)
-		if remainingMatches <= 3 && c.LastNotifiedRemaining != remainingMatches {
+		// 2. Entering the warning period (the last few matches). Claim the threshold first, so two
+		// overlapping runs (the 10-minute job and a match finishing) announce it once.
+		if remainingMatches <= warnMatches && c.LastNotifiedRemaining != remainingMatches {
+			claimed, err := s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, remainingMatches)
+			if err != nil || !claimed {
+				continue
+			}
+			changedTeams[c.TeamID] = true
+
 			matchText := "matches"
 			if remainingMatches == 1 {
 				matchText = "match"
 			}
 
-			// Notify Player
+			// The player hears about their own contract; the team's managers get the
+			// whole squad in one summary after this loop.
 			if pErr == nil && player != nil && player.UserID != nil && *player.UserID != "" {
 				msg := fmt.Sprintf("Your contract has %d %s remaining.", remainingMatches, matchText)
 				refID := c.ID
 				_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_WARNING", "Contract Expiring Soon", msg, "contract", &refID)
 			}
-
-			// Notify Manager
-			if c.OfferedBy != "" && player != nil {
-				msg := fmt.Sprintf("Player %s's contract has %d %s remaining.", player.Name, remainingMatches, matchText)
-				refID := c.ID
-				_ = s.notifService.Send(ctx, c.OfferedBy, "CONTRACT_WARNING", "Player Contract Expiring Soon", msg, "contract", &refID)
-			}
-
-			_ = s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, remainingMatches)
 		}
+	}
+
+	if s.digest != nil && len(changedTeams) > 0 {
+		teamIDs := make([]string, 0, len(changedTeams))
+		for id := range changedTeams {
+			teamIDs = append(teamIDs, id)
+		}
+		_ = s.digest.NotifyTeams(ctx, teamIDs)
 	}
 
 	return expiredCount, nil
 }
+
+// GetResignablePlayers lists the team's own players whose contracts expired and who
+// haven't signed anywhere since: the ones it can re-sign outside a transfer window.
+func (s *ContractService) GetResignablePlayers(ctx context.Context, teamID string) ([]dto.ResignablePlayerResponse, error) {
+	rows, err := s.repo.GetResignablePlayers(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dto.ResignablePlayerResponse, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, dto.ResignablePlayerResponse{
+			ID:                 r.PlayerID,
+			Name:               r.Name,
+			Position:           r.Position,
+			Image:              r.Image,
+			JerseyNumber:       r.JerseyNumber,
+			HasAccount:         r.UserID != nil && *r.UserID != "",
+			LastContractLength: r.ContractLength,
+			ExpiredAt:          r.ExpiredAt.Format(time.RFC3339),
+			OfferPending:       r.OfferPending,
+		})
+	}
+	return out, nil
+}
+
+func (s *ContractService) SendLeagueExpiryDigest(ctx context.Context) error {
+	if s.digest == nil {
+		return nil
+	}
+	return s.digest.SendLeagueDigest(ctx)
+}
+
+func ptrTime(t time.Time) *time.Time { return &t }
 
 func (s *ContractService) AdminOverrideContract(ctx context.Context, id string, status string, reason string) error {
 	now := time.Now()

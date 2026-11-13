@@ -557,6 +557,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		administratorGroup.POST("/gift-ticket", app.Handlers.TicketHandler.GiftTicket)
 	}
 
+	// The audit trail is read-only: a role with view access is enough.
+	auditGroup := adminRoutes.Group("/audit-logs")
+	auditGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureAuditLog))
+	{
+		auditGroup.GET("", app.Handlers.AuditHandler.ListAuditLogs)
+	}
+
 	adminContracts := adminRoutes.Group("/contracts")
 	adminContracts.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "contracts"))
 	{
@@ -586,7 +593,12 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	adminSettings := adminRoutes.Group("/app-settings")
 	adminSettings.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "app_settings"))
 	{
+		adminSettings.GET("", app.Handlers.AppSettingHandler.GetAdminSettings)
+		adminSettings.GET("/staff", app.Handlers.AppSettingHandler.SearchStaff)
 		adminSettings.PUT("/font", app.Handlers.AppSettingHandler.UpdateAppFont)
+		adminSettings.PUT("/contracts", app.Handlers.AppSettingHandler.UpdateContractSettings)
+		adminSettings.PUT("/notifications", app.Handlers.AppSettingHandler.UpdateNotificationSettings)
+		adminSettings.PUT("/fantasy", app.Handlers.AppSettingHandler.UpdateFantasySettings)
 	}
 
 	// Live stream control — read the current state (including what auto
@@ -941,6 +953,7 @@ func SetupContractRoutes(r *gin.RouterGroup, app *api.Application) {
 		contractGroup.POST("", app.Handlers.ContractHandler.IssueContract)
 		contractGroup.GET("/team", app.Handlers.ContractHandler.GetTeamContracts)
 		contractGroup.GET("/free-agents", app.Handlers.ContractHandler.GetFreeAgents)
+		contractGroup.GET("/resignable", app.Handlers.ContractHandler.GetResignablePlayers)
 		contractGroup.GET("/:id", app.Handlers.ContractHandler.GetContractByID)
 		contractGroup.POST("/:id/renew", app.Handlers.ContractHandler.RenewContract)
 		contractGroup.POST("/:id/cancel", app.Handlers.ContractHandler.CancelContract)

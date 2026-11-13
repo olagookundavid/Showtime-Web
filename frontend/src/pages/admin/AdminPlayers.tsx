@@ -778,10 +778,19 @@ export const AdminPlayers = () => {
                     <option value="F">Female (F)</option>
                   </Select>
                 </Field>
-                <Field label="Team *" htmlFor="player-team">
+                <Field
+                  label={editingId ? "Team" : "Team *"}
+                  htmlFor="player-team"
+                  hint={
+                    editingId
+                      ? "A player's team changes only through Contracts (signing, release, expiry) or Transfers, so they always play under a contract."
+                      : undefined
+                  }
+                >
                   <Select
                     id="player-team"
                     value={form.team_id}
+                    disabled={!!editingId}
                     onChange={(e) => set("team_id", e.target.value)}
                   >
                     <option value="">

@@ -193,6 +193,11 @@ const AdminFaqs = lazy(() =>
 const AdminMedia = lazy(() =>
   import("./pages/admin/AdminMedia").then((m) => ({ default: m.AdminMedia })),
 );
+const AdminAuditLog = lazy(() =>
+  import("./pages/admin/AdminAuditLog").then((m) => ({
+    default: m.AdminAuditLog,
+  })),
+);
 const AdminLiveStream = lazy(() =>
   import("./pages/admin/AdminLiveStream").then((m) => ({
     default: m.AdminLiveStream,
@@ -761,6 +766,14 @@ function App() {
                         element={
                           <FeatureGuard feature="media">
                             <AdminMedia />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="audit-log"
+                        element={
+                          <FeatureGuard feature="audit_log">
+                            <AdminAuditLog />
                           </FeatureGuard>
                         }
                       />

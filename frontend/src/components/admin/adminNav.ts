@@ -33,6 +33,7 @@ import {
   KeyIcon,
   QuestionMarkCircleIcon,
   FolderOpenIcon,
+  ClipboardDocumentListIcon,
 } from "@heroicons/react/24/outline";
 import {
   Squares2X2Icon as SquaresSolid,
@@ -163,6 +164,11 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
     links: [
       { name: "Users", path: "/admin/users", icon: UsersIcon },
       { name: "Roles & Permissions", path: "/admin/roles", icon: KeyIcon },
+      {
+        name: "Audit Trail",
+        path: "/admin/audit-log",
+        icon: ClipboardDocumentListIcon,
+      },
       { name: "App Settings", path: "/admin/settings", icon: Cog6ToothIcon },
       { name: "Administrator", path: "/admin/administrator", icon: GiftIcon },
     ],
@@ -203,6 +209,7 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   "Live Stream": "live_stream",
   Users: "user_management",
   "Roles & Permissions": "roles",
+  "Audit Trail": "audit_log",
   "App Settings": "app_settings",
   Administrator: "administrator_tools",
 };

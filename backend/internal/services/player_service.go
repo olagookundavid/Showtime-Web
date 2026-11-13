@@ -221,6 +221,13 @@ func (s *PlayerService) UpdatePlayer(ctx context.Context, player *domain.Player)
 		}
 	}
 
+	// A player's team only ever changes through a contract (signing, re-signing, release,
+	// expiry) or a transfer. Editing it here put 26 players on teams with no contract in
+	// Nov 2026: rostered, but invisible to every contract rule.
+	if player.TeamID != "" && player.TeamID != existing.TeamID {
+		return fmt.Errorf("cannot change a player's team from their profile: sign them from Contracts or move them with a transfer, so they always play under a contract")
+	}
+
 	targetTeamID := player.TeamID
 	if targetTeamID == "" {
 		targetTeamID = existing.TeamID

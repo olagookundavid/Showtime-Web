@@ -40,3 +40,29 @@ type Contract struct {
 	Player           *Player `json:"player,omitempty"`
 	Team             *Team   `json:"team,omitempty"`
 }
+
+// ContractSettings are the contract numbers an admin can change at runtime (App
+// Settings > Contracts). The constants above are the defaults used until they do.
+type ContractSettings struct {
+	// DefaultLength is how many team matches a contract runs when the manager doesn't
+	// say: new offers, extensions and transfer contracts.
+	DefaultLength int `json:"default_length"`
+	// OnboardingLength is the length of the first contract a new or claimed player gets.
+	OnboardingLength int `json:"onboarding_length"`
+	// WarningMatches is how many matches from the end a contract starts to count as
+	// "running out", for the warnings and the expiry summaries.
+	WarningMatches int `json:"warning_matches"`
+}
+
+const (
+	DefaultContractLength         = 13
+	DefaultContractWarningMatches = 3
+)
+
+func DefaultContractSettings() ContractSettings {
+	return ContractSettings{
+		DefaultLength:    DefaultContractLength,
+		OnboardingLength: InitialContractMatches,
+		WarningMatches:   DefaultContractWarningMatches,
+	}
+}
