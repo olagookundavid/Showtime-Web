@@ -173,41 +173,43 @@ export const TeamOfTheWeek: React.FC = () => {
   return (
     <div className="space-y-8 md:space-y-12 animate-fade-in">
       {/* ── Page Header Banner (Showtime Signature Design System) ─────── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 md:p-8 shadow-xl gap-5 md:gap-6 border border-white/10">
-        <div className="space-y-2 max-w-2xl min-w-0">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sffl-red/20 border border-sffl-red/40 text-sffl-red text-xs font-black uppercase tracking-wider">
-            <SparklesIcon className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Showtime Official Selections</span>
+      <div>
+        <p className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-4">
+          <SparklesIcon className="w-5 h-5 text-sffl-red" aria-hidden="true" />
+          Showtime Official Selections
+        </p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 md:p-8 shadow-xl gap-5 md:gap-6 border border-white/10">
+          <div className="space-y-2 max-w-2xl min-w-0">
+            <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter text-white">
+              TEAM OF THE WEEK
+            </h1>
+            <p className="text-gray-300 text-sm md:text-base leading-relaxed">
+              Honoring the premier offensive and defensive playmakers across
+              official Showtime matchdays. Browse current and historical
+              lineups, player box scores, and read in-depth editorial
+              breakdowns.
+            </p>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter text-white">
-            TEAM OF THE WEEK
-          </h1>
-          <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-            Honoring the premier offensive and defensive playmakers across
-            official Showtime matchdays. Browse current and historical
-            lineups, player box scores, and read in-depth editorial
-            breakdowns.
-          </p>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <Button
-            variant="secondary"
-            tone="dark"
-            icon={copied ? CheckIcon : ShareIcon}
-            className="uppercase tracking-wider"
-            onClick={handleShare}
-          >
-            {copied ? "Copied!" : "Share Edition"}
-          </Button>
-          <ButtonLink
-            to="/matches"
-            variant="primary"
-            icon={TrophyIcon}
-            className="uppercase tracking-wider"
-          >
-            Match Center
-          </ButtonLink>
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <Button
+              variant="secondary"
+              tone="dark"
+              icon={copied ? CheckIcon : ShareIcon}
+              className="uppercase tracking-wider"
+              onClick={handleShare}
+            >
+              {copied ? "Copied!" : "Share Edition"}
+            </Button>
+            <ButtonLink
+              to="/matches"
+              variant="primary"
+              icon={TrophyIcon}
+              className="uppercase tracking-wider"
+            >
+              Match Center
+            </ButtonLink>
+          </div>
         </div>
       </div>
 
