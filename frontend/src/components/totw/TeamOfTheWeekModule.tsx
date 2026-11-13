@@ -292,7 +292,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 >
                   {/* Floating POTW Star Badge */}
                   {isPOTW && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-linear-to-r from-amber-400 via-yellow-300 to-amber-500 text-sffl-navy text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-pulse">
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-linear-to-r from-red-500 via-red-400 to-red-600 text-white text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-pulse">
                       <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
                       <span>POTW</span>
                     </div>
@@ -303,10 +303,10 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                     className={`relative w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto rounded-full border-2 overflow-hidden shadow-lg transition-all duration-200 ${
                       isSelected
                         ? isPOTW
-                          ? "border-yellow-200 ring-4 ring-amber-400 ring-offset-2 ring-offset-black/50 shadow-amber-400/60"
+                          ? "border-red-200 ring-4 ring-red-500 ring-offset-2 ring-offset-black/50 shadow-red-500/60"
                           : "border-white ring-4 ring-[#F4CA67] ring-offset-2 ring-offset-black/50 shadow-amber-400/40"
                         : isPOTW
-                          ? "border-amber-300 ring-3 ring-amber-400/90 ring-offset-1 ring-offset-black/40 shadow-lg shadow-amber-400/50 bg-linear-to-br from-amber-500 to-amber-700"
+                          ? "border-red-300 ring-3 ring-red-500/90 ring-offset-1 ring-offset-black/40 shadow-lg shadow-red-500/50 bg-linear-to-br from-red-500 to-red-700"
                           : isPlayerDef
                             ? "border-blue-300/80 bg-linear-to-br from-[#98CDFD] to-[#35699E]"
                             : "border-red-300/80 bg-linear-to-br from-[#F46756] to-[#B82C34]"
@@ -331,7 +331,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   <span
                     className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 mt-1 rounded text-[8px] md:text-[9px] font-black uppercase leading-tight shadow-xs ${
                       isPOTW
-                        ? "bg-linear-to-r from-amber-300 to-yellow-400 text-sffl-navy border border-amber-500/40"
+                        ? "bg-linear-to-r from-red-400 to-red-600 text-white border border-red-300/40"
                         : isPlayerDef
                           ? "bg-[#C5E1FF] text-[#102844]"
                           : "bg-[#FFF8E9] text-[#102844]"
@@ -393,7 +393,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               <div
                 className={`relative flex items-center justify-center p-4 ${
                   isActivePOTW
-                    ? "bg-radial from-amber-600/35 via-[#1a2b47] to-[#0e1e36]"
+                    ? "bg-radial from-red-600/35 via-[#1a2b47] to-[#0e1e36]"
                     : isDefensive
                       ? "bg-radial from-[#315C89] via-[#183C63] to-[#102B4B]"
                       : "bg-radial from-[#9D4646] via-[#6E3038] to-[#3D2634]"
@@ -403,7 +403,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 <div
                   className={`absolute top-2 left-2 md:top-3 md:left-3 w-9 h-9 md:w-11 md:h-11 rounded-full font-black text-xs md:text-sm flex items-center justify-center shadow-lg border ${
                     isActivePOTW
-                      ? "bg-linear-to-br from-amber-300 to-yellow-400 text-sffl-navy border-amber-200 ring-2 ring-amber-400/80"
+                      ? "bg-linear-to-br from-red-400 to-red-600 text-white border-red-200 ring-2 ring-red-500/80"
                       : "bg-[#F4CA67] text-[#172237] border-yellow-200"
                   }`}
                 >
@@ -414,7 +414,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                 {/* Floating POTW Badge Stamp */}
                 {isActivePOTW && (
-                  <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 rounded-full bg-linear-to-r from-amber-400 to-yellow-300 text-sffl-navy text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md border border-white flex items-center gap-1">
+                  <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 rounded-full bg-linear-to-r from-red-500 to-red-400 text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md border border-white flex items-center gap-1">
                     <StarSolidIcon className="w-3 h-3" aria-hidden="true" />
                     <span>POTW</span>
                   </div>
@@ -424,7 +424,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 <div
                   className={`w-20 h-24 md:w-28 md:h-34 rounded-2xl overflow-hidden bg-slate-800 border-2 shadow-2xl flex items-center justify-center ${
                     isActivePOTW
-                      ? "border-amber-400 ring-2 ring-amber-300/60 shadow-amber-400/30"
+                      ? "border-red-500 ring-2 ring-red-400/60 shadow-red-500/30"
                       : "border-white/20"
                   }`}
                 >
@@ -445,7 +445,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               {/* Details column */}
               <div className="p-4 md:p-5 flex flex-col justify-center min-w-0">
                 {isActivePOTW && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-linear-to-r from-amber-500/25 via-yellow-400/20 to-amber-500/25 border border-amber-400/60 text-amber-300 font-black text-[10px] md:text-xs uppercase tracking-wider shadow-sm mb-2 w-fit animate-pulse">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-linear-to-r from-red-500/25 via-red-400/20 to-red-500/25 border border-red-400/60 text-red-300 font-black text-[10px] md:text-xs uppercase tracking-wider shadow-sm mb-2 w-fit animate-pulse">
                     <span className="text-xs md:text-sm">⭐</span>
                     <span>PLAYER OF THE WEEK</span>
                   </div>
@@ -455,7 +455,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   <span
                     className={`px-2.5 py-0.5 rounded text-[10px] md:text-xs font-black uppercase tracking-wider ${
                       isActivePOTW
-                        ? "bg-linear-to-r from-amber-400 to-yellow-400 text-sffl-navy font-black"
+                        ? "bg-linear-to-r from-red-400 to-red-600 text-white font-black"
                         : isDefensive
                           ? "bg-[#76BAFF] text-[#09223D]"
                           : "bg-sffl-red text-white"
@@ -561,10 +561,10 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   className={`h-1.5 rounded-full transition-all duration-200 ${
                     idx === selectedIndex
                       ? isPlayerPOTW
-                        ? "w-7 bg-amber-400 ring-1 ring-amber-300"
+                        ? "w-7 bg-red-500 ring-1 ring-red-400"
                         : "w-6 bg-[#F4CA67]"
                       : isPlayerPOTW
-                        ? "w-3 bg-amber-400/80"
+                        ? "w-3 bg-red-500/80"
                         : "w-2 bg-[#42607E]"
                   }`}
                 />
