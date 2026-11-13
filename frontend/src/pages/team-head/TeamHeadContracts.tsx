@@ -23,12 +23,12 @@ const FALLBACK_LENGTH = 13;
 
 type Tab = 'active' | 'pending' | 're-sign' | 'free-agents';
 
-/** Who a contract offer is for: a free agent from the market, or one of your own expired players. */
+/** Who a contract offer is for: a free agent from the market, or one of your own former players. */
 type OfferTarget = {
     id: string;
     name: string;
     position?: string;
-    /** Your own expired player: allowed with the window closed. */
+    /** Your own former player (expired or released). */
     resign: boolean;
     /** Without an account a re-sign starts at once; with one, the player accepts it. */
     hasAccount: boolean;
@@ -43,6 +43,14 @@ type PendingAction =
 const nameOf = (c: ContractData) => c.player?.name || 'Player';
 
 const NO_RESIGNABLE: ResignablePlayer[] = [];
+
+const END_REASON_LABEL: Record<string, string> = {
+    EXPIRED: 'Expired',
+    RELEASED: 'Released',
+    TRANSFERRED: 'Transferred',
+    TERMINATED: 'Terminated',
+};
+
 
 const ResignableCell = ({ p }: { p: ResignablePlayer }) => (
     <div className="flex items-center gap-3 min-w-0">
@@ -105,7 +113,7 @@ export const TeamHeadContracts: React.FC = () => {
     const [freeAgentsLoading, setFreeAgentsLoading] = useState<boolean>(false);
     const [freeAgentSearch, setFreeAgentSearch] = useState<string>('');
 
-    // ── Your expired players (re-signable with the window closed) ──
+    // ── Your former players (expired or released; re-signable at any time) ──
     const [resignable, setResignable] = useState<ResignablePlayer[]>(NO_RESIGNABLE);
     const [resignableLoading, setResignableLoading] = useState<boolean>(true);
 
@@ -184,7 +192,7 @@ export const TeamHeadContracts: React.FC = () => {
         try {
             setResignable(await contractsApi.getResignable());
         } catch (err) {
-            toast.error(getApiErrorMessage(err, 'Failed to load your expired players'));
+            toast.error(getApiErrorMessage(err, 'Failed to load your former players'));
         } finally {
             setResignableLoading(false);
         }
@@ -353,7 +361,7 @@ export const TeamHeadContracts: React.FC = () => {
         { header: 'Position', cell: (p) => <span className="text-gray-600 dark:text-gray-300 font-medium">{p.position || '—'}</span> },
         {
             header: 'Contract ended',
-            cell: (p) => <span className="text-gray-600 dark:text-gray-300 text-xs whitespace-nowrap">{new Date(p.expired_at).toLocaleDateString()} · after {p.last_contract_length} matches</span>,
+            cell: (p) => <span className="text-gray-600 dark:text-gray-300 text-xs whitespace-nowrap">{END_REASON_LABEL[p.end_reason] ?? p.end_reason} {new Date(p.ended_at).toLocaleDateString()} · {p.last_contract_length}-match contract</span>,
         },
         {
             header: 'How re-signing works',
@@ -510,7 +518,7 @@ export const TeamHeadContracts: React.FC = () => {
                 items={[
                     { value: 'active', label: `Active Contracts (${activeTotal})` },
                     { value: 'pending', label: `Pending Offers (${pendingTotal})` },
-                    { value: 're-sign', label: `Re-sign Expired (${resignable.length})` },
+                    { value: 're-sign', label: `Former Players (${resignable.length})` },
                     { value: 'free-agents', label: 'Free Agents Market' },
                 ]}
                 value={activeTab}
@@ -568,14 +576,14 @@ export const TeamHeadContracts: React.FC = () => {
                 </div>
             )}
 
-            {/* ── Tab 3: Your expired players ── */}
+            {/* ── Tab 3: Your former players ── */}
             {activeTab === 're-sign' && (
                 <div className="space-y-4">
                     <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/20 p-3.5">
                         <InformationCircleIcon className="w-5 h-5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
                         <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
-                            These players' contracts ran out with your team, so they became free agents.{' '}
-                            <span className="font-bold">You can re-sign them at any time, even while the transfer window is closed.</span>{' '}
+                            These players' contracts with your team expired or were released, so they are free agents now.{' '}
+                            <span className="font-bold">You can re-sign them at any time, whether or not the transfer window is open.</span>{' '}
                             Players without an account rejoin straight away; the others accept the offer in their Player Portal.
                         </p>
                     </div>
@@ -584,9 +592,9 @@ export const TeamHeadContracts: React.FC = () => {
                         columns={resignColumns}
                         getRowId={(p) => p.id}
                         loading={resignableLoading}
-                        searchPlaceholder="Search your expired players"
-                        headerActions={countLabel(resignable.length, 'Expired Player', 'Expired Players')}
-                        emptyMessage="None of your players' contracts have expired. Players appear here when a contract runs out, so you can bring them back."
+                        searchPlaceholder="Search your former players"
+                        headerActions={countLabel(resignable.length, 'Former Player', 'Former Players')}
+                        emptyMessage="No former players to bring back. Players appear here when a contract expires or you release them."
                     />
                 </div>
             )}

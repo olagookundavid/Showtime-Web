@@ -40,8 +40,8 @@ type ContractResponse struct {
 	Team              *TeamResponse   `json:"team,omitempty"`
 }
 
-// ResignablePlayerResponse is a free agent whose last contract expired with the
-// asking team, which may re-sign them at any time.
+// ResignablePlayerResponse is a free agent whose last contract ended with the asking
+// team (expired, released or terminated), which may re-sign them at any time.
 type ResignablePlayerResponse struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
@@ -52,6 +52,8 @@ type ResignablePlayerResponse struct {
 	// the contract at once.
 	HasAccount         bool   `json:"has_account"`
 	LastContractLength int    `json:"last_contract_length"`
-	ExpiredAt          string `json:"expired_at"`
+	EndedAt            string `json:"ended_at"`
+	// EndReason is EXPIRED, RELEASED, TRANSFERRED, ... as recorded on the contract.
+	EndReason          string `json:"end_reason"`
 	OfferPending       bool   `json:"offer_pending"`
 }

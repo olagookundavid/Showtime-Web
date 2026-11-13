@@ -80,6 +80,15 @@ func (s *TransferService) ensureWindowOpen(ctx context.Context) error {
 	return nil
 }
 
+// ensureWindowOpenUnlessFree is ensureWindowOpen for flows that can be free: a transfer
+// with no fee is allowed outside a window.
+func (s *TransferService) ensureWindowOpenUnlessFree(ctx context.Context, price int64) error {
+	if price <= 0 {
+		return nil
+	}
+	return s.ensureWindowOpen(ctx)
+}
+
 func (s *TransferService) CreateTransferRequest(ctx context.Context, managerUserID string, fromTeamID string, req dto.CreateTransferRequestDTO) (*dto.TransferResponse, error) {
 	if err := s.ensureWindowOpen(ctx); err != nil {
 		return nil, err
@@ -178,8 +187,13 @@ func (s *TransferService) CreatePlayerListing(ctx context.Context, managerUserID
 }
 
 func (s *TransferService) CreateDirectSale(ctx context.Context, managerUserID string, fromTeamID string, req dto.CreateDirectSaleDTO) (*dto.TransferResponse, error) {
-	if err := s.ensureWindowOpen(ctx); err != nil {
+	// A free transfer (price 0) moves no money, so it is allowed at any time; a paid
+	// sale still needs an open window.
+	if err := s.ensureWindowOpenUnlessFree(ctx, req.Price); err != nil {
 		return nil, err
+	}
+	if req.Price < 0 {
+		return nil, fmt.Errorf("the price cannot be negative")
 	}
 
 	player, err := s.playerRepo.GetPlayerByID(ctx, req.PlayerID)
@@ -336,7 +350,11 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 		}
 
 		if req.Action == "accept" {
-			if err := s.ensureWindowOpen(ctx); err != nil {
+			salePrice := int64(0)
+			if t.AskingPrice != nil {
+				salePrice = *t.AskingPrice
+			}
+			if err := s.ensureWindowOpenUnlessFree(ctx, salePrice); err != nil {
 				return nil, err
 			}
 

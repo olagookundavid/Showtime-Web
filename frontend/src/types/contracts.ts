@@ -39,7 +39,7 @@ export interface IssueContractPayload {
     notes?: string;
 }
 
-/** A free agent whose last contract expired with your team. You can re-sign them at any time, even with the transfer window closed. */
+/** A free agent whose last contract with your team ended (expired, released or terminated). You can re-sign them at any time. */
 export interface ResignablePlayer {
     id: string;
     name: string;
@@ -49,7 +49,9 @@ export interface ResignablePlayer {
     /** With an account the player accepts the offer; without one, re-signing starts the contract at once. */
     has_account: boolean;
     last_contract_length: number;
-    expired_at: string;
+    ended_at: string;
+    /** How the contract ended: EXPIRED, RELEASED, TRANSFERRED, ... */
+    end_reason: string;
     offer_pending: boolean;
 }
 

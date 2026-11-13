@@ -152,6 +152,8 @@ export const TeamHeadTransfers: React.FC = () => {
             setAllTeams((tRes.data || []).filter((tm: Team) => tm.id !== budget?.team_id));
             setSelectedContract(null);
             setDirectSaleTargetTeamId('');
+            // With the window closed only a free transfer can go ahead.
+            if (!windowStatus.is_open) setDirectSalePrice(0);
             setShowDirectSaleModal(true);
         } catch {
             toast.error('Failed to load active players or teams');
@@ -218,6 +220,10 @@ export const TeamHeadTransfers: React.FC = () => {
         }
         if (!(directSalePrice >= 0)) {
             toast.error('Enter the agreed sale price.');
+            return;
+        }
+        if (!windowStatus.is_open && directSalePrice > 0) {
+            toast.error('The transfer window is closed. Set the price to 0 for a free transfer, or wait for the next window.');
             return;
         }
         setPendingAction({ kind: 'directSale', contract: selectedContract, team, price: directSalePrice });
@@ -506,17 +512,21 @@ export const TeamHeadTransfers: React.FC = () => {
             <DashboardPageHeader
                 title="Transfer Market"
                 subtitle="Trade, list and bid on players across the league."
-                actions={windowStatus.is_open && (
+                actions={(
                     <>
-                        <Button className="w-full sm:w-auto" icon={TagIcon} onClick={handleFetchContractsForListing}>
-                            List Player for Sale
-                        </Button>
+                        {windowStatus.is_open && (
+                            <Button className="w-full sm:w-auto" icon={TagIcon} onClick={handleFetchContractsForListing}>
+                                List Player for Sale
+                            </Button>
+                        )}
                         <Button variant="navy" className="w-full sm:w-auto" icon={ArrowsRightLeftIcon} onClick={handleOpenDirectSaleModal}>
-                            Direct Sale to Team
+                            {windowStatus.is_open ? 'Direct Sale to Team' : 'Free Transfer to Team'}
                         </Button>
-                        <Button variant="secondary" className="w-full sm:w-auto" icon={UserPlusIcon} onClick={handleOpenRequestModal}>
-                            Request Player Transfer
-                        </Button>
+                        {windowStatus.is_open && (
+                            <Button variant="secondary" className="w-full sm:w-auto" icon={UserPlusIcon} onClick={handleOpenRequestModal}>
+                                Request Player Transfer
+                            </Button>
+                        )}
                     </>
                 )}
             />
@@ -537,7 +547,7 @@ export const TeamHeadTransfers: React.FC = () => {
                     <p className="text-xs opacity-80">
                         {windowStatus.is_open
                             ? `Active window: ${windowStatus.data?.name || 'Current Window'}${windowCloses}`
-                            : 'The transfer window is currently closed. Buying, trading, and listing players are blocked until the next window opens.'}
+                            : 'The transfer window is currently closed. Paid transfers, listings and bids wait for the next window. Free transfers (price 0) can still be agreed at any time.'}
                     </p>
                 </div>
             </div>
@@ -853,7 +863,7 @@ export const TeamHeadTransfers: React.FC = () => {
                             onChange={e => {
                                 const c = myContracts.find(mc => mc.id === e.target.value);
                                 setSelectedContract(c || null);
-                                if (c) setDirectSalePrice(c.player_value);
+                                if (c) setDirectSalePrice(windowStatus.is_open ? c.player_value : 0);
                             }}
                         >
                             <option value="">Choose an active player</option>
@@ -872,7 +882,11 @@ export const TeamHeadTransfers: React.FC = () => {
                         </Select>
                     </Field>
 
-                    <Field label="Agreed Sale Price (Points)" htmlFor="direct-sale-price">
+                    <Field
+                        label="Agreed Sale Price (Points)"
+                        htmlFor="direct-sale-price"
+                        hint={windowStatus.is_open ? 'Enter 0 for a free transfer.' : 'The window is closed, so only a free transfer (price 0) can go ahead.'}
+                    >
                         <Input
                             id="direct-sale-price"
                             type="number"
