@@ -30,14 +30,14 @@ type IContractRepository interface {
 	// GetLastContractByPlayerID is the player's most recent contract that ever took
 	// effect (ACTIVE, EXPIRED or TERMINATED), or nil.
 	GetLastContractByPlayerID(ctx context.Context, playerID string) (*domain.Contract, error)
-	// GetResignablePlayers is every free agent whose last contract expired with teamID:
-	// the team's own players it may re-sign outside a transfer window.
+	// GetResignablePlayers is every free agent whose last contract with teamID ended
+	// (expired, released or terminated) and who has not signed anywhere since.
 	GetResignablePlayers(ctx context.Context, teamID string) ([]ResignablePlayer, error)
 	RemovePlayerFromScheduledTeamSheets(ctx context.Context, playerID, teamID string) error
 	CancelContract(ctx context.Context, id string) error
 }
 
-// ResignablePlayer is a free agent whose last contract ran out with the team asking.
+// ResignablePlayer is a free agent whose last contract ended with the team asking.
 type ResignablePlayer struct {
 	PlayerID       string
 	Name           string
@@ -46,8 +46,10 @@ type ResignablePlayer struct {
 	JerseyNumber   int
 	UserID         *string
 	ContractLength int
-	ExpiredAt      time.Time
-	OfferPending   bool
+	EndedAt        time.Time
+	// EndReason is the contract's termination reason, or EXPIRED.
+	EndReason    string
+	OfferPending bool
 }
 
 type PostgresContractRepository struct {
@@ -483,20 +485,22 @@ func (r *PostgresContractRepository) GetLastContractByPlayerID(ctx context.Conte
 func (r *PostgresContractRepository) GetResignablePlayers(ctx context.Context, teamID string) ([]ResignablePlayer, error) {
 	query := `
 		WITH last_contract AS (
-			SELECT DISTINCT ON (c.player_id) c.player_id, c.team_id, c.status, c.contract_length, c.expired_at
+			SELECT DISTINCT ON (c.player_id) c.player_id, c.team_id, c.status, c.contract_length,
+			       COALESCE(c.terminated_at, c.expired_at, c.updated_at) AS ended_at,
+			       COALESCE(NULLIF(c.termination_reason, ''), 'EXPIRED') AS end_reason
 			FROM contracts c
 			WHERE c.status IN ('ACTIVE', 'EXPIRED', 'TERMINATED')
-			ORDER BY c.player_id, COALESCE(c.expired_at, c.terminated_at, c.accepted_at, c.offered_at) DESC
+			ORDER BY c.player_id, COALESCE(c.terminated_at, c.expired_at, c.accepted_at, c.offered_at) DESC
 		)
 		SELECT p.id, p.name, COALESCE(p.position, ''), COALESCE(p.image, ''), COALESCE(p.jersey_number, 0), p.user_id,
-		       lc.contract_length, lc.expired_at,
+		       lc.contract_length, lc.ended_at, lc.end_reason,
 		       EXISTS (SELECT 1 FROM contracts pc WHERE pc.player_id = p.id AND pc.team_id = $1 AND pc.status = 'PENDING')
 		FROM last_contract lc
 		JOIN players p ON p.id = lc.player_id
-		WHERE lc.team_id = $1 AND lc.status = 'EXPIRED'
+		WHERE lc.team_id = $1 AND lc.status IN ('EXPIRED', 'TERMINATED')
 		  AND p.team_id IS NULL
 		  AND COALESCE(p.status, 'active') = 'active'
-		ORDER BY lc.expired_at DESC, p.name`
+		ORDER BY lc.ended_at DESC, p.name`
 	rows, err := r.db.Query(ctx, query, teamID)
 	if err != nil {
 		return nil, err
@@ -507,7 +511,7 @@ func (r *PostgresContractRepository) GetResignablePlayers(ctx context.Context, t
 	for rows.Next() {
 		var rp ResignablePlayer
 		if err := rows.Scan(&rp.PlayerID, &rp.Name, &rp.Position, &rp.Image, &rp.JerseyNumber, &rp.UserID,
-			&rp.ContractLength, &rp.ExpiredAt, &rp.OfferPending); err != nil {
+			&rp.ContractLength, &rp.EndedAt, &rp.EndReason, &rp.OfferPending); err != nil {
 			return nil, err
 		}
 		out = append(out, rp)

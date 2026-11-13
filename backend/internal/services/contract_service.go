@@ -35,7 +35,6 @@ type ContractService struct {
 	repo         ports.IContractRepository
 	playerRepo   ports.PlayerRepository
 	notifService INotificationService
-	windowRepo   ports.ITransferWindowRepository
 	// auditService records what the platform does on its own (contract expiry), which
 	// the request-level audit middleware can never see. May be nil in tests.
 	auditService IAuditService
@@ -47,12 +46,11 @@ type ContractService struct {
 	settings IAppSettingService
 }
 
-func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerRepository, notifService INotificationService, windowRepo ports.ITransferWindowRepository, auditService IAuditService, digest IContractDigestService, settings IAppSettingService) IContractService {
+func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerRepository, notifService INotificationService, auditService IAuditService, digest IContractDigestService, settings IAppSettingService) IContractService {
 	return &ContractService{
 		repo:         repo,
 		playerRepo:   playerRepo,
 		notifService: notifService,
-		windowRepo:   windowRepo,
 		auditService: auditService,
 		digest:       digest,
 		settings:     settings,
@@ -115,16 +113,15 @@ func (s *ContractService) ProvisionInitialContract(ctx context.Context, playerID
 	})
 }
 
-// isOwnExpiredPlayer reports whether the player is a free agent whose last contract
-// ran out with this team. A team may re-sign its own such players at any time: the
-// window exists to govern moves between clubs, and an expiry in mid-season would
-// otherwise strand a team's whole roster until the next window.
-func (s *ContractService) isOwnExpiredPlayer(ctx context.Context, player *domain.Player, teamID string) bool {
+// isOwnFormerPlayer reports whether the player is a free agent whose last contract
+// ended (expired, released, terminated) with this team. Re-signing one starts the
+// contract straight away when the player has no account to accept an offer with.
+func (s *ContractService) isOwnFormerPlayer(ctx context.Context, player *domain.Player, teamID string) bool {
 	if player.TeamID != "" {
 		return false
 	}
 	last, err := s.repo.GetLastContractByPlayerID(ctx, player.ID)
-	return err == nil && last != nil && last.Status == "EXPIRED" && last.TeamID == teamID
+	return err == nil && last != nil && last.TeamID == teamID && (last.Status == "EXPIRED" || last.Status == "TERMINATED")
 }
 
 func (s *ContractService) IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error) {
@@ -134,17 +131,14 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 		return nil, fmt.Errorf("player not found")
 	}
 
-	resign := s.isOwnExpiredPlayer(ctx, player, teamID)
-	if !resign {
-		// Signing someone else's player, or a free agent, needs an open window.
-		open, err := s.windowRepo.IsWindowOpen(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check transfer window: %w", err)
-		}
-		if !open {
-			return nil, fmt.Errorf("transfer window is currently closed: free agents can only be signed during an open transfer window. Your own players whose contracts expired can still be re-signed")
-		}
+	// Signing is never gated on the transfer window: a free agent belongs to nobody, so
+	// taking them is not a move between clubs, and an own player's extension or re-signing
+	// is not one either. The window governs transfers only. A player still on another
+	// club's roster can only change club through a transfer.
+	if player.TeamID != "" && player.TeamID != teamID {
+		return nil, fmt.Errorf("%s is on another team's roster: move them with a transfer, not a contract offer", player.Name)
 	}
+	resign := s.isOwnFormerPlayer(ctx, player, teamID)
 
 	// Verify no active contract exists for player
 	active, _ := s.repo.GetActiveContractByPlayerID(ctx, req.PlayerID)
@@ -172,7 +166,7 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 
 	hasAccount := player.UserID != nil && *player.UserID != ""
 
-	// Re-signing an own player who has no account starts the contract straight away,
+	// Re-signing a former player who has no account starts the contract straight away,
 	// for the same reason a newly onboarded player's does: there is nobody to accept
 	// an offer, so a PENDING one would sit forever and the player could never play.
 	status := "PENDING"
@@ -180,7 +174,7 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 	if resign && !hasAccount {
 		status = "ACTIVE"
 		if notes == "" {
-			notes = "Re-signed after contract expiry"
+			notes = "Re-signed by their former team"
 		}
 	}
 
@@ -648,8 +642,8 @@ func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs .
 	return expiredCount, nil
 }
 
-// GetResignablePlayers lists the team's own players whose contracts expired and who
-// haven't signed anywhere since: the ones it can re-sign outside a transfer window.
+// GetResignablePlayers lists the team's former players (contract expired, released or
+// terminated) who haven't signed anywhere since: the ones it can re-sign on the spot.
 func (s *ContractService) GetResignablePlayers(ctx context.Context, teamID string) ([]dto.ResignablePlayerResponse, error) {
 	rows, err := s.repo.GetResignablePlayers(ctx, teamID)
 	if err != nil {
@@ -665,7 +659,8 @@ func (s *ContractService) GetResignablePlayers(ctx context.Context, teamID strin
 			JerseyNumber:       r.JerseyNumber,
 			HasAccount:         r.UserID != nil && *r.UserID != "",
 			LastContractLength: r.ContractLength,
-			ExpiredAt:          r.ExpiredAt.Format(time.RFC3339),
+			EndedAt:            r.EndedAt.Format(time.RFC3339),
+			EndReason:          r.EndReason,
 			OfferPending:       r.OfferPending,
 		})
 	}

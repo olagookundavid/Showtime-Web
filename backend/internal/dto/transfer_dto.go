@@ -14,7 +14,8 @@ type CreatePlayerListingDTO struct {
 type CreateDirectSaleDTO struct {
 	PlayerID string `json:"player_id" binding:"required"`
 	ToTeamID string `json:"to_team_id" binding:"required"`
-	Price    int64  `json:"price" binding:"required"`
+	// Price may be 0: a free transfer, which is allowed outside a transfer window.
+	Price    int64  `json:"price" binding:"min=0"`
 }
 
 type TransferActionDTO struct {
