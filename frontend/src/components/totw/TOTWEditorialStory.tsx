@@ -76,7 +76,7 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
 
       {/* ── Article Content or Empty State ─────────────────────────── */}
       {news ? (
-        <article className="bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden p-6 sm:p-8 md:p-12 space-y-8">
+        <article className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden p-6 sm:p-8 md:p-12 space-y-8">
           {/* Header Metadata */}
           <div className="space-y-4 max-w-4xl">
             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
@@ -118,7 +118,7 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
 
             {/* Sub-headline / Excerpt Lead */}
             {news.excerpt && (
-              <div className="mt-3 p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-gray-50 dark:bg-gray-700/40 border-l-4 border-sffl-red">
+              <div className="mt-3 p-4 sm:p-5 bg-gray-50 dark:bg-gray-700/40 border-l-4 border-sffl-red">
                 <p className="text-base sm:text-lg text-gray-800 dark:text-gray-200 font-medium leading-relaxed italic">
                   "{news.excerpt}"
                 </p>
@@ -128,11 +128,11 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
 
           {/* Featured Hero Media */}
           {heroVideoId ? (
-            <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700 bg-black">
+            <div className="aspect-video w-full overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700 bg-black">
               <YouTubeEmbed videoId={heroVideoId} title={news.title} />
             </div>
           ) : news.featured_image ? (
-            <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 max-h-130">
+            <div className="overflow-hidden shadow-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 max-h-130">
               <LightboxImage
                 src={news.featured_image}
                 alt={news.title}
@@ -146,8 +146,8 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
           <RichContent html={news.content} className="max-w-4xl" />
         </article>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 p-8 sm:p-12 text-center space-y-4 shadow-sm">
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-700/60 flex items-center justify-center mx-auto text-gray-400">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-12 text-center space-y-4 shadow-sm">
+          <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700/60 flex items-center justify-center mx-auto text-gray-400">
             <NewspaperIcon className="w-7 h-7 text-sffl-red/80" />
           </div>
           <div className="max-w-md mx-auto space-y-1">

@@ -173,7 +173,7 @@ export const TeamOfTheWeek: React.FC = () => {
   return (
     <div className="space-y-8 md:space-y-12 animate-fade-in">
       {/* ── Page Header Banner (Showtime Signature Design System) ─────── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-5 md:gap-6 border border-white/10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 md:p-8 shadow-xl gap-5 md:gap-6 border border-white/10">
         <div className="space-y-2 max-w-2xl min-w-0">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sffl-red/20 border border-sffl-red/40 text-sffl-red text-xs font-black uppercase tracking-wider">
             <SparklesIcon className="w-3.5 h-3.5" aria-hidden="true" />
@@ -238,7 +238,7 @@ export const TeamOfTheWeek: React.FC = () => {
 
         {/* Gameweek Stepper Controls */}
         {archive.length > 1 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-gray-800 p-3.5 md:p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-gray-800 p-3.5 md:p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-sffl-red animate-pulse"></span>
               <div className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">
@@ -287,7 +287,7 @@ export const TeamOfTheWeek: React.FC = () => {
 
         {/* Player of the Week fan vote */}
         {potwPoll && potwOpen && (
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl md:rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-4 md:p-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-4 md:p-5">
             <div className="min-w-0 space-y-1">
               <p className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                 <TrophyIcon className="w-4 h-4" aria-hidden="true" />
@@ -321,7 +321,7 @@ export const TeamOfTheWeek: React.FC = () => {
         {potwFanWinner && potwForThisEdition && (
           <Link
             to={`/potw/${potwForThisEdition.id}`}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 min-h-11 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-sffl-red/60"
+            className="flex flex-wrap items-center gap-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 min-h-11 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-sffl-red/60"
           >
             <TrophyIcon
               className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-300"
@@ -396,12 +396,12 @@ export const TeamOfTheWeek: React.FC = () => {
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-44 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 animate-pulse p-6"
+                className="h-44 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 animate-pulse p-6"
               />
             ))}
           </div>
         ) : archive.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 sm:p-12 text-center text-gray-500 dark:text-gray-400">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 sm:p-12 text-center text-gray-500 dark:text-gray-400">
             <TrophyIcon className="w-12 h-12 mx-auto text-gray-400 mb-3" />
             <p className="text-lg font-bold text-gray-800 dark:text-gray-200">
               No Editions Published Yet
@@ -428,12 +428,18 @@ export const TeamOfTheWeek: React.FC = () => {
                       handleSelectEdition(edition.id);
                     }
                   }}
-                  className={`group relative flex flex-col justify-between p-4 sm:p-5 md:p-6 rounded-2xl border transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red ${
+                  className={`group relative flex flex-col justify-between p-4 sm:p-5 md:p-6 border transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red ${
                     isSelected
-                      ? "bg-linear-to-br from-white to-red-50/40 dark:from-gray-800 dark:to-red-950/20 border-sffl-red ring-2 ring-sffl-red shadow-lg"
+                      ? "bg-white dark:bg-gray-800 border-sffl-red shadow-lg"
                       : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-sffl-red/60 hover:shadow-md"
                   }`}
                 >
+                  {isSelected && (
+                    <span
+                      className="absolute left-0 top-0 bottom-0 w-1 bg-sffl-red"
+                      aria-hidden="true"
+                    />
+                  )}
                   <div>
                     {/* Top Meta Strip */}
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">

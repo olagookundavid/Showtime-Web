@@ -87,7 +87,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
   if (isLoading) {
     return (
       <div
-        className={`w-full rounded-3xl bg-sffl-navy/95 border border-white/10 p-8 sm:p-12 text-center text-white ${className}`}
+        className={`w-full bg-sffl-navy/95 border border-white/10 p-8 sm:p-12 text-center text-white ${className}`}
       >
         <ArrowPathIcon
           className="w-10 h-10 mx-auto mb-4 text-sffl-red animate-spin"
@@ -124,7 +124,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
       className={`w-full text-white ${className}`}
       aria-label="Showtime Team of the Week"
     >
-      <div className="overflow-hidden rounded-2xl md:rounded-3xl bg-[#07182E] border border-white/15 shadow-2xl">
+      <div className="overflow-hidden bg-[#07182E] border border-white/15 shadow-2xl">
         {/* ── Top Header ───────────────────────────────────────────── */}
         <header className="flex flex-wrap items-center justify-between gap-4 px-4 py-3.5 md:px-6 md:py-4 bg-linear-to-r from-[#102A4E] to-[#07162B] border-b border-white/10">
           <div className="flex items-center gap-3 md:gap-4 min-w-0">
@@ -208,7 +208,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
         {/* ── Football Pitch Formation ──────────────────────────────── */}
         <div className="p-2 md:p-5 bg-[#051325]">
           <div
-            className="relative w-full h-145 md:h-162.5 overflow-hidden rounded-xl md:rounded-2xl border-2 border-emerald-400/25 shadow-inner select-none"
+            className="relative w-full h-145 md:h-162.5 overflow-hidden border-2 border-emerald-400/25 shadow-inner select-none"
             style={{
               background: `repeating-linear-gradient(to bottom, transparent 0, transparent calc(20% - 1px), rgba(229, 243, 220, 0.12) calc(20% - 1px), rgba(229, 243, 220, 0.12) 20%),
                                          repeating-linear-gradient(to bottom, #174C3A 0, #174C3A 20%, #134332 20%, #134332 40%)`,
@@ -388,7 +388,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             />
 
             {/* Active Player Card */}
-            <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden rounded-2xl bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[170px_minmax(0,1fr)] min-h-42.5">
+            <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[170px_minmax(0,1fr)] min-h-42.5">
               {/* Visual Avatar column */}
               <div
                 className={`relative flex items-center justify-center p-4 ${
@@ -422,7 +422,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                 {/* Avatar */}
                 <div
-                  className={`w-20 h-24 md:w-28 md:h-34 rounded-2xl overflow-hidden bg-slate-800 border-2 shadow-2xl flex items-center justify-center ${
+                  className={`w-20 h-24 md:w-28 md:h-34 overflow-hidden bg-slate-800 border-2 shadow-2xl flex items-center justify-center ${
                     isActivePOTW
                       ? "border-red-500 ring-2 ring-red-400/60 shadow-red-500/30"
                       : "border-white/20"
@@ -501,7 +501,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                 {/* 3 Key Stats */}
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-white/10">
-                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 rounded-lg border border-white/10 text-center">
+                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 text-center">
                     <div className="text-sm md:text-lg font-black text-white leading-tight">
                       {activePlayer.stat1_value
                         ? formatStatNumber(activePlayer.stat1_value)
@@ -511,7 +511,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                       {activePlayer.stat1_label || "Stat 1"}
                     </div>
                   </div>
-                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 rounded-lg border border-white/10 text-center">
+                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 text-center">
                     <div className="text-sm md:text-lg font-black text-white leading-tight">
                       {activePlayer.stat2_value
                         ? formatStatNumber(activePlayer.stat2_value)
@@ -521,7 +521,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                       {activePlayer.stat2_label || "Stat 2"}
                     </div>
                   </div>
-                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 rounded-lg border border-white/10 text-center">
+                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 text-center">
                     <div className="text-sm md:text-lg font-black text-white leading-tight">
                       {activePlayer.stat3_value
                         ? formatStatNumber(activePlayer.stat3_value)
