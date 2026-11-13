@@ -169,10 +169,14 @@ type Ticket struct {
 	// LastEntryAt is when a season pass last got its holder in. A season pass has no
 	// match days to carry a check-in time, so this stands in for it. Nil for every
 	// other ticket, and for a pass not yet used.
-	LastEntryAt  *time.Time `json:"last_entry_at,omitempty"`
-	ReferralCode *string    `json:"referral_code,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	LastEntryAt *time.Time `json:"last_entry_at,omitempty"`
+	// PriorPurchases is how many earlier purchases the same buyer made, set only
+	// where the admin lists tickets. Nil means it was not worked out, or this is
+	// not a paid purchase, so it says nothing about the buyer.
+	PriorPurchases *int      `json:"prior_purchases,omitempty"`
+	ReferralCode   *string   `json:"referral_code,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 
 	// Relations
 	Days []TicketDay `json:"days,omitempty"`

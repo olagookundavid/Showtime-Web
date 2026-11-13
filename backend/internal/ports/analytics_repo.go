@@ -15,6 +15,8 @@ type SalesByTierResult struct {
 type IAnalyticsRepository interface {
 	GetUsersByRole(ctx context.Context) (map[string]int, error)
 	GetSalesByTier(ctx context.Context) ([]SalesByTierResult, error)
+	RepeatCustomerDays(ctx context.Context) ([]RepeatCustomerDay, error)
+	RepeatCustomers(ctx context.Context, eventDayID string) ([]RepeatCustomer, error)
 }
 
 type PostgresAnalyticsRepository struct {

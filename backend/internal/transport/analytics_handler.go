@@ -9,6 +9,7 @@ import (
 
 type IAnalyticsHandler interface {
 	GetAnalytics(c *gin.Context)
+	GetRepeatCustomers(c *gin.Context)
 }
 
 type AnalyticsHandler struct {
@@ -34,4 +35,22 @@ func (h *AnalyticsHandler) GetAnalytics(c *gin.Context) {
 	}
 
 	helpers.SuccessOK(c, "Analytics retrieved successfully", resp)
+}
+
+// GetRepeatCustomers handles the weekly repeat-customer report
+// @Summary      Repeat customers by match day
+// @Description  Every match day's buyers and returning share, plus the returning buyers for one match day
+// @Tags         Analytics
+// @Produce      json
+// @Param        event_day_id  query  string  false  "Match day to list returning buyers for"
+// @Success      200  {object}  dto.RepeatCustomerReport
+// @Router       /admin/analytics/repeat-customers [get]
+func (h *AnalyticsHandler) GetRepeatCustomers(c *gin.Context) {
+	resp, err := h.service.GetRepeatCustomerReport(c.Request.Context(), c.Query("event_day_id"))
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessOK(c, "Repeat customers retrieved successfully", resp)
 }

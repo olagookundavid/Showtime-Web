@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, Input, Modal, Select, DashboardPageHeader } from '../../components';
-import { getAdminUsers, getAdminRoleOptions, updateUserRole, updateUserInfo } from '../../services';
-import type { RoleOption, UserResponse } from '../../types';
+import { ChartBarIcon, PencilSquareIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Button, Field, Input, Modal, Select, DashboardPageHeader, RankedBarList } from '../../components';
+import { getAdminUsers, getAdminRoleOptions, updateUserRole, updateUserInfo, getAdminAnalytics } from '../../services';
+import { usePermissions } from '../../hooks';
+import type { RoleOption, SiteBreakdownRow, UserResponse } from '../../types';
 import { getApiErrorMessage } from '../../utils';
 
 const PAGE_SIZE = 10;
@@ -15,6 +16,7 @@ const NO_ROWS: UserResponse[] = [];
 // permanently empty. They stay in the list (disabled) so existing player accounts still render.
 const CLAIM_ONLY_ROLES = new Set(['player', 'player_pending']);
 const NO_ROLES: RoleOption[] = [];
+const NO_ROLE_COUNTS: Record<string, number> = {};
 
 type PendingAction =
     | { kind: 'role'; user: UserResponse; role: string }
@@ -42,6 +44,24 @@ const AdminUsers = () => {
         queryFn: getAdminRoleOptions,
     });
     const roleOptions = roleOptionsData ?? NO_ROLES;
+    // How many users hold each role. It comes from the dashboard's numbers, so only
+    // roles that can see the dashboard get it.
+    const { canView } = usePermissions();
+    const canSeeBreakdown = canView('dashboard');
+    const { data: roleCounts } = useQuery({
+        queryKey: ['adminAnalytics'],
+        queryFn: async () => (await getAdminAnalytics()).data,
+        select: (a) => a.users_by_role,
+        enabled: canSeeBreakdown,
+    });
+    const roleBreakdownRows = useMemo<SiteBreakdownRow[]>(
+        () =>
+            Object.entries(roleCounts ?? NO_ROLE_COUNTS)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count),
+        [roleCounts],
+    );
+    const [breakdownOpen, setBreakdownOpen] = useState(false);
     const roleLabel = useCallback((role: string) => roleOptions.find((r) => r.key === role)?.name ?? role, [roleOptions]);
 
     const users: UserResponse[] = usersData?.data ?? NO_ROWS;
@@ -225,6 +245,14 @@ const AdminUsers = () => {
                 </div>
             )}
 
+            {canSeeBreakdown && (
+                <div>
+                    <Button variant="link" icon={ChartBarIcon} onClick={() => setBreakdownOpen(true)}>
+                        See breakdown
+                    </Button>
+                </div>
+            )}
+
             {/* Users Table */}
             <DataTable
                 data={users}
@@ -241,6 +269,26 @@ const AdminUsers = () => {
                     setPage(1);
                 }}
             />
+
+            {breakdownOpen && (
+                <Modal
+                    open
+                    onClose={() => setBreakdownOpen(false)}
+                    title="Users Breakdown"
+                    subtitle="How many users hold each role."
+                    maxWidth="full"
+                    footer={<Button variant="secondary" onClick={() => setBreakdownOpen(false)}>Close</Button>}
+                >
+                    <RankedBarList
+                        title="Users by role"
+                        countLabel="users"
+                        rows={roleBreakdownRows}
+                        formatName={roleLabel}
+                        showShareOfTotal
+                        emptyMessage="No user data available to chart."
+                    />
+                </Modal>
+            )}
 
             {/* Edit User Modal */}
             {editingUser && (

@@ -184,7 +184,7 @@ export {
   deleteAdminRole,
 } from './roles';
 
-export { getAdminAnalytics } from './analytics';
+export { getAdminAnalytics, getRepeatCustomerReport } from './analytics';
 
 export {
   getSiteTrafficSummary,

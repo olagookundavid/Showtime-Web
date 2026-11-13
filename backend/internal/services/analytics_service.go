@@ -5,10 +5,12 @@ import (
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
 	"sync"
+	"time"
 )
 
 type IAnalyticsService interface {
 	GetAdminDashboardMetrics(ctx context.Context) (*dto.AdminAnalyticsResponse, error)
+	GetRepeatCustomerReport(ctx context.Context, eventDayID string) (*dto.RepeatCustomerReport, error)
 }
 
 type AnalyticsService struct {
@@ -31,7 +33,7 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	wg.Add(6)
+	wg.Add(5)
 
 	_ = SubmitJob(func() {
 		defer wg.Done()
@@ -67,22 +69,6 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 			return
 		}
 		resp.TotalUsers = total
-	})
-
-	_ = SubmitJob(func() {
-		defer wg.Done()
-		tickets, err := s.ticketRepo.GetRecentSales(ctx, 10)
-		if err != nil {
-			mu.Lock()
-			errs = append(errs, err)
-			mu.Unlock()
-			return
-		}
-		var recent []dto.TicketResponse
-		for _, t := range tickets {
-			recent = append(recent, *ticketToResponse(&t))
-		}
-		resp.RecentSales = recent
 	})
 
 	_ = SubmitJob(func() {
@@ -123,10 +109,73 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 		return nil, errs[0] // Return the first error encountered
 	}
 
-	// Ensure RecentSales is initialized to an empty slice instead of nil
-	if resp.RecentSales == nil {
-		resp.RecentSales = []dto.TicketResponse{}
+	return &resp, nil
+}
+
+// GetRepeatCustomerReport is the weekly look at who came back: every match day
+// that sold tickets with its share of returning buyers, and the returning buyers
+// for one of them. With no match day given it picks the next one with sales, or
+// the latest past one when none are left.
+func (s *AnalyticsService) GetRepeatCustomerReport(ctx context.Context, eventDayID string) (*dto.RepeatCustomerReport, error) {
+	days, err := s.analyticsRepo.RepeatCustomerDays(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	return &resp, nil
+	report := &dto.RepeatCustomerReport{
+		Days:      make([]dto.RepeatCustomerDay, 0, len(days)),
+		Customers: []dto.RepeatCustomer{},
+	}
+	for _, d := range days {
+		report.Days = append(report.Days, dto.RepeatCustomerDay{
+			EventDayID: d.EventDayID,
+			Title:      d.Title,
+			Date:       d.Date,
+			Buyers:     d.Buyers,
+			Returning:  d.Returning,
+		})
+	}
+
+	if eventDayID == "" {
+		eventDayID = defaultReportDay(days, todayLagos(time.Now()).Format("2006-01-02"))
+	}
+	report.EventDayID = eventDayID
+	if eventDayID == "" {
+		return report, nil
+	}
+
+	customers, err := s.analyticsRepo.RepeatCustomers(ctx, eventDayID)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range customers {
+		report.Customers = append(report.Customers, dto.RepeatCustomer{
+			Name:           c.Name,
+			Email:          c.Email,
+			Phone:          c.Phone,
+			Tickets:        c.Tickets,
+			Spent:          c.Spent,
+			PriorPurchases: c.PriorPurchases,
+			FirstBoughtAt:  c.FirstBoughtAt.UTC().Format(time.RFC3339),
+		})
+	}
+	return report, nil
+}
+
+// defaultReportDay picks the match day to open the report on. Days come newest
+// first, so the next upcoming one is the last day that is not before today.
+func defaultReportDay(days []ports.RepeatCustomerDay, today string) string {
+	upcoming := ""
+	for _, d := range days {
+		if d.Date >= today {
+			upcoming = d.EventDayID
+		}
+	}
+	if upcoming != "" {
+		return upcoming
+	}
+	if len(days) > 0 {
+		return days[0].EventDayID
+	}
+	return ""
 }
