@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { getNews } from '../../services';
-import { Pagination, LightboxImage, Spinner } from '../../components';
-import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils';
-import { NewspaperIcon, PlayIcon } from '@heroicons/react/24/solid';
+import { Pagination, Spinner, NewsCard } from '../../components';
+import { NewspaperIcon } from '@heroicons/react/24/solid';
 
 export const NewsList = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -26,7 +24,7 @@ export const NewsList = () => {
     return (
         <div className="space-y-4 md:space-y-8">
             {/* Header */}
-            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+            <div className="bg-sffl-navy text-white p-4 md:p-8 shadow-xl">
                 <h1 className="text-3xl md:text-5xl font-black italic">LEAGUE NEWS</h1>
                 <p className="text-gray-300 mt-2 text-sm md:text-lg">Latest updates from the SFFL</p>
             </div>
@@ -37,88 +35,14 @@ export const NewsList = () => {
             {!loading && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {news.map((article) => (
-                    <div
-                        key={article.id}
-                        className="group bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
-                    >
-                        {/* Featured Media */}
-                        <div className="h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 relative group-image">
-                            {(() => {
-                                const videoId = article.featured_media_type === 'youtube'
-                                    ? parseYouTubeId(article.featured_youtube_url)
-                                    : null;
-                                if (videoId) {
-                                    return (
-                                        <Link to={`/news/${article.slug}`} className="block w-full h-full relative">
-                                            <img
-                                                src={youTubeThumbnailUrl(videoId)}
-                                                alt={article.title}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                            />
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="w-14 h-14 bg-sffl-red/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                                    <PlayIcon className="w-6 h-6 text-white ml-1" aria-hidden="true" />
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    );
-                                }
-                                const featuredImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo_2.webp' : null);
-                                if (featuredImg) {
-                                    return (
-                                        <LightboxImage
-                                            src={featuredImg}
-                                            alt={article.title}
-                                            thumbnailClassName="w-full h-full"
-                                            imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                        />
-                                    );
-                                }
-                                return (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                        No Image
-                                    </div>
-                                );
-                            })()}
-                        </div>
-
-                        {/* Content */}
-                        <Link 
-                            to={`/news/${article.slug}`}
-                            className="p-4 sm:p-6 flex flex-col cursor-pointer"
-                        >
-
-                            {/* Title */}
-                            <h2 className="font-black text-lg sm:text-xl wrap-break-word text-sffl-navy dark:text-white mb-2 group-hover:text-sffl-red transition-colors line-clamp-2">
-                                {article.title}
-                            </h2>
-
-                            {/* Excerpt */}
-                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3">
-                                {article.excerpt}
-                            </p>
-
-                            {/* Meta */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                                    <span>{article.author}</span>
-                                    {article.category && (
-                                        <span className="bg-sffl-red/10 text-sffl-red text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
-                                            {article.category}
-                                        </span>
-                                    )}
-                                </div>
-                                <span>{new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                            </div>
-                        </Link>
-                    </div>
+                    <NewsCard key={article.id} article={article} />
                 ))}
             </div>
             )}
 
             {/* Empty state */}
             {!loading && news.length === 0 && (
-                <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 rounded-xl text-center">
+                <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 text-center">
                     <NewspaperIcon className="w-10 h-10 mx-auto mb-3 text-gray-400" aria-hidden="true" />
                     <p className="text-gray-500 text-lg font-semibold">No news articles yet.</p>
                 </div>

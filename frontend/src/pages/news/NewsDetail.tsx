@@ -48,7 +48,7 @@ export const NewsDetail = () => {
             </div>
 
             {/* Article Header */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-xl">
                 {/* Featured Media: YouTube embed or photo */}
                 {(() => {
                     const heroVideoId = article.featured_media_type === 'youtube'
@@ -81,7 +81,7 @@ export const NewsDetail = () => {
                 {/* Content */}
                 <div className="p-4 sm:p-8 md:p-12">
                     {/* Category */}
-                    <div className="w-fit max-w-full wrap-break-word bg-sffl-red text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full mb-4 uppercase">
+                    <div className="w-fit max-w-full wrap-break-word bg-sffl-red text-white text-xs sm:text-sm font-bold px-4 py-2 mb-4 uppercase">
                         {article.category}
                     </div>
 
@@ -106,18 +106,22 @@ export const NewsDetail = () => {
             </div>
 
             {/* Related Articles */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6 rounded-xl">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6">
                 <h3 className="font-bold text-xl text-sffl-navy dark:text-white mb-4">More News</h3>
                 <div className="space-y-3">
                     {relatedNews
                         .filter(a => a.id !== article.id)
                         .slice(0, 3)
-                        .map(relatedArticle => (
+                        .map((relatedArticle, idx) => (
                             <Link
                                 key={relatedArticle.id}
                                 to={`/news/${relatedArticle.slug}`}
-                                className="block min-h-11 hover:bg-white dark:hover:bg-gray-700 p-3 rounded-lg transition"
+                                className="relative block min-h-11 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-sffl-red/50 p-3 transition"
                             >
+                                <span
+                                    className={`absolute left-0 top-0 bottom-0 w-1 ${idx % 2 === 0 ? 'bg-sffl-red' : 'bg-sffl-navy'}`}
+                                    aria-hidden="true"
+                                />
                                 <div className="font-bold text-sffl-navy dark:text-white hover:text-sffl-red line-clamp-1">
                                     {relatedArticle.title}
                                 </div>
