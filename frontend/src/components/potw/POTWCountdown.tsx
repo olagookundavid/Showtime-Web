@@ -29,7 +29,7 @@ export const POTWCountdown = ({ target, serverTime, label, onElapsed, onDark = f
                 {units.map(([unit, value]) => (
                     <div
                         key={unit}
-                        className={`rounded-xl px-2 py-2 text-center ${
+                        className={`px-2 py-2 text-center ${
                             onDark
                                 ? 'bg-white/10 border border-white/15 text-white'
                                 : 'bg-gray-100 dark:bg-gray-700/60 text-sffl-navy dark:text-white'

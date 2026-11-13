@@ -54,7 +54,7 @@ const NO_WINNERS: POTWWinner[] = [];
 
 /** One headline number in the hero, e.g. "12 awards". */
 const HeroFigure = ({ value, label }: { value: number; label: string }) => (
-  <div className="min-w-0 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 sm:px-4">
+  <div className="min-w-0 bg-white/5 border border-white/10 px-3 py-2.5 sm:px-4">
     <p className="text-2xl sm:text-3xl font-black text-white leading-none">
       {value}
     </p>
@@ -227,107 +227,110 @@ export const PlayerOfTheWeek = () => {
   return (
     <div className="space-y-10 md:space-y-14 pb-mobile-nav-2x">
       {/* ── Hero: the award and its current holder ──────────────────── */}
-      <section
-        aria-labelledby="potw-title"
-        className="relative overflow-hidden rounded-xl md:rounded-2xl bg-sffl-navy text-white shadow-xl border border-white/10"
-      >
-        <TrophySolidIcon
-          className="pointer-events-none absolute -right-10 -top-10 w-64 h-64 sm:w-80 sm:h-80 text-white/4"
-          aria-hidden="true"
-        />
-        <div className="relative space-y-6 md:space-y-8 p-4 sm:p-6 md:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-            <div className="space-y-2 max-w-2xl min-w-0">
-              <p className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-300/40 text-amber-200 text-xs font-black uppercase tracking-wider">
-                <TrophyIcon className="w-4 h-4" aria-hidden="true" />
-                Showtime awards
-              </p>
-              <h1
-                id="potw-title"
-                className="text-3xl md:text-5xl font-black tracking-tight"
-              >
-                Player of the Week
-              </h1>
-              <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-                Every week one standout player is honoured. The league office
-                shortlists the best of the Team of the Week, and fans vote for
-                the winner.
-              </p>
-            </div>
-            {winners.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full lg:w-auto lg:min-w-96">
-                <HeroFigure
-                  value={winners.length}
-                  label={winners.length === 1 ? "Award" : "Awards"}
-                />
-                <HeroFigure value={fanChoices} label="Fan picks" />
-                <HeroFigure
-                  value={winsByPlayer.size}
-                  label={winsByPlayer.size === 1 ? "Winner" : "Winners"}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Voting open: point straight at the ballot. */}
-          {poll && isOpen && !routePollId && (
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl bg-sffl-red/15 border border-sffl-red/40 p-4">
-              <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-wider text-red-200">
-                  Voting is open
-                </p>
-                <p className="text-lg font-black text-white">
-                  Pick the {poll.week_title} Player of the Week
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <POTWCountdown
-                  target={poll.closes_at}
-                  serverTime={poll.server_time}
-                  label="Closes in"
-                  onElapsed={handleElapsed}
-                  onDark
-                />
-                <Button
-                  variant="primary"
-                  tone="dark"
-                  icon={ArrowRightIcon}
-                  iconPosition="right"
-                  onClick={() =>
-                    document
-                      .getElementById("potw-vote")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                  }
+      <div>
+        <p className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-4">
+          <TrophyIcon className="w-5 h-5 text-sffl-red" aria-hidden="true" />
+          Showtime awards
+        </p>
+        <section
+          aria-labelledby="potw-title"
+          className="relative overflow-hidden bg-sffl-navy text-white shadow-xl border border-white/10"
+        >
+          <TrophySolidIcon
+            className="pointer-events-none absolute -right-10 -top-10 w-64 h-64 sm:w-80 sm:h-80 text-white/4"
+            aria-hidden="true"
+          />
+          <div className="relative space-y-6 md:space-y-8 p-4 sm:p-6 md:p-8">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+              <div className="space-y-2 max-w-2xl min-w-0">
+                <h1
+                  id="potw-title"
+                  className="text-3xl md:text-5xl font-black tracking-tight"
                 >
-                  Vote now
-                </Button>
+                  Player of the Week
+                </h1>
+                <p className="text-gray-300 text-sm md:text-base leading-relaxed">
+                  Every week one standout player is honoured. The league office
+                  shortlists the best of the Team of the Week, and fans vote for
+                  the winner.
+                </p>
               </div>
-            </div>
-          )}
-
-          {reigning
-            ? showReigning && (
-                <ReigningWinner
-                  winner={reigning}
-                  wins={winsByPlayer.get(reigning.player.player_id) ?? 1}
-                />
-              )
-            : !loading && (
-                <div className="rounded-2xl bg-white/5 border border-white/15 p-5 text-center">
-                  <TrophyIcon
-                    className="w-10 h-10 mx-auto text-amber-300"
-                    aria-hidden="true"
+              {winners.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full lg:w-auto lg:min-w-96">
+                  <HeroFigure
+                    value={winners.length}
+                    label={winners.length === 1 ? "Award" : "Awards"}
                   />
-                  <p className="mt-2 font-black text-white">
-                    The first Player of the Week is still to be crowned
-                  </p>
-                  <p className="text-sm text-gray-300">
-                    Winners appear here as soon as each week's award is decided.
-                  </p>
+                  <HeroFigure value={fanChoices} label="Fan picks" />
+                  <HeroFigure
+                    value={winsByPlayer.size}
+                    label={winsByPlayer.size === 1 ? "Winner" : "Winners"}
+                  />
                 </div>
               )}
-        </div>
-      </section>
+            </div>
+
+            {/* Voting open: point straight at the ballot. */}
+            {poll && isOpen && !routePollId && (
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-sffl-red/15 border border-sffl-red/40 p-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-wider text-red-200">
+                    Voting is open
+                  </p>
+                  <p className="text-lg font-black text-white">
+                    Pick the {poll.week_title} Player of the Week
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <POTWCountdown
+                    target={poll.closes_at}
+                    serverTime={poll.server_time}
+                    label="Closes in"
+                    onElapsed={handleElapsed}
+                    onDark
+                  />
+                  <Button
+                    variant="primary"
+                    tone="dark"
+                    icon={ArrowRightIcon}
+                    iconPosition="right"
+                    onClick={() =>
+                      document
+                        .getElementById("potw-vote")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }
+                  >
+                    Vote now
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {reigning
+              ? showReigning && (
+                  <ReigningWinner
+                    winner={reigning}
+                    wins={winsByPlayer.get(reigning.player.player_id) ?? 1}
+                  />
+                )
+              : !loading && (
+                  <div className="bg-white/5 border border-white/15 p-5 text-center">
+                    <TrophyIcon
+                      className="w-10 h-10 mx-auto text-amber-300"
+                      aria-hidden="true"
+                    />
+                    <p className="mt-2 font-black text-white">
+                      The first Player of the Week is still to be crowned
+                    </p>
+                    <p className="text-sm text-gray-300">
+                      Winners appear here as soon as each week's award is
+                      decided.
+                    </p>
+                  </div>
+                )}
+          </div>
+        </section>
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-gray-500 dark:text-gray-400">
@@ -340,7 +343,7 @@ export const PlayerOfTheWeek = () => {
         <>
           {/* ── A vote link that doesn't work ───────────────────────── */}
           {isError && routePollId && (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-10 text-center">
+            <div className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-10 text-center">
               <p className="text-lg font-bold text-gray-900 dark:text-white">
                 This vote couldn't be found
               </p>
@@ -392,7 +395,7 @@ export const PlayerOfTheWeek = () => {
               </div>
 
               {!user && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 p-4">
                   <p className="inline-flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
                     <LockClosedIcon
                       className="w-5 h-5 shrink-0"
@@ -413,7 +416,7 @@ export const PlayerOfTheWeek = () => {
               )}
 
               {myPick && (
-                <p className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 px-4 py-3 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                <p className="inline-flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 px-4 py-3 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
                   <CheckCircleIcon
                     className="w-5 h-5 shrink-0"
                     aria-hidden="true"
@@ -427,7 +430,7 @@ export const PlayerOfTheWeek = () => {
               )}
 
               {poll.winner_source === "ADMIN" && pollWinner && (
-                <p className="inline-flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                <p className="inline-flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200">
                   <ShieldCheckIcon
                     className="w-5 h-5 shrink-0"
                     aria-hidden="true"
@@ -443,7 +446,9 @@ export const PlayerOfTheWeek = () => {
 
               <ul
                 className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${
-                  poll.nominees.length >= 5 ? "xl:grid-cols-5" : "xl:grid-cols-4"
+                  poll.nominees.length >= 5
+                    ? "xl:grid-cols-5"
+                    : "xl:grid-cols-4"
                 }`}
               >
                 {poll.nominees.map((n) => {
@@ -501,7 +506,7 @@ export const PlayerOfTheWeek = () => {
 
           {/* ── The latest vote has closed but isn't decided yet ────── */}
           {awaitingResult && poll && (
-            <div className="flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-6">
+            <div className="flex items-start gap-3 border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-6">
               <ClockIcon
                 className="w-6 h-6 shrink-0 text-amber-700 dark:text-amber-300"
                 aria-hidden="true"
@@ -536,10 +541,10 @@ export const PlayerOfTheWeek = () => {
               </div>
 
               {pollWinner ? (
-                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,12rem)_1fr] gap-5 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,12rem)_1fr] gap-5 border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-6">
                   <PlayerPhoto
                     player={pollWinner}
-                    className="aspect-4/5 w-full max-w-60 sm:max-w-none rounded-xl ring-2 ring-amber-400/80"
+                    className="aspect-4/5 w-full max-w-60 sm:max-w-none ring-2 ring-amber-400/80"
                   />
                   <div className="min-w-0 space-y-3">
                     <p className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
@@ -583,7 +588,7 @@ export const PlayerOfTheWeek = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-6">
+                <div className="flex items-start gap-3 border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-6">
                   <ClockIcon
                     className="w-6 h-6 shrink-0 text-amber-700 dark:text-amber-300"
                     aria-hidden="true"
@@ -639,7 +644,7 @@ export const PlayerOfTheWeek = () => {
 
           {/* ── Nothing at all yet ─────────────────────────────────── */}
           {!poll && !isError && winners.length === 0 && (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-10 text-center">
+            <div className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-10 text-center">
               <p className="text-lg font-bold text-gray-900 dark:text-white">
                 No Player of the Week yet
               </p>

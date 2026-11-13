@@ -82,7 +82,7 @@ export const StatBoxes = ({
       {lines.map(([label, value]) => (
         <div
           key={label}
-          className={`min-w-0 rounded-xl px-1 py-2 ${onDark ? "bg-white/10 border border-white/10" : "bg-gray-50 dark:bg-gray-700/50"}`}
+          className={`min-w-0 px-1 py-2 ${onDark ? "bg-white/10 border border-white/10" : "bg-gray-50 dark:bg-gray-700/50"}`}
         >
           <dd
             className={`text-lg sm:text-xl font-black truncate ${onDark ? "text-white" : "text-gray-900 dark:text-white"}`}
@@ -183,11 +183,11 @@ export const ReigningWinner = ({
 }) => {
   const p = winner.player;
   return (
-    <article className="grid grid-cols-1 sm:grid-cols-[minmax(0,13rem)_1fr] lg:grid-cols-[minmax(0,15rem)_1fr] gap-5 sm:gap-6 rounded-2xl bg-white/5 border border-white/15 p-4 sm:p-5">
+    <article className="grid grid-cols-1 sm:grid-cols-[minmax(0,13rem)_1fr] lg:grid-cols-[minmax(0,15rem)_1fr] gap-5 sm:gap-6 bg-white/5 border border-white/15 p-4 sm:p-5">
       <div className="relative">
         <PlayerPhoto
           player={p}
-          className="aspect-4/3 sm:aspect-4/5 w-full rounded-xl ring-2 ring-amber-400/80 shadow-2xl"
+          className="aspect-4/3 sm:aspect-4/5 w-full ring-2 ring-amber-400/80 shadow-2xl"
         />
         <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-sffl-navy shadow">
           <TrophySolidIcon className="w-3.5 h-3.5" aria-hidden="true" />

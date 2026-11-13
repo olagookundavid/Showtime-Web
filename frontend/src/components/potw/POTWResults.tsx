@@ -196,7 +196,7 @@ export const POTWResults = ({ poll, title = 'Share of the vote', detailed = fals
     if (!detailed) {
         return (
             <section
-                className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5"
+                className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5"
                 aria-labelledby={`potw-results-${poll.id}`}
             >
                 <h2 id={`potw-results-${poll.id}`} className="text-lg sm:text-xl font-black text-sffl-navy dark:text-white">
@@ -206,7 +206,7 @@ export const POTWResults = ({ poll, title = 'Share of the vote', detailed = fals
                 {hasVotes ? (
                     <VoteShareBars nominees={poll.nominees} showCounts={false} />
                 ) : (
-                    <p className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <p className="border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                         No votes were cast in this poll.
                     </p>
                 )}
