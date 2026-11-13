@@ -4,6 +4,7 @@ import type {
   IssueContractPayload,
   PaginatedResponse,
   Player,
+  ResignablePlayer,
 } from "../types";
 
 export const contractsApi = {
@@ -34,6 +35,11 @@ export const contractsApi = {
       { params },
     );
     return res.data;
+  },
+  /** Your own players whose contracts expired: re-signable even while the transfer window is closed. */
+  getResignable: async (): Promise<ResignablePlayer[]> => {
+    const res = await api.get<{ data: ResignablePlayer[] }>("/contracts/resignable");
+    return res.data.data || [];
   },
   getById: async (id: string): Promise<ContractData> => {
     const res = await api.get<{ data: ContractData }>(`/contracts/${id}`);

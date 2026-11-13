@@ -29,6 +29,8 @@ type ITransferService interface {
 }
 
 type TransferService struct {
+	// settings supplies the admin-editable default contract length. May be nil in tests.
+	settings     IAppSettingService
 	repo         ports.ITransferRepository
 	contractRepo ports.IContractRepository
 	playerRepo   ports.PlayerRepository
@@ -44,8 +46,10 @@ func NewTransferService(
 	windowRepo ports.ITransferWindowRepository,
 	notifService INotificationService,
 	tmRepo ports.ITeamManagerRepository,
+	settings IAppSettingService,
 ) ITransferService {
 	return &TransferService{
+		settings:     settings,
 		repo:         repo,
 		contractRepo: contractRepo,
 		playerRepo:   playerRepo,
@@ -618,17 +622,23 @@ func (s *TransferService) executeTransferCompletion(ctx context.Context, t *doma
 	_ = s.playerRepo.RemovePlayerFromReserves(ctx, t.PlayerID)
 	playerMoved = true
 
-	// Offer the player a fresh contract at the buying club (13 games, value = fee).
+	// The player's new contract at the buying club (default length, value = fee) starts now.
+	// It used to be a PENDING offer, which left the player on the new team with no
+	// contract until they accepted, and forever if they had no account to accept with.
 	matchesAtStart, _ := s.contractRepo.GetTeamFinishedMatchCount(ctx, buyerTeamID)
+	contractLength := domain.DefaultContractLength
+	if s.settings != nil {
+		contractLength = s.settings.ContractSettings(ctx).DefaultLength
+	}
 	newContract := &domain.Contract{
 		PlayerID:       t.PlayerID,
 		TeamID:         buyerTeamID,
-		Status:         "PENDING",
-		ContractLength: 13,
+		Status:         "ACTIVE",
+		ContractLength: contractLength,
 		MatchesAtStart: matchesAtStart,
 		PlayerValue:    price,
 		OfferedBy:      t.InitiatedBy,
-		Notes:          "Transfer Contract Offer",
+		Notes:          "Transfer contract",
 	}
 	if err := s.contractRepo.CreateContract(ctx, newContract); err != nil {
 		unwind()
@@ -637,7 +647,7 @@ func (s *TransferService) executeTransferCompletion(ctx context.Context, t *doma
 
 	if player.UserID != nil && *player.UserID != "" {
 		refID := newContract.ID
-		_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "New Team Contract", "Your transfer to a new team is complete! Please review and accept your new contract.", "contract", &refID)
+		_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "New Team Contract", fmt.Sprintf("Your transfer to a new team is complete. Your new %d-match contract has started.", contractLength), "contract", &refID)
 	}
 
 	return nil

@@ -653,12 +653,21 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 		`, claim.TeamID).Scan(&matchesAtStart); err != nil {
 			return fmt.Errorf("failed to read team finished match count: %w", err)
 		}
+		// The admin-editable first-contract length (App Settings > Contracts). An unset or
+		// unreadable value falls back to the built-in default, so it can never block an approval.
+		onboardingLength := domain.InitialContractMatches
+		var rawLength string
+		if err := tx.QueryRow(ctx, `SELECT setting_value FROM app_settings WHERE setting_key = 'contract_onboarding_length'`).Scan(&rawLength); err == nil {
+			if v, convErr := strconv.Atoi(strings.TrimSpace(rawLength)); convErr == nil && v >= 1 && v <= 50 {
+				onboardingLength = v
+			}
+		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO contracts (
 				player_id, team_id, status, contract_length, matches_at_start,
 				player_value, offered_by, offered_at, notes
 			) VALUES ($1, $2, 'ACTIVE', $3, $4, $5, NULLIF($6::text, '')::uuid, NOW(), $7)
-		`, playerID, claim.TeamID, domain.InitialContractMatches, matchesAtStart,
+		`, playerID, claim.TeamID, onboardingLength, matchesAtStart,
 			domain.InitialContractPlayerValue, reviewerID, domain.InitialContractNotes); err != nil {
 			return fmt.Errorf("failed to issue the player's first contract: %w", err)
 		}

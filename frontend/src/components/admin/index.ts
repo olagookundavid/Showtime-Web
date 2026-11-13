@@ -21,3 +21,10 @@ export {
   useTeamActions,
 } from './useTeamActions';
 export type { PendingTeamAction, TeamForm, TeamActionDialogsProps } from './useTeamActions';
+export {
+  AppearanceSettings,
+  ContractSettingsPanel,
+  FantasySettingsPanel,
+  NotificationSettingsPanel,
+  SettingsSection,
+} from './settings';

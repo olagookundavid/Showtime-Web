@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { contractsApi } from '../../services';
-import type { ContractData, Player } from '../../types';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { appSettingsApi, contractsApi } from '../../services';
+import type { ContractData, Player, ResignablePlayer } from '../../types';
 import toast from 'react-hot-toast';
 import {
     ArrowPathIcon,
@@ -10,6 +10,7 @@ import {
     InformationCircleIcon,
     MagnifyingGlassIcon,
     UserMinusIcon,
+    UserPlusIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { DashboardPageHeader, Button, Field, Input, Tabs, DataTable, type Column, RowActions, ConfirmDialog, ConfirmSummary, Modal, Spinner, PlayerLink } from '../../components';
@@ -17,17 +18,49 @@ import { getApiErrorMessage } from '../../utils';
 
 const PAGE_SIZE = 20;
 const FREE_AGENT_PAGE_SIZE = 24;
-const DEFAULT_LENGTH = 13;
+// Until the admin's default loads (or if it can't), this is what the form starts at.
+const FALLBACK_LENGTH = 13;
 
-type Tab = 'active' | 'pending' | 'free-agents';
+type Tab = 'active' | 'pending' | 're-sign' | 'free-agents';
+
+/** Who a contract offer is for: a free agent from the market, or one of your own expired players. */
+type OfferTarget = {
+    id: string;
+    name: string;
+    position?: string;
+    /** Your own expired player: allowed with the window closed. */
+    resign: boolean;
+    /** Without an account a re-sign starts at once; with one, the player accepts it. */
+    hasAccount: boolean;
+};
 
 type PendingAction =
-    | { kind: 'offer'; player: Player; length: number }
+    | { kind: 'offer'; player: OfferTarget; length: number }
     | { kind: 'extend'; contract: ContractData }
     | { kind: 'release'; contract: ContractData }
     | { kind: 'withdraw'; contract: ContractData };
 
 const nameOf = (c: ContractData) => c.player?.name || 'Player';
+
+const NO_RESIGNABLE: ResignablePlayer[] = [];
+
+const ResignableCell = ({ p }: { p: ResignablePlayer }) => (
+    <div className="flex items-center gap-3 min-w-0">
+        {p.image ? (
+            <img src={p.image} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+        ) : (
+            <div className="w-8 h-8 rounded-full bg-sffl-navy/10 flex items-center justify-center font-bold text-xs text-sffl-navy dark:text-white shrink-0">
+                {p.name.slice(0, 2)}
+            </div>
+        )}
+        <div className="min-w-0">
+            <div className="font-semibold text-gray-900 dark:text-white wrap-break-word">
+                <PlayerLink id={p.id}>{p.name}</PlayerLink>
+            </div>
+            {!!p.jersey_number && <div className="text-xs text-gray-400">#{p.jersey_number}</div>}
+        </div>
+    </div>
+);
 
 const PlayerCell = ({ c }: { c: ContractData }) => (
     <div className="flex items-center gap-3 min-w-0">
@@ -72,13 +105,19 @@ export const TeamHeadContracts: React.FC = () => {
     const [freeAgentsLoading, setFreeAgentsLoading] = useState<boolean>(false);
     const [freeAgentSearch, setFreeAgentSearch] = useState<string>('');
 
+    // ── Your expired players (re-signable with the window closed) ──
+    const [resignable, setResignable] = useState<ResignablePlayer[]>(NO_RESIGNABLE);
+    const [resignableLoading, setResignableLoading] = useState<boolean>(true);
+
     // Offer form
-    const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-    const [contractLength, setContractLength] = useState<string>(String(DEFAULT_LENGTH));
+    const [selectedPlayer, setSelectedPlayer] = useState<OfferTarget | null>(null);
+    // The league's default contract length (App Settings > Contracts).
+    const [defaultLength, setDefaultLength] = useState<number>(FALLBACK_LENGTH);
+    const [contractLength, setContractLength] = useState<string>(String(FALLBACK_LENGTH));
 
     // Every write waits here for the confirm dialog.
     const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
-    const [extendLength, setExtendLength] = useState<string>(String(DEFAULT_LENGTH));
+    const [extendLength, setExtendLength] = useState<string>(String(FALLBACK_LENGTH));
     const [busy, setBusy] = useState(false);
 
     // ── Fetch Active Contracts (WHERE status = 'ACTIVE') ──
@@ -140,10 +179,28 @@ export const TeamHeadContracts: React.FC = () => {
         }
     };
 
+    const fetchResignable = async () => {
+        setResignableLoading(true);
+        try {
+            setResignable(await contractsApi.getResignable());
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Failed to load your expired players'));
+        } finally {
+            setResignableLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        appSettingsApi.get().then((s) => {
+            if (s.default_contract_length > 0) setDefaultLength(s.default_contract_length);
+        }).catch(() => { /* the fallback length stays */ });
+    }, []);
+
     // Initial badge counters fetch
     useEffect(() => {
         fetchActiveContracts();
         fetchPendingContracts();
+        fetchResignable();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -173,9 +230,14 @@ export const TeamHeadContracts: React.FC = () => {
     };
 
     const openOffer = (p: Player) => {
-        setContractLength(String(DEFAULT_LENGTH));
-        setSelectedPlayer(p);
+        setContractLength(String(defaultLength));
+        setSelectedPlayer({ id: p.id, name: p.name, position: p.position, resign: false, hasAccount: true });
     };
+
+    const openResign = useCallback((p: ResignablePlayer) => {
+        setContractLength(String(defaultLength));
+        setSelectedPlayer({ id: p.id, name: p.name, position: p.position, resign: true, hasAccount: p.has_account });
+    }, [defaultLength]);
 
     const submitOffer = () => {
         if (!selectedPlayer) return;
@@ -201,12 +263,18 @@ export const TeamHeadContracts: React.FC = () => {
         setBusy(true);
         try {
             switch (action.kind) {
-                case 'offer':
-                    await contractsApi.issue({ player_id: action.player.id, contract_length: action.length, player_value: 0 });
-                    toast.success(`Contract offer sent to ${action.player.name}`);
+                case 'offer': {
+                    const contract = await contractsApi.issue({ player_id: action.player.id, contract_length: action.length, player_value: 0 });
                     setSelectedPlayer(null);
-                    openTab('pending');
+                    if (contract.status === 'ACTIVE') {
+                        toast.success(`${action.player.name} is re-signed and back on your roster`);
+                        openTab('active');
+                    } else {
+                        toast.success(`Contract offer sent to ${action.player.name}`);
+                        openTab('pending');
+                    }
                     break;
+                }
                 case 'extend':
                     await contractsApi.renew(action.contract.id, { contract_length: extendBy });
                     toast.success(`Extension offer sent to ${nameOf(action.contract)}`);
@@ -223,6 +291,7 @@ export const TeamHeadContracts: React.FC = () => {
             }
             fetchActiveContracts();
             fetchPendingContracts();
+            fetchResignable();
         } catch (err) {
             const fallback = {
                 offer: 'Failed to issue contract offer',
@@ -268,7 +337,7 @@ export const TeamHeadContracts: React.FC = () => {
                             label: 'Extend contract',
                             icon: ArrowPathIcon,
                             onSelect: () => {
-                                setExtendLength(String(DEFAULT_LENGTH));
+                                setExtendLength(String(defaultLength));
                                 setPendingAction({ kind: 'extend', contract: c });
                             },
                         },
@@ -277,7 +346,44 @@ export const TeamHeadContracts: React.FC = () => {
                 />
             ),
         },
-    ], []);
+    ], [defaultLength]);
+
+    const resignColumns = useMemo<Column<ResignablePlayer>[]>(() => [
+        { header: 'Player', cell: (p) => <ResignableCell p={p} /> },
+        { header: 'Position', cell: (p) => <span className="text-gray-600 dark:text-gray-300 font-medium">{p.position || '—'}</span> },
+        {
+            header: 'Contract ended',
+            cell: (p) => <span className="text-gray-600 dark:text-gray-300 text-xs whitespace-nowrap">{new Date(p.expired_at).toLocaleDateString()} · after {p.last_contract_length} matches</span>,
+        },
+        {
+            header: 'How re-signing works',
+            cell: (p) => p.offer_pending ? (
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-md text-xs font-bold whitespace-nowrap">
+                    Offer sent, awaiting player
+                </span>
+            ) : p.has_account ? (
+                <span className="text-xs text-gray-600 dark:text-gray-300">Player accepts in their Player Portal</span>
+            ) : (
+                <span className="text-xs font-semibold text-green-700 dark:text-green-400">No account: rejoins straight away</span>
+            ),
+        },
+        {
+            header: 'Actions',
+            align: 'right',
+            cell: (p) => (
+                <RowActions
+                    label={`Actions for ${p.name}`}
+                    actions={[{
+                        label: 'Re-sign player',
+                        icon: UserPlusIcon,
+                        disabled: p.offer_pending,
+                        hint: p.offer_pending ? 'An offer is already waiting in Pending Offers' : undefined,
+                        onSelect: () => openResign(p),
+                    }]}
+                />
+            ),
+        },
+    ], [openResign]);
 
     const pendingColumns = useMemo<Column<ContractData>[]>(() => [
         { header: 'Player', cell: (c) => <PlayerCell c={c} /> },
@@ -308,12 +414,15 @@ export const TeamHeadContracts: React.FC = () => {
         switch (pendingAction?.kind) {
             case 'offer': {
                 const { player, length } = pendingAction;
+                const startsNow = player.resign && !player.hasAccount;
                 return {
-                    title: `Offer ${player.name} a contract?`,
-                    description: 'The player accepts or declines it from their Player Portal.',
-                    confirmLabel: 'Send Offer',
-                    tone: 'info' as const,
-                    icon: DocumentTextIcon,
+                    title: startsNow ? `Re-sign ${player.name}?` : `Offer ${player.name} a contract?`,
+                    description: startsNow
+                        ? 'They have no player account to accept an offer with, so the contract starts straight away and they rejoin your roster.'
+                        : 'The player accepts or declines it from their Player Portal.',
+                    confirmLabel: startsNow ? 'Re-sign Player' : 'Send Offer',
+                    tone: startsNow ? 'success' as const : 'info' as const,
+                    icon: startsNow ? UserPlusIcon : DocumentTextIcon,
                     body: <ConfirmSummary rows={[['Player', player.name], ['Position', player.position], ['Length', `${length} team matches`]]} />,
                 };
             }
@@ -401,6 +510,7 @@ export const TeamHeadContracts: React.FC = () => {
                 items={[
                     { value: 'active', label: `Active Contracts (${activeTotal})` },
                     { value: 'pending', label: `Pending Offers (${pendingTotal})` },
+                    { value: 're-sign', label: `Re-sign Expired (${resignable.length})` },
                     { value: 'free-agents', label: 'Free Agents Market' },
                 ]}
                 value={activeTab}
@@ -458,7 +568,30 @@ export const TeamHeadContracts: React.FC = () => {
                 </div>
             )}
 
-            {/* ── Tab 3: Free Agents ── */}
+            {/* ── Tab 3: Your expired players ── */}
+            {activeTab === 're-sign' && (
+                <div className="space-y-4">
+                    <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/20 p-3.5">
+                        <InformationCircleIcon className="w-5 h-5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                        <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                            These players' contracts ran out with your team, so they became free agents.{' '}
+                            <span className="font-bold">You can re-sign them at any time, even while the transfer window is closed.</span>{' '}
+                            Players without an account rejoin straight away; the others accept the offer in their Player Portal.
+                        </p>
+                    </div>
+                    <DataTable
+                        data={resignable}
+                        columns={resignColumns}
+                        getRowId={(p) => p.id}
+                        loading={resignableLoading}
+                        searchPlaceholder="Search your expired players"
+                        headerActions={countLabel(resignable.length, 'Expired Player', 'Expired Players')}
+                        emptyMessage="None of your players' contracts have expired. Players appear here when a contract runs out, so you can bring them back."
+                    />
+                </div>
+            )}
+
+            {/* ── Tab 4: Free Agents ── */}
             {activeTab === 'free-agents' && (
                 <div className="space-y-4">
                     <Input
@@ -548,7 +681,7 @@ export const TeamHeadContracts: React.FC = () => {
             <Modal
                 open={!!selectedPlayer}
                 onClose={() => { if (!pendingAction) setSelectedPlayer(null); }}
-                title="Offer Contract"
+                title={selectedPlayer?.resign ? 'Re-sign Player' : 'Offer Contract'}
                 maxWidth="md"
                 footer={selectedPlayer ? (
                     <>
@@ -556,7 +689,7 @@ export const TeamHeadContracts: React.FC = () => {
                             Cancel
                         </Button>
                         <Button onClick={submitOffer}>
-                            Send Contract Offer
+                            {selectedPlayer.resign && !selectedPlayer.hasAccount ? 'Re-sign Player' : 'Send Contract Offer'}
                         </Button>
                     </>
                 ) : undefined}
@@ -574,7 +707,7 @@ export const TeamHeadContracts: React.FC = () => {
                         <Field
                             label="Contract Length (Team Matches)"
                             htmlFor="contract-length"
-                            hint="Default is 13 matches (August standard)."
+                            hint={`The league default is ${defaultLength} matches.`}
                         >
                             <Input
                                 id="contract-length"

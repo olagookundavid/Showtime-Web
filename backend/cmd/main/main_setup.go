@@ -317,6 +317,16 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return err
 	})
 
+	// Mondays 07:00 UTC (08:00 Lagos): commissioners get the week's league-wide summary
+	// of contracts in their last three matches or just expired. Team managers get
+	// theirs from the expiry check above, as their own matches finish.
+	add("0 7 * * 1", "Contract expiry digest", func(ctx context.Context) error {
+		if app.ContractService == nil {
+			return nil
+		}
+		return app.ContractService.SendLeagueExpiryDigest(ctx)
+	})
+
 	// Hourly: a cup round that finished a week ago and that no admin has
 	// filled fills the next round's fixtures itself.
 	add("20 * * * *", "Cup auto-fill", func(ctx context.Context) error {
@@ -480,8 +490,11 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService, roleService).WithContactSyncer(emailService)
 	notifService := services.NewNotificationService(notifRepo)
 	windowService := services.NewTransferWindowService(windowRepo)
-	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo)
-	transferService := services.NewTransferService(transferRepo, contractRepo, playerRepo, windowRepo, notifService, tmRepo)
+	digestRepo := ports.NewContractDigestRepository(pool)
+	appSettingService := services.NewAppSettingService(appSettingRepo, digestRepo)
+	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo, auditService,
+		services.NewContractDigestService(digestRepo, emailService, notifService, appSettingService), appSettingService)
+	transferService := services.NewTransferService(transferRepo, contractRepo, playerRepo, windowRepo, notifService, tmRepo, appSettingService)
 	claimService := services.NewClaimService(claimRepo, tmRepo, notifService, emailService, tokenMaker)
 	commentService := services.NewCommentService(commentRepo, newsRepo, matchRepo)
 	discountService := services.NewDiscountService(discountRepo)
@@ -512,7 +525,6 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	mediaService := services.NewMediaService(mediaRepo, storageService)
 	seasonService := services.NewSeasonService(seasonRepo)
 	playService := services.NewPlayService(playRepo, matchRepo, statsRepo)
-	appSettingService := services.NewAppSettingService(appSettingRepo)
 
 	fantasyService := services.NewFantasyService(fantasyRepo, fantasyLeagueRepo, playerRepo, matchRepo, fantasySquadRepo)
 
@@ -608,6 +620,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		badgeHandler, totwHandler, potwHandler, broadcastHandler,
 	)
 	h.PlayerTicketHandler = transport.NewPlayerTicketHandler(playerTicketService)
+	h.AuditHandler = transport.NewAuditHandler(auditService)
 	// One Paystack webhook for every kind of payment: Paystack calls a single URL.
 	h.PaystackWebhookHandler = transport.NewPaystackWebhookHandler(
 		paystackClient.GetSecretKey,

@@ -26,6 +26,7 @@ type IContractHandler interface {
 	GetTeamContracts(c *gin.Context)
 	GetMyContracts(c *gin.Context)
 	GetFreeAgents(c *gin.Context)
+	GetResignablePlayers(c *gin.Context)
 	GetContractByID(c *gin.Context)
 	AdminOverrideContract(c *gin.Context)
 	AdminForceAcceptContract(c *gin.Context)
@@ -290,4 +291,20 @@ func (h *ContractHandler) AdminForceAcceptContract(c *gin.Context) {
 	h.auditService.LogAction(&payload.UserId, "ADMIN_FORCE_ACCEPT", "contract", &entityID, &detailsStr)
 
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Contract force-accepted by admin %s", adminName)})
+}
+
+// GetResignablePlayers lists the team's own players whose contracts expired and who
+// are still free agents. They can be re-signed even while the transfer window is closed.
+func (h *ContractHandler) GetResignablePlayers(c *gin.Context) {
+	teamID, exists := c.Get(middlewares.TeamIDContextKey)
+	if !exists {
+		c.JSON(http.StatusForbidden, gin.H{"error": "team manager context required"})
+		return
+	}
+	players, err := h.service.GetResignablePlayers(c.Request.Context(), teamID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": players})
 }

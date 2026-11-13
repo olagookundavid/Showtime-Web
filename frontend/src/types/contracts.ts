@@ -39,4 +39,18 @@ export interface IssueContractPayload {
     notes?: string;
 }
 
+/** A free agent whose last contract expired with your team. You can re-sign them at any time, even with the transfer window closed. */
+export interface ResignablePlayer {
+    id: string;
+    name: string;
+    position: string;
+    image: string;
+    jersey_number: number;
+    /** With an account the player accepts the offer; without one, re-signing starts the contract at once. */
+    has_account: boolean;
+    last_contract_length: number;
+    expired_at: string;
+    offer_pending: boolean;
+}
+
 export type OfferResponse = { contract: ContractData; action: 'accept' | 'reject' };

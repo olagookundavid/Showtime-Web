@@ -7,6 +7,7 @@ import (
 
 	"showtime-backend/internal/domain"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,9 +23,31 @@ type IContractRepository interface {
 	GetFreeAgents(ctx context.Context, search string, page, limit int) ([]domain.Player, int64, error)
 	GetTeamFinishedMatchCount(ctx context.Context, teamID string) (int, error)
 	GetExpiringContracts(ctx context.Context, teamIDs ...string) ([]domain.Contract, error)
-	UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error
+	// UpdateLastNotifiedRemaining records which "matches left" warning a contract has had.
+	// claimed is false when it already had this one, so two overlapping expiry runs
+	// (the 10-minute job and a match finishing) can't both announce it.
+	UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) (claimed bool, err error)
+	// GetLastContractByPlayerID is the player's most recent contract that ever took
+	// effect (ACTIVE, EXPIRED or TERMINATED), or nil.
+	GetLastContractByPlayerID(ctx context.Context, playerID string) (*domain.Contract, error)
+	// GetResignablePlayers is every free agent whose last contract expired with teamID:
+	// the team's own players it may re-sign outside a transfer window.
+	GetResignablePlayers(ctx context.Context, teamID string) ([]ResignablePlayer, error)
 	RemovePlayerFromScheduledTeamSheets(ctx context.Context, playerID, teamID string) error
 	CancelContract(ctx context.Context, id string) error
+}
+
+// ResignablePlayer is a free agent whose last contract ran out with the team asking.
+type ResignablePlayer struct {
+	PlayerID       string
+	Name           string
+	Position       string
+	Image          string
+	JerseyNumber   int
+	UserID         *string
+	ContractLength int
+	ExpiredAt      time.Time
+	OfferPending   bool
 }
 
 type PostgresContractRepository struct {
@@ -55,8 +78,9 @@ func (r *PostgresContractRepository) CreateContract(ctx context.Context, c *doma
 	query := `
 		INSERT INTO contracts (
 			player_id, team_id, status, contract_length, matches_at_start,
-			player_value, offered_by, offered_at, notes
-		) VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::text, '')::uuid, NOW(), $8)
+			player_value, offered_by, offered_at, notes, accepted_at
+		) VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::text, '')::uuid, NOW(), $8,
+			CASE WHEN $3::text = 'ACTIVE' THEN NOW() END)
 		RETURNING id, offered_at, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
@@ -427,10 +451,68 @@ func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context, t
 	return contracts, nil
 }
 
-func (r *PostgresContractRepository) UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error {
-	query := `UPDATE contracts SET last_notified_remaining = $1, updated_at = NOW() WHERE id = $2`
-	_, err := r.db.Exec(ctx, query, remaining, id)
-	return err
+func (r *PostgresContractRepository) UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) (bool, error) {
+	query := `UPDATE contracts SET last_notified_remaining = $1, updated_at = NOW()
+		WHERE id = $2 AND last_notified_remaining IS DISTINCT FROM $1`
+	tag, err := r.db.Exec(ctx, query, remaining, id)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+func (r *PostgresContractRepository) GetLastContractByPlayerID(ctx context.Context, playerID string) (*domain.Contract, error) {
+	query := `
+		SELECT id, player_id, team_id, status, contract_length, matches_at_start, expired_at, terminated_at
+		FROM contracts
+		WHERE player_id = $1 AND status IN ('ACTIVE', 'EXPIRED', 'TERMINATED')
+		ORDER BY COALESCE(expired_at, terminated_at, accepted_at, offered_at) DESC
+		LIMIT 1`
+	var c domain.Contract
+	err := r.db.QueryRow(ctx, query, playerID).Scan(
+		&c.ID, &c.PlayerID, &c.TeamID, &c.Status, &c.ContractLength, &c.MatchesAtStart, &c.ExpiredAt, &c.TerminatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (r *PostgresContractRepository) GetResignablePlayers(ctx context.Context, teamID string) ([]ResignablePlayer, error) {
+	query := `
+		WITH last_contract AS (
+			SELECT DISTINCT ON (c.player_id) c.player_id, c.team_id, c.status, c.contract_length, c.expired_at
+			FROM contracts c
+			WHERE c.status IN ('ACTIVE', 'EXPIRED', 'TERMINATED')
+			ORDER BY c.player_id, COALESCE(c.expired_at, c.terminated_at, c.accepted_at, c.offered_at) DESC
+		)
+		SELECT p.id, p.name, COALESCE(p.position, ''), COALESCE(p.image, ''), COALESCE(p.jersey_number, 0), p.user_id,
+		       lc.contract_length, lc.expired_at,
+		       EXISTS (SELECT 1 FROM contracts pc WHERE pc.player_id = p.id AND pc.team_id = $1 AND pc.status = 'PENDING')
+		FROM last_contract lc
+		JOIN players p ON p.id = lc.player_id
+		WHERE lc.team_id = $1 AND lc.status = 'EXPIRED'
+		  AND p.team_id IS NULL
+		  AND COALESCE(p.status, 'active') = 'active'
+		ORDER BY lc.expired_at DESC, p.name`
+	rows, err := r.db.Query(ctx, query, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []ResignablePlayer
+	for rows.Next() {
+		var rp ResignablePlayer
+		if err := rows.Scan(&rp.PlayerID, &rp.Name, &rp.Position, &rp.Image, &rp.JerseyNumber, &rp.UserID,
+			&rp.ContractLength, &rp.ExpiredAt, &rp.OfferPending); err != nil {
+			return nil, err
+		}
+		out = append(out, rp)
+	}
+	return out, rows.Err()
 }
 
 func (r *PostgresContractRepository) RemovePlayerFromScheduledTeamSheets(ctx context.Context, playerID, teamID string) error {
