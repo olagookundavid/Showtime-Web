@@ -19,6 +19,7 @@ type Handlers struct {
 	PlayerTicketHandler         transport.IPlayerTicketHandler
 	AuditHandler                transport.IAuditHandler
 	PaystackWebhookHandler      *transport.PaystackWebhookHandler
+	LeadHandler                 *transport.LeadHandler
 	StatsHandler                transport.IStatsHandler
 	InventoryHandler            transport.IInventoryHandler
 	UploadHandler               transport.IUploadHandler

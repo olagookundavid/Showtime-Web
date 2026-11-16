@@ -30,6 +30,7 @@ export * from './notifications';
 export * from './playByPlay';
 export * from './players';
 export * from './playerTickets';
+export * from './leads';
 export * from './potw';
 export * from './relive';
 export * from './settings';

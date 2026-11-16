@@ -88,3 +88,8 @@ var (
 type MediaValidationError string
 
 func (e MediaValidationError) Error() string { return string(e) }
+
+// LeadValidationError is a problem with what a visitor typed into the join form.
+type LeadValidationError string
+
+func (e LeadValidationError) Error() string { return string(e) }

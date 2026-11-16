@@ -173,6 +173,8 @@ export {
   getMyTickets,
 } from './playerTickets';
 
+export { joinInterestList, adminListLeads, getLeadSummary, downloadLeadsExport } from './leads';
+
 export { getAdminUsers, updateUserRole, updateUserInfo } from './users';
 
 export {
