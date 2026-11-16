@@ -149,7 +149,7 @@ export const FantasyNewsCarousel = () => {
                     to={href}
                     tabIndex={-1}
                     aria-hidden="true"
-                    className="block aspect-video overflow-hidden bg-white shadow-xl dark:bg-gray-800"
+                    className="block aspect-video overflow-hidden bg-sffl-navy shadow-xl"
                   >
                     <img
                       src={image}
