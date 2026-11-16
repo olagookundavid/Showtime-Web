@@ -97,12 +97,27 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupNotificationRoutes(v1_api, app)
 	SetupAppSettingRoutes(v1_api, app)
 	SetupClaimRoutes(v1_api, app)
+	SetupLeadRoutes(v1_api, app)
 	SetupCommentRoutes(v1_api, app)
 	SetupDiscountRoutes(v1_api, app)
 	SetupFantasyRoutes(v1_api, app)
 	SetupTOTWRoutes(v1_api, app)
 	SetupBadgeRoutes(v1_api, app)
 	return r
+}
+
+// SetupLeadRoutes carries the public join form. It needs no account, so it is
+// rate-limited per visitor and the form has a hidden field that bots fill in.
+func SetupLeadRoutes(r *gin.RouterGroup, app *api.Application) {
+	rls := commonAuth.RateLimitStruct{
+		LimiterEnabled: true,
+		Rps:            1,
+		Burst:          5,
+	}
+	leads := r.Group("/leads", commonAuth.RateLimit(rls))
+	{
+		leads.POST("", app.Handlers.LeadHandler.Join)
+	}
 }
 
 // SetupClaimRoutes carries the player account claim flow.
@@ -540,6 +555,16 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketsGroup.GET("", app.Handlers.TicketHandler.ListTickets)
 		ticketsGroup.GET("/search", app.Handlers.TicketHandler.SearchByEmail)
 		ticketsGroup.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
+	}
+
+	// People who asked to hear from Showtime through the join page. Shown with the
+	// ticketing pages because they are a source of ticket sales.
+	leadsGroup := adminRoutes.Group("/leads")
+	leadsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
+	{
+		leadsGroup.GET("", app.Handlers.LeadHandler.List)
+		leadsGroup.GET("/summary", app.Handlers.LeadHandler.Summary)
+		leadsGroup.GET("/export", app.Handlers.LeadHandler.Export)
 	}
 
 	// Referrals has a wider role set than Tickets itself (store_manager gets

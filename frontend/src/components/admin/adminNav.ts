@@ -1,4 +1,5 @@
 import {
+  MegaphoneIcon,
   Squares2X2Icon,
   CalendarIcon,
   PlayCircleIcon,
@@ -131,6 +132,7 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
       },
       { name: "Match Days", path: "/admin/event-days", icon: CalendarDaysIcon },
       { name: "Referrals", path: "/admin/referrals", icon: UserPlusIcon },
+      { name: "Leads", path: "/admin/leads", icon: MegaphoneIcon },
     ],
   },
   {
@@ -197,6 +199,7 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   Tickets: "tickets",
   "Ticket Products": "tickets",
   "Player Tickets": "tickets",
+  Leads: "tickets",
   "Match Days": "event_days",
   Referrals: "referrals",
   "Online Store": "store",

@@ -621,6 +621,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	)
 	h.PlayerTicketHandler = transport.NewPlayerTicketHandler(playerTicketService)
 	h.AuditHandler = transport.NewAuditHandler(auditService)
+	h.LeadHandler = transport.NewLeadHandler(
+		services.NewLeadService(ports.NewLeadRepository(pool)).WithContactSyncer(emailService))
 	// One Paystack webhook for every kind of payment: Paystack calls a single URL.
 	h.PaystackWebhookHandler = transport.NewPaystackWebhookHandler(
 		paystackClient.GetSecretKey,

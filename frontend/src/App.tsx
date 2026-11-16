@@ -225,6 +225,7 @@ const TicketsRedirect = () => {
   return <Navigate to={{ pathname: "/tickets/game-pass", search }} replace />;
 };
 
+const AdminLeads = lazy(() => import("./pages/admin/AdminLeads"));
 const AdminTickets = lazy(() =>
   import("./pages/admin/AdminTickets").then((m) => ({
     default: m.AdminTickets,
@@ -358,6 +359,9 @@ const PlayerPortalTransfers = lazy(() =>
   })),
 );
 
+// Lead capture: the page the social media and community teams share.
+const Join = lazy(() => import("./pages/join/Join"));
+
 // Player account claim flow. Unlisted by design: reachable by URL for players
 // onboarding off the historical import, but never linked from navigation.
 const ClaimAccount = lazy(() => import("./pages/claim/ClaimAccount"));
@@ -444,6 +448,7 @@ function App() {
                       <Route path="/" element={<Landing />} />
 
                       {/* Auth Routes */}
+                      <Route path="/join" element={<Join />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/signup" element={<Signup />} />
                       <Route
@@ -838,6 +843,14 @@ function App() {
                         element={
                           <FeatureGuard feature="tickets">
                             <AdminPlayerTickets />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="leads"
+                        element={
+                          <FeatureGuard feature="tickets">
+                            <AdminLeads />
                           </FeatureGuard>
                         }
                       />
