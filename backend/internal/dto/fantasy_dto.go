@@ -126,6 +126,12 @@ type FantasyDashboardResponse struct {
 	CurrentGameweek *GameweekResponse `json:"current_gameweek,omitempty"`
 	// DeadlinePassed distinguishes "still time to edit" from "locked in".
 	DeadlinePassed bool `json:"deadline_passed"`
+	// DisplayGameweek is the gameweek whose score Team.GameweekPoints actually
+	// reflects: CurrentGameweek once its deadline has passed, otherwise the
+	// last gameweek that finished — a still-open gameweek has nothing scored
+	// yet, so showing its own (zero) points would read as "you scored zero"
+	// rather than "this hasn't started".
+	DisplayGameweek *GameweekResponse `json:"display_gameweek,omitempty"`
 
 	Leagues     []DashboardLeagueRow `json:"leagues"`
 	TopManagers []LeaderboardEntry   `json:"top_managers"`

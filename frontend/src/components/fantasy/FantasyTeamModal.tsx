@@ -34,7 +34,12 @@ export function FantasyTeamModal({
     const [viewMode, setViewMode] = useState<'pitch' | 'list'>('pitch');
     const [selectedGwIdOverride, setSelectedGwId] = useState<string>('');
     const [inspectingPlayer, setInspectingPlayer] = useState<FantasyPlayerModalData | null>(null);
-    const defaultGameweek = gameweeks.find((g) => g.status === 'LIVE' || g.status === 'LOCKED' || g.status === 'SCHEDULED') || gameweeks[0];
+    // A gameweek still SCHEDULED hasn't locked yet, so its points aren't real: default to
+    // the current locked/live gameweek, falling back to the last one that actually finished.
+    const defaultGameweek =
+        gameweeks.find((g) => g.status === 'LIVE' || g.status === 'LOCKED') ??
+        [...gameweeks].reverse().find((g) => g.status === 'FINALIZED') ??
+        gameweeks[0];
     const selectedGwId = selectedGwIdOverride || initialGameweekId || defaultGameweek?.id || '';
 
     // Lineup query
@@ -148,7 +153,7 @@ export function FantasyTeamModal({
                                 GW Points
                             </span>
                             <span className="font-mono font-black text-sffl-red mt-0.5 block text-sm">
-                                {data.points.toFixed(1)} pts
+                                {data.deadline_passed ? `${data.points.toFixed(1)} pts` : 'Not started'}
                             </span>
                         </div>
                     </div>
@@ -215,7 +220,7 @@ export function FantasyTeamModal({
                             picks={picks}
                             gameweekLabel={selectedGw ? `Gameweek ${selectedGw.number}` : undefined}
                             gameweekId={selectedGwId}
-                            showPoints
+                            showPoints={data?.deadline_passed ?? false}
                             title="Starting Lineup"
                         />
                     ) : (
@@ -303,7 +308,7 @@ export function FantasyTeamModal({
                                                     {formatFantasyPrice(pick.current_price ?? pick.purchase_price)}
                                                 </span>
                                                 <span className="block text-[10px] font-black text-sffl-red">
-                                                    {pick.points?.toFixed(1) ?? '0.0'} pts
+                                                    {data?.deadline_passed ? `${pick.points?.toFixed(1) ?? '0.0'} pts` : '—'}
                                                 </span>
                                             </div>
                                         </button>
@@ -394,7 +399,7 @@ export function FantasyTeamModal({
                                                     {formatFantasyPrice(pick.current_price ?? pick.purchase_price)}
                                                 </span>
                                                 <span className="block text-[10px] font-black text-sffl-red">
-                                                    {pick.points?.toFixed(1) ?? '0.0'} pts
+                                                    {data?.deadline_passed ? `${pick.points?.toFixed(1) ?? '0.0'} pts` : '—'}
                                                 </span>
                                             </div>
                                         </button>

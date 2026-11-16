@@ -33,6 +33,9 @@ export interface FantasyDashboard {
     lineup?: FantasyLineupResponse;
     current_gameweek?: FantasyGameweek;
     deadline_passed: boolean;
+    /** The gameweek team.gameweek_points actually reflects: current_gameweek once
+     *  its deadline has passed, otherwise the last gameweek that finished. */
+    display_gameweek?: FantasyGameweek;
     leagues: DashboardLeagueRow[];
     top_managers: LeaderboardEntry[];
 }

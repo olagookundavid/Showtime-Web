@@ -956,8 +956,24 @@ func (s *FantasyService) GetDashboard(ctx context.Context, userID, seasonID stri
 			return nil, err
 		}
 		res.Lineup = lineup
-		if lineup != nil {
-			res.Team.GameweekPoints = lineup.Points
+
+		// gw itself has nothing scored until its deadline passes, so the points
+		// tile would otherwise read as "you scored zero" rather than "this
+		// hasn't started" — show the last gameweek that actually finished instead.
+		pointsGW := gw
+		pointsLineup := lineup
+		if gw.Status == domain.GameweekScheduled {
+			if last, lerr := s.repo.GetLastFinalizedGameweek(ctx, season.ID); lerr == nil && last != nil {
+				pointsGW = last
+				pointsLineup, err = s.GetMyLineup(ctx, userID, season.ID, last.ID)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+		res.DisplayGameweek = gameweekResponse(pointsGW, nil)
+		if pointsLineup != nil {
+			res.Team.GameweekPoints = pointsLineup.Points
 		}
 	}
 

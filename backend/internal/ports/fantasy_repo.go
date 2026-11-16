@@ -36,6 +36,9 @@ type IFantasyRepository interface {
 	GetGameweekByID(ctx context.Context, id string) (*domain.FantasyGameweek, error)
 	DeleteGameweek(ctx context.Context, id string) error
 	GetCurrentGameweek(ctx context.Context, seasonID string) (*domain.FantasyGameweek, error)
+	// GetLastFinalizedGameweek is the most recently scored gameweek, or nil if
+	// none has finished yet this season.
+	GetLastFinalizedGameweek(ctx context.Context, seasonID string) (*domain.FantasyGameweek, error)
 	ListGameweeks(ctx context.Context, seasonID string) ([]domain.FantasyGameweek, error)
 	UpdateGameweekStatus(ctx context.Context, id string, status domain.GameweekStatus) error
 	UpdateGameweekDeadline(ctx context.Context, id string, deadline time.Time) error
@@ -434,6 +437,31 @@ func (r *FantasyRepository) GetCurrentGameweek(ctx context.Context, seasonID str
 			return &gw, nil
 		}
 		return nil, fmt.Errorf("failed to get current gameweek: %w", err)
+	}
+	return &gw, nil
+}
+
+func (r *FantasyRepository) GetLastFinalizedGameweek(ctx context.Context, seasonID string) (*domain.FantasyGameweek, error) {
+	query := `
+		SELECT id, season_id, number, event_day_id, deadline, status, created_at, updated_at
+		FROM fantasy_gameweeks
+		WHERE season_id = $1 AND status = 'FINALIZED'
+		ORDER BY number DESC
+		LIMIT 1
+	`
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var gw domain.FantasyGameweek
+	err := r.pool.QueryRow(ctx, query, seasonID).Scan(
+		&gw.ID, &gw.SeasonID, &gw.Number, &gw.EventDayID, &gw.Deadline, &gw.Status,
+		&gw.CreatedAt, &gw.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get last finalized gameweek: %w", err)
 	}
 	return &gw, nil
 }

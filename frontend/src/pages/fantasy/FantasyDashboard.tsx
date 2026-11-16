@@ -577,6 +577,7 @@ export function FantasyDashboard() {
   const picks: FantasyLineupPick[] = lineup?.picks ?? [];
   const leagues: DashboardLeagueRow[] = dashboard.leagues ?? [];
   const deadlinePassed = dashboard.deadline_passed === true;
+  const displayGameweek = dashboard.display_gameweek ?? dashboard.current_gameweek;
 
   const rank = num(team?.overall_rank);
   const totalManagers = num(team?.total_managers);
@@ -629,15 +630,17 @@ export function FantasyDashboard() {
 
           <div className="p-4 bg-white/10">
             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
-              {gameweek
-                ? `Gameweek ${gameweek.number} Points`
+              {displayGameweek
+                ? `Gameweek ${displayGameweek.number} Points`
                 : "Gameweek Points"}
             </span>
             <span className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight break-all">
               {formatStatDecimal(num(team?.gameweek_points), 2)}
             </span>
             <span className="block text-xs text-gray-300 font-bold mt-0.5">
-              This match day
+              {displayGameweek && displayGameweek.id !== gameweek?.id
+                ? "Last gameweek"
+                : "This match day"}
             </span>
           </div>
 
