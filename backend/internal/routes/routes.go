@@ -560,7 +560,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	// People who asked to hear from Showtime through the join page. Shown with the
 	// ticketing pages because they are a source of ticket sales.
 	leadsGroup := adminRoutes.Group("/leads")
-	leadsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, "tickets"))
+	leadsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureLeads))
 	{
 		leadsGroup.GET("", app.Handlers.LeadHandler.List)
 		leadsGroup.GET("/summary", app.Handlers.LeadHandler.Summary)

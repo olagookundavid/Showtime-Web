@@ -849,7 +849,7 @@ function App() {
                       <Route
                         path="leads"
                         element={
-                          <FeatureGuard feature="tickets">
+                          <FeatureGuard feature="leads">
                             <AdminLeads />
                           </FeatureGuard>
                         }

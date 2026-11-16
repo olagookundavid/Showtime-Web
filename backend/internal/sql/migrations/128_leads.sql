@@ -23,6 +23,14 @@ CREATE TABLE IF NOT EXISTS leads (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_email_lower ON leads (LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_leads_created ON leads (created_at DESC);
 
+-- The Leads admin page is its own feature ("leads") so it can be given to a role
+-- on its own. Copy each role's current "tickets" access so nobody gains or loses
+-- anything on deploy; from here it is edited on the Roles page like any other.
+INSERT INTO role_permissions (role_key, feature, level)
+SELECT role_key, 'leads', level FROM role_permissions WHERE feature = 'tickets'
+ON CONFLICT (role_key, feature) DO NOTHING;
+
 -- +goose Down
 
+DELETE FROM role_permissions WHERE feature = 'leads';
 DROP TABLE IF EXISTS leads;

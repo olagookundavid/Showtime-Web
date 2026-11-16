@@ -63,6 +63,7 @@ const (
 	FeatureTeamPortal         = "team_portal"
 	FeatureTickets            = "tickets"
 	FeatureReferrals          = "referrals"
+	FeatureLeads              = "leads"
 	FeatureEventDays          = "event_days"
 	FeatureStore              = "store"
 	FeatureInventory          = "inventory"
@@ -109,6 +110,7 @@ var FeatureCatalog = []FeatureDef{
 
 	{FeatureTickets, "Tickets", "Ticketing", "Sell and manage tickets.", true},
 	{FeatureReferrals, "Referrals", "Ticketing", "Referral codes and their payouts.", true},
+	{FeatureLeads, "Leads", "Ticketing", "People who joined the interest list at /join, where they came from, and who went on to buy.", true},
 
 	{FeatureStore, "Store", "Store", "Products, orders and discount codes.", true},
 	{FeatureInventory, "Inventory", "Store", "Stock levels.", true},

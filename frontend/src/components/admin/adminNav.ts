@@ -199,7 +199,7 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   Tickets: "tickets",
   "Ticket Products": "tickets",
   "Player Tickets": "tickets",
-  Leads: "tickets",
+  Leads: "leads",
   "Match Days": "event_days",
   Referrals: "referrals",
   "Online Store": "store",

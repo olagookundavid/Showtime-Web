@@ -33,6 +33,7 @@ export type FeatureKey =
   | "team_portal"
   | "tickets"
   | "referrals"
+  | "leads"
   | "event_days"
   | "store"
   | "inventory"
