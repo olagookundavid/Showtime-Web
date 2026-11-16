@@ -34,6 +34,8 @@ export {
   parseYouTubeId,
   youTubeEmbedUrl,
   youTubeThumbnailUrl,
+  youTubeWideThumbnailUrl,
+  youTubeWideThumbnailFallbackUrl,
 } from './newsContent';
 export type { NewsRefData } from './newsContent';
 export {

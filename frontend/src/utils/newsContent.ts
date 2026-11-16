@@ -88,3 +88,12 @@ export const youTubeEmbedUrl = (videoId: string) =>
 
 export const youTubeThumbnailUrl = (videoId: string) =>
     `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+/** True 16:9, uncropped thumbnail (1280x720 when available) — use with object-contain.
+ *  Falls back to mqdefault if the video has no maxres thumbnail. */
+export const youTubeWideThumbnailUrl = (videoId: string) =>
+    `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+
+/** Always-available true 16:9 fallback (320x180) for youTubeWideThumbnailUrl. */
+export const youTubeWideThumbnailFallbackUrl = (videoId: string) =>
+    `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;

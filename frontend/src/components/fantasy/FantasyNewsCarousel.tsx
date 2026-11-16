@@ -11,7 +11,11 @@ import {
 import { ButtonLink, IconButton } from "../ui";
 import { getFantasyCarousel } from "../../services";
 import type { FantasyCarouselArticle } from "../../types";
-import { parseYouTubeId, youTubeThumbnailUrl } from "../../utils";
+import {
+  parseYouTubeId,
+  youTubeWideThumbnailUrl,
+  youTubeWideThumbnailFallbackUrl,
+} from "../../utils";
 
 const AUTOPLAY_DELAY_MS = 15_000;
 
@@ -21,7 +25,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const slideImage = (article: FantasyCarouselArticle): string => {
   if (article.featured_media_type === "youtube") {
     const videoId = parseYouTubeId(article.featured_youtube_url);
-    if (videoId) return youTubeThumbnailUrl(videoId);
+    if (videoId) return youTubeWideThumbnailUrl(videoId);
   }
   return article.featured_image || "";
 };
@@ -109,12 +113,15 @@ export const FantasyNewsCarousel = () => {
             >
               <div className="order-2 min-w-0 space-y-4 lg:order-1">
                 <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-white/80">
-                  <span className="h-px w-8 shrink-0 bg-sffl-red" aria-hidden="true" />
+                  <span
+                    className="h-px w-8 shrink-0 bg-sffl-red"
+                    aria-hidden="true"
+                  />
                   <span className="min-w-0 truncate">
                     Fantasy news{date ? ` · ${date}` : ""}
                   </span>
                 </p>
-                <h2 className="line-clamp-4 break-words text-3xl font-black uppercase leading-[0.95] tracking-tight sm:text-4xl lg:text-5xl">
+                <h2 className="line-clamp-4 wrap-break-word text-3xl font-black uppercase leading-[0.95] tracking-tight sm:text-4xl lg:text-5xl">
                   {article.title}
                 </h2>
                 {summary && (
@@ -147,8 +154,20 @@ export const FantasyNewsCarousel = () => {
                     <img
                       src={image}
                       alt=""
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       loading={index === 0 ? "eager" : "lazy"}
+                      onError={(e) => {
+                        if (article.featured_media_type === "youtube") {
+                          const videoId = parseYouTubeId(
+                            article.featured_youtube_url,
+                          );
+                          if (videoId) {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src =
+                              youTubeWideThumbnailFallbackUrl(videoId);
+                          }
+                        }
+                      }}
                     />
                   </Link>
                 ) : (
