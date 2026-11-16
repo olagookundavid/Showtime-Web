@@ -68,3 +68,19 @@ func TestLiveStatLines(t *testing.T) {
 		})
 	}
 }
+
+// A line the editor's stat dropdown wrote keeps the admin's choice: its label
+// resolves to the recorded value instead of the suggested lines replacing it.
+func TestLiveStatLines_DropdownLabels(t *testing.T) {
+	stats := map[string]string{
+		"receptions": "6", "targets": "9", "bad_snaps": "1",
+		"stat1_lbl": "Catches", "stat1_val": "6",
+		"stat2_lbl": "Rec Yds", "stat2_val": "84",
+		"stat3_lbl": "Rec TDs", "stat3_val": "2",
+	}
+	got := LiveStatLines([3]StatLine{{"Receptions", ""}, {"Targets", ""}, {"Bad Snaps", ""}}, stats)
+	want := [3]StatLine{{"Receptions", "6"}, {"Targets", "9"}, {"Bad Snaps", "1"}}
+	if got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}

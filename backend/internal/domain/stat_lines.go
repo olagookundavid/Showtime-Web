@@ -27,6 +27,36 @@ var statLabelKeys = map[string]string{
 	"tackles":     "flag_pulls",
 	"pass def":    "pass_defended",
 	"int":         "interceptions",
+
+	// The labels the editor's stat dropdown writes: the short labels of the
+	// stats table (frontend/src/constants/stats.ts), keyed by the stats-table key.
+	"pass att":        "passing_attempts",
+	"comp. passes":    "completed_passes",
+	"inc. passes":     "incomplete_passes",
+	"passing tds":     "passing_tds",
+	"int thrown":      "interceptions_thrown",
+	"uncatchable":     "uncatchable_passes",
+	"thrown away":     "thrown_away_passes",
+	"batted down":     "batted_down_passes",
+	"qb sacks":        "qb_sacks",
+	"rush att":        "rushing_attempts",
+	"rushing tds":     "rushing_tds",
+	"targets":         "targets",
+	"receptions":      "receptions",
+	"receiving tds":   "receiving_tds",
+	"xp att":          "xp_attempts",
+	"xp good":         "xp_good",
+	"xp fail":         "xp_fail",
+	"xp tds":          "extra_points_tds",
+	"snaps":           "snaps",
+	"bad snaps":       "bad_snaps",
+	"pass deflect":    "pass_deflections",
+	"int caught":      "interceptions",
+	"def sacks":       "def_sacks",
+	"def tds":         "defensive_tds",
+	"def xp tds":      "defensive_xp_tds",
+	"safety":          "safety",
+	"safety conceded": "safety_conceded",
 }
 
 // LiveStatLines fills a card's stat lines from the player's recorded stats for

@@ -24,7 +24,8 @@ import type {
   EventDayResponse,
   Competition,
 } from "../../types";
-import { getApiErrorMessage, isRichTextEmpty, gameFormatOf, GAME_FORMATS } from "../../utils";
+import { getApiErrorMessage, isRichTextEmpty, gameFormatOf, GAME_FORMATS, getStatsForPosition } from "../../utils";
+import { ALL_STAT_DEFINITIONS } from "../../constants";
 import type { GameFormatSpec } from "../../utils";
 import {
   PlusIcon,
@@ -83,8 +84,8 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     unit_x: "32%",
     unit_y: "78%",
     default_stat1_label: "Rush Yds",
-    default_stat2_label: "Rush TD",
-    default_stat3_label: "Catches",
+    default_stat2_label: "Rushing TDs",
+    default_stat3_label: "Receptions",
   },
   {
     slot_code: "QB",
@@ -95,9 +96,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "86%",
     unit_x: "68%",
     unit_y: "78%",
-    default_stat1_label: "Pass TD",
+    default_stat1_label: "Passing TDs",
     default_stat2_label: "Pass Yds",
-    default_stat3_label: "Cmp %",
+    default_stat3_label: "Comp. Passes",
   },
   {
     slot_code: "C",
@@ -108,9 +109,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "68%",
     unit_x: "50%",
     unit_y: "50%",
-    default_stat1_label: "Catches",
+    default_stat1_label: "Receptions",
     default_stat2_label: "Rec Yds",
-    default_stat3_label: "Rec TD",
+    default_stat3_label: "Receiving TDs",
   },
   {
     slot_code: "WR1",
@@ -121,9 +122,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "68%",
     unit_x: "15%",
     unit_y: "50%",
-    default_stat1_label: "Catches",
+    default_stat1_label: "Receptions",
     default_stat2_label: "Rec Yds",
-    default_stat3_label: "Rec TD",
+    default_stat3_label: "Receiving TDs",
   },
   {
     slot_code: "WR2",
@@ -134,9 +135,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "68%",
     unit_x: "85%",
     unit_y: "50%",
-    default_stat1_label: "Catches",
+    default_stat1_label: "Receptions",
     default_stat2_label: "Rec Yds",
-    default_stat3_label: "Rec TD",
+    default_stat3_label: "Receiving TDs",
   },
   {
     slot_code: "WR3",
@@ -147,9 +148,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "56%",
     unit_x: "30%",
     unit_y: "26%",
-    default_stat1_label: "Catches",
+    default_stat1_label: "Receptions",
     default_stat2_label: "Rec Yds",
-    default_stat3_label: "Rec TD",
+    default_stat3_label: "Receiving TDs",
   },
   {
     slot_code: "WR4",
@@ -160,9 +161,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "56%",
     unit_x: "70%",
     unit_y: "26%",
-    default_stat1_label: "Catches",
+    default_stat1_label: "Receptions",
     default_stat2_label: "Rec Yds",
-    default_stat3_label: "Rec TD",
+    default_stat3_label: "Receiving TDs",
   },
 
   // Defence (7) - Line of scrimmage at 50%, players in front of it
@@ -175,9 +176,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "44%",
     unit_x: "50%",
     unit_y: "74%",
-    default_stat1_label: "Sacks",
+    default_stat1_label: "DEF Sacks",
     default_stat2_label: "Flag Pulls",
-    default_stat3_label: "Pass Def",
+    default_stat3_label: "Pass Deflect",
   },
   {
     slot_code: "DEF1",
@@ -189,8 +190,8 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     unit_x: "18%",
     unit_y: "50%",
     default_stat1_label: "Flag Pulls",
-    default_stat2_label: "Pass Def",
-    default_stat3_label: "Int",
+    default_stat2_label: "Pass Deflect",
+    default_stat3_label: "INT Caught",
   },
   {
     slot_code: "DEF2",
@@ -202,8 +203,8 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     unit_x: "36%",
     unit_y: "46%",
     default_stat1_label: "Flag Pulls",
-    default_stat2_label: "Pass Def",
-    default_stat3_label: "Int",
+    default_stat2_label: "Pass Deflect",
+    default_stat3_label: "INT Caught",
   },
   {
     slot_code: "DEF3",
@@ -215,8 +216,8 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     unit_x: "64%",
     unit_y: "46%",
     default_stat1_label: "Flag Pulls",
-    default_stat2_label: "Pass Def",
-    default_stat3_label: "Int",
+    default_stat2_label: "Pass Deflect",
+    default_stat3_label: "INT Caught",
   },
   {
     slot_code: "DEF4",
@@ -228,8 +229,8 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     unit_x: "82%",
     unit_y: "50%",
     default_stat1_label: "Flag Pulls",
-    default_stat2_label: "Pass Def",
-    default_stat3_label: "Int",
+    default_stat2_label: "Pass Deflect",
+    default_stat3_label: "INT Caught",
   },
   {
     slot_code: "S1",
@@ -240,9 +241,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "20%",
     unit_x: "32%",
     unit_y: "22%",
-    default_stat1_label: "Int",
+    default_stat1_label: "INT Caught",
     default_stat2_label: "Flag Pulls",
-    default_stat3_label: "Pass Def",
+    default_stat3_label: "Pass Deflect",
   },
   {
     slot_code: "S2",
@@ -253,9 +254,9 @@ const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     coord_y: "20%",
     unit_x: "68%",
     unit_y: "22%",
-    default_stat1_label: "Int",
+    default_stat1_label: "INT Caught",
     default_stat2_label: "Flag Pulls",
-    default_stat3_label: "Pass Def",
+    default_stat3_label: "Pass Deflect",
   },
 ];
 
@@ -292,17 +293,17 @@ const SLOT_OVERRIDES_5V5: Record<string, Partial<TOTWSlotDef>> = {
     label: "Free Safety",
     unit_x: "34%",
     unit_y: "22%",
-    default_stat1_label: "Int",
+    default_stat1_label: "INT Caught",
     default_stat2_label: "Flag Pulls",
-    default_stat3_label: "Pass Def",
+    default_stat3_label: "Pass Deflect",
   },
   DEF4: {
     label: "Strong Safety",
     unit_x: "66%",
     unit_y: "22%",
-    default_stat1_label: "Int",
+    default_stat1_label: "INT Caught",
     default_stat2_label: "Flag Pulls",
-    default_stat3_label: "Pass Def",
+    default_stat3_label: "Pass Deflect",
   },
 };
 
@@ -418,23 +419,51 @@ const normalizeSlotCode = (code: string | undefined): string => {
   return map[clean] || clean;
 };
 
-// Maps stat labels to keys returned by /admin/totw/player-stats
-const STAT_LABEL_KEYS: Record<string, string> = {
-  "pass td": "pass_td",
-  "pass yds": "pass_yards",
+// Labels saved before the stat dropdown existed, mapped to the key their value
+// has in /admin/totw/player-stats. Mirrors statLabelKeys in the backend
+// (domain/stat_lines.go).
+const LEGACY_STAT_KEYS: Record<string, string> = {
+  "pass td": "passing_tds",
+  "pass yds": "passing_yards",
   "cmp %": "cmp_pct",
-  completions: "pass_completions",
-  "rush yds": "rush_yards",
-  "rush td": "rush_td",
-  catches: "catches",
-  "rec yds": "rec_yards",
-  "rec td": "rec_td",
+  completions: "completed_passes",
+  "rush yds": "rushing_yards",
+  "rush td": "rushing_tds",
+  catches: "receptions",
+  "rec yds": "receiving_yards",
+  "rec td": "receiving_tds",
   drops: "drops",
-  sacks: "sacks",
+  sacks: "def_sacks",
   "flag pulls": "flag_pulls",
   tackles: "flag_pulls",
   "pass def": "pass_defended",
   int: "interceptions",
+};
+
+// The stat a card line shows, found from its saved label: the stats table's own
+// short label, or one of the older typed labels.
+const statKeyForLabel = (label: string | undefined): string | undefined => {
+  const clean = (label || "").trim().toLowerCase();
+  if (!clean) return undefined;
+  return (
+    ALL_STAT_DEFINITIONS.find((d) => d.shortLabel.toLowerCase() === clean)?.key ??
+    LEGACY_STAT_KEYS[clean]
+  );
+};
+
+// The stats-table position whose stats a slot can show. The female QB / running
+// back spot takes the offensive stats of a QB and a receiver; centres count as
+// receivers, as in the stats table.
+const statsForSlot = (slotPosition: string) => {
+  const pos = slotPosition.toUpperCase();
+  const stats =
+    pos === "FQB/RB"
+      ? getStatsForPosition("QB", "REC")
+      : getStatsForPosition(
+          pos === "QB" ? "QB" : pos === "R" ? "RUSH" : pos === "DEF" || pos === "S" ? "DEF" : "REC",
+        );
+  // Appearances is a season count; it means nothing on a one-week card.
+  return stats.filter((d) => d.key !== "apps");
 };
 
 function applyDayStats<
@@ -449,7 +478,7 @@ function applyDayStats<
   },
 >(slot: T, stats: Record<string, string>): T {
   const valueFor = (label: string | undefined, current: string | undefined) => {
-    const key = STAT_LABEL_KEYS[(label || "").trim().toLowerCase()];
+    const key = statKeyForLabel(label);
     return key && stats[key] !== undefined ? stats[key] : current;
   };
   const rating = stats["rating"] ? parseFloat(stats["rating"]) : NaN;
@@ -1042,6 +1071,9 @@ export const AdminTOTW = () => {
         player_jersey: player.jersey_number,
         player_gender: player.gender,
         team_name: player.team?.name,
+        stat1_value: "",
+        stat2_value: "",
+        stat3_value: "",
       };
       return copy;
     });
@@ -1126,40 +1158,39 @@ export const AdminTOTW = () => {
     });
   };
 
-  // Auto-fill individual player stats for selected event day
-  const handleAutofillSlot = async (slotIndex: number) => {
+  // Picks the stat a card line shows and fills its number from the player's box
+  // score for the linked event day, so nothing is typed.
+  const handleStatPick = async (
+    slotIndex: number,
+    n: 1 | 2 | 3,
+    key: string,
+  ) => {
+    const def = ALL_STAT_DEFINITIONS.find((d) => d.key === key);
     const slot = slots[slotIndex];
-    if (!slot.player_id) {
-      toast.error("Please select a player for this slot first.");
-      return;
-    }
-    if (!formEventDayId) {
-      toast.error(
-        "Please select an Event Day above to autofill match statistics.",
-      );
-      return;
-    }
+    if (!def || !slot) return;
 
-    try {
-      const stats = await getAdminPlayerDayStats(
-        slot.player_id,
-        formEventDayId,
+    const setLine = (value: string) =>
+      setSlots((prev) =>
+        prev[slotIndex]?.player_id !== slot.player_id
+          ? prev
+          : prev.map((s, i) =>
+              i === slotIndex
+                ? { ...s, [`stat${n}_label`]: def.shortLabel, [`stat${n}_value`]: value }
+                : s,
+            ),
       );
+    setLine("");
+
+    if (!formEventDayId) return;
+    try {
+      const stats = await getAdminPlayerDayStats(slot.player_id, formEventDayId);
       if (!stats || Object.keys(stats).length === 0) {
         toast.error(
-          "No box score statistics found for this player on the selected Event Day.",
+          `No box score statistics found for ${slot.player_name || "this player"} on the selected Event Day.`,
         );
         return;
       }
-
-      setSlots((prev) => {
-        const copy = [...prev];
-        copy[slotIndex] = applyDayStats(copy[slotIndex], stats);
-        return copy;
-      });
-      toast.success(
-        `Updated match statistics for ${slot.player_name || slot.slot_code}.`,
-      );
+      setLine(stats[key] ?? "0");
     } catch {
       toast.error("Could not retrieve player statistics for this Event Day.");
     }
@@ -2278,11 +2309,6 @@ export const AdminTOTW = () => {
                             : "Make POTW"}
                         </Button>
 
-                        {formEventDayId && (
-                          <Button variant="navy" icon={SparklesIcon} onClick={() => handleAutofillSlot(selectedSlotIndex)}>
-                            Autofill stats
-                          </Button>
-                        )}
                         <Button
                           variant="secondary"
                           icon={ArrowsRightLeftIcon}
@@ -2323,51 +2349,68 @@ export const AdminTOTW = () => {
                         />
                       </Field>
 
-                      {/* Stats 1-3: a label box and a value box per stat */}
+                      {/* Stats 1-3: pick the stat from the position's stats table; the number fills in from the box score */}
                       {(
                         [
                           { n: 1, label: activeSlot.stat1_label, value: activeSlot.stat1_value },
                           { n: 2, label: activeSlot.stat2_label, value: activeSlot.stat2_value },
                           { n: 3, label: activeSlot.stat3_label, value: activeSlot.stat3_value },
                         ] as const
-                      ).map((stat) => (
-                        <Field
-                          key={stat.n}
-                          label={`Stat ${stat.n}: ${stat.label || "Value"}`}
-                          htmlFor={`slot-stat${stat.n}-value`}
-                        >
-                          <div className="flex gap-1.5">
-                            <Input
-                              aria-label={`Stat ${stat.n} name`}
-                              type="text"
-                              value={stat.label || ""}
+                      ).map((stat) => {
+                        const options = statsForSlot(activeSlot.position);
+                        const picked = statKeyForLabel(stat.label);
+                        const inList = options.some((d) => d.key === picked);
+                        // A label saved before the dropdown that isn't one of this
+                        // position's stats stays selectable until it is changed.
+                        const keepsOldLabel = Boolean(stat.label) && !inList;
+                        const takenElsewhere = [
+                          activeSlot.stat1_label,
+                          activeSlot.stat2_label,
+                          activeSlot.stat3_label,
+                        ].filter((_, i) => i + 1 !== stat.n).map(statKeyForLabel);
+                        return (
+                          <Field
+                            key={stat.n}
+                            label={`Stat ${stat.n}`}
+                            htmlFor={`slot-stat${stat.n}`}
+                            hint={
+                              formEventDayId
+                                ? undefined
+                                : "Link an event day above to fill in the number."
+                            }
+                          >
+                            <Select
+                              id={`slot-stat${stat.n}`}
+                              value={inList ? picked : keepsOldLabel ? "__current" : ""}
                               onChange={(e) =>
-                                handleSlotChange(
-                                  selectedSlotIndex,
-                                  `stat${stat.n}_label` as "stat1_label" | "stat2_label" | "stat3_label",
-                                  e.target.value,
-                                )
+                                handleStatPick(selectedSlotIndex, stat.n, e.target.value)
                               }
-                              placeholder="Label"
-                              className="w-1/2"
-                            />
-                            <Input
-                              id={`slot-stat${stat.n}-value`}
-                              type="text"
-                              value={stat.value || ""}
-                              onChange={(e) =>
-                                handleSlotChange(
-                                  selectedSlotIndex,
-                                  `stat${stat.n}_value` as "stat1_value" | "stat2_value" | "stat3_value",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="0"
-                              className="w-1/2 text-center font-black"
-                            />
-                          </div>
-                        </Field>
-                      ))}
+                            >
+                              {!stat.label && <option value="">Choose a stat</option>}
+                              {keepsOldLabel && (
+                                <option value="__current" disabled>
+                                  {stat.label}
+                                </option>
+                              )}
+                              {options.map((d) => (
+                                <option
+                                  key={d.key}
+                                  value={d.key}
+                                  disabled={takenElsewhere.includes(d.key)}
+                                >
+                                  {d.label}
+                                </option>
+                              ))}
+                            </Select>
+                            <div
+                              className="mt-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 py-2 text-center text-base font-black text-sffl-navy dark:text-white"
+                              aria-label={`Stat ${stat.n} value`}
+                            >
+                              {stat.value || "—"}
+                            </div>
+                          </Field>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : (

@@ -515,7 +515,13 @@ func playerDayStats(ctx context.Context, q potwQuerier, playerID string, eventDa
 			COALESCE(SUM(ps.uncatchable_passes), 0),
 			COALESCE(SUM(ps.thrown_away_passes), 0),
 			COALESCE(SUM(ps.xp_attempts), 0),
-			COALESCE(SUM(ps.xp_good), 0)
+			COALESCE(SUM(ps.xp_good), 0),
+			COALESCE(SUM(ps.incomplete_passes), 0),
+			COALESCE(SUM(ps.targets), 0),
+			COALESCE(SUM(ps.xp_fail), 0),
+			COALESCE(SUM(ps.safety_conceded), 0),
+			COALESCE(SUM(ps.snaps), 0),
+			COALESCE(SUM(ps.bad_snaps), 0)
 		FROM player_stats ps
 		JOIN matches m ON ps.match_id = m.id
 		WHERE ps.player_id = $1::uuid
@@ -524,6 +530,7 @@ func playerDayStats(ctx context.Context, q potwQuerier, playerID string, eventDa
 	`
 	var line domain.RatingStatLine
 	var recYards, statRows int
+	var incompletePasses, targets, xpFail, safetyConceded, snaps, badSnaps int
 
 	err := q.QueryRow(ctx, query, playerID, eventDayID, day).Scan(
 		&statRows,
@@ -553,6 +560,12 @@ func playerDayStats(ctx context.Context, q potwQuerier, playerID string, eventDa
 		&line.ThrownAwayPasses,
 		&line.XPAttempts,
 		&line.XPGood,
+		&incompletePasses,
+		&targets,
+		&xpFail,
+		&safetyConceded,
+		&snaps,
+		&badSnaps,
 	)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -587,6 +600,42 @@ func playerDayStats(ctx context.Context, q potwQuerier, playerID string, eventDa
 	result["sacks"] = strconv.Itoa(line.DefensiveSacks)
 	result["interceptions"] = strconv.Itoa(line.Interceptions)
 	result["pass_defended"] = strconv.Itoa(line.PassDeflections + line.BattedDownPasses)
+
+	// Every stat of the stats table, under the table's own key, for the editor's
+	// stat dropdown (frontend/src/constants/stats.ts).
+	for key, n := range map[string]int{
+		"passing_attempts":     line.PassingAttempts,
+		"completed_passes":     line.CompletedPasses,
+		"incomplete_passes":    incompletePasses,
+		"passing_yards":        line.PassingYards,
+		"passing_tds":          line.PassingTDs,
+		"interceptions_thrown": line.InterceptionsThrown,
+		"uncatchable_passes":   line.UncatchablePasses,
+		"thrown_away_passes":   line.ThrownAwayPasses,
+		"batted_down_passes":   line.BattedDownPasses,
+		"qb_sacks":             line.QBSacks,
+		"rushing_attempts":     line.RushingAttempts,
+		"rushing_yards":        line.RushingYards,
+		"rushing_tds":          line.RushingTDs,
+		"targets":              targets,
+		"receptions":           line.Receptions,
+		"receiving_yards":      recYards,
+		"receiving_tds":        line.ReceivingTDs,
+		"xp_attempts":          line.XPAttempts,
+		"xp_good":              line.XPGood,
+		"xp_fail":              xpFail,
+		"extra_points_tds":     line.ExtraPointTDs,
+		"snaps":                snaps,
+		"bad_snaps":            badSnaps,
+		"pass_deflections":     line.PassDeflections,
+		"def_sacks":            line.DefensiveSacks,
+		"defensive_tds":        line.DefensiveTDs,
+		"defensive_xp_tds":     line.DefensiveXPTDs,
+		"safety":               line.Safeties,
+		"safety_conceded":      safetyConceded,
+	} {
+		result[key] = strconv.Itoa(n)
+	}
 
 	// Fetch player position to calculate accurate rating
 	var position string
