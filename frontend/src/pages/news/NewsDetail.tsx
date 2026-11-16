@@ -63,16 +63,16 @@ export const NewsDetail = () => {
                     }
                     const heroImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo_2.webp' : null);
                     return (
-                        <div className="h-56 sm:h-72 md:h-96 overflow-hidden relative">
+                        <div className="relative">
                             {heroImg ? (
                                 <LightboxImage
                                     src={heroImg}
                                     alt={article.title}
-                                    thumbnailClassName="w-full h-full"
-                                    imgClassName="w-full h-full object-cover"
+                                    thumbnailClassName="w-full"
+                                    imgClassName="block h-auto w-full"
                                 />
                             ) : (
-                                <div className="w-full h-full bg-gray-200 flex items-center justify-center">No Image</div>
+                                <div className="aspect-video w-full bg-gray-200 flex items-center justify-center">No Image</div>
                             )}
                         </div>
                     );

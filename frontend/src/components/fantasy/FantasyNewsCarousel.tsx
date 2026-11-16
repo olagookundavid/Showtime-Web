@@ -145,16 +145,11 @@ export const FantasyNewsCarousel = () => {
 
               <div className="order-1 mx-auto w-full max-w-md lg:order-2 lg:max-w-none">
                 {image ? (
-                  <Link
-                    to={href}
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    className="block aspect-video overflow-hidden bg-sffl-navy shadow-xl"
-                  >
+                  <Link to={href} tabIndex={-1} aria-hidden="true" className="block shadow-xl">
                     <img
                       src={image}
                       alt=""
-                      className="h-full w-full object-contain"
+                      className="block h-auto w-full"
                       loading={index === 0 ? "eager" : "lazy"}
                       onError={(e) => {
                         if (article.featured_media_type === "youtube") {

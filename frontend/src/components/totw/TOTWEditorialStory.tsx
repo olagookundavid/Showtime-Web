@@ -132,12 +132,12 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
               <YouTubeEmbed videoId={heroVideoId} title={news.title} />
             </div>
           ) : news.featured_image ? (
-            <div className="overflow-hidden shadow-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 max-h-130">
+            <div className="shadow-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900">
               <LightboxImage
                 src={news.featured_image}
                 alt={news.title}
-                thumbnailClassName="w-full h-full"
-                imgClassName="w-full h-full max-h-[520px] object-cover object-center"
+                thumbnailClassName="w-full"
+                imgClassName="block h-auto w-full"
               />
             </div>
           ) : null}
