@@ -11,6 +11,7 @@ import (
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
 	appErrors "showtime-backend/internal/errors"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 	"strconv"
 
@@ -96,6 +97,13 @@ func (h *StoreHandler) Checkout(c *gin.Context) {
 	res, err := h.Service.CreateOrder(c.Request.Context(), userID, req)
 	if err != nil {
 		switch {
+		case errors.Is(err, ports.ErrWalletInsufficient):
+			// A code the page can act on: offer a top-up.
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "INSUFFICIENT_BALANCE"})
+		case errors.Is(err, services.ErrStoreWalletSignIn):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error(), "code": "SIGN_IN_REQUIRED"})
+		case errors.Is(err, services.ErrStoreWalletUnavailable):
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 		case errors.Is(err, appErrors.ErrInsufficientStock):
 			helpers.BadResponse(c, "Sorry, this item just sold out. Please pick a different size or come back later.")
 		case errors.Is(err, appErrors.ErrVariantRequired):

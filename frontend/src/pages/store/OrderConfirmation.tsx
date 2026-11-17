@@ -299,7 +299,7 @@ export const OrderConfirmation = () => {
             {/* Order Reference details footer */}
             <div className="border-t dark:border-gray-700/40 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-400">
               <span className="break-all">
-                Reference: {order.paystack_reference || "—"}
+                Reference: {order.paystack_reference || order.order_reference || "—"}
               </span>
               <span
                 className={`px-3 py-1 rounded-none font-black uppercase text-[10px] self-start sm:self-center ${

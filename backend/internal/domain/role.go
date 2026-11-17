@@ -64,6 +64,7 @@ const (
 	FeatureTickets            = "tickets"
 	FeatureReferrals          = "referrals"
 	FeatureLeads              = "leads"
+	FeatureWallets            = "wallets"
 	FeatureEventDays          = "event_days"
 	FeatureStore              = "store"
 	FeatureInventory          = "inventory"
@@ -79,6 +80,8 @@ const (
 	FeatureRoles              = "roles"
 	FeatureAuditLog           = "audit_log"
 	FeatureSellerTools        = "seller_tools"
+	FeatureVouchers           = "vouchers"
+	FeatureVoucherRedeem      = "voucher_redeem"
 	FeatureAdministratorTools = "administrator_tools"
 )
 
@@ -111,6 +114,10 @@ var FeatureCatalog = []FeatureDef{
 	{FeatureTickets, "Tickets", "Ticketing", "Sell and manage tickets.", true},
 	{FeatureReferrals, "Referrals", "Ticketing", "Referral codes and their payouts.", true},
 	{FeatureLeads, "Leads", "Ticketing", "People who joined the interest list at /join, where they came from, and who went on to buy.", true},
+
+	{FeatureWallets, "Wallets", "Store", "Look up a user's wallet and ledger, and credit or debit it by hand.", true},
+	{FeatureVouchers, "Vouchers", "Store", "Set up voucher bundles, give vouchers to people, cancel them, and see what was redeemed.", true},
+	{FeatureVoucherRedeem, "Redeem vouchers", "Store", "The bar screen for scanning and redeeming vouchers.", false},
 
 	{FeatureStore, "Store", "Store", "Products, orders and discount codes.", true},
 	{FeatureInventory, "Inventory", "Store", "Stock levels.", true},

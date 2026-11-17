@@ -16,6 +16,7 @@ type IAppSettingHandler interface {
 	UpdateContractSettings(c *gin.Context)
 	UpdateNotificationSettings(c *gin.Context)
 	UpdateFantasySettings(c *gin.Context)
+	UpdateWalletSettings(c *gin.Context)
 	SearchStaff(c *gin.Context)
 }
 
@@ -97,6 +98,15 @@ func (h *AppSettingHandler) UpdateFantasySettings(c *gin.Context) {
 		return
 	}
 	h.respondSaved(c, h.service.UpdateFantasySettings(c.Request.Context(), req))
+}
+
+func (h *AppSettingHandler) UpdateWalletSettings(c *gin.Context) {
+	var req dto.WalletSettingsDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enter all three wallet limits"})
+		return
+	}
+	h.respondSaved(c, h.service.UpdateWalletSettings(c.Request.Context(), req))
 }
 
 // SearchStaff finds people who can be chosen to receive the league summary.

@@ -5,12 +5,14 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"pkg-common/helpers"
 	"strconv"
 
 	"showtime-backend/internal/dto"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -336,6 +338,22 @@ func optionalUserID(c *gin.Context) *string {
 	return nil
 }
 
+// respondTicketPurchaseError turns a purchase failure into a response. Wallet
+// failures carry a code so the page can react: a short wallet also lets the buyer
+// top up. Every other failure stays a plain 400, as before.
+func respondTicketPurchaseError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, ports.ErrWalletInsufficient):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "INSUFFICIENT_BALANCE"})
+	case errors.Is(err, services.ErrTicketWalletSignIn):
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error(), "code": "SIGN_IN_REQUIRED"})
+	case errors.Is(err, services.ErrTicketWalletUnavailable):
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+}
+
 // Purchase godoc
 // @Summary Purchase tickets
 // @Tags tickets
@@ -356,7 +374,7 @@ func (h *TicketHandler) Purchase(c *gin.Context) {
 
 	result, err := h.service.Purchase(c.Request.Context(), req, callbackURL, userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondTicketPurchaseError(c, err)
 		return
 	}
 
@@ -696,7 +714,7 @@ func (h *TicketHandler) PurchaseSeasonPass(c *gin.Context) {
 	}
 	result, err := h.service.PurchaseSeasonPass(c.Request.Context(), req, paymentCallbackURL(c), optionalUserID(c))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondTicketPurchaseError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, result)

@@ -52,9 +52,22 @@ type FantasySettingsDTO struct {
 	PlatformCutPercent float64 `json:"platform_cut_percent"`
 }
 
+// WalletSettingsDTO holds the spend-wallet top-up limits. Amounts are integer
+// kobo (₦1 = 100 kobo), like every other wallet amount in the API; the admin
+// page converts to and from naira.
+type WalletSettingsDTO struct {
+	// MinTopupKobo is the smallest single top-up.
+	MinTopupKobo int64 `json:"min_topup_kobo"`
+	// MaxTopupKobo is the largest single top-up.
+	MaxTopupKobo int64 `json:"max_topup_kobo"`
+	// MaxBalanceKobo is the most a wallet may hold; a top-up that would go past it is refused.
+	MaxBalanceKobo int64 `json:"max_balance_kobo"`
+}
+
 // AdminSettingsResponse is everything the App Settings page edits.
 type AdminSettingsResponse struct {
 	Contracts     ContractSettingsDTO     `json:"contracts"`
 	Notifications NotificationSettingsDTO `json:"notifications"`
 	Fantasy       FantasySettingsDTO      `json:"fantasy"`
+	Wallet        WalletSettingsDTO       `json:"wallet"`
 }

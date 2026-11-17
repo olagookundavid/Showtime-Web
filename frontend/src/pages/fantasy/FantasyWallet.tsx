@@ -12,8 +12,10 @@ import {
     InformationCircleIcon,
     BuildingLibraryIcon,
     ArrowRightIcon,
+    ExclamationTriangleIcon,
+    WalletIcon,
 } from '@heroicons/react/24/outline';
-import { Button, ButtonLink, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Spinner, Loader } from '../../components';
+import { Button, ButtonLink, Field, Input, Textarea, ConfirmDialog, ConfirmSummary, Modal, Spinner, Loader } from '../../components';
 import {
     fantasyWalletApi,
     formatKobo,
@@ -56,6 +58,7 @@ const TX_LABEL: Record<WalletTransaction['type'], string> = {
     PAYOUT: 'Payout',
     PAYOUT_REVERSAL: 'Payout Returned',
     ADJUSTMENT: 'Adjustment',
+    WALLET_TRANSFER: 'Moved to Spend Wallet',
 };
 
 export function FantasyWallet() {
@@ -85,6 +88,11 @@ export function FantasyWallet() {
     });
     const [prefilled, setPrefilled] = useState(false);
     const [cancelTarget, setCancelTarget] = useState<PayoutRequest | null>(null);
+
+    // Moving winnings into the spend wallet: the amount dialog, then a confirm.
+    const [transferOpen, setTransferOpen] = useState(false);
+    const [transferNaira, setTransferNaira] = useState('');
+    const [transferConfirmOpen, setTransferConfirmOpen] = useState(false);
 
     // Prefill saved bank details when they first become available.
     const bank = wallet?.last_bank_details;
@@ -119,6 +127,24 @@ export function FantasyWallet() {
             // 409 == the server recomputed the balance and it no longer covers this.
             const errorMessage = err instanceof Error ? err.message : undefined;
             toast.error(errorMessage || 'Failed to request payout');
+        },
+    });
+
+    const transferMutation = useMutation({
+        mutationFn: (amountKobo: number) => fantasyWalletApi.transferToSpendWallet(amountKobo),
+        onSuccess: (res) => {
+            toast.success(`${formatKobo(res.amount_kobo)} moved to your spend wallet.`);
+            setTransferConfirmOpen(false);
+            setTransferOpen(false);
+            setTransferNaira('');
+            queryClient.invalidateQueries({ queryKey: ['fantasyWallet'] });
+            queryClient.invalidateQueries({ queryKey: ['wallet'] });
+        },
+        onError: (err: unknown) => {
+            // 409: the balance no longer covers it, or the spend wallet is full.
+            setTransferConfirmOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['fantasyWallet'] });
+            toast.error(err instanceof Error && err.message ? err.message : 'Could not move the money');
         },
     });
 
@@ -183,6 +209,17 @@ export function FantasyWallet() {
     }
 
     const canSubmit = disabledReason === '' && !requestMutation.isPending;
+
+    const transferKobo = transferNaira.trim() === '' ? NaN : Math.round(parseFloat(transferNaira) * 100);
+    const canTransfer = wallet.balance_kobo >= wallet.min_transfer_kobo;
+    let transferProblem = '';
+    if (Number.isNaN(transferKobo)) {
+        transferProblem = 'Enter how much you want to move.';
+    } else if (transferKobo < wallet.min_transfer_kobo) {
+        transferProblem = `The minimum is ${formatKobo(wallet.min_transfer_kobo)}.`;
+    } else if (transferKobo > wallet.balance_kobo) {
+        transferProblem = `That is more than your available balance of ${formatKobo(wallet.balance_kobo)}.`;
+    }
     const transactions = wallet.transactions || [];
     // True for both "never joined a season" and "joined but hasn't won yet" —
     // the wallet API returns the same empty shape for both, so the notice
@@ -228,6 +265,23 @@ export function FantasyWallet() {
                                     </span>
                                 </p>
                             )}
+
+                            <div className="mt-4 max-w-md">
+                                <Button
+                                    variant="outline"
+                                    shape="square"
+                                    icon={WalletIcon}
+                                    disabled={!canTransfer}
+                                    onClick={() => setTransferOpen(true)}
+                                >
+                                    Move to Spend Wallet
+                                </Button>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    {canTransfer
+                                        ? 'Use your winnings inside Showtime instead of withdrawing them. This is one-way: money in the spend wallet cannot be withdrawn or moved back here.'
+                                        : `You need at least ${formatKobo(wallet.min_transfer_kobo)} in your balance to move money to your spend wallet.`}
+                                </p>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3 lg:min-w-80">
@@ -542,6 +596,91 @@ export function FantasyWallet() {
                     </div>
                 </div>
             </div>
+
+            {/* Move to spend wallet: amount, then a confirm outside the Modal */}
+            <Modal
+                open={transferOpen}
+                onClose={() => !transferMutation.isPending && setTransferOpen(false)}
+                title="Move to Spend Wallet"
+                subtitle="Turn prize winnings into spend wallet money."
+                maxWidth="md"
+                shape="square"
+                footer={
+                    <>
+                        <Button variant="secondary" shape="square" onClick={() => setTransferOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button shape="square" disabled={transferProblem !== ''} onClick={() => setTransferConfirmOpen(true)}>
+                            Review
+                        </Button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <Field
+                        label="Amount (₦ Naira)"
+                        htmlFor="transfer-amount"
+                        hint={`Minimum ${formatKobo(wallet.min_transfer_kobo)} · Available ${formatKobo(wallet.balance_kobo)}`}
+                    >
+                        <Input
+                            id="transfer-amount"
+                            shape="square"
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            step="0.01"
+                            value={transferNaira}
+                            onChange={(e) => setTransferNaira(e.target.value)}
+                            placeholder="e.g. 2000"
+                        />
+                    </Field>
+                    <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => setTransferNaira(String(wallet.balance_kobo / 100))}
+                    >
+                        Use my full balance
+                    </Button>
+
+                    <div className="flex items-start gap-2 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs text-amber-800 dark:text-amber-200">
+                        <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                        <span>
+                            This cannot be undone. Money in the spend wallet can only be spent inside Showtime: it can never
+                            be withdrawn to a bank or moved back to your prize balance.
+                        </span>
+                    </div>
+
+                    {transferProblem && transferNaira.trim() !== '' && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                            <InformationCircleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{transferProblem}</span>
+                        </p>
+                    )}
+                </div>
+            </Modal>
+
+            <ConfirmDialog
+                open={transferConfirmOpen}
+                title="Move this money to your spend wallet?"
+                description="It cannot be withdrawn or moved back to your prize balance afterwards."
+                body={
+                    <ConfirmSummary
+                        rows={[
+                            ['Amount', Number.isNaN(transferKobo) ? undefined : formatKobo(transferKobo)],
+                            [
+                                'Prize balance after',
+                                Number.isNaN(transferKobo) ? undefined : formatKobo(wallet.balance_kobo - transferKobo),
+                            ],
+                        ]}
+                    />
+                }
+                confirmLabel="Move money"
+                tone="warning"
+                icon={WalletIcon}
+                pending={transferMutation.isPending}
+                onConfirm={() => transferMutation.mutate(transferKobo)}
+                onCancel={() => setTransferConfirmOpen(false)}
+            />
 
             {/* Cancel Confirmation */}
             <ConfirmDialog

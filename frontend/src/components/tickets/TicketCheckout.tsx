@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CreditCardIcon, ExclamationTriangleIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon } from '@heroicons/react/24/outline';
-import { getUserProfile, purchaseTicket, quoteTicketPrice } from '../../services';
+import { CreditCardIcon, ExclamationTriangleIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon, WalletIcon } from '@heroicons/react/24/outline';
+import { getUserProfile, isInsufficientBalance, purchaseTicket, quoteTicketPrice } from '../../services';
 import type { AuthUser, PurchaseTicketPayload, TicketProductDayResponse, TicketProductResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';
+import { WalletPayOption } from '../wallet';
 import { dayLabel, formatDayShort, naira, sortDaysByDate } from './ticketFormat';
 
 interface TicketCheckoutProps {
@@ -39,6 +40,9 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
+    // Pay from the wallet instead of Paystack. walletKey re-reads the balance after a refusal.
+    const [useWallet, setUseWallet] = useState(false);
+    const [walletKey, setWalletKey] = useState(0);
     // A purchase creates a ticket order, so it waits for an explicit confirm.
     const [confirmPurchase, setConfirmPurchase] = useState(false);
 
@@ -81,6 +85,7 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
     const passPercent = quote?.game_pass_discount_percent ?? 0;
     const total = Math.max(0, subtotal - passDiscount);
     const free = total === 0;
+    const payFromWallet = useWallet && !free;
 
     const handlePurchase = async () => {
         if (!email || !name || !phone.trim()) {
@@ -100,6 +105,7 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                 quantity,
                 referral_code: referralCode.trim() || undefined,
                 access_code: accessCode || undefined,
+                pay_with_wallet: payFromWallet || undefined,
             };
 
             const result = await purchaseTicket(payload);
@@ -107,10 +113,15 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
             } else if (result.paystack_reference) {
-                // Free pass case - redirect to success page
+                // Already confirmed (free pass, or paid from the wallet): no Paystack step, go straight to the ticket
                 navigate(`/tickets/confirm?reference=${result.paystack_reference}`);
             }
         } catch (err: unknown) {
+            if (isInsufficientBalance(err)) {
+                // Someone else spent from the wallet, or the price changed: re-read the balance and fall back to Paystack.
+                setUseWallet(false);
+                setWalletKey((k) => k + 1);
+            }
             const errorResponse = err as { response?: { data?: { error?: string } } };
             setError(errorResponse.response?.data?.error || 'Failed to initiate purchase. Please try again.');
         } finally {
@@ -143,11 +154,17 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                             size="lg"
                             className="flex-1"
                             loading={purchasing}
-                            icon={free ? TicketIcon : CreditCardIcon}
+                            icon={free ? TicketIcon : payFromWallet ? WalletIcon : CreditCardIcon}
                             disabled={purchasing || !email || !name || !phone.trim()}
                             onClick={() => setConfirmPurchase(true)}
                         >
-                            {purchasing ? 'Processing…' : free ? 'Get Free Pass' : 'Pay with Paystack'}
+                            {purchasing
+                                ? 'Processing…'
+                                : free
+                                  ? 'Get Free Pass'
+                                  : payFromWallet
+                                    ? 'Pay from Wallet'
+                                    : 'Pay with Paystack'}
                         </Button>
                     </>
                 }
@@ -329,6 +346,15 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                         )}
                     </div>
 
+                    {userProfile && !free && (
+                        <WalletPayOption
+                            key={walletKey}
+                            totalKobo={total * 100}
+                            checked={useWallet}
+                            onChange={setUseWallet}
+                        />
+                    )}
+
                     {error && (
                         <div className="bg-red-50 p-3 text-sm font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
                             {error}
@@ -341,12 +367,16 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                     <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-gray-500">
                         {free ? (
                             <SparklesIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        ) : payFromWallet ? (
+                            <WalletIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                         ) : (
                             <LockClosedIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                         )}
                         {free
                             ? 'Your free Game Pass will be sent instantly'
-                            : 'You will be redirected to Paystack for secure payment'}
+                            : payFromWallet
+                          ? 'Your Game Pass will be sent instantly'
+                          : 'You will be redirected to Paystack for secure payment'}
                     </p>
                 </div>
             </Modal>
@@ -358,9 +388,11 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                 description={
                     free
                         ? 'Your Game Pass will be emailed to you straight away.'
-                        : 'You will be taken to Paystack to complete payment.'
+                        : payFromWallet
+                          ? 'The total will be taken from your wallet and your Game Pass emailed to you straight away.'
+                          : 'You will be taken to Paystack to complete payment.'
                 }
-                confirmLabel={free ? 'Get free pass' : 'Pay now'}
+                confirmLabel={free ? 'Get free pass' : payFromWallet ? 'Pay from wallet' : 'Pay now'}
                 tone="info"
                 icon={TicketIcon}
                 pending={purchasing}

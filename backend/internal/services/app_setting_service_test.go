@@ -135,3 +135,85 @@ func TestUpdateFantasyCutBounds(t *testing.T) {
 		t.Fatalf("cut should be stored rounded to 2 decimals, got %q", got)
 	}
 }
+
+func TestWalletSettingsDefaultsWhenUnset(t *testing.T) {
+	svc, _ := newSettingsSvc(nil)
+	got, err := svc.GetAdminSettings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := dto.WalletSettingsDTO{MinTopupKobo: 50_000, MaxTopupKobo: 20_000_000, MaxBalanceKobo: 100_000_000}
+	if got.Wallet != want {
+		t.Fatalf("expected defaults %+v, got %+v", want, got.Wallet)
+	}
+}
+
+func TestWalletSettingsMalformedFallBackToDefaults(t *testing.T) {
+	svc, _ := newSettingsSvc(map[string]string{
+		SettingWalletMinTopup:   "abc",
+		SettingWalletMaxTopup:   "-5",
+		SettingWalletMaxBalance: "0",
+	})
+	got, _ := svc.GetAdminSettings(context.Background())
+	if got.Wallet.MinTopupKobo != 50_000 || got.Wallet.MaxTopupKobo != 20_000_000 || got.Wallet.MaxBalanceKobo != 100_000_000 {
+		t.Fatalf("malformed values must read as defaults, got %+v", got.Wallet)
+	}
+}
+
+func TestUpdateWalletSettingsValidation(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name string
+		in   dto.WalletSettingsDTO
+		want string // substring of the error; "" means accepted
+	}{
+		{"valid", dto.WalletSettingsDTO{MinTopupKobo: 100_000, MaxTopupKobo: 5_000_000, MaxBalanceKobo: 10_000_000}, ""},
+		{"min equals max equals balance", dto.WalletSettingsDTO{MinTopupKobo: 100, MaxTopupKobo: 100, MaxBalanceKobo: 100}, ""},
+		{"balance at the ceiling", dto.WalletSettingsDTO{MinTopupKobo: 100, MaxTopupKobo: 100, MaxBalanceKobo: maxWalletBalanceKobo}, ""},
+		{"zero min", dto.WalletSettingsDTO{MinTopupKobo: 0, MaxTopupKobo: 100, MaxBalanceKobo: 100}, "smallest top-up must be more"},
+		{"negative min", dto.WalletSettingsDTO{MinTopupKobo: -1, MaxTopupKobo: 100, MaxBalanceKobo: 100}, "smallest top-up must be more"},
+		{"zero max", dto.WalletSettingsDTO{MinTopupKobo: 100, MaxTopupKobo: 0, MaxBalanceKobo: 100}, "largest top-up must be more"},
+		{"zero balance", dto.WalletSettingsDTO{MinTopupKobo: 100, MaxTopupKobo: 100, MaxBalanceKobo: 0}, "wallet balance must be more"},
+		{"balance over the ceiling", dto.WalletSettingsDTO{MinTopupKobo: 100, MaxTopupKobo: 100, MaxBalanceKobo: maxWalletBalanceKobo + 1}, "can't be more than ₦100000000"},
+		{"min above max", dto.WalletSettingsDTO{MinTopupKobo: 200, MaxTopupKobo: 100, MaxBalanceKobo: 1000}, "smallest top-up can't be more than the largest top-up"},
+		{"max above balance", dto.WalletSettingsDTO{MinTopupKobo: 100, MaxTopupKobo: 2000, MaxBalanceKobo: 1000}, "largest top-up can't be more than the largest wallet balance"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, repo := newSettingsSvc(nil)
+			err := svc.UpdateWalletSettings(ctx, tc.in)
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("expected %+v to be accepted, got %v", tc.in, err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("expected error containing %q, got %v", tc.want, err)
+			}
+			if len(repo.m) != 0 {
+				t.Fatalf("a rejected update must write nothing, wrote %v", repo.m)
+			}
+		})
+	}
+}
+
+func TestUpdateWalletSettingsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	svc, repo := newSettingsSvc(nil)
+	in := dto.WalletSettingsDTO{MinTopupKobo: 100_000, MaxTopupKobo: 5_000_000, MaxBalanceKobo: 10_000_000}
+	if err := svc.UpdateWalletSettings(ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	// stored as kobo under the keys WalletService reads
+	if repo.m[SettingWalletMinTopup] != "100000" || repo.m[SettingWalletMaxTopup] != "5000000" || repo.m[SettingWalletMaxBalance] != "10000000" {
+		t.Fatalf("unexpected stored values %v", repo.m)
+	}
+	got, err := svc.GetAdminSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Wallet != in {
+		t.Fatalf("expected %+v back, got %+v", in, got.Wallet)
+	}
+}

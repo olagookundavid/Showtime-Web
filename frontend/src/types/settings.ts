@@ -28,11 +28,19 @@ export interface FantasySettings {
     platform_cut_percent: number;
 }
 
+/** Spend-wallet top-up limits, in kobo (₦1 = 100 kobo). */
+export interface WalletSettings {
+    min_topup_kobo: number;
+    max_topup_kobo: number;
+    max_balance_kobo: number;
+}
+
 /** Everything the App Settings page edits. */
 export interface AdminSettings {
     contracts: ContractSettings;
     notifications: NotificationSettings;
     fantasy: FantasySettings;
+    wallet: WalletSettings;
 }
 
 export interface NotificationSettingsPayload {

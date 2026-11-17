@@ -166,16 +166,17 @@ func (s *TicketService) PurchaseSeasonPass(ctx context.Context, req dto.Purchase
 
 	passID := pass.ID
 	return s.checkout(ctx, checkoutInput{
-		pricing:      seasonPassPricing(pass, req.Quantity),
-		purchaseType: domain.PurchaseTypeSeasonPass,
-		seasonPassID: &passID,
-		productName:  pass.Name,
-		email:        req.Email,
-		name:         req.Name,
-		phone:        req.Phone,
-		quantity:     req.Quantity,
-		referralCode: req.ReferralCode,
-		callbackURL:  callbackURL,
-		userID:       userID,
+		pricing:       seasonPassPricing(pass, req.Quantity),
+		purchaseType:  domain.PurchaseTypeSeasonPass,
+		seasonPassID:  &passID,
+		productName:   pass.Name,
+		email:         req.Email,
+		name:          req.Name,
+		phone:         req.Phone,
+		quantity:      req.Quantity,
+		referralCode:  req.ReferralCode,
+		callbackURL:   callbackURL,
+		userID:        userID,
+		payWithWallet: req.PayWithWallet,
 	})
 }

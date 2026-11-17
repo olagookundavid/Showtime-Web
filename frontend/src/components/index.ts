@@ -25,6 +25,8 @@ export * from './team-head';
 export * from './tickets';
 export * from './totw';
 export * from './ui';
+export * from './vouchers';
+export * from './wallet';
 export * from './widgets';
 
 export { HeroCarousel } from './HeroCarousel';

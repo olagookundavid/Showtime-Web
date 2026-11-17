@@ -8,5 +8,8 @@ Disallow: /team-head
 Disallow: /player-portal
 Disallow: /seller
 Disallow: /account
+Disallow: /wallet
+Disallow: /vouchers
+Disallow: /bar
 
 Sitemap: https://www.showtimeflag.football/sitemap.xml

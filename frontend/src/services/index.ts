@@ -178,6 +178,33 @@ export { joinInterestList, adminListLeads, getLeadSummary, downloadLeadsExport }
 export { getAdminUsers, updateUserRole, updateUserInfo } from './users';
 
 export {
+  listVoucherProducts,
+  purchaseVoucher,
+  listMyVouchers,
+  getVoucherByCode,
+  isInsufficientBalance,
+  barLookupVoucher,
+  barRedeemVoucher,
+  adminListVoucherProducts,
+  adminCreateVoucherProduct,
+  adminUpdateVoucherProduct,
+  adminListVouchers,
+  adminIssueVoucher,
+  adminVoidVoucher,
+  adminListRedemptions,
+  adminSearchVoucherUsers,
+} from './vouchers';
+
+export {
+  getWallet,
+  startWalletTopup,
+  verifyWalletTopup,
+  adminSearchWalletUsers,
+  adminGetUserWallet,
+  adminAdjustWallet,
+} from './wallet';
+
+export {
   getAdminRoles,
   getAdminRoleFeatures,
   getAdminRoleOptions,

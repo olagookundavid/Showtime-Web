@@ -25,6 +25,7 @@ type WalletResponse struct {
 	LifetimeWonKobo   int64                       `json:"lifetime_won_kobo"`
 	LifetimePaidKobo  int64                       `json:"lifetime_paid_kobo"`
 	MinPayoutKobo     int64                       `json:"min_payout_kobo"`
+	MinTransferKobo   int64                       `json:"min_transfer_kobo"`
 	CanRequestPayout  bool                        `json:"can_request_payout"`
 	LastBankDetails   *BankDetails                `json:"last_bank_details,omitempty"`
 	Transactions      []WalletTransactionResponse `json:"transactions"`
@@ -45,6 +46,20 @@ type CreatePayoutRequest struct {
 	AccountNumber string `json:"account_number" binding:"required,min=6,max=20"`
 	AccountName   string `json:"account_name" binding:"required,min=2,max=120"`
 	UserNotes     string `json:"user_notes" binding:"max=500"`
+}
+
+// TransferToWalletRequest moves prize winnings into the spend wallet. It is
+// one-way: the money cannot come back to the prize wallet or be withdrawn.
+type TransferToWalletRequest struct {
+	AmountKobo int64 `json:"amount_kobo" binding:"required,min=1"`
+}
+
+// WalletTransferResponse is where both wallets stand after a transfer.
+type WalletTransferResponse struct {
+	Reference        string `json:"reference"`
+	AmountKobo       int64  `json:"amount_kobo"`
+	PrizeBalanceKobo int64  `json:"prize_balance_kobo"`
+	SpendBalanceKobo int64  `json:"spend_balance_kobo"`
 }
 
 type PayoutRequestResponse struct {

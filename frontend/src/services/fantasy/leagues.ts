@@ -61,7 +61,12 @@ export const fantasyLeaguesApi = {
   // one needs its invite code. Pass whichever you have.
   joinLeague: async (
     seasonId: string,
-    by: { invite_code?: string; league_id?: string },
+    by: {
+      invite_code?: string;
+      league_id?: string;
+      // Pay a paid league's fee from the spend wallet instead of Paystack.
+      pay_with_wallet?: boolean;
+    },
   ): Promise<JoinLeagueResponse> => {
     // The handler wraps the payload as { message, data }, so the join
     // details are a level down. Returning the envelope left paystack_url

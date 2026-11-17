@@ -156,6 +156,9 @@ type PurchaseTicketRequest struct {
 	// Discount codes are not accepted on tickets for now; a Game Pass has its own
 	// percentage off. A code sent is refused rather than quietly ignored.
 	DiscountCode string `json:"discount_code"`
+	// PayWithWallet pays from the signed-in buyer's spend wallet instead of
+	// Paystack. Guests are refused. The ticket comes back already paid.
+	PayWithWallet bool `json:"pay_with_wallet,omitempty"`
 }
 
 // GiftTicketRequest is used by an App Admin to issue a complimentary ticket
@@ -181,11 +184,11 @@ type TicketDayResponse struct {
 }
 
 type TicketResponse struct {
-	ID                      string  `json:"id"`
-	ProductID               string  `json:"product_id,omitempty"`
-	SeasonPassID            string  `json:"season_pass_id,omitempty"`
+	ID           string `json:"id"`
+	ProductID    string `json:"product_id,omitempty"`
+	SeasonPassID string `json:"season_pass_id,omitempty"`
 	// ValidUntil is set for a season pass: the last day it lets people in.
-	ValidUntil string `json:"valid_until,omitempty"`
+	ValidUntil              string  `json:"valid_until,omitempty"`
 	ProductName             string  `json:"product_name,omitempty"`
 	PurchaseType            string  `json:"purchase_type"`
 	Email                   string  `json:"email"`
@@ -291,4 +294,6 @@ type PurchaseSeasonPassRequest struct {
 	Phone        string  `json:"phone" binding:"required"`
 	Quantity     int     `json:"quantity" binding:"required,min=1,max=10"`
 	ReferralCode *string `json:"referral_code,omitempty"`
+	// PayWithWallet pays from the signed-in buyer's spend wallet instead of Paystack.
+	PayWithWallet bool `json:"pay_with_wallet,omitempty"`
 }

@@ -23,9 +23,9 @@ const testSecret = "sk_test_webhook"
 
 // fakePayments knows one reference per kind of payment and records what was confirmed.
 type fakePayments struct {
-	ticketRef, orderRef, feeRef string
-	lookupErr                   error
-	confirmed                   []string
+	ticketRef, orderRef, feeRef, topupRef string
+	lookupErr                             error
+	confirmed                             []string
 }
 
 func (f *fakePayments) GetByReference(_ context.Context, ref string) (*domain.Ticket, error) {
@@ -62,6 +62,21 @@ func (f *fakePayments) LeagueWebhook(_ context.Context, _ []byte, _ string) erro
 	return nil
 }
 
+// fakeWallet is the wallet's side: the ticket side already has a HandleWebhook, so
+// the top-up confirmer needs its own type. It records into the same list.
+type fakeWallet struct{ f *fakePayments }
+
+func (w fakeWallet) GetTopupByReference(_ context.Context, ref string) (*domain.Topup, error) {
+	if ref == w.f.topupRef {
+		return &domain.Topup{}, nil
+	}
+	return nil, nil
+}
+func (w fakeWallet) HandleWebhook(_ context.Context, ref string) error {
+	w.f.confirmed = append(w.f.confirmed, "topup:"+ref)
+	return nil
+}
+
 func sign(body string) string {
 	mac := hmac.New(sha512.New, []byte(testSecret))
 	mac.Write([]byte(body))
@@ -71,7 +86,7 @@ func sign(body string) string {
 func callWebhook(t *testing.T, f *fakePayments, body, signature string) *httptest.ResponseRecorder {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	h := NewPaystackWebhookHandler(func() string { return testSecret }, f, f, f, f, f, f)
+	h := NewPaystackWebhookHandler(func() string { return testSecret }, f, f, f, f, f, f, fakeWallet{f}, fakeWallet{f})
 	r := gin.New()
 	r.POST("/paystack/webhook", h.Webhook)
 	req := httptest.NewRequest(http.MethodPost, "/paystack/webhook", strings.NewReader(body))
@@ -92,8 +107,9 @@ func TestPaystackWebhookSendsEachPaymentToItsOwner(t *testing.T) {
 		{"SFFL-TICKET01", "ticket:SFFL-TICKET01"},
 		{"ORDER-REF", "order:ORDER-REF"},
 		{"FEE-REF", "fee:FEE-REF"},
+		{"WLT-TOPUP001", "topup:WLT-TOPUP001"},
 	} {
-		f := &fakePayments{ticketRef: "SFFL-TICKET01", orderRef: "ORDER-REF", feeRef: "FEE-REF"}
+		f := &fakePayments{ticketRef: "SFFL-TICKET01", orderRef: "ORDER-REF", feeRef: "FEE-REF", topupRef: "WLT-TOPUP001"}
 		body := charge(c.ref)
 		if w := callWebhook(t, f, body, sign(body)); w.Code != http.StatusOK {
 			t.Errorf("%s: status %d, want 200 (%s)", c.ref, w.Code, w.Body.String())

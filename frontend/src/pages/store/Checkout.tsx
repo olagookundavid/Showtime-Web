@@ -17,9 +17,10 @@ import {
   getSavedAddresses,
   saveSavedAddress,
   initializeCheckout,
+  isInsufficientBalance,
 } from "../../services";
 import type { StoreProduct, SavedAddress, CheckoutPayload, DiscountPreview } from "../../types";
-import { LazyImage, DiscountCodeInput, Button, Checkbox, Field, Input, Textarea, Spinner } from "../../components";
+import { LazyImage, DiscountCodeInput, Button, Checkbox, Field, Input, Textarea, Spinner, WalletPayOption } from "../../components";
 import { formatVariantLabel } from "../../utils";
 
 export const Checkout = () => {
@@ -54,6 +55,10 @@ export const Checkout = () => {
   // Server-priced preview of an applied discount code. Display only — the
   // authoritative discount is recomputed at checkout from the code alone.
   const [discount, setDiscount] = useState<DiscountPreview | null>(null);
+  // Signed-in buyers can pay from their wallet. walletKey remounts the option
+  // after a failed payment so it re-reads the balance.
+  const [useWallet, setUseWallet] = useState(false);
+  const [walletKey, setWalletKey] = useState(0);
 
   // Form State
   const [shippingForm, setShippingForm] = useState({
@@ -164,6 +169,8 @@ export const Checkout = () => {
   // negative total.
   const discountAmount = discount?.discount_amount ?? 0;
   const totalAmount = Math.max(0, subtotal + shippingCost - discountAmount);
+  // Only a signed-in buyer with something to pay can use the wallet.
+  const payFromWallet = isAuthenticated && useWallet && totalAmount > 0;
 
   // When the user manually edits a field after picking a saved address, treat
   // it as a fresh entry — they're no longer reusing the saved one.
@@ -265,6 +272,7 @@ export const Checkout = () => {
         // Send the code, not the amount. The server re-prices it, so a
         // tampered preview can't buy anything cheaply.
         discount_code: discount?.code || undefined,
+        pay_with_wallet: payFromWallet || undefined,
       };
 
       const response = await initializeCheckout(payload);
@@ -272,10 +280,10 @@ export const Checkout = () => {
         throw new Error("No response received from merchant API.");
       }
 
-      // A code can cover the order in full. There is nothing to pay, so the
-      // server already booked it as paid and there is no Paystack URL —
-      // go straight to the confirmation page.
-      if (!response.paystack_url) {
+      // A wallet payment, or a code that covers the order in full, is already
+      // booked as paid and has no Paystack URL — go straight to the
+      // confirmation page.
+      if (response.paid || !response.paystack_url) {
         clearCart();
         navigate(
           `/store/confirm?reference=${encodeURIComponent(response.order_reference)}`,
@@ -297,10 +305,22 @@ export const Checkout = () => {
         response?: { data?: { error?: string } };
         message?: string;
       };
+      if (isInsufficientBalance(err)) {
+        // The wallet changed since the page loaded. Re-read it so the option
+        // shows the shortfall and a top-up link.
+        setWalletKey((k) => k + 1);
+        setUseWallet(false);
+        setPayError(
+          "Your wallet balance is not enough for this order. Top up your wallet or pay with Paystack.",
+        );
+        return;
+      }
       setPayError(
         error.response?.data?.error ||
           error.message ||
-          "Failed to initialize Paystack checkout. Please try again.",
+          (payFromWallet
+            ? "Failed to pay from your wallet. Please try again."
+            : "Failed to initialize Paystack checkout. Please try again."),
       );
     } finally {
       setIsSubmitting(false);
@@ -661,6 +681,15 @@ export const Checkout = () => {
                 </div>
               </div>
 
+              {isAuthenticated && totalAmount > 0 && (
+                <WalletPayOption
+                  key={walletKey}
+                  totalKobo={Math.round(totalAmount * 100)}
+                  checked={useWallet}
+                  onChange={setUseWallet}
+                />
+              )}
+
               {payError && (
                 <div
                   role="alert"
@@ -677,7 +706,9 @@ export const Checkout = () => {
                   label={
                     totalAmount === 0
                       ? "Confirming your order…"
-                      : "Connecting safely to the Paystack payment gateway…"
+                      : payFromWallet
+                        ? "Paying from your wallet…"
+                        : "Connecting safely to the Paystack payment gateway…"
                   }
                 />
               ) : (
@@ -697,7 +728,11 @@ export const Checkout = () => {
                     iconPosition="right"
                     onClick={handlePayNow}
                   >
-                    {totalAmount === 0 ? "Complete Order" : "Pay With Paystack"}
+                    {totalAmount === 0
+                      ? "Complete Order"
+                      : payFromWallet
+                        ? "Pay From Wallet"
+                        : "Pay With Paystack"}
                   </Button>
                 </div>
               )}

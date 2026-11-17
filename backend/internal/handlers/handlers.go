@@ -20,6 +20,8 @@ type Handlers struct {
 	AuditHandler                transport.IAuditHandler
 	PaystackWebhookHandler      *transport.PaystackWebhookHandler
 	LeadHandler                 *transport.LeadHandler
+	WalletHandler               transport.IWalletHandler
+	VoucherHandler              transport.IVoucherHandler
 	StatsHandler                transport.IStatsHandler
 	InventoryHandler            transport.IInventoryHandler
 	UploadHandler               transport.IUploadHandler

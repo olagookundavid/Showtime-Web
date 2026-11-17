@@ -29,6 +29,9 @@ const (
 	SettingLeagueDigestRecipients   = "contract_digest_recipients"
 
 	maxDigestRecipients = 20
+	// maxWalletBalanceKobo is the ceiling an admin may set for the largest wallet
+	// balance: ₦100,000,000. It stops a slipped zero turning the cap into no cap.
+	maxWalletBalanceKobo int64 = 10_000_000_000
 	// maxPlatformCutPercent keeps a typo (25 for 2.5) from taking a large share of
 	// every paid league. The service itself would accept up to 100.
 	maxPlatformCutPercent = 50
@@ -61,6 +64,7 @@ type IAppSettingService interface {
 	UpdateContractSettings(ctx context.Context, in dto.ContractSettingsDTO) error
 	UpdateNotificationSettings(ctx context.Context, in dto.UpdateNotificationSettingsRequest) error
 	UpdateFantasySettings(ctx context.Context, in dto.FantasySettingsDTO) error
+	UpdateWalletSettings(ctx context.Context, in dto.WalletSettingsDTO) error
 	SearchStaff(ctx context.Context, search string) ([]dto.SettingsUser, error)
 }
 
@@ -160,6 +164,29 @@ func (s *AppSettingService) platformCutPercent(ctx context.Context) float64 {
 	return v
 }
 
+// walletLimit reads a kobo amount, or fallback when it is unset, malformed or not
+// positive. It mirrors WalletService.limit, so this page shows exactly what a
+// top-up is checked against.
+func (s *AppSettingService) walletLimit(ctx context.Context, key string, fallback int64) int64 {
+	raw, err := s.repo.Get(ctx, key)
+	if err != nil {
+		return fallback
+	}
+	v, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil || v <= 0 {
+		return fallback
+	}
+	return v
+}
+
+func (s *AppSettingService) walletSettings(ctx context.Context) dto.WalletSettingsDTO {
+	return dto.WalletSettingsDTO{
+		MinTopupKobo:   s.walletLimit(ctx, SettingWalletMinTopup, domain.DefaultMinTopupKobo),
+		MaxTopupKobo:   s.walletLimit(ctx, SettingWalletMaxTopup, domain.DefaultMaxTopupKobo),
+		MaxBalanceKobo: s.walletLimit(ctx, SettingWalletMaxBalance, domain.DefaultMaxBalanceKobo),
+	}
+}
+
 func toSettingsUser(d ports.DigestRecipient) dto.SettingsUser {
 	return dto.SettingsUser{UserID: d.UserID, Name: d.Name, Email: d.Email, Role: d.Role}
 }
@@ -191,6 +218,7 @@ func (s *AppSettingService) GetAdminSettings(ctx context.Context) (*dto.AdminSet
 			LeagueDigestRecipients: recipients,
 		},
 		Fantasy: dto.FantasySettingsDTO{PlatformCutPercent: s.platformCutPercent(ctx)},
+		Wallet:  s.walletSettings(ctx),
 	}, nil
 }
 
@@ -271,6 +299,39 @@ func (s *AppSettingService) UpdateFantasySettings(ctx context.Context, in dto.Fa
 	}
 	v = math.Round(v*100) / 100
 	return s.repo.Set(ctx, SettingPlatformCutPercent, strconv.FormatFloat(v, 'f', -1, 64))
+}
+
+// UpdateWalletSettings stores the top-up limits in kobo. All three are checked
+// together and nothing is written unless they are consistent.
+func (s *AppSettingService) UpdateWalletSettings(ctx context.Context, in dto.WalletSettingsDTO) error {
+	if in.MinTopupKobo <= 0 {
+		return fmt.Errorf("the smallest top-up must be more than ₦0")
+	}
+	if in.MaxTopupKobo <= 0 {
+		return fmt.Errorf("the largest top-up must be more than ₦0")
+	}
+	if in.MaxBalanceKobo <= 0 {
+		return fmt.Errorf("the largest wallet balance must be more than ₦0")
+	}
+	if in.MaxBalanceKobo > maxWalletBalanceKobo {
+		return fmt.Errorf("the largest wallet balance can't be more than ₦%d", maxWalletBalanceKobo/100)
+	}
+	if in.MinTopupKobo > in.MaxTopupKobo {
+		return fmt.Errorf("the smallest top-up can't be more than the largest top-up")
+	}
+	if in.MaxTopupKobo > in.MaxBalanceKobo {
+		return fmt.Errorf("the largest top-up can't be more than the largest wallet balance")
+	}
+	for key, v := range map[string]int64{
+		SettingWalletMinTopup:   in.MinTopupKobo,
+		SettingWalletMaxTopup:   in.MaxTopupKobo,
+		SettingWalletMaxBalance: in.MaxBalanceKobo,
+	} {
+		if err := s.repo.Set(ctx, key, strconv.FormatInt(v, 10)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *AppSettingService) SearchStaff(ctx context.Context, search string) ([]dto.SettingsUser, error) {

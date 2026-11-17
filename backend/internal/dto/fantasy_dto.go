@@ -266,6 +266,9 @@ type LeagueResponse struct {
 type JoinLeagueRequest struct {
 	InviteCode string `json:"invite_code" binding:"omitempty"`
 	LeagueID   string `json:"league_id" binding:"omitempty,uuid"`
+	// PayWithWallet takes a paid league's entry fee from the spend wallet instead
+	// of sending the manager to Paystack. Ignored for a free league.
+	PayWithWallet bool `json:"pay_with_wallet,omitempty"`
 }
 
 type JoinLeagueResponse struct {
@@ -274,6 +277,9 @@ type JoinLeagueResponse struct {
 	PaystackURL        string `json:"paystack_url,omitempty"`
 	PaystackRef        string `json:"paystack_ref,omitempty"`
 	PaystackAccessCode string `json:"paystack_access_code,omitempty"`
+	// PaidFromWallet means the fee was taken from the spend wallet and the entry
+	// is already confirmed: there is no Paystack step to follow.
+	PaidFromWallet bool `json:"paid_from_wallet,omitempty"`
 }
 
 type LeaderboardEntry struct {

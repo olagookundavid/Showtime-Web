@@ -44,3 +44,5 @@ export * from './tickets';
 export * from './totw';
 export * from './transfers';
 export * from './users';
+export * from './vouchers';
+export * from './wallet';

@@ -623,12 +623,32 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	h.AuditHandler = transport.NewAuditHandler(auditService)
 	h.LeadHandler = transport.NewLeadHandler(
 		services.NewLeadService(ports.NewLeadRepository(pool)).WithContactSyncer(emailService))
+	// The spend wallet: top-ups through Paystack, spent on vouchers and more.
+	walletRepo := ports.NewWalletRepository(pool)
+	walletService := services.NewWalletService(walletRepo, paystackClient, authRepo, appSettingRepo).
+		WithEmail(emailService)
+	h.WalletHandler = transport.NewWalletHandler(walletService)
+	ticketService.WithWallet(walletService) // tickets can be paid from the wallet
+	// Fantasy league entry fees can be paid from the wallet. The league service was
+	// built earlier, but it is a pointer, so the handler already holds this instance.
+	if ls, ok := fantasyLeagueService.(*services.FantasyLeagueService); ok {
+		ls.WithWallet(walletService)
+	}
+	// Store orders can be paid from the wallet too (same pointer trick).
+	if ss, ok := storeService.(*services.StoreService); ok {
+		ss.WithWallet(walletService)
+	}
+
+	voucherRepo := ports.NewVoucherRepository(pool)
+	voucherService := services.NewVoucherService(voucherRepo, authRepo, walletService).WithEmail(emailService)
+	h.VoucherHandler = transport.NewVoucherHandler(voucherService)
 	// One Paystack webhook for every kind of payment: Paystack calls a single URL.
 	h.PaystackWebhookHandler = transport.NewPaystackWebhookHandler(
 		paystackClient.GetSecretKey,
 		ticketRepo, ticketService,
 		storeRepo, storeService,
 		fantasyLeagueRepo, fantasyLeagueService,
+		walletRepo, walletService,
 	)
 	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService, matchService
 }

@@ -208,6 +208,9 @@ const (
 	WalletPayout         WalletTransactionType = "PAYOUT"
 	WalletPayoutReversal WalletTransactionType = "PAYOUT_REVERSAL"
 	WalletAdjustment     WalletTransactionType = "ADJUSTMENT"
+	// WalletTransfer is prize money moved into the spend wallet. It is a debit
+	// here and the matching credit is a FANTASY_TRANSFER row on the spend ledger.
+	WalletTransfer WalletTransactionType = "WALLET_TRANSFER"
 )
 
 type FantasyWallet struct {
@@ -225,9 +228,24 @@ type WalletTransaction struct {
 	LeagueID        *string               `json:"league_id,omitempty"`
 	LeagueName      string                `json:"league_name,omitempty"`
 	PayoutRequestID *string               `json:"payout_request_id,omitempty"`
-	Description     string                `json:"description"`
-	CreatedByUserID *string               `json:"created_by_user_id,omitempty"`
-	CreatedAt       time.Time             `json:"created_at"`
+	// Reference ties a WALLET_TRANSFER row to its spend-ledger twin (FTR-<uuid>).
+	// Nil for every other kind of row.
+	Reference       *string   `json:"reference,omitempty"`
+	Description     string    `json:"description"`
+	CreatedByUserID *string   `json:"created_by_user_id,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// MinWalletTransferKobo is the smallest amount that can be moved to the spend
+// wallet. ₦1: there is no operator cost to protect, so it only rules out zero.
+const MinWalletTransferKobo int64 = 100
+
+// WalletTransferResult is what a completed transfer leaves behind.
+type WalletTransferResult struct {
+	Reference        string
+	AmountKobo       int64
+	PrizeBalanceKobo int64 // prize wallet after the transfer
+	SpendBalanceKobo int64 // spend wallet after the transfer
 }
 
 // ─── Payout requests ──────────────────────────────────────────────────────────

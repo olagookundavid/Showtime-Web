@@ -8,6 +8,8 @@ import {
   SunIcon,
   Squares2X2Icon,
   ShoppingBagIcon,
+  WalletIcon,
+  GiftIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth, useCart, useTheme } from "../../contexts";
@@ -379,6 +381,20 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             aria-hidden="true"
                           />
                           My Orders
+                        </Link>
+                        <Link to="/account/wallet" className={menuItemClass}>
+                          <WalletIcon
+                            className="w-5 h-5 text-sffl-red"
+                            aria-hidden="true"
+                          />
+                          My Wallet
+                        </Link>
+                        <Link to="/vouchers" className={menuItemClass}>
+                          <GiftIcon
+                            className="w-5 h-5 text-sffl-red"
+                            aria-hidden="true"
+                          />
+                          My Vouchers
                         </Link>
                         <Link to="/account" className={menuItemClass}>
                           <UserCircleIcon

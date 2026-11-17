@@ -1,5 +1,6 @@
 import {
   MegaphoneIcon,
+  WalletIcon,
   Squares2X2Icon,
   CalendarIcon,
   PlayCircleIcon,
@@ -144,6 +145,8 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
         icon: BuildingStorefrontIcon,
       },
       { name: "Inventory", path: "/admin/inventory", icon: ArchiveBoxIcon },
+      { name: "Wallets", path: "/admin/wallets", icon: WalletIcon },
+      { name: "Vouchers", path: "/admin/vouchers", icon: GiftIcon },
     ],
   },
   {
@@ -200,6 +203,8 @@ const NAV_FEATURE: Record<string, FeatureKey> = {
   "Ticket Products": "tickets",
   "Player Tickets": "tickets",
   Leads: "leads",
+  Wallets: "wallets",
+  Vouchers: "vouchers",
   "Match Days": "event_days",
   Referrals: "referrals",
   "Online Store": "store",

@@ -242,20 +242,24 @@ func (r *StoreRepository) CreateOrder(ctx context.Context, order domain.Order) (
 		}
 	}
 
+	if order.PaymentMethod == "" {
+		order.PaymentMethod = domain.PaymentMethodPaystack
+	}
+
 	orderQuery := `
 		INSERT INTO online_orders (
 			order_reference, user_id, customer_name, customer_email, customer_phone,
 			shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
 			total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code,
-			discount_code, discount_amount
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+			discount_code, discount_amount, payment_method
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		RETURNING id, created_at, updated_at`
 
 	err = tx.QueryRow(ctx, orderQuery,
 		order.OrderReference, order.UserID, order.CustomerName, order.CustomerEmail, order.CustomerPhone,
 		order.ShippingCountry, order.ShippingState, order.ShippingCity, order.ShippingAddress, order.ShippingPostalCode,
 		order.TotalAmount, order.PaymentStatus, order.FulfillmentStatus, order.PaystackReference, order.PaystackAccessCode,
-		order.DiscountCode, order.DiscountAmount,
+		order.DiscountCode, order.DiscountAmount, order.PaymentMethod,
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)
 
 	if err != nil {
@@ -404,14 +408,14 @@ func (r *StoreRepository) GetOrder(ctx context.Context, id string) (*domain.Orde
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method
 		FROM online_orders WHERE id = $1`
 
 	var o domain.Order
 	err := r.Db.QueryRow(ctx, query, id).Scan(
 		&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 		&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -431,14 +435,14 @@ func (r *StoreRepository) GetOrderByReference(ctx context.Context, reference str
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method
 		FROM online_orders WHERE order_reference = $1 OR paystack_reference = $1`
 
 	var o domain.Order
 	err := r.Db.QueryRow(ctx, query, reference).Scan(
 		&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 		&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -458,14 +462,14 @@ func (r *StoreRepository) GetOrderByPaystackRef(ctx context.Context, paystackRef
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method
 		FROM online_orders WHERE paystack_reference = $1`
 
 	var o domain.Order
 	err := r.Db.QueryRow(ctx, query, paystackRef).Scan(
 		&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 		&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -546,7 +550,7 @@ func (r *StoreRepository) ListOrders(ctx context.Context, page, limit int, userI
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount ` + baseQuery +
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + fmt.Sprint(argIndex) + ` OFFSET $` + fmt.Sprint(argIndex+1)
 
 	args = append(args, limit, offset)
@@ -563,7 +567,7 @@ func (r *StoreRepository) ListOrders(ctx context.Context, page, limit int, userI
 		err := rows.Scan(
 			&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 			&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-			&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+			&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 		)
 		if err != nil {
 			return nil, 0, err
