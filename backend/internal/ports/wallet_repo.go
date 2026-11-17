@@ -30,6 +30,8 @@ type IWalletRepository interface {
 	SettleTopup(ctx context.Context, reference string) (t *domain.Topup, credited bool, err error)
 	// MarkTopupFailed marks a PENDING top-up FAILED. A top-up already PAID is left alone.
 	MarkTopupFailed(ctx context.Context, reference string) error
+	// PendingTopupsKobo totals a user's unpaid top-ups started after since.
+	PendingTopupsKobo(ctx context.Context, userID string, since time.Time) (int64, error)
 
 	// Apply writes one ledger entry and moves the balance by its signed amount.
 	// A debit larger than the balance fails with ErrWalletInsufficient.
@@ -242,6 +244,16 @@ func (r *WalletRepository) MarkTopupFailed(ctx context.Context, reference string
 	return err
 }
 
+func (r *WalletRepository) PendingTopupsKobo(ctx context.Context, userID string, since time.Time) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	var total int64
+	err := r.pool.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount_kobo), 0)::bigint FROM wallet_topups
+		WHERE user_id = $1 AND status = 'PENDING' AND created_at > $2`, userID, since).Scan(&total)
+	return total, err
+}
+
 func (r *WalletRepository) Apply(ctx context.Context, e domain.LedgerEntry) (*domain.LedgerEntry, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -275,40 +287,50 @@ func (r *WalletRepository) ApplyOnce(ctx context.Context, e domain.LedgerEntry) 
 	}
 	defer tx.Rollback(ctx)
 
-	// Taking the wallet lock first serialises every caller for this user, so the
-	// existence check below cannot race with another insert of the same reference.
-	if _, err := lockSpendWallet(ctx, tx, e.UserID); err != nil {
-		return nil, false, err
-	}
-	var existing domain.LedgerEntry
-	err = tx.QueryRow(ctx, `
-		SELECT id, user_id, amount_kobo, balance_after_kobo, type, reference, voucher_id, description, created_by_user_id, created_at
-		FROM wallet_transactions WHERE type = $1 AND reference = $2
-	`, e.Type, *e.Reference).Scan(&existing.ID, &existing.UserID, &existing.AmountKobo, &existing.BalanceAfterKobo,
-		&existing.Type, &existing.Reference, &existing.VoucherID, &existing.Description, &existing.CreatedByUserID, &existing.CreatedAt)
-	if err == nil {
-		return &existing, false, nil
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return nil, false, err
-	}
-
-	out, err := applySpendEntry(ctx, tx, e)
+	out, applied, err := applySpendEntryOnce(ctx, tx, e)
 	if err != nil {
 		return nil, false, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, false, err
 	}
+	return out, applied, nil
+}
+
+// applySpendEntryOnce is applySpendEntry for an entry that must happen at most
+// once per (type, reference), inside the caller's transaction. When the row
+// already exists nothing moves and the existing row comes back with applied=false.
+// Taking the wallet lock first serialises every caller for this user, so the
+// existence check cannot race with another insert of the same reference.
+func applySpendEntryOnce(ctx context.Context, tx pgx.Tx, e domain.LedgerEntry) (*domain.LedgerEntry, bool, error) {
+	if e.Reference == nil || *e.Reference == "" {
+		return nil, false, errors.New("a once-only wallet entry needs a reference")
+	}
+	if _, err := lockSpendWallet(ctx, tx, e.UserID); err != nil {
+		return nil, false, err
+	}
+	existing, err := findSpendEntry(ctx, tx, e.Type, *e.Reference)
+	if err != nil {
+		return nil, false, err
+	}
+	if existing != nil {
+		return existing, false, nil
+	}
+	out, err := applySpendEntry(ctx, tx, e)
+	if err != nil {
+		return nil, false, err
+	}
 	return out, true, nil
 }
 
-func (r *WalletRepository) FindEntry(ctx context.Context, t domain.LedgerType, reference string) (*domain.LedgerEntry, error) {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
+// spendQuerier is what findSpendEntry needs: a pool or a transaction.
+type spendQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
+func findSpendEntry(ctx context.Context, q spendQuerier, t domain.LedgerType, reference string) (*domain.LedgerEntry, error) {
 	var e domain.LedgerEntry
-	err := r.pool.QueryRow(ctx, `
+	err := q.QueryRow(ctx, `
 		SELECT id, user_id, amount_kobo, balance_after_kobo, type, reference, voucher_id, description, created_by_user_id, created_at
 		FROM wallet_transactions WHERE type = $1 AND reference = $2
 	`, t, reference).Scan(&e.ID, &e.UserID, &e.AmountKobo, &e.BalanceAfterKobo,
@@ -320,4 +342,33 @@ func (r *WalletRepository) FindEntry(ctx context.Context, t domain.LedgerType, r
 		return nil, err
 	}
 	return &e, nil
+}
+
+// refundPurchaseTx gives back, inside the caller's transaction, exactly what the
+// PURCHASE row for reference took, to the person it was taken from. It does
+// nothing when there was no such payment or it was already refunded, so it is
+// safe to repeat. It returns the kobo refunded by this call (0 when nothing moved).
+func refundPurchaseTx(ctx context.Context, tx pgx.Tx, reference, description string) (int64, error) {
+	paid, err := findSpendEntry(ctx, tx, domain.LedgerPurchase, reference)
+	if err != nil || paid == nil {
+		return 0, err
+	}
+	refundRef := "REFUND-" + reference
+	_, applied, err := applySpendEntryOnce(ctx, tx, domain.LedgerEntry{
+		UserID:      paid.UserID,
+		AmountKobo:  -paid.AmountKobo,
+		Type:        domain.LedgerRefund,
+		Reference:   &refundRef,
+		Description: description,
+	})
+	if err != nil || !applied {
+		return 0, err
+	}
+	return -paid.AmountKobo, nil
+}
+
+func (r *WalletRepository) FindEntry(ctx context.Context, t domain.LedgerType, reference string) (*domain.LedgerEntry, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	return findSpendEntry(ctx, r.pool, t, reference)
 }

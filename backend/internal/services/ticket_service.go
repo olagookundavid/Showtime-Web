@@ -503,21 +503,9 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 			ticketStatus = domain.TicketStatusPaid
 			authURL = ""
 		} else if walletPay {
-			// Debit first, on the ticket code as the reference. Nothing exists
-			// yet to cancel, so a wallet that is too low leaves no ticket and no
-			// charge. The ticket is then created already paid, like a free one,
-			// and never reaches Paystack.
-			paid, err := s.wallet.Pay(ctx, *userID, int64(totalAmount)*100, reference,
-				"Ticket: "+in.productName)
-			if err != nil {
-				return nil, err
-			}
-			if !paid {
-				// The reference was already paid for something else: a code clash.
-				// Nothing was debited now, so draw another code and do not refund.
-				lastErr = fmt.Errorf("ticket reference %s is already used", reference)
-				continue
-			}
+			// Paid from the wallet: the debit is written in the same database
+			// transaction as the ticket below, so it is created already paid, like
+			// a free one, and never reaches Paystack.
 			walletPaid = true
 			ticketStatus = domain.TicketStatusPaid
 			authURL = ""
@@ -565,10 +553,25 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 			Days:                    days,
 		}
 
-		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
-			if walletPaid {
-				// The money is already out: put it back before anything else.
-				s.refundTicketWallet(ctx, *userID, totalAmount, reference)
+		var err error
+		if walletPaid {
+			// The ticket code is the ledger reference, so the wallet statement
+			// names the ticket the money paid for.
+			ref := code
+			err = s.ticketRepo.CreatePaidFromWallet(ctx, ticket, domain.LedgerEntry{
+				UserID:      *userID,
+				AmountKobo:  -int64(totalAmount) * 100,
+				Type:        domain.LedgerPurchase,
+				Reference:   &ref,
+				Description: "Ticket: " + in.productName,
+			})
+		} else {
+			err = s.ticketRepo.Create(ctx, ticket)
+		}
+		if err != nil {
+			// A short wallet: nothing was charged and no ticket exists.
+			if errors.Is(err, ports.ErrWalletInsufficient) {
+				return nil, err
 			}
 			// The code (or the reference made from it) is taken: draw another.
 			if strings.Contains(err.Error(), "tickets_ticket_code_key") || strings.Contains(err.Error(), "duplicate key value") {
@@ -598,17 +601,6 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 		res.TicketCode = ""
 	}
 	return res, nil
-}
-
-// refundTicketWallet gives a wallet debit back when the ticket it paid for could
-// not be created. Refund is idempotent on the reference. If it fails there is
-// nothing more this request can do, so the failure is logged loudly for support.
-func (s *TicketService) refundTicketWallet(ctx context.Context, userID string, totalNaira int, reference string) {
-	// Detached from the request: a buyer who closes the tab must still be refunded.
-	ctx = context.WithoutCancel(ctx)
-	if _, err := s.wallet.Refund(ctx, userID, int64(totalNaira)*100, reference, "Ticket not issued: "+reference); err != nil {
-		fmt.Printf("⚠️ WARNING: wallet debit for ticket %s (user %s, N%d) could not be refunded: %s\n", reference, userID, totalNaira, err.Error())
-	}
 }
 
 // GiftTicket issues a complimentary ticket without going through payment.

@@ -57,6 +57,13 @@ func (f *fakeLiveSettings) Set(_ context.Context, key, value string) error {
 	return nil
 }
 
+func (f *fakeLiveSettings) SetMany(_ context.Context, values map[string]string) error {
+	for k, v := range values {
+		f.values[k] = v
+	}
+	return nil
+}
+
 func TestLiveService_VideoMode(t *testing.T) {
 	repo := &fakeLiveSettings{values: make(map[string]string)}
 	svc := NewLiveService(repo)

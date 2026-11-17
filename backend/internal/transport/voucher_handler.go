@@ -2,6 +2,7 @@ package transport
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -60,7 +61,9 @@ func respondVoucherError(c *gin.Context, err error) {
 		errors.Is(err, services.ErrVoucherSpan):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// Internal details stay in the log, not in front of the user.
+		log.Printf("vouchers: %s %s: %v", c.Request.Method, c.FullPath(), err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong with this voucher. Please try again."})
 	}
 }
 
@@ -140,7 +143,8 @@ func (h *VoucherHandler) GetByCode(c *gin.Context) {
 		respondVoucherError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": v})
+	// No sign-in on this page: leave out the internal id and staff names.
+	c.JSON(http.StatusOK, gin.H{"data": services.PublicView(*v)})
 }
 
 // BarLookup godoc
@@ -149,7 +153,12 @@ func (h *VoucherHandler) GetByCode(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/v1/bar/vouchers/{code} [get]
 func (h *VoucherHandler) BarLookup(c *gin.Context) {
-	h.GetByCode(c)
+	v, err := h.service.GetByCode(c.Request.Context(), c.Param("code"))
+	if err != nil {
+		respondVoucherError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": v})
 }
 
 // BarRedeem godoc

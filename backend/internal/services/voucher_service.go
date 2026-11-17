@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"math/big"
 	"net/mail"
 	"strings"
@@ -227,6 +228,9 @@ func (s *VoucherService) AdminCreateProduct(ctx context.Context, req dto.Voucher
 }
 
 func (s *VoucherService) AdminUpdateProduct(ctx context.Context, id string, req dto.VoucherProductRequest) (*domain.VoucherProduct, error) {
+	if !isUUID(id) {
+		return nil, ErrVoucherProductGone
+	}
 	name, desc, items, err := cleanProduct(req)
 	if err != nil {
 		return nil, err
@@ -296,6 +300,9 @@ func (s *VoucherService) save(ctx context.Context, v *domain.Voucher, store func
 }
 
 func (s *VoucherService) Purchase(ctx context.Context, buyerID string, req dto.PurchaseVoucherRequest) (*dto.VoucherView, error) {
+	if !isUUID(req.ProductID) {
+		return nil, ErrVoucherProductGone
+	}
 	product, err := s.repo.GetProduct(ctx, req.ProductID)
 	if err != nil {
 		return nil, err
@@ -326,6 +333,9 @@ func (s *VoucherService) Purchase(ctx context.Context, buyerID string, req dto.P
 
 func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto.IssueVoucherRequest) (*dto.AdminVoucherView, error) {
 	// An admin may issue a bundle that is no longer on sale, so only existence is checked.
+	if !isUUID(req.ProductID) {
+		return nil, ErrVoucherProductGone
+	}
 	product, err := s.repo.GetProduct(ctx, req.ProductID)
 	if err != nil {
 		return nil, err
@@ -337,6 +347,9 @@ func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto
 	emailAddr := req.HolderEmail
 	var linked *domain.User
 	if id := strings.TrimSpace(req.HolderUserID); id != "" {
+		if !isUUID(id) {
+			return nil, ErrWalletUserNotFound
+		}
 		linked, err = s.users.GetUserByID(ctx, id)
 		if err != nil || linked == nil {
 			return nil, ErrWalletUserNotFound
@@ -382,6 +395,21 @@ func (s *VoucherService) ListMine(ctx context.Context, userID string) ([]dto.Vou
 		out = append(out, s.view(&list[i]))
 	}
 	return out, nil
+}
+
+// isUUID keeps ids that can't exist away from the database, which would reject
+// them with a confusing error instead of a plain "not found".
+func isUUID(id string) bool {
+	_, err := uuid.Parse(id)
+	return err == nil
+}
+
+// PublicView is a voucher as anyone holding its link sees it: no internal id and
+// no name of the staff member who redeemed it.
+func PublicView(v dto.VoucherView) dto.VoucherView {
+	v.ID = ""
+	v.RedeemedByName = ""
+	return v
 }
 
 func (s *VoucherService) GetByCode(ctx context.Context, code string) (*dto.VoucherView, error) {
@@ -439,6 +467,9 @@ func (s *VoucherService) AdminRedemptions(ctx context.Context) ([]dto.AdminVouch
 }
 
 func (s *VoucherService) AdminVoid(ctx context.Context, id, staffID string, refund bool) (*dto.AdminVoucherView, error) {
+	if !isUUID(id) {
+		return nil, ErrVoucherNotFound
+	}
 	v, err := s.repo.Void(ctx, id, staffID, refund)
 	if err != nil {
 		return nil, err

@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
@@ -23,7 +24,15 @@ const (
 	SettingWalletMaxBalance = "wallet_max_balance_kobo"
 
 	walletRecentEntries = 50
+
+	// pendingTopupWindow is how far back unpaid top-ups count against the maximum
+	// balance. Paystack checkouts and bank transfers settle well within it.
+	pendingTopupWindow = 2 * time.Hour
 )
+
+// errTopupPaymentFailed marks a top-up Paystack says did not succeed: a result,
+// not a fault, so neither the webhook nor the browser needs to retry it.
+var errTopupPaymentFailed = errors.New("payment not successful")
 
 // Errors a caller can show the user as they are.
 var (
@@ -31,6 +40,10 @@ var (
 	ErrWalletFull    = errors.New("this top-up would take your wallet over its maximum balance")
 	ErrTopupNotFound = errors.New("top-up not found")
 	ErrAdjustReason  = errors.New("a reason is required for a wallet adjustment")
+	ErrAdjustAmount  = errors.New("an adjustment must move some money")
+	// ErrTopupPending is returned when unpaid top-ups started recently would take
+	// the wallet over its maximum balance if they all went through.
+	ErrTopupPending = errors.New("you have top-ups still waiting for payment; finish or wait for those first")
 
 	ErrWalletUserNotFound = errors.New("user not found")
 )
@@ -207,9 +220,18 @@ func (s *WalletService) StartTopup(ctx context.Context, userID string, amountKob
 	if w.BalanceKobo+amountKobo > maxBalance {
 		return nil, fmt.Errorf("%w (₦%d)", ErrWalletFull, maxBalance/100)
 	}
+	// Unpaid top-ups started recently count too: otherwise several checkouts
+	// started back to back would each pass this check and all be paid.
+	pending, err := s.repo.PendingTopupsKobo(ctx, userID, time.Now().Add(-pendingTopupWindow))
+	if err != nil {
+		return nil, err
+	}
+	if w.BalanceKobo+pending+amountKobo > maxBalance {
+		return nil, ErrTopupPending
+	}
 	user, err := s.users.GetUserByID(ctx, userID)
 	if err != nil || user == nil {
-		return nil, fmt.Errorf("could not find your account: %w", err)
+		return nil, ErrWalletUserNotFound
 	}
 
 	reference := generateTopupReference()
@@ -241,12 +263,12 @@ func (s *WalletService) StartTopup(ctx context.Context, userID string, amountKob
 // and the currency must be naira, or an underpaid transaction would credit in full.
 func verifyTopupPayment(resp *PaystackVerifyResponse, topup *domain.Topup) error {
 	if resp == nil || resp.Data.Status != "success" {
-		return errors.New("payment not successful")
+		return errTopupPaymentFailed
 	}
 	if int64(resp.Data.Amount) < topup.AmountKobo {
 		return fmt.Errorf("payment amount mismatch: charged %d kobo, expected %d kobo", resp.Data.Amount, topup.AmountKobo)
 	}
-	if resp.Data.Currency != "" && resp.Data.Currency != "NGN" {
+	if resp.Data.Currency != "NGN" {
 		return fmt.Errorf("unexpected payment currency %q", resp.Data.Currency)
 	}
 	return nil
@@ -271,7 +293,7 @@ func (s *WalletService) settle(ctx context.Context, topup *domain.Topup) (*domai
 			return nil, markErr
 		}
 		topup.Status = domain.TopupFailed
-		return topup, err
+		return topup, fmt.Errorf("%w: %v", errTopupPaymentFailed, err)
 	}
 
 	settled, credited, err := s.repo.SettleTopup(ctx, topup.PaystackReference)
@@ -280,6 +302,14 @@ func (s *WalletService) settle(ctx context.Context, topup *domain.Topup) (*domai
 	}
 	if credited {
 		s.sendReceipt(ctx, settled)
+		// The money is already taken, so the credit can't be refused; but a wallet
+		// over its limit should be looked at.
+		if _, _, maxBalance := s.limits(ctx); maxBalance > 0 {
+			if w, err := s.repo.GetWallet(ctx, settled.UserID); err == nil && w.BalanceKobo > maxBalance {
+				fmt.Printf("⚠️ WARNING: wallet of user %s is over its maximum balance after top-up %s (%d > %d kobo)\n",
+					settled.UserID, settled.PaystackReference, w.BalanceKobo, maxBalance)
+			}
+		}
 	}
 	return settled, nil
 }
@@ -294,7 +324,9 @@ func (s *WalletService) HandleWebhook(ctx context.Context, reference string) err
 	}
 	_, err = s.settle(ctx, topup)
 	// A payment Paystack says failed is not something to retry the webhook for.
-	if err != nil && topup.Status == domain.TopupFailed {
+	// Any other error (Paystack or the database unreachable) is, even when the
+	// stored row says FAILED from an earlier attempt: the retry may credit it.
+	if errors.Is(err, errTopupPaymentFailed) {
 		return nil
 	}
 	return err
@@ -325,7 +357,7 @@ func (s *WalletService) VerifyTopup(ctx context.Context, userID, reference strin
 		BalanceKobo: w.BalanceKobo,
 	}
 	// A failed payment is a result to show, not a server error.
-	if settled.Status == domain.TopupFailed {
+	if errors.Is(settleErr, errTopupPaymentFailed) {
 		return out, nil
 	}
 	return out, settleErr
@@ -337,7 +369,7 @@ func (s *WalletService) AdminAdjust(ctx context.Context, userID string, amountKo
 		return nil, ErrAdjustReason
 	}
 	if amountKobo == 0 {
-		return nil, errors.New("an adjustment must move some money")
+		return nil, ErrAdjustAmount
 	}
 	if user, err := s.users.GetUserByID(ctx, userID); err != nil || user == nil {
 		return nil, ErrWalletUserNotFound

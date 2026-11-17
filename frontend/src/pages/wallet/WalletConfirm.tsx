@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -7,9 +7,9 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { ButtonLink, Loader } from "../../components";
+import { ButtonLink, Loader, WALLET_QUERY_KEY } from "../../components";
 import { formatKobo, verifyWalletTopup } from "../../services";
-import { getApiErrorMessage } from "../../utils";
+import { getApiErrorMessage, readWalletReturn } from "../../utils";
 import type { TopupResult } from "../../types";
 
 // A bank transfer can take minutes to settle, so while Paystack still says the
@@ -30,14 +30,16 @@ export const WalletConfirm = () => {
   const reference = searchParams.get("reference") || searchParams.get("trxref");
 
   const queryClient = useQueryClient();
-  const started = useRef(false);
+  // Where the person was (a checkout) before topping up, offered once paid.
+  const [returnTo] = useState(readWalletReturn);
   const [stage, setStage] = useState<Stage>(reference ? "verifying" : "failed");
   const [result, setResult] = useState<TopupResult | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!reference || started.current) return;
-    started.current = true;
+    // Safe to run twice (StrictMode does in development): verifying is idempotent,
+    // and the first run's cleanup stops it from updating the page.
+    if (!reference) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -50,7 +52,7 @@ export const WalletConfirm = () => {
         setResult(r);
         if (r.status === "PAID") {
           setStage("paid");
-          queryClient.invalidateQueries({ queryKey: ["wallet"] });
+          queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
         } else if (r.status === "FAILED") {
           setStage("failed");
         } else if (Date.now() < giveUpAt) {
@@ -124,13 +126,21 @@ export const WalletConfirm = () => {
         </p>
       )}
 
-      <ButtonLink
-        to="/account/wallet"
-        icon={ArrowRightIcon}
-        iconPosition="right"
-      >
-        Back to My Wallet
-      </ButtonLink>
+      <div className="flex flex-col sm:flex-row gap-3">
+        {ok && returnTo && (
+          <ButtonLink to={returnTo} icon={ArrowRightIcon} iconPosition="right">
+            Back to where you were
+          </ButtonLink>
+        )}
+        <ButtonLink
+          to="/account/wallet"
+          variant={ok && returnTo ? "secondary" : "primary"}
+          icon={ok && returnTo ? undefined : ArrowRightIcon}
+          iconPosition="right"
+        >
+          Back to My Wallet
+        </ButtonLink>
+      </div>
     </div>
   );
 };

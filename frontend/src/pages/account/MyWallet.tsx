@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -8,9 +8,10 @@ import {
   PlusIcon,
   WalletIcon,
 } from "@heroicons/react/24/outline";
-import { Button, Field, Input, LedgerTable, Modal } from "../../components";
+import { Button, Field, Input, LedgerTable, Modal, WALLET_QUERY_KEY } from "../../components";
 import { formatKobo, getWallet, startWalletTopup } from "../../services";
-import { getApiErrorMessage } from "../../utils";
+import { getApiErrorMessage, rememberWalletReturn } from "../../utils";
+import { useIdempotencyKey } from "../../hooks";
 import { useAuth } from "../../contexts";
 
 const PRESETS_KOBO = [100_000, 200_000, 500_000, 1_000_000];
@@ -29,15 +30,22 @@ export const MyWallet = () => {
   // ?topup=<kobo> opens the top-up form with that amount filled in, so a page that
   // finds the balance short (a voucher purchase) can send people straight here.
   const requested = Number(searchParams.get("topup"));
+  // ?return=<path> is where the person was (a checkout) before topping up. It is
+  // kept for the confirm page, which offers the way back. Same-site paths only.
+  const back = searchParams.get("return") ?? "";
+  useEffect(() => {
+    rememberWalletReturn(back || null);
+  }, [back]);
   const [topupOpen, setTopupOpen] = useState(requested > 0);
   const [amountText, setAmountText] = useState(
     requested > 0 ? String(requested / 100) : "",
   );
 
   const wallet = useQuery({
-    queryKey: ["wallet"],
+    queryKey: WALLET_QUERY_KEY,
     queryFn: getWallet,
     enabled: isAuthenticated,
+    staleTime: 0,
   });
 
   const amountKobo = nairaToKobo(amountText);
@@ -56,14 +64,19 @@ export const MyWallet = () => {
     return undefined;
   }, [amountText, amountKobo, limits]);
 
+  // One key per top-up attempt: pressing Pay twice starts one Paystack payment.
+  const attempt = useIdempotencyKey();
   const topup = useMutation({
-    mutationFn: (kobo: number) => startWalletTopup(kobo),
+    mutationFn: (kobo: number) => startWalletTopup(kobo, attempt.current()),
     // Paystack takes over from here and sends the person back to /wallet/confirm.
     onSuccess: (init) => {
+      attempt.settle();
       window.location.href = init.authorization_url;
     },
-    onError: (err) =>
-      toast.error(getApiErrorMessage(err, "We could not start that payment.")),
+    onError: (err) => {
+      attempt.settle(err);
+      toast.error(getApiErrorMessage(err, "We could not start that payment."));
+    },
   });
 
   if (isLoading) return null;
@@ -177,7 +190,7 @@ export const MyWallet = () => {
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (canPay) topup.mutate(amountKobo!);
+            if (canPay && !topup.isPending) topup.mutate(amountKobo!);
           }}
         >
           <div

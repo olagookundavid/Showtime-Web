@@ -123,7 +123,7 @@ func SetupWalletRoutes(r *gin.RouterGroup, app *api.Application) {
 			Burst:          10,
 		}))
 		{
-			limited.POST("/topups", app.Handlers.WalletHandler.StartTopup)
+			limited.POST("/topups", app.Handlers.Idempotency, app.Handlers.WalletHandler.StartTopup)
 			limited.POST("/topups/verify", app.Handlers.WalletHandler.VerifyTopup)
 		}
 	}
@@ -153,7 +153,7 @@ func SetupVoucherRoutes(r *gin.RouterGroup, app *api.Application) {
 			LimiterEnabled: true,
 			Rps:            2,
 			Burst:          5,
-		}), app.Handlers.VoucherHandler.Purchase)
+		}), app.Handlers.Idempotency, app.Handlers.VoucherHandler.Purchase)
 	}
 
 	// The bar screen. Its own feature, so bar staff can redeem vouchers without
@@ -990,8 +990,8 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 			// Optional auth: guests still buy tickets, but a signed-in buyer is
 			// recognised so members-only discount codes work and the ticket is
 			// linked to their account.
-			limitedTickets.POST("/season-pass", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.TicketHandler.PurchaseSeasonPass)
-			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
+			limitedTickets.POST("/season-pass", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.Idempotency, app.Handlers.TicketHandler.PurchaseSeasonPass)
+			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.Idempotency, app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
 		}
 
 		// Paystack calls one URL for every payment; every old webhook path goes to
@@ -1033,7 +1033,7 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 		// guest checkouts to go through unauthenticated.
 		limited := storeRoutes.Group("", commonAuth.RateLimit(rls), commonAuth.OptionalTokenMiddleware(app.TokenMaker))
 		{
-			limited.POST("/checkout", app.Handlers.SiteEventsHandler.TrackOnSuccess("store_checkout_started"), app.Handlers.StoreHandler.Checkout)
+			limited.POST("/checkout", app.Handlers.Idempotency, app.Handlers.SiteEventsHandler.TrackOnSuccess("store_checkout_started"), app.Handlers.StoreHandler.Checkout)
 			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
 		}
 
@@ -1213,7 +1213,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 			}
 			limitedLeagues := protected.Group("", commonAuth.RateLimit(rls))
 			{
-				limitedLeagues.POST("/leagues/join", app.Handlers.FantasyLeagueHandler.JoinLeague)
+				limitedLeagues.POST("/leagues/join", app.Handlers.Idempotency, app.Handlers.FantasyLeagueHandler.JoinLeague)
 				limitedLeagues.POST("/leagues/verify", app.Handlers.FantasyLeagueHandler.VerifyLeaguePayment)
 
 				// Withdrawals move real money out, so they sit behind the same
@@ -1222,7 +1222,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 
 				// Moving prize winnings into the spend wallet is one-way, so it gets
 				// the same limiter.
-				limitedLeagues.POST("/wallet/transfer-to-wallet", app.Handlers.FantasyPayoutHandler.TransferToWallet)
+				limitedLeagues.POST("/wallet/transfer-to-wallet", app.Handlers.Idempotency, app.Handlers.FantasyPayoutHandler.TransferToWallet)
 			}
 
 			protected.GET("/wallet", app.Handlers.FantasyPayoutHandler.GetWallet)

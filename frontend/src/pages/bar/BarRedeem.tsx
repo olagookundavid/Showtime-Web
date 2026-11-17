@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   ArrowPathIcon,
@@ -38,6 +38,7 @@ export const BarRedeem = () => {
   const [codeText, setCodeText] = useState("");
   const [shown, setShown] = useState<Shown | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const queryClient = useQueryClient();
 
   const lookup = useMutation({
     mutationFn: (code: string) => barLookupVoucher(code),
@@ -56,7 +57,13 @@ export const BarRedeem = () => {
     onSuccess: (result) => {
       setConfirming(false);
       setShown({ voucher: result.voucher, outcome: result.redeemed ? "redeemed" : "refused" });
-      if (result.redeemed) toast.success("Voucher redeemed");
+      if (result.redeemed) {
+        toast.success("Voucher redeemed");
+        // The admin voucher lists are cached; make them show this redemption.
+        queryClient.invalidateQueries({ queryKey: ["adminVouchers"] });
+        queryClient.invalidateQueries({ queryKey: ["adminVoucherRedemptions"] });
+        queryClient.invalidateQueries({ queryKey: ["myVouchers"] });
+      }
     },
     onError: (err) => {
       setConfirming(false);

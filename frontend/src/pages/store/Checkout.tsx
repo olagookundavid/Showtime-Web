@@ -20,7 +20,8 @@ import {
   isInsufficientBalance,
 } from "../../services";
 import type { StoreProduct, SavedAddress, CheckoutPayload, DiscountPreview } from "../../types";
-import { LazyImage, DiscountCodeInput, Button, Checkbox, Field, Input, Textarea, Spinner, WalletPayOption } from "../../components";
+import { LazyImage, DiscountCodeInput, Button, Checkbox, Field, Input, Textarea, Spinner, WalletPayOption, WALLET_QUERY_KEY } from "../../components";
+import { useIdempotencyKey } from "../../hooks";
 import { formatVariantLabel } from "../../utils";
 
 export const Checkout = () => {
@@ -55,10 +56,10 @@ export const Checkout = () => {
   // Server-priced preview of an applied discount code. Display only — the
   // authoritative discount is recomputed at checkout from the code alone.
   const [discount, setDiscount] = useState<DiscountPreview | null>(null);
-  // Signed-in buyers can pay from their wallet. walletKey remounts the option
-  // after a failed payment so it re-reads the balance.
+  // Signed-in buyers can pay from their wallet.
   const [useWallet, setUseWallet] = useState(false);
-  const [walletKey, setWalletKey] = useState(0);
+  // One key per checkout attempt, so a retried request can't order or charge twice.
+  const attempt = useIdempotencyKey();
 
   // Form State
   const [shippingForm, setShippingForm] = useState({
@@ -275,7 +276,9 @@ export const Checkout = () => {
         pay_with_wallet: payFromWallet || undefined,
       };
 
-      const response = await initializeCheckout(payload);
+      const response = await initializeCheckout(payload, attempt.current());
+      attempt.settle();
+      if (payFromWallet) queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
       if (!response) {
         throw new Error("No response received from merchant API.");
       }
@@ -301,6 +304,7 @@ export const Checkout = () => {
       // returns to /store/cart with their items intact and can retry.
       window.location.href = response.paystack_url;
     } catch (err: unknown) {
+      attempt.settle(err);
       const error = err as {
         response?: { data?: { error?: string } };
         message?: string;
@@ -308,7 +312,7 @@ export const Checkout = () => {
       if (isInsufficientBalance(err)) {
         // The wallet changed since the page loaded. Re-read it so the option
         // shows the shortfall and a top-up link.
-        setWalletKey((k) => k + 1);
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
         setUseWallet(false);
         setPayError(
           "Your wallet balance is not enough for this order. Top up your wallet or pay with Paystack.",
@@ -683,7 +687,6 @@ export const Checkout = () => {
 
               {isAuthenticated && totalAmount > 0 && (
                 <WalletPayOption
-                  key={walletKey}
                   totalKobo={Math.round(totalAmount * 100)}
                   checked={useWallet}
                   onChange={setUseWallet}

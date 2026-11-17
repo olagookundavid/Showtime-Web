@@ -24,8 +24,8 @@ import {
 } from "../../services";
 import type { FantasyLeague } from "../../types";
 import { useAuth } from "../../contexts";
-import { Loader, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner, WalletPayOption } from "../../components";
-import { rankBadgeClass } from "../../hooks";
+import { Loader, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner, WalletPayOption, WALLET_QUERY_KEY } from "../../components";
+import { rankBadgeClass, useIdempotencyKey } from "../../hooks";
 
 /** Nothing off the wire is trusted to be a finite number. */
 const num = (v: number | null | undefined): number =>
@@ -146,6 +146,8 @@ export function FantasyLeagues() {
 
   // Whether the manager chose to pay a paid league's entry fee from their wallet.
   const [payWithWallet, setPayWithWallet] = useState(false);
+  // One key per join attempt, so a retried request can't charge the fee twice.
+  const joinAttempt = useIdempotencyKey();
 
   // Join League Mutation
   const joinMutation = useMutation({
@@ -157,9 +159,11 @@ export function FantasyLeagues() {
       pay_with_wallet?: boolean;
     }) => {
       if (!season?.id) throw new Error("Season not loaded");
-      return fantasyLeaguesApi.joinLeague(season.id, by);
+      return fantasyLeaguesApi.joinLeague(season.id, by, joinAttempt.current());
     },
     onSuccess: (data) => {
+      joinAttempt.settle();
+      if (data.paid_from_wallet) queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
       if (data.paystack_url) {
         toast.success("Redirecting to Paystack for league entry fee...");
         window.location.href = data.paystack_url;
@@ -181,11 +185,14 @@ export function FantasyLeagues() {
       }
     },
     onError: (err: unknown) => {
+      joinAttempt.settle(err);
       const code = (err as { response?: { data?: { code?: unknown } } })
         ?.response?.data?.code;
       if (code === "INSUFFICIENT_BALANCE") {
-        // The balance can drop between opening the terms and confirming.
+        // The balance can drop between opening the terms and confirming: re-read
+        // it so the option shows the shortfall instead of offering the wallet again.
         setPayWithWallet(false);
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
         toast.error(
           `${apiErrorMessage(err, "Your wallet balance is not enough.")} Top up your wallet or pay with Paystack instead.`,
         );

@@ -18,3 +18,4 @@ export type { ReserveDragState } from './useReserveDrag';
 export { useLiveMatchScore } from './useLiveMatchScore';
 export { useStatsCompetitionFilter } from './useStatsCompetitionFilter';
 export { useScrollLock } from './useScrollLock';
+export { useIdempotencyKey } from './useIdempotencyKey';

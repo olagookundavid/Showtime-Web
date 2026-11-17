@@ -45,7 +45,7 @@ type VoidVoucherRequest struct {
 // VoucherView is a voucher as the holder and the bar staff see it. It leaves out
 // emails and account ids. State is what it can be used for today.
 type VoucherView struct {
-	ID             string               `json:"id"`
+	ID             string               `json:"id,omitempty"`
 	Code           string               `json:"code"`
 	Name           string               `json:"name"`
 	Items          []domain.VoucherItem `json:"items"`

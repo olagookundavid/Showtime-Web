@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { WalletIcon } from "@heroicons/react/24/outline";
 import { Checkbox } from "../ui";
 import { formatKobo, getWallet } from "../../services";
+
+/** The react-query key every page uses for the signed-in user's wallet. */
+export const WALLET_QUERY_KEY = ["wallet"] as const;
 
 interface WalletPayOptionProps {
   /** What the buyer would pay, in kobo. */
@@ -10,41 +14,30 @@ interface WalletPayOptionProps {
   /** True when the buyer chose to pay from their wallet. */
   checked: boolean;
   onChange: (useWallet: boolean) => void;
-  /** Called once the balance is known (null while loading or when it can't be read). */
-  onBalance?: (balanceKobo: number | null) => void;
 }
 
 /**
  * "Pay with wallet" for a checkout. It reads the signed-in buyer's balance, offers
  * the choice only when the wallet covers the total, and otherwise links to a top-up
- * for exactly the shortfall. Render it only for signed-in buyers.
+ * for the shortfall that brings the buyer back here afterwards. Render it only for
+ * signed-in buyers.
+ *
+ * The balance comes from the shared wallet query, read fresh each time this shows,
+ * so it is right after a payment anywhere else. After paying (or being told the
+ * wallet is short), invalidate WALLET_QUERY_KEY to refresh it.
  */
 export const WalletPayOption = ({
   totalKobo,
   checked,
   onChange,
-  onBalance,
 }: WalletPayOptionProps) => {
-  const [balance, setBalance] = useState<number | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    getWallet()
-      .then((w) => {
-        if (!live) return;
-        setBalance(w.balance_kobo);
-        onBalance?.(w.balance_kobo);
-      })
-      .catch(() => {
-        if (live) onBalance?.(null);
-      });
-    return () => {
-      live = false;
-    };
-    // onBalance is a notification only; re-reading the wallet when its identity changes would be wasteful.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  const location = useLocation();
+  const wallet = useQuery({
+    queryKey: WALLET_QUERY_KEY,
+    queryFn: getWallet,
+    staleTime: 0,
+  });
+  const balance = wallet.data?.balance_kobo ?? null;
   const enough = balance !== null && balance >= totalKobo;
 
   // If the total grows past the balance while the box is ticked, untick it.
@@ -52,12 +45,16 @@ export const WalletPayOption = ({
     if (balance !== null && !enough && checked) onChange(false);
   }, [balance, enough, checked, onChange]);
 
-  if (balance === null || totalKobo <= 0) return null;
+  if (!wallet.data || balance === null || totalKobo <= 0) return null;
+
+  // A top-up has a minimum, so a small shortfall is rounded up to it.
+  const topupKobo = Math.max(totalKobo - balance, wallet.data.min_topup_kobo);
+  const back = encodeURIComponent(location.pathname + location.search);
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
       <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-        <WalletIcon className="h-4 w-4" />
+        <WalletIcon className="h-4 w-4" aria-hidden="true" />
         Wallet balance {formatKobo(balance)}
       </div>
       {enough ? (
@@ -71,7 +68,7 @@ export const WalletPayOption = ({
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
           Your wallet is short by {formatKobo(totalKobo - balance)}.{" "}
           <Link
-            to={`/account/wallet?topup=${totalKobo - balance}`}
+            to={`/account/wallet?topup=${topupKobo}&return=${back}`}
             className="font-bold text-sffl-red hover:underline"
           >
             Top up

@@ -322,16 +322,12 @@ func (s *AppSettingService) UpdateWalletSettings(ctx context.Context, in dto.Wal
 	if in.MaxTopupKobo > in.MaxBalanceKobo {
 		return fmt.Errorf("the largest top-up can't be more than the largest wallet balance")
 	}
-	for key, v := range map[string]int64{
-		SettingWalletMinTopup:   in.MinTopupKobo,
-		SettingWalletMaxTopup:   in.MaxTopupKobo,
-		SettingWalletMaxBalance: in.MaxBalanceKobo,
-	} {
-		if err := s.repo.Set(ctx, key, strconv.FormatInt(v, 10)); err != nil {
-			return err
-		}
-	}
-	return nil
+	// One transaction, so the three limits can never be left half-updated.
+	return s.repo.SetMany(ctx, map[string]string{
+		SettingWalletMinTopup:   strconv.FormatInt(in.MinTopupKobo, 10),
+		SettingWalletMaxTopup:   strconv.FormatInt(in.MaxTopupKobo, 10),
+		SettingWalletMaxBalance: strconv.FormatInt(in.MaxBalanceKobo, 10),
+	})
 }
 
 func (s *AppSettingService) SearchStaff(ctx context.Context, search string) ([]dto.SettingsUser, error) {

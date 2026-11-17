@@ -16,6 +16,7 @@ import (
 	"showtime-backend/config"
 	"showtime-backend/internal/broadcast"
 	"showtime-backend/internal/handlers"
+	"showtime-backend/internal/middlewares"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 	"showtime-backend/internal/storage"
@@ -642,6 +643,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	voucherRepo := ports.NewVoucherRepository(pool)
 	voucherService := services.NewVoucherService(voucherRepo, authRepo, walletService).WithEmail(emailService)
 	h.VoucherHandler = transport.NewVoucherHandler(voucherService)
+	h.Idempotency = middlewares.Idempotency(ports.NewIdempotencyRepository(pool))
 	// One Paystack webhook for every kind of payment: Paystack calls a single URL.
 	h.PaystackWebhookHandler = transport.NewPaystackWebhookHandler(
 		paystackClient.GetSecretKey,

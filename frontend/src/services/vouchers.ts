@@ -1,4 +1,5 @@
 import { isAxiosError } from "axios";
+import { withIdempotencyKey } from "./idempotency";
 import api from "./client";
 import type {
   AdminVoucher,
@@ -22,8 +23,13 @@ export const listVoucherProducts = async (): Promise<VoucherProduct[]> => {
 
 export const purchaseVoucher = async (
   input: PurchaseVoucherInput,
+  idempotencyKey?: string,
 ): Promise<Voucher> => {
-  const res = await api.post<{ data: Voucher }>("/vouchers/purchase", input);
+  const res = await api.post<{ data: Voucher }>(
+    "/vouchers/purchase",
+    input,
+    withIdempotencyKey(idempotencyKey),
+  );
   return res.data.data;
 };
 

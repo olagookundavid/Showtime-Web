@@ -16,6 +16,12 @@ func (r *memSettings) Set(_ context.Context, k, v string) error {
 	r.m[k] = v
 	return nil
 }
+func (r *memSettings) SetMany(_ context.Context, values map[string]string) error {
+	for k, v := range values {
+		r.m[k] = v
+	}
+	return nil
+}
 
 type fakeUsers struct {
 	ports.IContractDigestRepository

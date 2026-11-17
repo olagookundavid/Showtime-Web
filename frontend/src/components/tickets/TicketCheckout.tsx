@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CreditCardIcon, ExclamationTriangleIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, TicketIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { getUserProfile, isInsufficientBalance, purchaseTicket, quoteTicketPrice } from '../../services';
 import type { AuthUser, PurchaseTicketPayload, TicketProductDayResponse, TicketProductResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';
-import { WalletPayOption } from '../wallet';
+import { WALLET_QUERY_KEY, WalletPayOption } from '../wallet';
+import { useIdempotencyKey } from '../../hooks';
 import { dayLabel, formatDayShort, naira, sortDaysByDate } from './ticketFormat';
 
 interface TicketCheckoutProps {
@@ -40,9 +41,11 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
-    // Pay from the wallet instead of Paystack. walletKey re-reads the balance after a refusal.
+    // Pay from the wallet instead of Paystack.
     const [useWallet, setUseWallet] = useState(false);
-    const [walletKey, setWalletKey] = useState(0);
+    // One key per purchase attempt, so a retried request can't buy (or charge) twice.
+    const attempt = useIdempotencyKey();
+    const queryClient = useQueryClient();
     // A purchase creates a ticket order, so it waits for an explicit confirm.
     const [confirmPurchase, setConfirmPurchase] = useState(false);
 
@@ -108,7 +111,9 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                 pay_with_wallet: payFromWallet || undefined,
             };
 
-            const result = await purchaseTicket(payload);
+            const result = await purchaseTicket(payload, attempt.current());
+            attempt.settle();
+            if (payFromWallet) queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
 
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
@@ -117,10 +122,11 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
                 navigate(`/tickets/confirm?reference=${result.paystack_reference}`);
             }
         } catch (err: unknown) {
+            attempt.settle(err);
             if (isInsufficientBalance(err)) {
                 // Someone else spent from the wallet, or the price changed: re-read the balance and fall back to Paystack.
                 setUseWallet(false);
-                setWalletKey((k) => k + 1);
+                queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
             }
             const errorResponse = err as { response?: { data?: { error?: string } } };
             setError(errorResponse.response?.data?.error || 'Failed to initiate purchase. Please try again.');
@@ -348,7 +354,6 @@ export const TicketCheckout = ({ product, days: pickedDays, accessCode, onClose 
 
                     {userProfile && !free && (
                         <WalletPayOption
-                            key={walletKey}
                             totalKobo={total * 100}
                             checked={useWallet}
                             onChange={setUseWallet}

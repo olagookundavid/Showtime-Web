@@ -1,4 +1,5 @@
 import api from "./client";
+import { withIdempotencyKey } from "./idempotency";
 import type {
   AdminSpendWallet,
   LedgerEntry,
@@ -16,10 +17,13 @@ export const getWallet = async (): Promise<SpendWallet> => {
 /** Starts a top-up. Send the browser to `authorization_url` to pay. */
 export const startWalletTopup = async (
   amountKobo: number,
+  idempotencyKey?: string,
 ): Promise<TopupInit> => {
-  const res = await api.post<{ data: TopupInit }>("/wallet/topups", {
-    amount_kobo: amountKobo,
-  });
+  const res = await api.post<{ data: TopupInit }>(
+    "/wallet/topups",
+    { amount_kobo: amountKobo },
+    withIdempotencyKey(idempotencyKey),
+  );
   return res.data.data;
 };
 

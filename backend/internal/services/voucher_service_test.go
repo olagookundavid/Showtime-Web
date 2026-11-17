@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"strings"
 	"testing"
 	"time"
@@ -64,7 +65,7 @@ func (r *fakeVoucherRepo) store(v *domain.Voucher) error {
 	if r.taken[v.Code] {
 		return ports.ErrVoucherCodeTaken
 	}
-	v.ID = "v-" + v.Code
+	v.ID = uuid.NewSHA1(uuid.NameSpaceOID, []byte(v.Code)).String()
 	v.Status = domain.VoucherIssued
 	v.CreatedAt = time.Now()
 	r.vouchers[v.Code] = v
@@ -151,10 +152,20 @@ func (r *fakeVoucherRepo) Void(_ context.Context, id, staffID string, refund boo
 	return v, nil
 }
 
+// Ids are UUIDs, as in the database; the service turns away anything else.
+const (
+	testBurgerID         = "11111111-1111-4111-8111-111111111111"
+	testOldBundleID      = "22222222-2222-4222-8222-222222222222"
+	testVoucherUserID    = "33333333-3333-4333-8333-333333333333"
+	testGhostUserID      = "44444444-4444-4444-8444-444444444444"
+	testMissingProductID = "55555555-5555-4555-8555-555555555555"
+	testMissingID        = "66666666-6666-4666-8666-666666666666"
+)
+
 type fakeVoucherUsers struct{}
 
 func (fakeVoucherUsers) GetUserByID(_ context.Context, id string) (*domain.User, error) {
-	if id == "ghost" {
+	if id == testGhostUserID {
 		return nil, errors.New("not found")
 	}
 	return &domain.User{ID: id, FullName: "User " + id, Email: id + "@example.com"}, nil
@@ -163,7 +174,7 @@ func (fakeVoucherUsers) GetUserByID(_ context.Context, id string) (*domain.User,
 type fakeVoucherSearch struct{}
 
 func (fakeVoucherSearch) AdminSearchUsers(context.Context, string) ([]dto.WalletUser, error) {
-	return []dto.WalletUser{{ID: "u1", Name: "Ada"}}, nil
+	return []dto.WalletUser{{ID: testVoucherUserID, Name: "Ada"}}, nil
 }
 
 // 10 Nov 2026 in Lagos; every test runs "today".
@@ -171,12 +182,12 @@ var voucherToday = time.Date(2026, 11, 10, 12, 0, 0, 0, lagos())
 
 func voucherFixture() (*VoucherService, *fakeVoucherRepo) {
 	repo := newFakeVoucherRepo()
-	repo.products["burger"] = &domain.VoucherProduct{
-		ID: "burger", Name: "Burger and drink", PriceKobo: 450_000, Active: true,
+	repo.products[testBurgerID] = &domain.VoucherProduct{
+		ID: testBurgerID, Name: "Burger and drink", PriceKobo: 450_000, Active: true,
 		Items: []domain.VoucherItem{{Name: "Burger", Qty: 1}, {Name: "Soft drink", Qty: 1}},
 	}
-	repo.products["old"] = &domain.VoucherProduct{
-		ID: "old", Name: "Retired bundle", PriceKobo: 100_000, Active: false,
+	repo.products[testOldBundleID] = &domain.VoucherProduct{
+		ID: testOldBundleID, Name: "Retired bundle", PriceKobo: 100_000, Active: false,
 		Items: []domain.VoucherItem{{Name: "Water", Qty: 1}},
 	}
 	s := NewVoucherService(repo, fakeVoucherUsers{}, fakeVoucherSearch{})
@@ -185,7 +196,7 @@ func voucherFixture() (*VoucherService, *fakeVoucherRepo) {
 }
 
 func purchaseReq(from, to string) dto.PurchaseVoucherRequest {
-	return dto.PurchaseVoucherRequest{ProductID: "burger", HolderName: "Tolu Ade", ValidFrom: from, ValidTo: to}
+	return dto.PurchaseVoucherRequest{ProductID: testBurgerID, HolderName: "Tolu Ade", ValidFrom: from, ValidTo: to}
 }
 
 func TestNormalizeVoucherCode(t *testing.T) {
@@ -285,7 +296,7 @@ func TestPurchaseTakesThePriceAndSnapshotsTheBundle(t *testing.T) {
 	}
 
 	// Editing the catalogue afterwards must not change a voucher already sold.
-	repo.products["burger"].Items[0].Name = "Changed"
+	repo.products[testBurgerID].Items[0].Name = "Changed"
 	if got := repo.vouchers[v.Code].Items[0].Name; got != "Burger" {
 		t.Errorf("voucher items changed with the catalogue: %q", got)
 	}
@@ -314,8 +325,8 @@ func TestPurchaseValidation(t *testing.T) {
 		mod  func(*dto.PurchaseVoucherRequest)
 		err  error
 	}{
-		{"unknown product", func(r *dto.PurchaseVoucherRequest) { r.ProductID = "nope" }, ErrVoucherProductGone},
-		{"switched off product", func(r *dto.PurchaseVoucherRequest) { r.ProductID = "old" }, ErrVoucherProductGone},
+		{"unknown product", func(r *dto.PurchaseVoucherRequest) { r.ProductID = testMissingProductID }, ErrVoucherProductGone},
+		{"switched off product", func(r *dto.PurchaseVoucherRequest) { r.ProductID = testOldBundleID }, ErrVoucherProductGone},
 		{"no holder", func(r *dto.PurchaseVoucherRequest) { r.HolderName = "   " }, ErrVoucherHolder},
 		{"bad email", func(r *dto.PurchaseVoucherRequest) { r.HolderEmail = "not-an-email" }, ErrVoucherHolderEmail},
 		{"past date", func(r *dto.PurchaseVoucherRequest) { r.ValidFrom = "2026-11-01" }, ErrVoucherDates},
@@ -478,7 +489,7 @@ func TestVoidRefundsOnlyPurchasedVouchers(t *testing.T) {
 	}
 
 	issued, _ := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: "burger", HolderName: "Guest", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
+		ProductID: testBurgerID, HolderName: "Guest", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
 	})
 	before := repo.balance["admin"]
 	if _, err := s.AdminVoid(ctx, issued.ID, "admin", true); err != nil {
@@ -487,7 +498,7 @@ func TestVoidRefundsOnlyPurchasedVouchers(t *testing.T) {
 	if repo.balance["admin"] != before {
 		t.Error("voiding a free voucher must not move any money")
 	}
-	if _, err := s.AdminVoid(ctx, "missing", "admin", false); !errors.Is(err, ErrVoucherNotFound) {
+	if _, err := s.AdminVoid(ctx, testMissingID, "admin", false); !errors.Is(err, ErrVoucherNotFound) {
 		t.Errorf("got %v, want ErrVoucherNotFound", err)
 	}
 }
@@ -497,29 +508,29 @@ func TestAdminIssueLinksAnAccountAndTakesItsEmail(t *testing.T) {
 	ctx := context.Background()
 
 	v, err := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: "old", HolderName: "Ada", HolderUserID: "u1", ValidFrom: "2026-11-10", ValidTo: "2026-11-11",
+		ProductID: testOldBundleID, HolderName: "Ada", HolderUserID: testVoucherUserID, ValidFrom: "2026-11-10", ValidTo: "2026-11-11",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Source != domain.VoucherAdminIssued || v.HolderUserID == nil || *v.HolderUserID != "u1" {
+	if v.Source != domain.VoucherAdminIssued || v.HolderUserID == nil || *v.HolderUserID != testVoucherUserID {
 		t.Errorf("unexpected: %+v", v)
 	}
-	if v.HolderEmail == nil || *v.HolderEmail != "u1@example.com" {
+	if v.HolderEmail == nil || *v.HolderEmail != testVoucherUserID+"@example.com" {
 		t.Errorf("holder email = %v, want the account's", v.HolderEmail)
 	}
-	mine, _ := s.ListMine(ctx, "u1")
+	mine, _ := s.ListMine(ctx, testVoucherUserID)
 	if len(mine) != 1 {
 		t.Errorf("ListMine = %d vouchers, want 1", len(mine))
 	}
 
 	if _, err := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: "burger", HolderName: "Ada", HolderUserID: "ghost", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
+		ProductID: testBurgerID, HolderName: "Ada", HolderUserID: testGhostUserID, ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
 	}); !errors.Is(err, ErrWalletUserNotFound) {
 		t.Errorf("unknown account: got %v", err)
 	}
 	if _, err := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: "nope", HolderName: "Ada", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
+		ProductID: testMissingProductID, HolderName: "Ada", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
 	}); !errors.Is(err, ErrVoucherProductGone) {
 		t.Errorf("unknown product: got %v", err)
 	}
@@ -554,7 +565,26 @@ func TestProductValidation(t *testing.T) {
 			t.Errorf("%s: got %v, want ErrVoucherProductInvalid", name, err)
 		}
 	}
-	if _, err := s.AdminUpdateProduct(ctx, "missing", good); !errors.Is(err, ErrVoucherProductGone) {
+	if _, err := s.AdminUpdateProduct(ctx, testMissingID, good); !errors.Is(err, ErrVoucherProductGone) {
 		t.Errorf("update missing: got %v", err)
+	}
+}
+
+func TestIdsThatAreNotUUIDsAreNotFound(t *testing.T) {
+	s, _ := voucherFixture()
+	ctx := context.Background()
+	if _, err := s.Purchase(ctx, "buyer", dto.PurchaseVoucherRequest{ProductID: "not-a-uuid", HolderName: "A",
+		ValidFrom: "2026-11-10", ValidTo: "2026-11-10"}); !errors.Is(err, ErrVoucherProductGone) {
+		t.Fatalf("purchase: %v", err)
+	}
+	if _, err := s.AdminVoid(ctx, "1; drop", "admin", false); !errors.Is(err, ErrVoucherNotFound) {
+		t.Fatalf("void: %v", err)
+	}
+}
+
+func TestPublicViewHidesStaffAndIds(t *testing.T) {
+	v := PublicView(dto.VoucherView{ID: "x", Code: "VCH-1", RedeemedByName: "Bar Staff"})
+	if v.ID != "" || v.RedeemedByName != "" || v.Code != "VCH-1" {
+		t.Fatalf("public view leaked: %+v", v)
 	}
 }

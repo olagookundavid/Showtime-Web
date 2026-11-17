@@ -25,6 +25,11 @@ type IFantasyLeagueRepository interface {
 	ListPublicLeagues(ctx context.Context, seasonID string, page, limit int) ([]domain.FantasyLeague, int, error)
 
 	AddMember(ctx context.Context, m *domain.FantasyLeagueMember) error
+	// AddMemberPaidFromWallet is AddMember for an entry fee paid from the spend
+	// wallet: the membership and the debit commit together. A manager who is
+	// already an active paid or free member gets ErrAlreadyLeagueMember and is not
+	// charged; a short wallet gets ErrWalletInsufficient and no membership.
+	AddMemberPaidFromWallet(ctx context.Context, m *domain.FantasyLeagueMember, debit domain.LedgerEntry) error
 	CountActiveMembers(ctx context.Context, leagueID string) (int, error)
 	GetMember(ctx context.Context, leagueID, userID string) (*domain.FantasyLeagueMember, error)
 	// LeaveLeague stamps a membership as departed. The row survives so a paid
@@ -263,7 +268,22 @@ func (r *FantasyLeagueRepository) ListPublicLeagues(ctx context.Context, seasonI
 	return list, total, nil
 }
 
+// ErrAlreadyLeagueMember is returned when a wallet join finds the manager is
+// already in the league, so the fee is not taken twice.
+var ErrAlreadyLeagueMember = errors.New("you are already in this league")
+
 func (r *FantasyLeagueRepository) AddMember(ctx context.Context, m *domain.FantasyLeagueMember) error {
+	return r.addMember(ctx, m, nil)
+}
+
+func (r *FantasyLeagueRepository) AddMemberPaidFromWallet(ctx context.Context, m *domain.FantasyLeagueMember, debit domain.LedgerEntry) error {
+	if debit.AmountKobo >= 0 {
+		return errors.New("a wallet league entry must be a debit")
+	}
+	return r.addMember(ctx, m, &debit)
+}
+
+func (r *FantasyLeagueRepository) addMember(ctx context.Context, m *domain.FantasyLeagueMember, debit *domain.LedgerEntry) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -306,6 +326,21 @@ func (r *FantasyLeagueRepository) AddMember(ctx context.Context, m *domain.Fanta
 		}
 	}
 
+	// Under the league lock, a second wallet join (a double click, a retry, another
+	// server) sees the first one's membership and is turned away before paying.
+	if debit != nil {
+		var status string
+		err := tx.QueryRow(ctx, `
+			SELECT payment_status FROM fantasy_league_members
+			WHERE league_id = $1 AND user_id = $2 AND left_at IS NULL`, m.LeagueID, m.UserID).Scan(&status)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("failed to check existing membership: %w", err)
+		}
+		if status == string(domain.LeaguePaymentPaid) || status == string(domain.LeaguePaymentFree) {
+			return ErrAlreadyLeagueMember
+		}
+	}
+
 	query := `
 		INSERT INTO fantasy_league_members (league_id, user_id, team_id, payment_status, paystack_reference, paystack_access_code)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -322,6 +357,13 @@ func (r *FantasyLeagueRepository) AddMember(ctx context.Context, m *domain.Fanta
 		m.LeagueID, m.UserID, m.TeamID, m.PaymentStatus, m.PaystackReference, m.PaystackAccessCode,
 	).Scan(&m.ID, &m.JoinedAt); err != nil {
 		return err
+	}
+
+	// The league and member rows are locked; the wallet is locked last.
+	if debit != nil {
+		if _, err := applySpendEntry(ctx, tx, *debit); err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit(ctx)

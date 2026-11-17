@@ -1,2 +1,2 @@
 export { LedgerTable } from './LedgerTable';
-export { WalletPayOption } from './WalletPayOption';
+export { WalletPayOption, WALLET_QUERY_KEY } from './WalletPayOption';

@@ -12,49 +12,39 @@ import (
 
 // ─── Paying for tickets from the wallet ───────────────────────────────────────
 
-// fakeWallet records what the ticket service asks of the wallet.
+// fakeWallet stands in for the spend wallet. Ticket purchases take the money in
+// the ticket's own database transaction (walletTicketRepo below), so the service
+// only needs the wallet to be switched on; Pay and Refund must never be called.
 type fakeWallet struct {
-	payErr    error
-	payNew    bool // false: report the reference as already paid
-	pays      []fakeWalletCall
-	refunds   []fakeWalletCall
-	refundErr error
+	calls int
 }
 
-type fakeWalletCall struct {
-	userID    string
-	amount    int64
-	reference string
+func newFakeWallet() *fakeWallet { return &fakeWallet{} }
+
+func (f *fakeWallet) Pay(context.Context, string, int64, string, string) (bool, error) {
+	f.calls++
+	return false, errors.New("ticket purchases must not call Pay")
 }
 
-func newFakeWallet() *fakeWallet { return &fakeWallet{payNew: true} }
-
-func (f *fakeWallet) Pay(ctx context.Context, userID string, amountKobo int64, reference, description string) (bool, error) {
-	if f.payErr != nil {
-		return false, f.payErr
-	}
-	f.pays = append(f.pays, fakeWalletCall{userID, amountKobo, reference})
-	return f.payNew, nil
+func (f *fakeWallet) Refund(context.Context, string, int64, string, string) (bool, error) {
+	f.calls++
+	return false, errors.New("ticket purchases must not call Refund")
 }
 
-func (f *fakeWallet) Refund(ctx context.Context, userID string, amountKobo int64, reference, description string) (bool, error) {
-	if f.refundErr != nil {
-		return false, f.refundErr
-	}
-	f.refunds = append(f.refunds, fakeWalletCall{userID, amountKobo, reference})
-	return true, nil
-}
-
-// walletTicketRepo keeps the tickets the service creates.
+// walletTicketRepo keeps the tickets the service creates and models the real
+// repository's guarantee: a wallet ticket and its debit are written together or
+// not at all.
 type walletTicketRepo struct {
 	ports.TicketRepository
+	balance   int64
+	debits    []domain.LedgerEntry
 	created   []*domain.Ticket
 	createErr error
-	// failFirst fails only the first Create, with createErr.
+	// failFirst fails only the first create, with createErr.
 	failFirst bool
 }
 
-func (f *walletTicketRepo) Create(ctx context.Context, t *domain.Ticket) error {
+func (f *walletTicketRepo) insert(t *domain.Ticket) error {
 	if f.createErr != nil {
 		err := f.createErr
 		if f.failFirst {
@@ -69,6 +59,20 @@ func (f *walletTicketRepo) Create(ctx context.Context, t *domain.Ticket) error {
 	return nil
 }
 
+func (f *walletTicketRepo) Create(_ context.Context, t *domain.Ticket) error { return f.insert(t) }
+
+func (f *walletTicketRepo) CreatePaidFromWallet(_ context.Context, t *domain.Ticket, debit domain.LedgerEntry) error {
+	if f.balance+debit.AmountKobo < 0 {
+		return ports.ErrWalletInsufficient
+	}
+	if err := f.insert(t); err != nil {
+		return err // rolled back: no debit
+	}
+	f.balance += debit.AmountKobo
+	f.debits = append(f.debits, debit)
+	return nil
+}
+
 // walletProductRepo adds the Game Pass rules the purchase reads (none).
 type walletProductRepo struct{ *fakeProductRepo }
 
@@ -76,12 +80,13 @@ func (f walletProductRepo) ListGamePassRules(ctx context.Context) ([]domain.Game
 	return nil, nil
 }
 
-// newWalletTicketService sells one 5,000 naira match day. The Paystack client is
-// left nil on purpose: any attempt to start a Paystack payment would panic.
+// newWalletTicketService sells one match day at price naira, to a buyer holding
+// 50,000 naira. The Paystack client is left nil on purpose: any attempt to start
+// a Paystack payment would panic.
 func newWalletTicketService(price int) (*TicketService, *walletTicketRepo, *fakeWallet) {
 	base := newSelectionService().productRepo.(*fakeProductRepo)
 	base.days[testD1] = futureDay(testD1, 7, price, 0, 0)
-	repo := &walletTicketRepo{}
+	repo := &walletTicketRepo{balance: 50_000 * 100}
 	w := newFakeWallet()
 	svc := &TicketService{productRepo: walletProductRepo{base}, ticketRepo: repo}
 	svc.WithWallet(w)
@@ -103,12 +108,13 @@ func TestWalletPurchaseDebitsOnceAndConfirmsTheTicket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("purchase failed: %v", err)
 	}
-	if len(w.pays) != 1 {
-		t.Fatalf("wallet should be debited once, got %d", len(w.pays))
+	if len(repo.debits) != 1 {
+		t.Fatalf("wallet should be debited once, got %d", len(repo.debits))
 	}
 	// 2 tickets x 5,000 naira, in kobo.
-	if got := w.pays[0]; got.userID != user || got.amount != 2*5000*100 {
-		t.Fatalf("wrong debit: %+v", got)
+	d := repo.debits[0]
+	if d.UserID != user || d.AmountKobo != -2*5000*100 || d.Type != domain.LedgerPurchase {
+		t.Fatalf("wrong debit: %+v", d)
 	}
 	if len(repo.created) != 1 {
 		t.Fatalf("one ticket expected, got %d", len(repo.created))
@@ -123,56 +129,46 @@ func TestWalletPurchaseDebitsOnceAndConfirmsTheTicket(t *testing.T) {
 	if tk.UserID == nil || *tk.UserID != user {
 		t.Fatalf("ticket should belong to the buyer")
 	}
-	if w.pays[0].reference != tk.TicketCode || tk.PaystackReference == nil || *tk.PaystackReference != tk.TicketCode {
-		t.Fatalf("the debit, reference and code should all match: %+v / %v / %s", w.pays[0], tk.PaystackReference, tk.TicketCode)
+	if d.Reference == nil || *d.Reference != tk.TicketCode {
+		t.Fatalf("the ledger reference should be the ticket code: %v / %s", d.Reference, tk.TicketCode)
 	}
 	if res.Status != string(domain.TicketStatusPaid) || res.AuthorizationURL != "" || res.TicketCode == "" {
 		t.Fatalf("response should be an already confirmed ticket: %+v", res)
 	}
-	if len(w.refunds) != 0 {
-		t.Fatalf("nothing should be refunded on success")
+	if w.calls != 0 {
+		t.Fatalf("the wallet service must not be called directly")
 	}
 }
 
 func TestWalletPurchaseInsufficientBalanceLeavesNoTicketAndNoCharge(t *testing.T) {
-	svc, repo, w := newWalletTicketService(5000)
-	w.payErr = ports.ErrWalletInsufficient
+	svc, repo, _ := newWalletTicketService(5000)
+	repo.balance = 9_999_00 // short of the 10,000 naira total
 	user := "user-1"
 
 	_, err := svc.Purchase(context.Background(), walletPurchase(), "", &user)
 	if !errors.Is(err, ports.ErrWalletInsufficient) {
 		t.Fatalf("want ErrWalletInsufficient, got %v", err)
 	}
-	if len(repo.created) != 0 {
-		t.Fatalf("no ticket should exist, got %d", len(repo.created))
-	}
-	if len(w.pays) != 0 || len(w.refunds) != 0 {
-		t.Fatalf("no money should move: pays=%d refunds=%d", len(w.pays), len(w.refunds))
+	if len(repo.created) != 0 || len(repo.debits) != 0 || repo.balance != 9_999_00 {
+		t.Fatalf("no ticket and no charge expected: tickets=%d debits=%d", len(repo.created), len(repo.debits))
 	}
 }
 
-func TestWalletPurchaseRefundsWhenTheTicketCannotBeCreated(t *testing.T) {
-	svc, repo, w := newWalletTicketService(5000)
+func TestWalletPurchaseFailureChargesNothing(t *testing.T) {
+	svc, repo, _ := newWalletTicketService(5000)
 	repo.createErr = errors.New("database is down")
 	user := "user-1"
 
-	_, err := svc.Purchase(context.Background(), walletPurchase(), "", &user)
-	if err == nil {
+	if _, err := svc.Purchase(context.Background(), walletPurchase(), "", &user); err == nil {
 		t.Fatalf("the failure should be returned")
 	}
-	if len(w.pays) != 1 || len(w.refunds) != 1 {
-		t.Fatalf("one debit and one refund expected, got pays=%d refunds=%d", len(w.pays), len(w.refunds))
-	}
-	if w.refunds[0] != w.pays[0] {
-		t.Fatalf("the refund must repeat the debit (same user, amount, reference): %+v vs %+v", w.refunds[0], w.pays[0])
-	}
-	if len(repo.created) != 0 {
-		t.Fatalf("no ticket should remain")
+	if len(repo.debits) != 0 || len(repo.created) != 0 || repo.balance != 50_000*100 {
+		t.Fatalf("a failed ticket must leave the wallet untouched")
 	}
 }
 
-func TestWalletPurchaseCodeClashRefundsAndRetriesWithAFreshCode(t *testing.T) {
-	svc, repo, w := newWalletTicketService(5000)
+func TestWalletPurchaseCodeClashRetriesWithAFreshCodeAndChargesOnce(t *testing.T) {
+	svc, repo, _ := newWalletTicketService(5000)
 	repo.createErr = errors.New(`duplicate key value violates unique constraint "tickets_ticket_code_key"`)
 	repo.failFirst = true
 	user := "user-1"
@@ -180,38 +176,22 @@ func TestWalletPurchaseCodeClashRefundsAndRetriesWithAFreshCode(t *testing.T) {
 	if _, err := svc.Purchase(context.Background(), walletPurchase(), "", &user); err != nil {
 		t.Fatalf("a clash should be retried: %v", err)
 	}
-	if len(w.pays) != 2 || len(w.refunds) != 1 {
-		t.Fatalf("want 2 debits and 1 refund (net one charge), got pays=%d refunds=%d", len(w.pays), len(w.refunds))
+	if len(repo.debits) != 1 || len(repo.created) != 1 {
+		t.Fatalf("want one charge and one ticket, got debits=%d tickets=%d", len(repo.debits), len(repo.created))
 	}
-	if w.refunds[0].reference != w.pays[0].reference || w.pays[0].reference == w.pays[1].reference {
-		t.Fatalf("the first debit is refunded and the second uses a new code: %+v %+v", w.pays, w.refunds)
-	}
-	if len(repo.created) != 1 || repo.created[0].TicketCode != w.pays[1].reference {
-		t.Fatalf("the ticket should carry the second code")
-	}
-}
-
-func TestWalletPurchaseReferenceAlreadyPaidIsNotRefundedAndRetries(t *testing.T) {
-	svc, repo, w := newWalletTicketService(5000)
-	w.payNew = false // every reference looks already paid: the loop must give up
-	user := "user-1"
-
-	if _, err := svc.Purchase(context.Background(), walletPurchase(), "", &user); err == nil {
-		t.Fatalf("expected an error when no fresh reference can be had")
-	}
-	if len(repo.created) != 0 || len(w.refunds) != 0 {
-		t.Fatalf("an already-paid reference must neither make a ticket nor be refunded")
+	if *repo.debits[0].Reference != repo.created[0].TicketCode {
+		t.Fatalf("the charge should name the ticket that was issued")
 	}
 }
 
 func TestWalletPurchaseRejectsGuests(t *testing.T) {
-	svc, repo, w := newWalletTicketService(5000)
+	svc, repo, _ := newWalletTicketService(5000)
 
 	_, err := svc.Purchase(context.Background(), walletPurchase(), "", nil)
 	if !errors.Is(err, ErrTicketWalletSignIn) {
 		t.Fatalf("a guest should be told to sign in, got %v", err)
 	}
-	if len(w.pays) != 0 || len(repo.created) != 0 {
+	if len(repo.debits) != 0 || len(repo.created) != 0 {
 		t.Fatalf("a guest must not be charged or get a ticket")
 	}
 }
@@ -230,14 +210,14 @@ func TestWalletPurchaseNeedsAWallet(t *testing.T) {
 }
 
 func TestWalletPurchaseOfAFreeTicketTakesNoMoney(t *testing.T) {
-	svc, repo, w := newWalletTicketService(0)
+	svc, repo, _ := newWalletTicketService(0)
 	user := "user-1"
 
 	res, err := svc.Purchase(context.Background(), walletPurchase(), "", &user)
 	if err != nil {
 		t.Fatalf("free purchase failed: %v", err)
 	}
-	if len(w.pays) != 0 {
+	if len(repo.debits) != 0 {
 		t.Fatalf("a free ticket must not touch the wallet")
 	}
 	if len(repo.created) != 1 || res.Status != string(domain.TicketStatusPaid) {

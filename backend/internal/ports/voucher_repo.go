@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -178,7 +179,7 @@ func (r *VoucherRepository) CreateProduct(ctx context.Context, p *domain.Voucher
 		INSERT INTO voucher_products (name, description, price_kobo, items, active)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
-	`, p.Name, p.Description, p.PriceKobo, p.Items, p.Active).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
+	`, p.Name, p.Description, p.PriceKobo, itemsJSON(p.Items), p.Active).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 }
 
 func (r *VoucherRepository) UpdateProduct(ctx context.Context, p *domain.VoucherProduct) (bool, error) {
@@ -193,7 +194,7 @@ func (r *VoucherRepository) UpdateProduct(ctx context.Context, p *domain.Voucher
 		SET name = $2, description = $3, price_kobo = $4, items = $5, active = $6, updated_at = NOW()
 		WHERE id = $1
 		RETURNING created_at, updated_at
-	`, p.ID, p.Name, p.Description, p.PriceKobo, p.Items, p.Active).Scan(&p.CreatedAt, &p.UpdatedAt)
+	`, p.ID, p.Name, p.Description, p.PriceKobo, itemsJSON(p.Items), p.Active).Scan(&p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -215,7 +216,7 @@ func insertVoucherRow(ctx context.Context, tx pgx.Tx, v *domain.Voucher) error {
 		v.Items = []domain.VoucherItem{}
 	}
 	err := tx.QueryRow(ctx, insertVoucher,
-		v.Code, v.ProductID, v.Name, v.Items, v.PriceKobo, v.Source,
+		v.Code, v.ProductID, v.Name, itemsJSON(v.Items), v.PriceKobo, v.Source,
 		v.HolderName, v.HolderEmail, v.HolderUserID, v.PurchasedByUserID, v.IssuedByUserID,
 		v.ValidFrom, v.ValidTo,
 	).Scan(&v.ID, &v.Status, &v.CreatedAt)
@@ -439,4 +440,18 @@ func (r *VoucherRepository) Void(ctx context.Context, id, staffID string, refund
 		return nil, err
 	}
 	return r.GetByID(ctx, id)
+}
+
+// itemsJSON encodes a bundle's items for a JSONB column. The server runs pgx in
+// simple-protocol mode (for PgBouncer), where pgx can't encode a Go struct slice
+// itself, so it is sent as JSON text and Postgres casts it.
+func itemsJSON(items []domain.VoucherItem) string {
+	if items == nil {
+		items = []domain.VoucherItem{}
+	}
+	b, err := json.Marshal(items)
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
 }

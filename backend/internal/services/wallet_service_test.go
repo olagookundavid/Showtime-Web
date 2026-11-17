@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/ports"
@@ -79,6 +80,16 @@ func (r *fakeWalletRepo) Apply(_ context.Context, e domain.LedgerEntry) (*domain
 	return &e, nil
 }
 
+func (r *fakeWalletRepo) PendingTopupsKobo(_ context.Context, userID string, _ time.Time) (int64, error) {
+	var total int64
+	for _, t := range r.topups {
+		if t.UserID == userID && t.Status == domain.TopupPending {
+			total += t.AmountKobo
+		}
+	}
+	return total, nil
+}
+
 func (r *fakeWalletRepo) FindEntry(_ context.Context, t domain.LedgerType, ref string) (*domain.LedgerEntry, error) {
 	for i := range r.entries {
 		e := r.entries[i]
@@ -102,6 +113,7 @@ func (r *fakeWalletRepo) ApplyOnce(ctx context.Context, e domain.LedgerEntry) (*
 type fakeWalletPaystack struct {
 	initCalls int
 	verify    *PaystackVerifyResponse
+	verifyErr error
 }
 
 func (p *fakeWalletPaystack) InitializeTransaction(req PaystackInitRequest) (*PaystackInitResponse, error) {
@@ -112,6 +124,9 @@ func (p *fakeWalletPaystack) InitializeTransaction(req PaystackInitRequest) (*Pa
 	return &resp, nil
 }
 func (p *fakeWalletPaystack) VerifyTransaction(string) (*PaystackVerifyResponse, error) {
+	if p.verifyErr != nil {
+		return nil, p.verifyErr
+	}
 	return p.verify, nil
 }
 
@@ -411,5 +426,77 @@ func TestWallet_RefundNeverExceedsOrRedirectsThePayment(t *testing.T) {
 	}
 	if repo.balance["someone-else"] != 0 {
 		t.Fatalf("another user was credited %d", repo.balance["someone-else"])
+	}
+}
+
+// Several checkouts started back to back must not, between them, take the wallet
+// past its maximum balance.
+func TestTopupCountsUnpaidTopupsAgainstMaxBalance(t *testing.T) {
+	s, _, _ := walletFixture()
+	max := domain.DefaultMaxBalanceKobo
+	step := domain.DefaultMaxTopupKobo
+	started := int64(0)
+	for started+step <= max {
+		startTopup(t, s, "u1", step)
+		started += step
+	}
+	_, err := s.StartTopup(context.Background(), "u1", step, "https://app.test/wallet/confirm")
+	if !errors.Is(err, ErrTopupPending) {
+		t.Fatalf("err = %v, want ErrTopupPending once unpaid top-ups fill the cap", err)
+	}
+}
+
+// A top-up marked FAILED earlier (a declined card) can still succeed on Paystack.
+// If checking it then fails for a technical reason, the webhook must ask Paystack
+// to retry rather than drop a paid top-up.
+func TestWebhookRetriesWhenAFailedTopupCannotBeCheckedYet(t *testing.T) {
+	s, repo, ps := walletFixture()
+	ref := startTopup(t, s, "u1", 100_000)
+	repo.topups[ref].Status = domain.TopupFailed
+	ps.verifyErr = errors.New("paystack timeout")
+
+	if err := s.HandleWebhook(context.Background(), ref); err == nil {
+		t.Fatal("a technical failure must be returned so Paystack retries the webhook")
+	}
+
+	ps.verifyErr = nil
+	ps.verify = paid(100_000, "NGN")
+	if err := s.HandleWebhook(context.Background(), ref); err != nil {
+		t.Fatalf("retry: %v", err)
+	}
+	if repo.balance["u1"] != 100_000 {
+		t.Fatalf("balance = %d, want the late payment credited", repo.balance["u1"])
+	}
+}
+
+func TestWebhookAcceptsAPaymentPaystackSaysFailed(t *testing.T) {
+	s, repo, ps := walletFixture()
+	ref := startTopup(t, s, "u1", 100_000)
+	var failed PaystackVerifyResponse
+	failed.Data.Status = "failed"
+	ps.verify = &failed
+
+	if err := s.HandleWebhook(context.Background(), ref); err != nil {
+		t.Fatalf("a failed payment is final, not an error to retry: %v", err)
+	}
+	if repo.topups[ref].Status != domain.TopupFailed || repo.balance["u1"] != 0 {
+		t.Fatal("the top-up should be failed and nothing credited")
+	}
+}
+
+func TestTopupRequiresNaira(t *testing.T) {
+	s, repo, ps := walletFixture()
+	ref := startTopup(t, s, "u1", 100_000)
+	ps.verify = paid(100_000, "")
+	_, _ = s.VerifyTopup(context.Background(), "u1", ref)
+	if repo.balance["u1"] != 0 {
+		t.Fatal("a payment with no currency must not be credited")
+	}
+}
+
+func TestAdminAdjustOfZeroIsAUserError(t *testing.T) {
+	s, _, _ := walletFixture()
+	if _, err := s.AdminAdjust(context.Background(), "u1", 0, "typo", "staff"); !errors.Is(err, ErrAdjustAmount) {
+		t.Fatalf("err = %v, want ErrAdjustAmount", err)
 	}
 }

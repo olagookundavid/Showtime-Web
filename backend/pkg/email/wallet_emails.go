@@ -54,3 +54,38 @@ func TopupReceiptEmailHTML(name string, amountKobo, balanceKobo int64, reference
 
 	return emailShell("IT'S SHOWTIME — Wallet top-up received", "", "Wallet topped up", body)
 }
+
+// WalletRefundEmailHTML tells a buyer that money for something they cancelled or
+// that could not be supplied is back in their Showtime wallet.
+func WalletRefundEmailHTML(name, what string, amountKobo int64, reference string) string {
+	body := `<tr>
+<td style="padding: 32px 40px 0;">
+<p style="color: #334155; font-size: 16px; font-weight: 700; margin: 0 0 12px;">Hi ` + esc(name) + `,</p>
+<p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0;">` + esc(what) + ` was cancelled, so the money you paid from your Showtime wallet has been put back.</p>
+</td>
+</tr>
+
+<tr>
+<td style="padding: 24px 40px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid ` + sfflRed + `; border-radius: 12px; overflow: hidden;">
+<tr>
+<td style="padding: 24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+` + detailRow("Refunded", "₦"+formatKobo(amountKobo)) + detailRow("Reference", reference) + `
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td style="padding: 0 40px 32px;">
+<p style="color: #64748b; font-size: 13px; line-height: 1.5; margin: 0;">You can spend it on tickets, the store, vouchers and league entry.</p>
+</td>
+</tr>`
+
+	return emailShell("IT'S SHOWTIME — Refund to your wallet", "", "Refunded to your wallet", body)
+}

@@ -563,7 +563,13 @@ func (s *StoreService) markOrderPaid(ctx context.Context, order *domain.Order) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to update payment status: %w", err)
 	}
+	return s.afterOrderPaid(ctx, order), nil
+}
 
+// afterOrderPaid is everything that follows an order turning paid, whatever paid
+// for it: settling the code, saving the address and phone, the emails, and the
+// refreshed order to return. None of it can undo the payment.
+func (s *StoreService) afterOrderPaid(ctx context.Context, order *domain.Order) *dto.OrderResponse {
 	// Settle the code hold. Only 'reserved' rows move, so a webhook retry that
 	// re-runs this path is a no-op.
 	if err := s.discountRepo.ConfirmRedemption(ctx, &order.ID, nil); err != nil {
@@ -609,7 +615,7 @@ func (s *StoreService) markOrderPaid(ctx context.Context, order *domain.Order) (
 	}
 
 	res := mapOrderToResponse(order)
-	return &res, nil
+	return &res
 }
 
 // abandonOrder undoes a pending order that will never be paid: it is marked
@@ -625,43 +631,53 @@ func (s *StoreService) abandonOrder(ctx context.Context, orderID string) {
 }
 
 // payOrderFromWallet takes a freshly created (pending, stock-reserved) order's
-// total from the buyer's wallet and confirms the order. The wallet is debited
-// first, keyed on the order reference so a retry can never charge twice. If
-// anything fails after that, the debit is refunded under the same reference and
-// the order is abandoned, so the buyer is never left charged for nothing.
+// total from the buyer's wallet. The debit and the order turning paid are one
+// database transaction, so the buyer is never charged for an order that stays
+// unpaid. If it fails the order is abandoned: stock and the code hold go back.
 func (s *StoreService) payOrderFromWallet(ctx context.Context, userID string, order *domain.Order) error {
-	// Undo steps must still run if the buyer's request was cancelled mid-way.
-	undoCtx := context.WithoutCancel(ctx)
-	kobo := nairaToKobo(order.TotalAmount)
-
-	if _, err := s.wallet.Pay(ctx, userID, kobo, order.OrderReference, "Store order "+order.OrderReference); err != nil {
-		// A wallet that is simply too low took nothing. Any other failure is
-		// ambiguous (the debit may have committed before the error reached us), so
-		// try the refund too; it does nothing when no debit was recorded.
-		if !errors.Is(err, ports.ErrWalletInsufficient) {
-			s.refundWalletOrder(undoCtx, userID, order, "Refund: store order "+order.OrderReference+" could not be completed")
-		}
-		s.abandonOrder(undoCtx, order.ID)
+	ref := order.OrderReference
+	err := s.repo.MarkOrderPaidFromWallet(ctx, order.ID, domain.LedgerEntry{
+		UserID:      userID,
+		AmountKobo:  -nairaToKobo(order.TotalAmount),
+		Type:        domain.LedgerPurchase,
+		Reference:   &ref,
+		Description: "Store order " + order.OrderReference,
+	})
+	if err != nil {
+		// Undo steps must still run if the buyer's request was cancelled mid-way.
+		// They only touch an order that is still pending, so an order that did
+		// commit as paid (an error on the way back) is left alone.
+		s.abandonOrder(context.WithoutCancel(ctx), order.ID)
 		return err
 	}
-
-	if _, err := s.markOrderPaid(ctx, order); err != nil {
-		s.refundWalletOrder(undoCtx, userID, order, "Refund: store order "+order.OrderReference+" could not be completed")
-		s.abandonOrder(undoCtx, order.ID)
-		return err
-	}
+	s.afterOrderPaid(ctx, order)
 	return nil
 }
 
-// refundWalletOrder puts an order's wallet payment back. It never fails the
-// caller: a refund that cannot be made is logged loudly for a person to settle.
-func (s *StoreService) refundWalletOrder(ctx context.Context, userID string, order *domain.Order, description string) error {
-	_, err := s.wallet.Refund(ctx, userID, nairaToKobo(order.TotalAmount), order.OrderReference, description)
-	if err != nil {
-		fmt.Printf("🚨 ERROR: wallet refund failed for order %s (user %s, %d kobo) - refund it by hand: %s\n",
-			order.OrderReference, userID, nairaToKobo(order.TotalAmount), err.Error())
+// paidVia names how an order was paid, for the admin order email.
+func paidVia(method string) string {
+	switch method {
+	case domain.PaymentMethodWallet:
+		return "from the buyer's Showtime wallet"
+	case domain.PaymentMethodFree:
+		return "in full by a discount (no payment taken)"
+	default:
+		return "on Paystack"
 	}
-	return err
+}
+
+// sendWalletRefundEmail tells the buyer their money is back in the wallet.
+func (s *StoreService) sendWalletRefundEmail(order *domain.Order, refundedKobo int64) {
+	if s.emailService == nil || order.CustomerEmail == "" || refundedKobo <= 0 {
+		return
+	}
+	html := email.WalletRefundEmailHTML(order.CustomerName, "Your store order "+order.OrderReference, refundedKobo, order.OrderReference)
+	to, ref := order.CustomerEmail, order.OrderReference
+	_ = SubmitJob(func() {
+		if err := s.emailService.SendEmail(to, "Refund to your wallet - "+ref, html); err != nil {
+			fmt.Printf("⚠️ WARNING: Failed to send wallet refund email for order %s: %s\n", ref, err.Error())
+		}
+	})
 }
 
 func (s *StoreService) VerifyOrder(ctx context.Context, id string) (*dto.OrderResponse, error) {
@@ -761,7 +777,7 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 			</div>
 			
 			<div style="padding: 20px;">
-				<p style="color: #333; font-size: 15px; line-height: 1.5;">A new storefront purchase was successfully processed on Paystack and is awaiting fulfillment.</p>
+				<p style="color: #333; font-size: 15px; line-height: 1.5;">A new storefront purchase was paid %s and is awaiting fulfillment.</p>
 				
 				<table style="width: 100%%; border-collapse: collapse; margin-bottom: 25px;">
 					<tr style="background-color: #f8f9fa;">
@@ -813,7 +829,7 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 				</p>
 			</div>
 		</div>
-	`, order.OrderReference, order.CustomerName, order.CustomerEmail, order.CustomerEmail, order.CustomerPhone, order.TotalAmount, itemsHTML, order.CustomerName, order.ShippingAddress, order.ShippingCity, order.ShippingState, order.ShippingCountry, order.ShippingPostalCode)
+	`, paidVia(order.PaymentMethod), order.OrderReference, order.CustomerName, order.CustomerEmail, order.CustomerEmail, order.CustomerPhone, order.TotalAmount, itemsHTML, order.CustomerName, order.ShippingAddress, order.ShippingCity, order.ShippingState, order.ShippingCountry, order.ShippingPostalCode)
 
 	_ = SubmitJob(func() {
 		if err := s.emailService.SendEmail(adminEmail, fmt.Sprintf("🚨 NEW ORDER: %s Awaiting Fulfillment", order.OrderReference), adminHTML); err != nil {
@@ -1167,24 +1183,20 @@ func (s *StoreService) CancelOrder(ctx context.Context, id string) (*dto.OrderRe
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.CancelOrderAndRestoreStock(ctx, id); err != nil {
+	if before.PaymentMethod == domain.PaymentMethodWallet {
+		// The cancel and the refund commit together, so an order can't end up
+		// cancelled with the money still out. Repeating it refunds nothing more.
+		refunded, err := s.repo.CancelOrderAndRefundWallet(ctx, id, "Refund: cancelled store order "+before.OrderReference)
+		if err != nil {
+			return nil, err
+		}
+		s.sendWalletRefundEmail(before, refunded)
+	} else if err := s.repo.CancelOrderAndRestoreStock(ctx, id); err != nil {
 		return nil, err
 	}
 	// Stock came back; the code use should too.
 	if err := s.discountRepo.ReleaseRedemption(ctx, &id, nil); err != nil {
 		fmt.Printf("⚠️ WARNING: Failed to release discount on cancelled order %s: %s\n", id, err.Error())
-	}
-	// The order is cancelled by now, and cancelling again is a no-op, so a refund
-	// that fails here is retried by simply cancelling again (refunds are
-	// idempotent on the order reference).
-	if before.PaymentMethod == domain.PaymentMethodWallet && before.PaymentStatus == "paid" &&
-		before.UserID != nil && *before.UserID != "" {
-		if s.wallet == nil {
-			return nil, ErrStoreWalletUnavailable
-		}
-		if err := s.refundWalletOrder(ctx, *before.UserID, before, "Refund: cancelled store order "+before.OrderReference); err != nil {
-			return nil, fmt.Errorf("the order was cancelled but refunding the wallet failed, cancel it again to retry: %w", err)
-		}
 	}
 	o, err := s.repo.GetOrder(ctx, id)
 	if err != nil {

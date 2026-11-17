@@ -17,38 +17,53 @@ export const QrScanner = ({ onScan, onError }: QrScannerProps) => {
     callbacks.current = { onScan, onError };
   });
 
-  useEffect(() => {
-    const scanner = new Html5Qrcode(elementId);
-    let handled = false;
+  // Each camera session waits for the previous one to finish shutting down, so a
+  // quick remount (StrictMode in development, or navigating back) never starts a
+  // second scanner on the same element while the first is still starting.
+  const lastShutdown = useRef<Promise<void>>(Promise.resolve());
 
-    const started = scanner
-      .start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        (text) => {
-          if (handled) return;
-          handled = true;
-          callbacks.current.onScan(text);
-        },
-        () => {
-          // Fires for every frame with no code in it; nothing to do.
-        },
-      )
-      .then(() => true)
-      .catch(() => {
-        callbacks.current.onError(
-          "We could not open the camera. Allow camera access, or type the code instead.",
+  useEffect(() => {
+    let cancelled = false;
+    let handled = false;
+    let scanner: Html5Qrcode | null = null;
+
+    const running = lastShutdown.current.then(async () => {
+      if (cancelled) return false;
+      scanner = new Html5Qrcode(elementId);
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          (text) => {
+            if (handled || cancelled) return;
+            handled = true;
+            callbacks.current.onScan(text);
+          },
+          () => {
+            // Fires for every frame with no code in it; nothing to do.
+          },
         );
+        return true;
+      } catch {
+        if (!cancelled) {
+          callbacks.current.onError(
+            "We could not open the camera. Allow camera access, or type the code instead.",
+          );
+        }
         return false;
-      });
+      }
+    });
 
     return () => {
-      void started.then((running) => {
-        if (!running) return;
-        return scanner
-          .stop()
-          .then(() => scanner.clear())
-          .catch(() => undefined);
+      cancelled = true;
+      lastShutdown.current = running.then(async (started) => {
+        if (!started || !scanner) return;
+        try {
+          await scanner.stop();
+          scanner.clear();
+        } catch {
+          // Already stopped.
+        }
       });
     };
   }, [elementId]);

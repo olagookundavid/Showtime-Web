@@ -27,6 +27,15 @@ type IStoreRepository interface {
 	ListSavedAddresses(ctx context.Context, userID string) ([]domain.SavedAddress, error)
 	DeductStock(ctx context.Context, productID string, variantID *string, qty int) error
 	MarkOrderFailedAndRestoreStock(ctx context.Context, orderID string) error
+	// MarkOrderPaidFromWallet flips a pending order to paid and takes the money
+	// from the buyer's spend wallet in one transaction. A short wallet fails with
+	// ErrWalletInsufficient and an order that is no longer pending with
+	// ErrOrderNotPending; either way nothing changes.
+	MarkOrderPaidFromWallet(ctx context.Context, orderID string, debit domain.LedgerEntry) error
+	// CancelOrderAndRefundWallet is CancelOrderAndRestoreStock for an order paid
+	// from the wallet: the cancel and the refund of exactly what was paid commit
+	// together. Safe to repeat; it returns the kobo refunded by this call.
+	CancelOrderAndRefundWallet(ctx context.Context, orderID, description string) (refundedKobo int64, err error)
 	CancelOrderAndRestoreStock(ctx context.Context, orderID string) error
 	SaveProductVariants(ctx context.Context, productID string, variants []domain.ProductVariant) error
 	SaveProductImages(ctx context.Context, productID string, images []domain.ProductImage) error
@@ -333,6 +342,78 @@ func (r *StoreRepository) restoreOrderStockTx(ctx context.Context, tx pgx.Tx, or
 		}
 	}
 	return nil
+}
+
+// ErrOrderNotPending is returned when an order can no longer be paid.
+var ErrOrderNotPending = errors.New("this order is no longer waiting for payment")
+
+func (r *StoreRepository) MarkOrderPaidFromWallet(ctx context.Context, orderID string, debit domain.LedgerEntry) error {
+	if debit.AmountKobo >= 0 {
+		return errors.New("a wallet order payment must be a debit")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.Db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE online_orders SET payment_status = 'paid', updated_at = NOW()
+		WHERE id = $1 AND payment_status = 'pending' AND fulfillment_status <> 'cancelled'`, orderID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrOrderNotPending
+	}
+	// The order row is locked by the update above; the wallet is locked last.
+	if _, err := applySpendEntry(ctx, tx, debit); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *StoreRepository) CancelOrderAndRefundWallet(ctx context.Context, orderID, description string) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.Db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	var fulfillmentStatus, paymentStatus, method, reference string
+	err = tx.QueryRow(ctx, `
+		SELECT fulfillment_status, payment_status, payment_method, order_reference
+		FROM online_orders WHERE id = $1 FOR UPDATE`, orderID,
+	).Scan(&fulfillmentStatus, &paymentStatus, &method, &reference)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, appErrors.ErrNotFound
+		}
+		return 0, err
+	}
+	if fulfillmentStatus != "cancelled" {
+		if err := r.restoreOrderStockTx(ctx, tx, orderID); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE online_orders SET fulfillment_status = 'cancelled', updated_at = NOW() WHERE id = $1`, orderID); err != nil {
+			return 0, err
+		}
+	}
+	// Only money the wallet actually paid goes back, and only once. Checked even
+	// on an order that was already cancelled, so nothing can be left unrefunded.
+	var refunded int64
+	if method == domain.PaymentMethodWallet && paymentStatus == "paid" {
+		if refunded, err = refundPurchaseTx(ctx, tx, reference, description); err != nil {
+			return 0, err
+		}
+	}
+	return refunded, tx.Commit(ctx)
 }
 
 // MarkOrderFailedAndRestoreStock transitions a pending order to failed and

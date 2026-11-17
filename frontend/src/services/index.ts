@@ -377,3 +377,9 @@ export { fantasyWalletApi, koboToNaira, formatKobo } from './fantasy/wallet';
 
 export { fantasyAdminApi } from './fantasy/admin';
 export { auditApi } from './audit';
+export {
+  IDEMPOTENCY_HEADER,
+  newIdempotencyKey,
+  withIdempotencyKey,
+  shouldKeepIdempotencyKey,
+} from './idempotency';

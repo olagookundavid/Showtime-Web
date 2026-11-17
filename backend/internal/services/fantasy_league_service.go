@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"showtime-backend/internal/domain"
@@ -45,8 +44,6 @@ type FantasyLeagueService struct {
 	authRepo       ports.IAuthRepository
 	paystackClient *PaystackClient
 	wallet         WalletSpender
-	// walletJoinLocks serialises wallet joins per (league, user); see joinPaidLeagueWithWallet.
-	walletJoinLocks sync.Map
 }
 
 func NewFantasyLeagueService(

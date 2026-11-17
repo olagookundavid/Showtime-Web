@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CreditCardIcon, LockClosedIcon, MinusIcon, PlusIcon, SparklesIcon, StarIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { getUserProfile, isInsufficientBalance, purchaseSeasonPass } from '../../services';
 import type { AuthUser, PurchaseSeasonPassPayload, SeasonPassResponse } from '../../types';
 import { Button, Checkbox, ConfirmDialog, ConfirmSummary, Field, IconButton, Input, Modal } from '../ui';
-import { WalletPayOption } from '../wallet';
+import { WALLET_QUERY_KEY, WalletPayOption } from '../wallet';
+import { useIdempotencyKey } from '../../hooks';
 import { formatDayLong, naira } from './ticketFormat';
 
 interface SeasonPassCheckoutProps {
@@ -31,9 +33,11 @@ export const SeasonPassCheckout = ({ pass, onClose }: SeasonPassCheckoutProps) =
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
-    // Pay from the wallet instead of Paystack. walletKey re-reads the balance after a refusal.
+    // Pay from the wallet instead of Paystack.
     const [useWallet, setUseWallet] = useState(false);
-    const [walletKey, setWalletKey] = useState(0);
+    // One key per purchase attempt, so a retried request can't buy (or charge) twice.
+    const attempt = useIdempotencyKey();
+    const queryClient = useQueryClient();
     // A purchase creates a ticket order, so it waits for an explicit confirm.
     const [confirmPurchase, setConfirmPurchase] = useState(false);
 
@@ -83,7 +87,9 @@ export const SeasonPassCheckout = ({ pass, onClose }: SeasonPassCheckoutProps) =
                 pay_with_wallet: payFromWallet || undefined,
             };
 
-            const result = await purchaseSeasonPass(payload);
+            const result = await purchaseSeasonPass(payload, attempt.current());
+            attempt.settle();
+            if (payFromWallet) queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
 
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
@@ -92,10 +98,11 @@ export const SeasonPassCheckout = ({ pass, onClose }: SeasonPassCheckoutProps) =
                 navigate(`/tickets/confirm?reference=${result.paystack_reference}`);
             }
         } catch (err: unknown) {
+            attempt.settle(err);
             if (isInsufficientBalance(err)) {
                 // Someone else spent from the wallet: re-read the balance and fall back to Paystack.
                 setUseWallet(false);
-                setWalletKey((k) => k + 1);
+                queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
             }
             const errorResponse = err as { response?: { data?: { error?: string } } };
             setError(errorResponse.response?.data?.error || 'Failed to initiate purchase. Please try again.');
@@ -281,7 +288,6 @@ export const SeasonPassCheckout = ({ pass, onClose }: SeasonPassCheckoutProps) =
 
                     {userProfile && !free && (
                         <WalletPayOption
-                            key={walletKey}
                             totalKobo={total * 100}
                             checked={useWallet}
                             onChange={setUseWallet}

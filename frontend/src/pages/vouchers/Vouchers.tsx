@@ -20,6 +20,7 @@ import {
   Modal,
   VoucherItemsList,
   VoucherStateBadge,
+  WALLET_QUERY_KEY,
   formatVoucherRange,
   todayInLagos,
   type Column,
@@ -33,6 +34,7 @@ import {
   purchaseVoucher,
 } from "../../services";
 import { getApiErrorMessage } from "../../utils";
+import { useIdempotencyKey } from "../../hooks";
 import { useAuth } from "../../contexts";
 import type { Voucher, VoucherProduct } from "../../types";
 
@@ -51,12 +53,14 @@ export const Vouchers = () => {
   const [to, setTo] = useState(todayInLagos());
 
   const products = useQuery({ queryKey: ["voucherProducts"], queryFn: listVoucherProducts });
-  const wallet = useQuery({ queryKey: ["wallet"], queryFn: getWallet });
+  const wallet = useQuery({ queryKey: WALLET_QUERY_KEY, queryFn: getWallet, staleTime: 0 });
   const mine = useQuery({ queryKey: ["myVouchers"], queryFn: listMyVouchers });
 
   const today = todayInLagos();
   const balance = wallet.data?.balance_kobo ?? 0;
   const shortfall = buying ? Math.max(0, buying.price_kobo - balance) : 0;
+  // A top-up has a minimum, so a small shortfall is rounded up to it.
+  const topupKobo = Math.max(shortfall, wallet.data?.min_topup_kobo ?? 0);
   const datesOk = !!from && !!to && from >= today && to >= from;
   const canReview =
     !!buying && holderName.trim().length > 0 && datesOk && shortfall === 0 && wallet.isSuccess;
@@ -69,26 +73,33 @@ export const Vouchers = () => {
     setTo(todayInLagos());
   };
 
+  // One key per purchase attempt, so a retried request can't buy (or charge) twice.
+  const attempt = useIdempotencyKey();
   const purchase = useMutation({
     mutationFn: () =>
-      purchaseVoucher({
-        product_id: buying!.id,
-        holder_name: holderName.trim(),
-        holder_email: holderEmail.trim() || undefined,
-        valid_from: from,
-        valid_to: to,
-      }),
+      purchaseVoucher(
+        {
+          product_id: buying!.id,
+          holder_name: holderName.trim(),
+          holder_email: holderEmail.trim() || undefined,
+          valid_from: from,
+          valid_to: to,
+        },
+        attempt.current(),
+      ),
     onSuccess: (voucher) => {
+      attempt.settle();
       toast.success("Voucher bought");
-      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["myVouchers"] });
       setConfirming(false);
       setBuying(null);
       navigate(`/vouchers/${voucher.code}`);
     },
     onError: (err) => {
+      attempt.settle(err);
       setConfirming(false);
-      if (isInsufficientBalance(err)) queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      if (isInsufficientBalance(err)) queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
       toast.error(getApiErrorMessage(err, "We could not buy that voucher."));
     },
   });
@@ -253,8 +264,12 @@ export const Vouchers = () => {
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
                   Your wallet is {formatKobo(shortfall)} short for this voucher.
                 </p>
-                <ButtonLink to={`/account/wallet?topup=${shortfall}`} icon={PlusIcon} size="sm">
-                  Add {formatKobo(shortfall)} to my wallet
+                <ButtonLink
+                  to={`/account/wallet?topup=${topupKobo}&return=${encodeURIComponent("/vouchers")}`}
+                  icon={PlusIcon}
+                  size="sm"
+                >
+                  Add {formatKobo(topupKobo)} to my wallet
                 </ButtonLink>
               </div>
             )}

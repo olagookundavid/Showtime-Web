@@ -36,51 +36,41 @@ func TestNairaToKoboRoundsToTheNearestKobo(t *testing.T) {
 	}
 }
 
-// storeFakeWallet records what the store asks of the wallet.
-type storeFakeWallet struct {
-	payErr    error
-	refundErr error
-	pays      []storeWalletCall
-	refunds   []storeWalletCall
+// storeFakeWallet switches wallet payment on. Store payments and refunds happen
+// inside the order's own database transaction (storeFakeRepo below), so the
+// service must never call Pay or Refund directly.
+type storeFakeWallet struct{ calls int }
+
+func (f *storeFakeWallet) Pay(context.Context, string, int64, string, string) (bool, error) {
+	f.calls++
+	return false, errors.New("store orders must not call Pay")
 }
 
-type storeWalletCall struct {
-	userID    string
-	amount    int64
-	reference string
+func (f *storeFakeWallet) Refund(context.Context, string, int64, string, string) (bool, error) {
+	f.calls++
+	return false, errors.New("store orders must not call Refund")
 }
 
-func (f *storeFakeWallet) Pay(_ context.Context, userID string, amountKobo int64, reference, _ string) (bool, error) {
-	if f.payErr != nil {
-		return false, f.payErr
-	}
-	f.pays = append(f.pays, storeWalletCall{userID, amountKobo, reference})
-	return true, nil
-}
-
-func (f *storeFakeWallet) Refund(_ context.Context, userID string, amountKobo int64, reference, _ string) (bool, error) {
-	if f.refundErr != nil {
-		return false, f.refundErr
-	}
-	f.refunds = append(f.refunds, storeWalletCall{userID, amountKobo, reference})
-	return true, nil
-}
-
-// storeFakeRepo is a one-product store that reserves and restores stock like the
-// real repository does.
+// storeFakeRepo is a one-product store that reserves and restores stock, and
+// pays and refunds from one buyer's wallet, the way the real repository does:
+// each money movement commits together with the order change or not at all.
 type storeFakeRepo struct {
 	ports.IStoreRepository
 	product   domain.Product
 	orders    map[string]*domain.Order
 	createErr error
-	// payStatusErr makes flipping an order to "paid" fail.
-	payStatusErr error
+	// payErr makes the wallet payment fail (after nothing moved).
+	payErr  error
+	balance int64
+	debits  []domain.LedgerEntry
+	refunds []int64
 }
 
 func newStoreFakeRepo(price float64, stock int) *storeFakeRepo {
 	return &storeFakeRepo{
 		product: domain.Product{ID: "prod-1", Name: "Jersey", Price: price, Quantity: stock, IsActive: true},
 		orders:  map[string]*domain.Order{},
+		balance: 1_000_000_00,
 	}
 }
 
@@ -115,10 +105,24 @@ func (r *storeFakeRepo) GetOrder(_ context.Context, id string) (*domain.Order, e
 }
 
 func (r *storeFakeRepo) UpdateOrderPaymentStatus(_ context.Context, id, status string) error {
-	if r.payStatusErr != nil {
-		return r.payStatusErr
-	}
 	r.orders[id].PaymentStatus = status
+	return nil
+}
+
+func (r *storeFakeRepo) MarkOrderPaidFromWallet(_ context.Context, id string, debit domain.LedgerEntry) error {
+	if r.payErr != nil {
+		return r.payErr
+	}
+	o := r.orders[id]
+	if o.PaymentStatus != "pending" {
+		return ports.ErrOrderNotPending
+	}
+	if r.balance+debit.AmountKobo < 0 {
+		return ports.ErrWalletInsufficient
+	}
+	r.balance += debit.AmountKobo
+	r.debits = append(r.debits, debit)
+	o.PaymentStatus = "paid"
 	return nil
 }
 
@@ -149,6 +153,20 @@ func (r *storeFakeRepo) CancelOrderAndRestoreStock(_ context.Context, id string)
 	r.restore(o)
 	o.FulfillmentStatus = "cancelled"
 	return nil
+}
+
+func (r *storeFakeRepo) CancelOrderAndRefundWallet(ctx context.Context, id, _ string) (int64, error) {
+	if err := r.CancelOrderAndRestoreStock(ctx, id); err != nil {
+		return 0, err
+	}
+	o := r.orders[id]
+	if o.PaymentMethod != domain.PaymentMethodWallet || o.PaymentStatus != "paid" || len(r.debits) == 0 || len(r.refunds) > 0 {
+		return 0, nil
+	}
+	back := -r.debits[0].AmountKobo
+	r.balance += back
+	r.refunds = append(r.refunds, back)
+	return back, nil
 }
 
 func (r *storeFakeRepo) ListSavedAddresses(_ context.Context, _ string) ([]domain.SavedAddress, error) {
@@ -222,7 +240,6 @@ func TestWalletCheckoutPaysOnceAndConfirmsTheOrder(t *testing.T) {
 	if !res.Paid || res.PaystackURL != "" || res.PaystackRef != "" || res.PaystackAccessCode != "" {
 		t.Fatalf("expected an already-confirmed response with no Paystack parts, got %+v", res)
 	}
-
 	order := rig.onlyOrder(t)
 	if res.OrderReference != order.OrderReference {
 		t.Fatalf("response reference %q does not match the order %q", res.OrderReference, order.OrderReference)
@@ -233,98 +250,69 @@ func TestWalletCheckoutPaysOnceAndConfirmsTheOrder(t *testing.T) {
 	if rig.repo.product.Quantity != 8 {
 		t.Fatalf("stock should stay reserved (8 left), got %d", rig.repo.product.Quantity)
 	}
-	if len(rig.wallet.pays) != 1 {
-		t.Fatalf("expected exactly one wallet debit, got %d", len(rig.wallet.pays))
+	if len(rig.repo.debits) != 1 {
+		t.Fatalf("expected exactly one wallet debit, got %d", len(rig.repo.debits))
 	}
-	got := rig.wallet.pays[0]
-	if got.userID != "user-1" || got.amount != 500100 || got.reference != order.OrderReference {
-		t.Fatalf("debit should be 500100 kobo on the order reference for user-1, got %+v", got)
+	d := rig.repo.debits[0]
+	if d.UserID != "user-1" || d.AmountKobo != -500100 || d.Reference == nil || *d.Reference != order.OrderReference {
+		t.Fatalf("debit should be 500100 kobo on the order reference for user-1, got %+v", d)
 	}
-	if len(rig.wallet.refunds) != 0 {
-		t.Fatalf("a good payment must not refund, got %v", rig.wallet.refunds)
+	if rig.discount.confirmed != 1 {
+		t.Fatalf("the code hold should be settled once, got %d", rig.discount.confirmed)
+	}
+	if rig.wallet.calls != 0 {
+		t.Fatal("the wallet service must not be called directly")
 	}
 }
 
 func TestWalletCheckoutTooLowTakesNothingAndReleasesTheOrder(t *testing.T) {
 	rig := newStoreWalletRig(t, 1000, 5)
-	rig.wallet.payErr = ports.ErrWalletInsufficient
+	rig.repo.balance = 999_00
 
 	_, err := rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(1))
 	if !errors.Is(err, ports.ErrWalletInsufficient) {
-		t.Fatalf("expected ErrWalletInsufficient, got %v", err)
+		t.Fatalf("err = %v, want ErrWalletInsufficient", err)
 	}
-
 	order := rig.onlyOrder(t)
 	if order.PaymentStatus != "failed" {
-		t.Fatalf("the unpaid order should be marked failed, got %q", order.PaymentStatus)
+		t.Fatalf("the order should be marked failed, got %q", order.PaymentStatus)
 	}
 	if rig.repo.product.Quantity != 5 {
 		t.Fatalf("stock should be back to 5, got %d", rig.repo.product.Quantity)
 	}
-	if rig.discount.released != 1 || rig.discount.confirmed != 0 {
-		t.Fatalf("the code hold should be released once, got released=%d confirmed=%d", rig.discount.released, rig.discount.confirmed)
-	}
-	if len(rig.wallet.pays) != 0 || len(rig.wallet.refunds) != 0 {
-		t.Fatalf("nothing was charged, so nothing should be refunded: pays=%v refunds=%v", rig.wallet.pays, rig.wallet.refunds)
-	}
-}
-
-func TestWalletCheckoutRefundsWhenConfirmingTheOrderFailsAfterTheDebit(t *testing.T) {
-	rig := newStoreWalletRig(t, 1000, 5)
-	rig.repo.payStatusErr = errors.New("db down")
-
-	_, err := rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(3))
-	if err == nil {
-		t.Fatal("expected the checkout to fail")
-	}
-
-	order := rig.onlyOrder(t)
-	if len(rig.wallet.pays) != 1 || len(rig.wallet.refunds) != 1 {
-		t.Fatalf("expected one debit and one refund, got pays=%v refunds=%v", rig.wallet.pays, rig.wallet.refunds)
-	}
-	if rig.wallet.refunds[0] != rig.wallet.pays[0] {
-		t.Fatalf("the refund must match the debit (same user, amount, reference): pay=%+v refund=%+v", rig.wallet.pays[0], rig.wallet.refunds[0])
-	}
-	if rig.wallet.refunds[0].reference != order.OrderReference || rig.wallet.refunds[0].amount != 300000 {
-		t.Fatalf("unexpected refund %+v", rig.wallet.refunds[0])
-	}
-	if order.PaymentStatus != "failed" || rig.repo.product.Quantity != 5 {
-		t.Fatalf("order should be failed and stock restored, got %q / %d", order.PaymentStatus, rig.repo.product.Quantity)
+	if len(rig.repo.debits) != 0 || rig.repo.balance != 999_00 {
+		t.Fatal("nothing should be charged")
 	}
 	if rig.discount.released != 1 {
 		t.Fatalf("the code hold should be released, got %d", rig.discount.released)
 	}
 }
 
-func TestWalletCheckoutRefundsAfterAnAmbiguousDebitError(t *testing.T) {
-	// A timeout can mean the debit committed. The refund is a no-op in the real
-	// wallet when nothing was debited, so the store always asks.
+func TestWalletCheckoutFailureChargesNothingAndReleasesTheOrder(t *testing.T) {
 	rig := newStoreWalletRig(t, 1000, 5)
-	rig.wallet.payErr = errors.New("context deadline exceeded")
+	rig.repo.payErr = errors.New("database is down")
 
 	if _, err := rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(1)); err == nil {
-		t.Fatal("expected the checkout to fail")
+		t.Fatal("the failure should be returned")
 	}
-	// The order and stock must be undone either way.
-	if order := rig.onlyOrder(t); order.PaymentStatus != "failed" || rig.repo.product.Quantity != 5 {
-		t.Fatalf("order should be failed and stock restored, got %q / %d", order.PaymentStatus, rig.repo.product.Quantity)
+	if order := rig.onlyOrder(t); order.PaymentStatus != "failed" {
+		t.Fatalf("the order should be abandoned, got %q", order.PaymentStatus)
 	}
-	if len(rig.wallet.refunds) != 1 {
-		t.Fatalf("an ambiguous debit error should ask for a refund once, got %v", rig.wallet.refunds)
+	if len(rig.repo.debits) != 0 || rig.repo.product.Quantity != 5 {
+		t.Fatal("no charge and stock restored expected")
 	}
 }
 
 func TestWalletCheckoutRejectsGuestsBeforeTouchingAnything(t *testing.T) {
-	rig := newStoreWalletRig(t, 1000, 5)
-
-	for _, uid := range []*string{nil, strp(""), strp("  ")} {
-		_, err := rig.svc.CreateOrder(context.Background(), uid, walletCheckout(1))
+	for _, user := range []*string{nil, strp(""), strp("  ")} {
+		rig := newStoreWalletRig(t, 1000, 5)
+		_, err := rig.svc.CreateOrder(context.Background(), user, walletCheckout(1))
 		if !errors.Is(err, ErrStoreWalletSignIn) {
-			t.Fatalf("expected ErrStoreWalletSignIn for %v, got %v", uid, err)
+			t.Fatalf("err = %v, want ErrStoreWalletSignIn", err)
 		}
-	}
-	if len(rig.repo.orders) != 0 || rig.repo.product.Quantity != 5 || len(rig.wallet.pays) != 0 {
-		t.Fatal("a rejected guest must leave no order, no reserved stock and no debit")
+		if len(rig.repo.orders) != 0 || rig.repo.product.Quantity != 5 || len(rig.repo.debits) != 0 {
+			t.Fatal("a guest must not reserve stock, create an order or be charged")
+		}
 	}
 }
 
@@ -332,12 +320,11 @@ func TestWalletCheckoutNeedsAWalletToBeWired(t *testing.T) {
 	rig := newStoreWalletRig(t, 1000, 5)
 	rig.svc.wallet = nil
 
-	_, err := rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(1))
-	if !errors.Is(err, ErrStoreWalletUnavailable) {
-		t.Fatalf("expected ErrStoreWalletUnavailable, got %v", err)
+	if _, err := rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(1)); !errors.Is(err, ErrStoreWalletUnavailable) {
+		t.Fatalf("err = %v, want ErrStoreWalletUnavailable", err)
 	}
 	if len(rig.repo.orders) != 0 {
-		t.Fatal("no order should be created")
+		t.Fatal("no order without a wallet")
 	}
 }
 
@@ -355,86 +342,59 @@ func TestWalletCheckoutOfAFreeOrderDebitsNothing(t *testing.T) {
 	if order.PaymentMethod != domain.PaymentMethodFree || order.PaymentStatus != "paid" {
 		t.Fatalf("expected a paid free order, got %q / %q", order.PaymentMethod, order.PaymentStatus)
 	}
-	if len(rig.wallet.pays) != 0 {
-		t.Fatalf("nothing to debit, got %v", rig.wallet.pays)
+	if len(rig.repo.debits) != 0 {
+		t.Fatal("nothing to debit")
 	}
 }
 
-func TestCancellingAWalletOrderRefundsTheWallet(t *testing.T) {
-	rig := newStoreWalletRig(t, 2500.50, 10)
+func TestCancellingAWalletOrderRefundsOnceAndRestocksOnce(t *testing.T) {
+	rig := newStoreWalletRig(t, 1000, 5)
 	if _, err := rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(2)); err != nil {
-		t.Fatalf("CreateOrder: %v", err)
+		t.Fatal(err)
 	}
-	order := rig.onlyOrder(t)
+	start := rig.repo.balance
 
-	res, err := rig.svc.CancelOrder(context.Background(), order.ID)
-	if err != nil {
-		t.Fatalf("CancelOrder: %v", err)
+	for i := 0; i < 2; i++ {
+		if _, err := rig.svc.CancelOrder(context.Background(), "order-1"); err != nil {
+			t.Fatalf("cancel %d: %v", i+1, err)
+		}
 	}
-	if res.FulfillmentStatus != "cancelled" {
-		t.Fatalf("order should be cancelled, got %q", res.FulfillmentStatus)
+	if len(rig.repo.refunds) != 1 || rig.repo.refunds[0] != 200000 {
+		t.Fatalf("want one refund of 200000 kobo, got %v", rig.repo.refunds)
 	}
-	if len(rig.wallet.refunds) != 1 {
-		t.Fatalf("expected one refund, got %v", rig.wallet.refunds)
+	if rig.repo.balance != start+200000 {
+		t.Fatalf("balance should be back up by the order total")
 	}
-	if got := rig.wallet.refunds[0]; got.userID != "user-1" || got.amount != 500100 || got.reference != order.OrderReference {
-		t.Fatalf("refund should return the 500100 kobo debit, got %+v", got)
-	}
-	if rig.repo.product.Quantity != 10 {
-		t.Fatalf("stock should be back to 10, got %d", rig.repo.product.Quantity)
+	if rig.repo.product.Quantity != 5 {
+		t.Fatalf("stock should be restored once (5), got %d", rig.repo.product.Quantity)
 	}
 }
 
 func TestCancellingAPaystackOrderNeverTouchesTheWallet(t *testing.T) {
 	rig := newStoreWalletRig(t, 1000, 5)
-	rig.repo.orders["order-1"] = &domain.Order{
-		ID: "order-1", OrderReference: "SFFL-ORD-X", UserID: strp("user-1"), TotalAmount: 1000,
-		PaymentStatus: "paid", FulfillmentStatus: "pending", PaymentMethod: domain.PaymentMethodPaystack,
-	}
+	rig.repo.orders["order-1"] = &domain.Order{ID: "order-1", OrderReference: "SFFL-ORD-1",
+		UserID: strp("user-1"), PaymentStatus: "paid", PaymentMethod: domain.PaymentMethodPaystack, TotalAmount: 1000}
 
 	if _, err := rig.svc.CancelOrder(context.Background(), "order-1"); err != nil {
-		t.Fatalf("CancelOrder: %v", err)
+		t.Fatalf("cancel: %v", err)
 	}
-	if len(rig.wallet.refunds) != 0 {
-		t.Fatalf("a card payment is not refunded to the wallet, got %v", rig.wallet.refunds)
+	if len(rig.repo.refunds) != 0 {
+		t.Fatal("a card order must not be refunded to the wallet")
+	}
+	if rig.repo.orders["order-1"].FulfillmentStatus != "cancelled" {
+		t.Fatal("the order should still be cancelled")
 	}
 }
 
 func TestCancellingAnUnpaidWalletOrderDoesNotRefund(t *testing.T) {
 	rig := newStoreWalletRig(t, 1000, 5)
-	rig.repo.orders["order-1"] = &domain.Order{
-		ID: "order-1", OrderReference: "SFFL-ORD-X", UserID: strp("user-1"), TotalAmount: 1000,
-		PaymentStatus: "failed", FulfillmentStatus: "pending", PaymentMethod: domain.PaymentMethodWallet,
-	}
+	rig.repo.balance = 0
+	_, _ = rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(1)) // fails: short
 
 	if _, err := rig.svc.CancelOrder(context.Background(), "order-1"); err != nil {
-		t.Fatalf("CancelOrder: %v", err)
+		t.Fatalf("cancel: %v", err)
 	}
-	if len(rig.wallet.refunds) != 0 {
-		t.Fatalf("nothing was taken, so nothing is refunded, got %v", rig.wallet.refunds)
-	}
-}
-
-func TestCancellingAWalletOrderReportsAFailedRefundAndCanBeRetried(t *testing.T) {
-	rig := newStoreWalletRig(t, 1000, 5)
-	if _, err := rig.svc.CreateOrder(context.Background(), strp("user-1"), walletCheckout(1)); err != nil {
-		t.Fatalf("CreateOrder: %v", err)
-	}
-	rig.wallet.refundErr = errors.New("db down")
-
-	if _, err := rig.svc.CancelOrder(context.Background(), "order-1"); err == nil {
-		t.Fatal("a refund that failed must be reported")
-	}
-	if rig.repo.product.Quantity != 5 {
-		t.Fatalf("stock still goes back, got %d", rig.repo.product.Quantity)
-	}
-
-	// Cancelling again is the retry: the cancel is a no-op, the refund goes through.
-	rig.wallet.refundErr = nil
-	if _, err := rig.svc.CancelOrder(context.Background(), "order-1"); err != nil {
-		t.Fatalf("retry: %v", err)
-	}
-	if len(rig.wallet.refunds) != 1 || rig.repo.product.Quantity != 5 {
-		t.Fatalf("expected one refund and no double restock, got %v / %d", rig.wallet.refunds, rig.repo.product.Quantity)
+	if len(rig.repo.refunds) != 0 || rig.repo.balance != 0 {
+		t.Fatal("nothing was paid, so nothing may come back")
 	}
 }

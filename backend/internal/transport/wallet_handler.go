@@ -2,6 +2,7 @@ package transport
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -53,10 +54,14 @@ func respondWalletError(c *gin.Context, err error) {
 	case errors.Is(err, services.ErrTopupAmount),
 		errors.Is(err, services.ErrWalletFull),
 		errors.Is(err, services.ErrAdjustReason),
+		errors.Is(err, services.ErrAdjustAmount),
+		errors.Is(err, services.ErrTopupPending),
 		errors.Is(err, ports.ErrWalletInsufficient):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// Internal details stay in the log, not in front of the user.
+		log.Printf("wallet: %s %s: %v", c.Request.Method, c.FullPath(), err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong with your wallet. Please try again."})
 	}
 }
 

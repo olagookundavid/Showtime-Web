@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/gin-gonic/gin"
+
 	"showtime-backend/internal/broadcast"
 	"showtime-backend/internal/transport"
 )
@@ -22,34 +24,37 @@ type Handlers struct {
 	LeadHandler                 *transport.LeadHandler
 	WalletHandler               transport.IWalletHandler
 	VoucherHandler              transport.IVoucherHandler
-	StatsHandler                transport.IStatsHandler
-	InventoryHandler            transport.IInventoryHandler
-	UploadHandler               transport.IUploadHandler
-	StoreHandler                transport.IStoreHandler
-	ImportHandler               transport.IImportHandler
-	HeroSlideHandler            transport.IHeroSlideHandler
-	FantasyCarouselHandler      transport.IFantasyCarouselHandler
-	FAQHandler                  transport.IFAQHandler
-	MediaHandler                transport.IMediaHandler
-	SeasonHandler               transport.ISeasonHandler
-	PlayHandler                 transport.IPlayHandler
-	ReliveHandler               transport.IReliveHandler
-	ContractHandler             transport.IContractHandler
-	TransferHandler             transport.ITransferHandler
-	NotificationHandler         transport.INotificationHandler
-	AppSettingHandler           transport.IAppSettingHandler
-	ClaimHandler                transport.IClaimHandler
-	CommentHandler              transport.ICommentHandler
-	DiscountHandler             transport.IDiscountHandler
-	LiveHandler                 transport.ILiveHandler
-	FantasyHandler              transport.IFantasyHandler
-	FantasyLeagueHandler        transport.IFantasyLeagueHandler
-	FantasySquadHandler         transport.IFantasySquadHandler
-	FantasyPayoutHandler        transport.IFantasyPayoutHandler
-	BadgeHandler                transport.IBadgeHandler
-	TOTWHandler                 transport.ITOTWHandler
-	POTWHandler                 transport.IPOTWHandler
-	BroadcastHandler            broadcast.IBroadcastHandler
+	// Idempotency makes money-moving requests that carry an Idempotency-Key
+	// happen once (middlewares.Idempotency). Place it after the token middleware.
+	Idempotency            gin.HandlerFunc
+	StatsHandler           transport.IStatsHandler
+	InventoryHandler       transport.IInventoryHandler
+	UploadHandler          transport.IUploadHandler
+	StoreHandler           transport.IStoreHandler
+	ImportHandler          transport.IImportHandler
+	HeroSlideHandler       transport.IHeroSlideHandler
+	FantasyCarouselHandler transport.IFantasyCarouselHandler
+	FAQHandler             transport.IFAQHandler
+	MediaHandler           transport.IMediaHandler
+	SeasonHandler          transport.ISeasonHandler
+	PlayHandler            transport.IPlayHandler
+	ReliveHandler          transport.IReliveHandler
+	ContractHandler        transport.IContractHandler
+	TransferHandler        transport.ITransferHandler
+	NotificationHandler    transport.INotificationHandler
+	AppSettingHandler      transport.IAppSettingHandler
+	ClaimHandler           transport.IClaimHandler
+	CommentHandler         transport.ICommentHandler
+	DiscountHandler        transport.IDiscountHandler
+	LiveHandler            transport.ILiveHandler
+	FantasyHandler         transport.IFantasyHandler
+	FantasyLeagueHandler   transport.IFantasyLeagueHandler
+	FantasySquadHandler    transport.IFantasySquadHandler
+	FantasyPayoutHandler   transport.IFantasyPayoutHandler
+	BadgeHandler           transport.IBadgeHandler
+	TOTWHandler            transport.ITOTWHandler
+	POTWHandler            transport.IPOTWHandler
+	BroadcastHandler       broadcast.IBroadcastHandler
 }
 
 func NewHandlers(

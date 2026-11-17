@@ -11,12 +11,19 @@ import (
 	"showtime-backend/internal/ports"
 )
 
-// walletJoinLeagueRepo is a league repo that records the memberships it is given.
+// walletJoinLeagueRepo is a league repo that keeps memberships and one manager's
+// wallet the way the real repository does: under one lock (standing in for the
+// league row lock), it refuses a full league, turns away an existing member, and
+// writes the membership and the debit together or not at all.
 type walletJoinLeagueRepo struct {
 	ports.IFantasyLeagueRepository
-	league  *domain.FantasyLeague
-	addErr  error
-	members []domain.FantasyLeagueMember
+	mu       sync.Mutex
+	league   *domain.FantasyLeague
+	addErr   error
+	balance  int64
+	debits   []domain.LedgerEntry
+	members  []domain.FantasyLeagueMember
+	existing *domain.FantasyLeagueMember // the manager's row, if any
 }
 
 func (f *walletJoinLeagueRepo) GetLeagueByID(_ context.Context, _ string) (*domain.FantasyLeague, error) {
@@ -24,7 +31,13 @@ func (f *walletJoinLeagueRepo) GetLeagueByID(_ context.Context, _ string) (*doma
 }
 
 func (f *walletJoinLeagueRepo) GetMember(_ context.Context, _, _ string) (*domain.FantasyLeagueMember, error) {
-	return nil, nil
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.existing == nil {
+		return nil, nil
+	}
+	m := *f.existing
+	return &m, nil
 }
 
 func (f *walletJoinLeagueRepo) HasForfeitedEntry(_ context.Context, _, _ string) (bool, error) {
@@ -32,15 +45,46 @@ func (f *walletJoinLeagueRepo) HasForfeitedEntry(_ context.Context, _, _ string)
 }
 
 func (f *walletJoinLeagueRepo) CountActiveMembers(_ context.Context, _ string) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return len(f.members), nil
 }
 
-func (f *walletJoinLeagueRepo) AddMember(_ context.Context, m *domain.FantasyLeagueMember) error {
+func (f *walletJoinLeagueRepo) add(m *domain.FantasyLeagueMember, debit *domain.LedgerEntry) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.addErr != nil {
 		return f.addErr
 	}
-	f.members = append(f.members, *m)
+	if debit != nil && f.existing != nil &&
+		(f.existing.PaymentStatus == domain.LeaguePaymentPaid || f.existing.PaymentStatus == domain.LeaguePaymentFree) {
+		return ports.ErrAlreadyLeagueMember
+	}
+	if f.existing == nil && f.league.MaxMembers > 0 && len(f.members) >= f.league.MaxMembers {
+		return ports.ErrLeagueFull
+	}
+	if debit != nil {
+		if f.balance+debit.AmountKobo < 0 {
+			return ports.ErrWalletInsufficient
+		}
+		f.balance += debit.AmountKobo
+		f.debits = append(f.debits, *debit)
+	}
+	cp := *m
+	if f.existing != nil && cp.PaystackReference == nil {
+		cp.PaystackReference = f.existing.PaystackReference
+	}
+	f.existing = &cp
+	f.members = append(f.members, cp)
 	return nil
+}
+
+func (f *walletJoinLeagueRepo) AddMember(_ context.Context, m *domain.FantasyLeagueMember) error {
+	return f.add(m, nil)
+}
+
+func (f *walletJoinLeagueRepo) AddMemberPaidFromWallet(_ context.Context, m *domain.FantasyLeagueMember, debit domain.LedgerEntry) error {
+	return f.add(m, &debit)
 }
 
 type walletJoinFantasyRepo struct {
@@ -51,42 +95,18 @@ func (walletJoinFantasyRepo) GetTeamByUserAndSeason(_ context.Context, _, _ stri
 	return &domain.FantasyTeam{ID: "team-1"}, nil
 }
 
-// fakeSpender stands in for the spend wallet: every Pay and Refund is recorded.
-type fakeSpender struct {
-	mu       sync.Mutex
-	payErr   error
-	paid     map[string]int64
-	refunded map[string]int64
+// fakeSpender switches wallet payment on. League entry takes the fee inside the
+// membership's own transaction, so Pay and Refund must never be called.
+type fakeSpender struct{ calls int }
+
+func (f *fakeSpender) Pay(context.Context, string, int64, string, string) (bool, error) {
+	f.calls++
+	return false, errors.New("league entry must not call Pay")
 }
 
-func newFakeSpender() *fakeSpender {
-	return &fakeSpender{paid: map[string]int64{}, refunded: map[string]int64{}}
-}
-
-func (f *fakeSpender) Pay(_ context.Context, _ string, amount int64, ref, _ string) (bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.payErr != nil {
-		return false, f.payErr
-	}
-	if _, done := f.paid[ref]; done {
-		return false, nil
-	}
-	f.paid[ref] = amount
-	return true, nil
-}
-
-func (f *fakeSpender) Refund(_ context.Context, _ string, amount int64, ref, _ string) (bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if _, ok := f.paid[ref]; !ok {
-		return false, nil
-	}
-	if _, done := f.refunded[ref]; done {
-		return false, nil
-	}
-	f.refunded[ref] = amount
-	return true, nil
+func (f *fakeSpender) Refund(context.Context, string, int64, string, string) (bool, error) {
+	f.calls++
+	return false, errors.New("league entry must not call Refund")
 }
 
 func walletJoinSetup(entryFee int) (*FantasyLeagueService, *walletJoinLeagueRepo, *fakeSpender) {
@@ -94,8 +114,8 @@ func walletJoinSetup(entryFee int) (*FantasyLeagueService, *walletJoinLeagueRepo
 		ID: "league-1", SeasonID: "season-1", Name: "Cash League",
 		Type: domain.LeagueTypePublic, EntryFee: entryFee, MaxMembers: 10,
 	}
-	repo := &walletJoinLeagueRepo{league: league}
-	spender := newFakeSpender()
+	repo := &walletJoinLeagueRepo{league: league, balance: 500_000}
+	spender := &fakeSpender{}
 	// No Paystack client and no auth repo: a wallet join must never need either,
 	// so reaching for one would nil-panic and fail the test.
 	svc := &FantasyLeagueService{repo: repo, fantasyRepo: walletJoinFantasyRepo{}}
@@ -117,8 +137,8 @@ func TestJoinLeagueWithWallet_PaysOnceAndConfirms(t *testing.T) {
 	if !res.PaidFromWallet || res.PaystackURL != "" || res.PaystackRef != "" {
 		t.Fatalf("response should be confirmed with no Paystack step, got %+v", res)
 	}
-	if len(spender.paid) != 1 {
-		t.Fatalf("expected exactly one wallet debit, got %d", len(spender.paid))
+	if len(repo.debits) != 1 || repo.debits[0].AmountKobo != -100000 || repo.debits[0].UserID != "user-1" {
+		t.Fatalf("expected one debit of 100000 kobo, got %+v", repo.debits)
 	}
 	if len(repo.members) != 1 {
 		t.Fatalf("expected one membership, got %d", len(repo.members))
@@ -127,63 +147,41 @@ func TestJoinLeagueWithWallet_PaysOnceAndConfirms(t *testing.T) {
 	if m.PaymentStatus != domain.LeaguePaymentPaid {
 		t.Errorf("membership status = %s, want PAID so the prize pool counts it", m.PaymentStatus)
 	}
-	if m.PaystackReference == nil || spender.paid[*m.PaystackReference] != 100000 {
-		t.Errorf("membership must carry the reference the wallet was debited under, got %v", m.PaystackReference)
+	if m.PaystackReference == nil || *m.PaystackReference != *repo.debits[0].Reference {
+		t.Errorf("a new membership carries the wallet reference, got %v", m.PaystackReference)
 	}
-	if len(spender.refunded) != 0 {
-		t.Errorf("nothing should be refunded on success")
+	if spender.calls != 0 {
+		t.Error("the wallet service must not be called directly")
 	}
 }
 
 func TestJoinLeagueWithWallet_InsufficientLeavesNoMembership(t *testing.T) {
-	svc, repo, spender := walletJoinSetup(100000)
-	spender.payErr = ports.ErrWalletInsufficient
+	svc, repo, _ := walletJoinSetup(100000)
+	repo.balance = 99_999
 
 	_, err := svc.JoinLeague(context.Background(), "user-1", "season-1", "http://cb", walletJoinReq())
 	if !errors.Is(err, ports.ErrWalletInsufficient) {
 		t.Fatalf("err = %v, want ErrWalletInsufficient", err)
 	}
-	if len(repo.members) != 0 {
-		t.Errorf("a short wallet must leave no membership, got %d", len(repo.members))
-	}
-	if len(spender.refunded) != 0 {
-		t.Errorf("nothing was debited so nothing should be refunded")
+	if len(repo.members) != 0 || len(repo.debits) != 0 {
+		t.Errorf("no membership and no charge expected")
 	}
 }
 
-func TestJoinLeagueWithWallet_FailureAfterDebitRefunds(t *testing.T) {
-	svc, repo, spender := walletJoinSetup(100000)
-	repo.addErr = errors.New("database down")
+func TestJoinLeagueWithWallet_FailureChargesNothing(t *testing.T) {
+	svc, repo, _ := walletJoinSetup(100000)
+	repo.addErr = errors.New("database is down")
 
-	_, err := svc.JoinLeague(context.Background(), "user-1", "season-1", "http://cb", walletJoinReq())
-	if err == nil {
-		t.Fatal("expected the join to fail")
+	if _, err := svc.JoinLeague(context.Background(), "user-1", "season-1", "http://cb", walletJoinReq()); err == nil {
+		t.Fatal("the failure should be returned")
 	}
-	if len(spender.paid) != 1 || len(spender.refunded) != 1 {
-		t.Fatalf("expected one debit and one matching refund, got paid=%d refunded=%d", len(spender.paid), len(spender.refunded))
-	}
-	for ref, amt := range spender.paid {
-		if spender.refunded[ref] != amt {
-			t.Errorf("refund for %s = %d, want %d", ref, spender.refunded[ref], amt)
-		}
-	}
-}
-
-func TestJoinLeagueWithWallet_LeagueFilledMeanwhileRefunds(t *testing.T) {
-	svc, repo, spender := walletJoinSetup(100000)
-	repo.addErr = ports.ErrLeagueFull
-
-	_, err := svc.JoinLeague(context.Background(), "user-1", "season-1", "http://cb", walletJoinReq())
-	if !errors.Is(err, ports.ErrLeagueFull) {
-		t.Fatalf("err = %v, want ErrLeagueFull", err)
-	}
-	if len(spender.refunded) != 1 {
-		t.Errorf("the debit must be reversed when the league fills, refunded=%d", len(spender.refunded))
+	if len(repo.debits) != 0 || repo.balance != 500_000 {
+		t.Error("a failed join must leave the wallet untouched")
 	}
 }
 
 func TestJoinLeagueWithWallet_FullLeagueNeverDebits(t *testing.T) {
-	svc, repo, spender := walletJoinSetup(100000)
+	svc, repo, _ := walletJoinSetup(100000)
 	repo.league.MaxMembers = 1
 	repo.members = []domain.FantasyLeagueMember{{UserID: "someone-else"}}
 
@@ -191,22 +189,19 @@ func TestJoinLeagueWithWallet_FullLeagueNeverDebits(t *testing.T) {
 	if !errors.Is(err, ports.ErrLeagueFull) {
 		t.Fatalf("err = %v, want ErrLeagueFull", err)
 	}
-	if len(spender.paid) != 0 {
-		t.Errorf("a full league must be refused before any debit")
+	if len(repo.debits) != 0 {
+		t.Errorf("a full league must be refused without a debit")
 	}
 }
 
 func TestJoinLeagueWithWallet_FreeLeagueUnaffected(t *testing.T) {
-	svc, repo, spender := walletJoinSetup(0)
+	svc, repo, _ := walletJoinSetup(0)
 
 	res, err := svc.JoinLeague(context.Background(), "user-1", "season-1", "http://cb", walletJoinReq())
 	if err != nil {
 		t.Fatalf("JoinLeague: %v", err)
 	}
-	if res.PaidFromWallet {
-		t.Errorf("a free league must not be reported as wallet-paid")
-	}
-	if len(spender.paid) != 0 {
+	if res.PaidFromWallet || len(repo.debits) != 0 {
 		t.Errorf("a free league must never touch the wallet")
 	}
 	if len(repo.members) != 1 || repo.members[0].PaymentStatus != domain.LeaguePaymentFree {
@@ -226,50 +221,10 @@ func TestJoinLeagueWithWallet_NotWiredIsRefused(t *testing.T) {
 	}
 }
 
-// memberRepo remembers memberships, so a second join can see the first one.
-type memberRepo struct {
-	walletJoinLeagueRepo
-	mu       sync.Mutex
-	existing *domain.FantasyLeagueMember
-}
-
-func (r *memberRepo) GetMember(_ context.Context, _, _ string) (*domain.FantasyLeagueMember, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.existing == nil {
-		return nil, nil
-	}
-	m := *r.existing
-	return &m, nil
-}
-
-func (r *memberRepo) CountActiveMembers(_ context.Context, _ string) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return len(r.members), nil
-}
-
-func (r *memberRepo) AddMember(_ context.Context, m *domain.FantasyLeagueMember) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	cp := *m
-	// Same upsert rule as the real repository: a new reference replaces the old one.
-	if r.existing != nil && cp.PaystackReference == nil {
-		cp.PaystackReference = r.existing.PaystackReference
-	}
-	r.existing = &cp
-	r.members = append(r.members, cp)
-	return nil
-}
-
-// A double click sends two joins at once. Only one may take the fee.
+// A double click sends two joins at once. Only one may take the fee; the other
+// finds the membership and succeeds without paying.
 func TestJoinLeagueWithWallet_ConcurrentJoinsChargeOnce(t *testing.T) {
-	league := &domain.FantasyLeague{ID: "league-1", SeasonID: "season-1", Name: "Cash League",
-		Type: domain.LeagueTypePublic, EntryFee: 100000, MaxMembers: 10}
-	repo := &memberRepo{walletJoinLeagueRepo: walletJoinLeagueRepo{league: league}}
-	spender := newFakeSpender()
-	svc := &FantasyLeagueService{repo: repo, fantasyRepo: walletJoinFantasyRepo{}}
-	svc.WithWallet(spender)
+	svc, repo, _ := walletJoinSetup(100000)
 
 	var wg sync.WaitGroup
 	for i := 0; i < 12; i++ {
@@ -283,29 +238,22 @@ func TestJoinLeagueWithWallet_ConcurrentJoinsChargeOnce(t *testing.T) {
 	}
 	wg.Wait()
 
-	if len(spender.paid) != 1 {
-		t.Fatalf("fee was taken %d times, want 1", len(spender.paid))
+	if len(repo.debits) != 1 {
+		t.Fatalf("fee was taken %d times, want 1", len(repo.debits))
 	}
 }
 
 // An earlier card attempt that is still settling keeps its reference, so a late
 // Paystack success can still be matched to the membership.
 func TestJoinLeagueWithWallet_KeepsEarlierCardReference(t *testing.T) {
-	league := &domain.FantasyLeague{ID: "league-1", SeasonID: "season-1", Name: "Cash League",
-		Type: domain.LeagueTypePublic, EntryFee: 100000, MaxMembers: 10}
+	svc, repo, _ := walletJoinSetup(100000)
 	cardRef := "FNT-1700000000-ABC"
-	repo := &memberRepo{
-		walletJoinLeagueRepo: walletJoinLeagueRepo{league: league},
-		existing: &domain.FantasyLeagueMember{
-			ID: "m1", LeagueID: "league-1", UserID: "user-1",
-			PaymentStatus: domain.LeaguePaymentPending, PaystackReference: &cardRef,
-		},
+	repo.existing = &domain.FantasyLeagueMember{
+		ID: "m1", LeagueID: "league-1", UserID: "user-1",
+		PaymentStatus: domain.LeaguePaymentPending, PaystackReference: &cardRef,
 	}
-	spender := newFakeSpender()
-	// No Paystack client: the verification step is skipped, the reference rule is what is under test.
-	svc := &FantasyLeagueService{repo: repo, fantasyRepo: walletJoinFantasyRepo{}}
-	svc.WithWallet(spender)
 
+	// No Paystack client: the verification step is skipped, the reference rule is what is under test.
 	if _, err := svc.JoinLeague(context.Background(), "user-1", "season-1", "http://cb", walletJoinReq()); err != nil {
 		t.Fatalf("JoinLeague: %v", err)
 	}
@@ -313,7 +261,10 @@ func TestJoinLeagueWithWallet_KeepsEarlierCardReference(t *testing.T) {
 	if got.PaystackReference == nil || *got.PaystackReference != cardRef {
 		t.Fatalf("card reference was replaced: %v", got.PaystackReference)
 	}
-	if got.PaymentStatus != domain.LeaguePaymentPaid || len(spender.paid) != 1 {
-		t.Fatalf("status=%s debits=%d, want PAID and 1", got.PaymentStatus, len(spender.paid))
+	if got.PaymentStatus != domain.LeaguePaymentPaid || len(repo.debits) != 1 {
+		t.Fatalf("status=%s debits=%d, want PAID and 1", got.PaymentStatus, len(repo.debits))
+	}
+	if *repo.debits[0].Reference == cardRef {
+		t.Fatal("the ledger keeps its own wallet reference")
 	}
 }
