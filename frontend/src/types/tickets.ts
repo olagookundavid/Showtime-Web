@@ -163,6 +163,8 @@ export interface PurchaseTicketPayload {
     referral_code?: string;
     /** Unlocks a hidden ticket. */
     access_code?: string;
+    /** Pay from the signed-in buyer's wallet instead of Paystack. The ticket comes back already paid. */
+    pay_with_wallet?: boolean;
 }
 
 export interface GiftTicketPayload {
@@ -240,4 +242,6 @@ export interface PurchaseSeasonPassPayload {
     phone: string;
     quantity: number;
     referral_code?: string;
+    /** Pay from the signed-in buyer's wallet instead of Paystack. The pass comes back already paid. */
+    pay_with_wallet?: boolean;
 }

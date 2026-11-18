@@ -19,6 +19,7 @@ type IFantasyPayoutHandler interface {
 	RequestPayout(c *gin.Context)
 	ListMyPayouts(c *gin.Context)
 	CancelPayout(c *gin.Context)
+	TransferToWallet(c *gin.Context)
 
 	GetLeagueJoinPreview(c *gin.Context)
 	GetLeagueJoinPreviewByCode(c *gin.Context)
@@ -91,6 +92,40 @@ func (h *FantasyPayoutHandler) RequestPayout(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Payout requested. We'll process it and notify you once the transfer is sent.",
+		"data":    res,
+	})
+}
+
+// TransferToWallet moves prize winnings into the spend wallet. One-way.
+func (h *FantasyPayoutHandler) TransferToWallet(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	var req dto.TransferToWalletRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	res, err := h.service.TransferToWallet(c.Request.Context(), payload.UserId, req)
+	if err != nil {
+		switch {
+		// The user's own state, not a server fault.
+		case errors.Is(err, ports.ErrTransferInsufficient), errors.Is(err, ports.ErrSpendWalletFull):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case errors.Is(err, services.ErrTransferAmount):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Moved to your spend wallet. It can't be moved back or withdrawn.",
 		"data":    res,
 	})
 }

@@ -11,6 +11,8 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+
+	"github.com/google/uuid"
 )
 
 // SettingPlatformCutPercent is the app_settings key holding the platform's
@@ -27,6 +29,8 @@ type IFantasyPayoutService interface {
 	RequestPayout(ctx context.Context, userID string, req dto.CreatePayoutRequest) (*dto.PayoutRequestResponse, error)
 	ListMyPayouts(ctx context.Context, userID string, page, limit int) ([]dto.PayoutRequestResponse, int, error)
 	CancelPayout(ctx context.Context, userID, payoutID string) (*dto.PayoutRequestResponse, error)
+	// TransferToWallet moves prize winnings into the user's spend wallet. One-way.
+	TransferToWallet(ctx context.Context, userID string, req dto.TransferToWalletRequest) (*dto.WalletTransferResponse, error)
 
 	// Admin — payouts
 	ListPayoutRequests(ctx context.Context, status string, page, limit int) ([]dto.PayoutRequestResponse, int, error)
@@ -174,6 +178,7 @@ func (s *FantasyPayoutService) GetWalletForUser(ctx context.Context, userID stri
 		LifetimeWonKobo:   won,
 		LifetimePaidKobo:  paid,
 		MinPayoutKobo:     domain.MinPayoutKobo,
+		MinTransferKobo:   domain.MinWalletTransferKobo,
 		CanRequestPayout:  wallet.BalanceKobo >= domain.MinPayoutKobo,
 		LastBankDetails:   bank,
 		Transactions:      items,
@@ -205,6 +210,39 @@ func (s *FantasyPayoutService) RequestPayout(ctx context.Context, userID string,
 		return nil, err
 	}
 	return payoutResponse(payout), nil
+}
+
+// ErrTransferAmount is a transfer below the minimum.
+var ErrTransferAmount = errors.New("amount is below the minimum transfer")
+
+// TransferToWallet moves prize winnings into the spend wallet. Every call makes a
+// fresh reference, so what stops the same money moving twice is the repository
+// checking the balance under the prize wallet's row lock, not the reference.
+func (s *FantasyPayoutService) TransferToWallet(ctx context.Context, userID string, req dto.TransferToWalletRequest) (*dto.WalletTransferResponse, error) {
+	if req.AmountKobo < domain.MinWalletTransferKobo {
+		return nil, fmt.Errorf("%w of %s", ErrTransferAmount, formatNaira(domain.MinWalletTransferKobo))
+	}
+
+	maxBalance := domain.DefaultMaxBalanceKobo
+	if raw, err := s.settings.Get(ctx, SettingWalletMaxBalance); err == nil {
+		if v, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64); err == nil && v > 0 {
+			maxBalance = v
+		}
+	}
+
+	res, err := s.repo.TransferToSpendWallet(ctx, userID, req.AmountKobo, "FTR-"+uuid.NewString(), maxBalance)
+	if err != nil {
+		if errors.Is(err, ports.ErrSpendWalletFull) {
+			return nil, fmt.Errorf("%w (%s)", err, formatNaira(maxBalance))
+		}
+		return nil, err
+	}
+	return &dto.WalletTransferResponse{
+		Reference:        res.Reference,
+		AmountKobo:       res.AmountKobo,
+		PrizeBalanceKobo: res.PrizeBalanceKobo,
+		SpendBalanceKobo: res.SpendBalanceKobo,
+	}, nil
 }
 
 func (s *FantasyPayoutService) ListMyPayouts(ctx context.Context, userID string, page, limit int) ([]dto.PayoutRequestResponse, int, error) {

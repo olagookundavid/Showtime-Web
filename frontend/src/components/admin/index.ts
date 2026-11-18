@@ -27,4 +27,5 @@ export {
   FantasySettingsPanel,
   NotificationSettingsPanel,
   SettingsSection,
+  WalletSettingsPanel,
 } from './settings';

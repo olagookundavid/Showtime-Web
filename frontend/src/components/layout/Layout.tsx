@@ -39,6 +39,7 @@ import {
   ClipboardDocumentListIcon,
   ArrowRightOnRectangleIcon,
   SparklesIcon,
+  QrCodeIcon,
 } from "@heroicons/react/24/outline";
 
 /** How each kind of portal link looks in the mobile "More" menu. */
@@ -48,6 +49,7 @@ const PORTAL_STYLE: Record<PortalKind, { card: string; icon: string; chevron: st
   team_head: { card: "bg-emerald-700", icon: "text-emerald-200", chevron: "text-emerald-200" },
   player: { card: "bg-sffl-red", icon: "text-white", chevron: "text-red-100" },
   seller: { card: "bg-emerald-700", icon: "text-emerald-200", chevron: "text-emerald-200" },
+  bar: { card: "bg-emerald-700", icon: "text-emerald-200", chevron: "text-emerald-200" },
   account: { card: "bg-sffl-navy", icon: "text-white", chevron: "text-gray-300" },
 };
 
@@ -55,6 +57,7 @@ const PortalIcon = ({ kind, className }: { kind: PortalKind; className: string }
   if (kind === "team_head") return <ShieldCheckIcon className={className} />;
   if (kind === "player") return <UserCircleIcon className={className} />;
   if (kind === "seller") return <ShoppingBagIcon className={className} />;
+  if (kind === "bar") return <QrCodeIcon className={className} />;
   return <WrenchIcon className={className} />;
 };
 

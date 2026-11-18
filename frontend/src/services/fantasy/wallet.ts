@@ -1,5 +1,6 @@
 import api from "../client";
-import type { FantasyWallet, Paged, PayoutRequest } from "../../types";
+import { withIdempotencyKey } from "../idempotency";
+import type { FantasyWallet, Paged, PayoutRequest, WalletTransferResult } from "../../types";
 
 // Every amount below is integer kobo (₦1 = 100 kobo), matching the Paystack
 // amounts used on the way in. Divide by 100 to display naira.
@@ -24,6 +25,20 @@ export const fantasyWalletApi = {
     const res = await api.post<{ data: PayoutRequest }>(
       "/fantasy/payouts",
       payload,
+    );
+    return res.data.data;
+  },
+  // One-way: moves prize winnings into the spend wallet, which can't be
+  // withdrawn. Throws 409 when the prize balance is too low or the spend wallet
+  // would go over its maximum; the message is in error.response.data.error.
+  transferToSpendWallet: async (
+    amountKobo: number,
+    idempotencyKey?: string,
+  ): Promise<WalletTransferResult> => {
+    const res = await api.post<{ data: WalletTransferResult }>(
+      "/fantasy/wallet/transfer-to-wallet",
+      { amount_kobo: amountKobo },
+      withIdempotencyKey(idempotencyKey),
     );
     return res.data.data;
   },

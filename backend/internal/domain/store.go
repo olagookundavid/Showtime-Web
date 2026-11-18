@@ -80,15 +80,25 @@ type Order struct {
 	// DiscountCodeID is not a column on the order. It carries the code to
 	// reserve into CreateOrder, so the hold on the code is taken in the same
 	// transaction as the stock — an order never takes one without the other.
-	DiscountCodeID     *string     `json:"-"`
-	PaymentStatus      string      `json:"payment_status"`     // e.g. "pending", "paid", "failed"
-	FulfillmentStatus  string      `json:"fulfillment_status"` // e.g. "pending", "shipped", "delivered"
-	PaystackReference  string      `json:"paystack_reference"`
-	PaystackAccessCode string      `json:"paystack_access_code"`
-	CreatedAt          time.Time   `json:"created_at"`
-	UpdatedAt          time.Time   `json:"updated_at"`
-	Items              []OrderItem `json:"items,omitempty"`
+	DiscountCodeID     *string `json:"-"`
+	PaymentStatus      string  `json:"payment_status"`     // e.g. "pending", "paid", "failed"
+	FulfillmentStatus  string  `json:"fulfillment_status"` // e.g. "pending", "shipped", "delivered"
+	PaystackReference  string  `json:"paystack_reference"`
+	PaystackAccessCode string  `json:"paystack_access_code"`
+	// PaymentMethod is how the order was (or will be) paid: PaymentMethod*.
+	PaymentMethod string      `json:"payment_method"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
+	Items         []OrderItem `json:"items,omitempty"`
 }
+
+// How a store order was paid.
+const (
+	PaymentMethodPaystack = "paystack"
+	PaymentMethodWallet   = "wallet"
+	// PaymentMethodFree is an order a discount code covered in full.
+	PaymentMethodFree = "free"
+)
 
 // ProductReview is a customer-written rating on a storefront product. Only
 // customers with a paid order containing the product can post one; one review

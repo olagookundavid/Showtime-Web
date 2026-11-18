@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,8 @@ type fakePayoutRepo struct {
 	ports.IFantasyPayoutRepository
 
 	balances  map[string]int64
+	spend     map[string]int64 // the spend wallet, which a transfer credits
+	transfers []string         // references of completed transfers
 	ledger    []domain.WalletTransaction
 	payouts   map[string]*domain.PayoutRequest
 	standings map[string][]domain.PrizeStanding
@@ -34,6 +37,7 @@ type fakePayoutRepo struct {
 func newFakePayoutRepo() *fakePayoutRepo {
 	return &fakePayoutRepo{
 		balances:  map[string]int64{},
+		spend:     map[string]int64{},
 		payouts:   map[string]*domain.PayoutRequest{},
 		standings: map[string][]domain.PrizeStanding{},
 		structure: map[string][]domain.PrizeTier{},
@@ -81,6 +85,28 @@ func (f *fakePayoutRepo) CreatePayoutRequest(_ context.Context, req *domain.Payo
 		UserID: req.UserID, AmountKobo: -req.AmountKobo, Type: domain.WalletPayout,
 	})
 	return nil
+}
+
+// TransferToSpendWallet mirrors the real repository: the prize balance and the
+// spend cap are checked before anything moves, and both sides move together.
+func (f *fakePayoutRepo) TransferToSpendWallet(_ context.Context, userID string, amount int64, reference string, maxSpend int64) (*domain.WalletTransferResult, error) {
+	if f.balances[userID] < amount {
+		return nil, ports.ErrTransferInsufficient
+	}
+	if maxSpend > 0 && f.spend[userID]+amount > maxSpend {
+		return nil, ports.ErrSpendWalletFull
+	}
+	f.balances[userID] -= amount
+	f.spend[userID] += amount
+	ref := reference
+	f.ledger = append(f.ledger, domain.WalletTransaction{
+		UserID: userID, AmountKobo: -amount, Type: domain.WalletTransfer, Reference: &ref,
+	})
+	f.transfers = append(f.transfers, reference)
+	return &domain.WalletTransferResult{
+		Reference: reference, AmountKobo: amount,
+		PrizeBalanceKobo: f.balances[userID], SpendBalanceKobo: f.spend[userID],
+	}, nil
 }
 
 func (f *fakePayoutRepo) GetPayoutRequestByID(_ context.Context, id string) (*domain.PayoutRequest, error) {
@@ -469,6 +495,116 @@ func TestRequestPayout(t *testing.T) {
 
 		_, err := svc.RequestPayout(context.Background(), "u1", req)
 		assertErrContains(t, err, "digits only")
+	})
+}
+
+func TestTransferToWallet(t *testing.T) {
+	transfer := func(svc IFantasyPayoutService, amount int64) (*dto.WalletTransferResponse, error) {
+		return svc.TransferToWallet(context.Background(), "u1", dto.TransferToWalletRequest{AmountKobo: amount})
+	}
+
+	t.Run("moves the money across and reports both balances", func(t *testing.T) {
+		repo, svc := newWalletService(500000)
+
+		res, err := transfer(svc, 200000)
+		if err != nil {
+			t.Fatalf("transfer failed: %v", err)
+		}
+		if repo.balances["u1"] != 300000 || repo.spend["u1"] != 200000 {
+			t.Errorf("expected 300000 prize / 200000 spend, got %d / %d", repo.balances["u1"], repo.spend["u1"])
+		}
+		if res.PrizeBalanceKobo != 300000 || res.SpendBalanceKobo != 200000 || res.AmountKobo != 200000 {
+			t.Errorf("unexpected response: %+v", res)
+		}
+		if !strings.HasPrefix(res.Reference, "FTR-") {
+			t.Errorf("reference should start with FTR-, got %q", res.Reference)
+		}
+	})
+
+	t.Run("can move the whole balance", func(t *testing.T) {
+		repo, svc := newWalletService(123456)
+		if _, err := transfer(svc, 123456); err != nil {
+			t.Fatalf("transfer failed: %v", err)
+		}
+		if repo.balances["u1"] != 0 || repo.spend["u1"] != 123456 {
+			t.Errorf("got %d / %d", repo.balances["u1"], repo.spend["u1"])
+		}
+	})
+
+	t.Run("refuses more than the prize balance and moves nothing", func(t *testing.T) {
+		repo, svc := newWalletService(150000)
+
+		_, err := transfer(svc, 150001)
+		if !errors.Is(err, ports.ErrTransferInsufficient) {
+			t.Fatalf("expected insufficient balance, got: %v", err)
+		}
+		if repo.balances["u1"] != 150000 || repo.spend["u1"] != 0 || len(repo.ledger) != 0 {
+			t.Errorf("a refused transfer must leave everything untouched")
+		}
+	})
+
+	// A payout request debits the prize wallet when it is raised, so money held
+	// for a pending payout cannot be moved as well.
+	t.Run("money held for a pending payout cannot be moved", func(t *testing.T) {
+		repo, svc := newWalletService(300000)
+		if _, err := svc.RequestPayout(context.Background(), "u1", validPayout(200000)); err != nil {
+			t.Fatalf("payout request failed: %v", err)
+		}
+
+		if _, err := transfer(svc, 150000); !errors.Is(err, ports.ErrTransferInsufficient) {
+			t.Fatalf("expected the held funds to be unavailable, got: %v", err)
+		}
+		if _, err := transfer(svc, 100000); err != nil {
+			t.Fatalf("the free ₦1,000 should still move: %v", err)
+		}
+		if repo.balances["u1"] != 0 {
+			t.Errorf("expected an empty prize wallet, got %d", repo.balances["u1"])
+		}
+	})
+
+	t.Run("enforces the minimum", func(t *testing.T) {
+		repo, svc := newWalletService(500000)
+
+		_, err := transfer(svc, domain.MinWalletTransferKobo-1)
+		if !errors.Is(err, ErrTransferAmount) {
+			t.Fatalf("expected ErrTransferAmount, got: %v", err)
+		}
+		if len(repo.transfers) != 0 {
+			t.Errorf("nothing should have been moved")
+		}
+	})
+
+	t.Run("stops at the spend wallet's maximum balance", func(t *testing.T) {
+		repo, svc := newWalletService(500000)
+		repo.spend["u1"] = 90000
+		// Default max is ₦1,000,000; a ₦1,000 setting makes the room ₦100.
+		svc.(*FantasyPayoutService).settings = &fakeSettings{values: map[string]string{SettingWalletMaxBalance: "100000"}}
+
+		_, err := transfer(svc, 20000)
+		if !errors.Is(err, ports.ErrSpendWalletFull) {
+			t.Fatalf("expected the spend wallet to be full, got: %v", err)
+		}
+		assertErrContains(t, err, "₦1000.00")
+		if repo.balances["u1"] != 500000 {
+			t.Errorf("a refused transfer must not debit the prize wallet")
+		}
+		if _, err := transfer(svc, 10000); err != nil {
+			t.Fatalf("a transfer that fits exactly should work: %v", err)
+		}
+	})
+
+	// Each call gets its own reference, so only the balance check stops a
+	// repeated request; two requests that both fit are two transfers.
+	t.Run("each transfer gets its own reference", func(t *testing.T) {
+		repo, svc := newWalletService(500000)
+		a, _ := transfer(svc, 100000)
+		b, _ := transfer(svc, 100000)
+		if a == nil || b == nil || a.Reference == b.Reference {
+			t.Fatalf("expected two distinct references, got %v and %v", a, b)
+		}
+		if len(repo.transfers) != 2 {
+			t.Errorf("expected two transfers, got %d", len(repo.transfers))
+		}
 	})
 }
 

@@ -98,12 +98,72 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupAppSettingRoutes(v1_api, app)
 	SetupClaimRoutes(v1_api, app)
 	SetupLeadRoutes(v1_api, app)
+	SetupWalletRoutes(v1_api, app)
+	SetupVoucherRoutes(v1_api, app)
 	SetupCommentRoutes(v1_api, app)
 	SetupDiscountRoutes(v1_api, app)
 	SetupFantasyRoutes(v1_api, app)
 	SetupTOTWRoutes(v1_api, app)
 	SetupBadgeRoutes(v1_api, app)
 	return r
+}
+
+// SetupWalletRoutes is the signed-in user's spend wallet. Starting and verifying a
+// top-up call Paystack and move money, so they sit behind the same stricter
+// limiter as the other pay-in endpoints.
+func SetupWalletRoutes(r *gin.RouterGroup, app *api.Application) {
+	wallet := r.Group("/wallet")
+	wallet.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+	{
+		wallet.GET("", app.Handlers.WalletHandler.GetWallet)
+
+		limited := wallet.Group("", commonAuth.RateLimit(commonAuth.RateLimitStruct{
+			LimiterEnabled: true,
+			Rps:            5,
+			Burst:          10,
+		}))
+		{
+			limited.POST("/topups", app.Handlers.Idempotency, app.Handlers.WalletHandler.StartTopup)
+			limited.POST("/topups/verify", app.Handlers.WalletHandler.VerifyTopup)
+		}
+	}
+}
+
+// SetupVoucherRoutes covers vouchers: the signed-in user buying and listing their
+// own, the voucher page that anyone holding a code can open, and the bar screen.
+func SetupVoucherRoutes(r *gin.RouterGroup, app *api.Application) {
+	// The voucher page is opened from an emailed link by people who may have no
+	// account. The code is the secret, so the lookup is rate-limited per visitor
+	// to make guessing codes pointless.
+	public := r.Group("/vouchers", commonAuth.RateLimit(commonAuth.RateLimitStruct{
+		LimiterEnabled: true,
+		Rps:            2,
+		Burst:          10,
+	}))
+	{
+		public.GET("/by-code/:code", app.Handlers.VoucherHandler.GetByCode)
+	}
+
+	vouchers := r.Group("/vouchers")
+	vouchers.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+	{
+		vouchers.GET("/products", app.Handlers.VoucherHandler.ListProducts)
+		vouchers.GET("/mine", app.Handlers.VoucherHandler.ListMine)
+		vouchers.POST("/purchase", commonAuth.RateLimit(commonAuth.RateLimitStruct{
+			LimiterEnabled: true,
+			Rps:            2,
+			Burst:          5,
+		}), app.Handlers.Idempotency, app.Handlers.VoucherHandler.Purchase)
+	}
+
+	// The bar screen. Its own feature, so bar staff can redeem vouchers without
+	// getting into the admin panel.
+	bar := r.Group("/bar")
+	bar.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureVoucherRedeem))
+	{
+		bar.GET("/vouchers/:code", app.Handlers.VoucherHandler.BarLookup)
+		bar.POST("/vouchers/:code/redeem", app.Handlers.VoucherHandler.BarRedeem)
+	}
 }
 
 // SetupLeadRoutes carries the public join form. It needs no account, so it is
@@ -567,6 +627,30 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		leadsGroup.GET("/export", app.Handlers.LeadHandler.Export)
 	}
 
+	// Staff view of a user's wallet, and manual credits and debits. Every change
+	// needs a reason and is recorded in the wallet's ledger.
+	walletsGroup := adminRoutes.Group("/wallets")
+	walletsGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureWallets))
+	{
+		walletsGroup.GET("/users", app.Handlers.WalletHandler.AdminSearchUsers)
+		walletsGroup.GET("/users/:id", app.Handlers.WalletHandler.AdminGetWallet)
+		walletsGroup.POST("/users/:id/adjust", app.Handlers.WalletHandler.AdminAdjust)
+	}
+
+	// Voucher bundles, giving vouchers away, cancelling them, and what was redeemed.
+	vouchersGroup := adminRoutes.Group("/vouchers")
+	vouchersGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureVouchers))
+	{
+		vouchersGroup.GET("", app.Handlers.VoucherHandler.AdminList)
+		vouchersGroup.POST("", app.Handlers.VoucherHandler.AdminIssue)
+		vouchersGroup.GET("/products", app.Handlers.VoucherHandler.AdminListProducts)
+		vouchersGroup.POST("/products", app.Handlers.VoucherHandler.AdminCreateProduct)
+		vouchersGroup.PUT("/products/:id", app.Handlers.VoucherHandler.AdminUpdateProduct)
+		vouchersGroup.GET("/redemptions", app.Handlers.VoucherHandler.AdminRedemptions)
+		vouchersGroup.GET("/users", app.Handlers.VoucherHandler.AdminSearchUsers)
+		vouchersGroup.POST("/:id/void", app.Handlers.VoucherHandler.AdminVoid)
+	}
+
 	// Referrals has a wider role set than Tickets itself (store_manager gets
 	// referrals but not ticket check-in/lookup), so it's its own group.
 	referralsGroup := adminRoutes.Group("/tickets")
@@ -624,6 +708,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminSettings.PUT("/contracts", app.Handlers.AppSettingHandler.UpdateContractSettings)
 		adminSettings.PUT("/notifications", app.Handlers.AppSettingHandler.UpdateNotificationSettings)
 		adminSettings.PUT("/fantasy", app.Handlers.AppSettingHandler.UpdateFantasySettings)
+		adminSettings.PUT("/wallet", app.Handlers.AppSettingHandler.UpdateWalletSettings)
 	}
 
 	// Live stream control — read the current state (including what auto
@@ -905,8 +990,8 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 			// Optional auth: guests still buy tickets, but a signed-in buyer is
 			// recognised so members-only discount codes work and the ticket is
 			// linked to their account.
-			limitedTickets.POST("/season-pass", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.TicketHandler.PurchaseSeasonPass)
-			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
+			limitedTickets.POST("/season-pass", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.Idempotency, app.Handlers.TicketHandler.PurchaseSeasonPass)
+			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.Idempotency, app.Handlers.SiteEventsHandler.TrackOnSuccess("ticket_checkout_started"), app.Handlers.TicketHandler.Purchase)
 		}
 
 		// Paystack calls one URL for every payment; every old webhook path goes to
@@ -948,7 +1033,7 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 		// guest checkouts to go through unauthenticated.
 		limited := storeRoutes.Group("", commonAuth.RateLimit(rls), commonAuth.OptionalTokenMiddleware(app.TokenMaker))
 		{
-			limited.POST("/checkout", app.Handlers.SiteEventsHandler.TrackOnSuccess("store_checkout_started"), app.Handlers.StoreHandler.Checkout)
+			limited.POST("/checkout", app.Handlers.Idempotency, app.Handlers.SiteEventsHandler.TrackOnSuccess("store_checkout_started"), app.Handlers.StoreHandler.Checkout)
 			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
 		}
 
@@ -1128,12 +1213,16 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 			}
 			limitedLeagues := protected.Group("", commonAuth.RateLimit(rls))
 			{
-				limitedLeagues.POST("/leagues/join", app.Handlers.FantasyLeagueHandler.JoinLeague)
+				limitedLeagues.POST("/leagues/join", app.Handlers.Idempotency, app.Handlers.FantasyLeagueHandler.JoinLeague)
 				limitedLeagues.POST("/leagues/verify", app.Handlers.FantasyLeagueHandler.VerifyLeaguePayment)
 
 				// Withdrawals move real money out, so they sit behind the same
 				// stricter limiter as the pay-in endpoints.
 				limitedLeagues.POST("/payouts", app.Handlers.FantasyPayoutHandler.RequestPayout)
+
+				// Moving prize winnings into the spend wallet is one-way, so it gets
+				// the same limiter.
+				limitedLeagues.POST("/wallet/transfer-to-wallet", app.Handlers.Idempotency, app.Handlers.FantasyPayoutHandler.TransferToWallet)
 			}
 
 			protected.GET("/wallet", app.Handlers.FantasyPayoutHandler.GetWallet)

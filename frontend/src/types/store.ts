@@ -86,6 +86,8 @@ export interface CheckoutPayload {
     items: CheckoutItemPayload[];
     /** Optional. An invalid code fails the checkout rather than being ignored. */
     discount_code?: string;
+    /** Pay from the signed-in buyer's spend wallet instead of Paystack. */
+    pay_with_wallet?: boolean;
 }
 
 export interface CheckoutResponseData {
@@ -93,6 +95,8 @@ export interface CheckoutResponseData {
     paystack_url: string;
     paystack_ref: string;
     paystack_access_code: string;
+    /** True when the order is already confirmed (paid from the wallet). */
+    paid?: boolean;
 }
 
 export interface OrderItem {
@@ -123,6 +127,7 @@ export interface Order {
     discount_amount: number;
     payment_status: 'pending' | 'paid' | 'failed';
     fulfillment_status: 'pending' | 'shipped' | 'delivered' | 'cancelled';
+    payment_method?: 'paystack' | 'wallet' | 'free';
     paystack_reference?: string;
     created_at: string;
     updated_at: string;

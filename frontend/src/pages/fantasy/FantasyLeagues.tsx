@@ -24,8 +24,8 @@ import {
 } from "../../services";
 import type { FantasyLeague } from "../../types";
 import { useAuth } from "../../contexts";
-import { Loader, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner } from "../../components";
-import { rankBadgeClass } from "../../hooks";
+import { Loader, Button, ButtonLink, Field, IconButton, Input, Modal, DataTable, Spinner, WalletPayOption, WALLET_QUERY_KEY } from "../../components";
+import { rankBadgeClass, useIdempotencyKey } from "../../hooks";
 
 /** Nothing off the wire is trusted to be a finite number. */
 const num = (v: number | null | undefined): number =>
@@ -144,20 +144,34 @@ export function FantasyLeagues() {
     name?: string;
   } | null>(null);
 
+  // Whether the manager chose to pay a paid league's entry fee from their wallet.
+  const [payWithWallet, setPayWithWallet] = useState(false);
+  // One key per join attempt, so a retried request can't charge the fee twice.
+  const joinAttempt = useIdempotencyKey();
+
   // Join League Mutation
   const joinMutation = useMutation({
     // Either an invite code (private league) or a league id (joining a
     // public one straight from the browse list).
-    mutationFn: async (by: { invite_code?: string; league_id?: string }) => {
+    mutationFn: async (by: {
+      invite_code?: string;
+      league_id?: string;
+      pay_with_wallet?: boolean;
+    }) => {
       if (!season?.id) throw new Error("Season not loaded");
-      return fantasyLeaguesApi.joinLeague(season.id, by);
+      return fantasyLeaguesApi.joinLeague(season.id, by, joinAttempt.current());
     },
     onSuccess: (data) => {
+      joinAttempt.settle();
+      if (data.paid_from_wallet) queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
       if (data.paystack_url) {
         toast.success("Redirecting to Paystack for league entry fee...");
         window.location.href = data.paystack_url;
       } else {
+        // A wallet-paid entry arrives already confirmed (paid_from_wallet), so
+        // there is no Paystack step: the manager lands on this page, in the league.
         toast.success(`Joined ${data.league_name || "league"} successfully!`);
+        setPayWithWallet(false);
         setTermsTarget(null);
         setShowJoinModal(false);
         setInviteCodeInput("");
@@ -171,6 +185,19 @@ export function FantasyLeagues() {
       }
     },
     onError: (err: unknown) => {
+      joinAttempt.settle(err);
+      const code = (err as { response?: { data?: { code?: unknown } } })
+        ?.response?.data?.code;
+      if (code === "INSUFFICIENT_BALANCE") {
+        // The balance can drop between opening the terms and confirming: re-read
+        // it so the option shows the shortfall instead of offering the wallet again.
+        setPayWithWallet(false);
+        queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+        toast.error(
+          `${apiErrorMessage(err, "Your wallet balance is not enough.")} Top up your wallet or pay with Paystack instead.`,
+        );
+        return;
+      }
       toast.error(apiErrorMessage(err, "Failed to join league"));
     },
   });
@@ -330,6 +357,7 @@ export function FantasyLeagues() {
       );
       return;
     }
+    setPayWithWallet(false);
     setTermsTarget({ leagueId: league.id, name: league.name });
   };
 
@@ -341,12 +369,18 @@ export function FantasyLeagues() {
       return;
     }
     if (termsTarget.leagueId) {
-      joinMutation.mutate({ league_id: termsTarget.leagueId });
+      joinMutation.mutate({
+        league_id: termsTarget.leagueId,
+        pay_with_wallet: previewIsPaid && payWithWallet,
+      });
       return;
     }
     const code = (termsTarget.inviteCode ?? "").trim();
     if (!code) return;
-    joinMutation.mutate({ invite_code: code });
+    joinMutation.mutate({
+      invite_code: code,
+      pay_with_wallet: previewIsPaid && payWithWallet,
+    });
   };
 
   const previewFee = num(preview?.entry_fee_kobo);
@@ -699,6 +733,7 @@ export function FantasyLeagues() {
               fullWidth
               onClick={() => {
                 setShowJoinModal(false);
+                setPayWithWallet(false);
                 setTermsTarget({ inviteCode: inviteCodeInput.trim() });
               }}
               disabled={!inviteCodeInput.trim() || joinMutation.isPending}
@@ -1232,11 +1267,19 @@ export function FantasyLeagues() {
                       </div>
                     </div>
 
+                    {!previewBlocked && isAuthenticated && (
+                      <WalletPayOption
+                        totalKobo={previewFee}
+                        checked={payWithWallet}
+                        onChange={setPayWithWallet}
+                      />
+                    )}
+
                     {!previewBlocked && (
                       <p className="text-[11px] text-gray-600 dark:text-gray-300">
-                        Confirming takes you to Paystack to pay{" "}
-                        {formatKobo(previewFee)}. Your place is held once the
-                        payment clears.
+                        {payWithWallet
+                          ? `Confirming takes ${formatKobo(previewFee)} from your wallet and puts you in the league straight away.`
+                          : `Confirming takes you to Paystack to pay ${formatKobo(previewFee)}. Your place is held once the payment clears.`}
                       </p>
                     )}
                   </div>

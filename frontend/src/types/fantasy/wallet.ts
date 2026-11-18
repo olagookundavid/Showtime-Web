@@ -1,4 +1,4 @@
-export type WalletTransactionType = 'WINNINGS' | 'PAYOUT' | 'PAYOUT_REVERSAL' | 'ADJUSTMENT';
+export type WalletTransactionType = 'WINNINGS' | 'PAYOUT' | 'PAYOUT_REVERSAL' | 'ADJUSTMENT' | 'WALLET_TRANSFER';
 
 export interface WalletTransaction {
     id: string;
@@ -22,9 +22,18 @@ export interface FantasyWallet {
     lifetime_won_kobo: number;
     lifetime_paid_kobo: number;
     min_payout_kobo: number;
+    min_transfer_kobo: number;
     can_request_payout: boolean;
     last_bank_details?: BankDetails;
     transactions: WalletTransaction[];
+}
+
+// Where both wallets stand after prize money is moved into the spend wallet.
+export interface WalletTransferResult {
+    reference: string;
+    amount_kobo: number;
+    prize_balance_kobo: number;
+    spend_balance_kobo: number;
 }
 
 export type PayoutStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'REJECTED' | 'CANCELLED';

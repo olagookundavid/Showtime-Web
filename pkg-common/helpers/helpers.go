@@ -376,6 +376,8 @@ func BuildCORSConfig() cors.Config {
 		},
 		AllowHeaders: []string{
 			"Content-Type", "Authorization", "X-Requested-With",
+			// Sent with checkouts so a retried request can't pay twice.
+			"Idempotency-Key",
 		},
 		AllowCredentials: true,
 

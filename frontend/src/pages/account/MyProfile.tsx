@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UserCircleIcon, KeyIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon, KeyIcon, WalletIcon, GiftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts';
 import { updateOwnProfile } from '../../services';
 import { getApiErrorMessage } from '../../utils';
-import { ConfirmDialog, ConfirmSummary, Button, Field, Input } from '../../components';
+import { ConfirmDialog, ConfirmSummary, Button, ButtonLink, Field, Input } from '../../components';
 
 export const MyProfile = () => {
     const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
@@ -51,6 +51,36 @@ export const MyProfile = () => {
                         {user?.roleName ?? 'Account'}
                     </p>
                 </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sffl-navy dark:text-white font-bold">
+                        <WalletIcon className="w-5 h-5 text-sffl-red" aria-hidden="true" />
+                        My Wallet
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                        Add money and spend it inside Showtime.
+                    </p>
+                </div>
+                <ButtonLink to="/account/wallet" variant="secondary" icon={ArrowRightIcon} iconPosition="right">
+                    Open Wallet
+                </ButtonLink>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sffl-navy dark:text-white font-bold">
+                        <GiftIcon className="w-5 h-5 text-sffl-red" aria-hidden="true" />
+                        My Vouchers
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                        Buy a bar voucher for yourself or a friend, and find the ones you have.
+                    </p>
+                </div>
+                <ButtonLink to="/vouchers" variant="secondary" icon={ArrowRightIcon} iconPosition="right">
+                    Open Vouchers
+                </ButtonLink>
             </div>
 
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-4 sm:p-6 space-y-4">

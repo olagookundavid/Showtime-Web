@@ -14,6 +14,7 @@ import (
 	"showtime-backend/internal/richtext"
 	"showtime-backend/pkg/email"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -58,7 +59,16 @@ type StoreService struct {
 	// userPhones is optional: when set, a signed-in buyer's phone is kept on their
 	// profile after they pay.
 	userPhones UserPhoneSaver
+	// wallet is optional: when set, signed-in buyers can pay from their spend
+	// wallet instead of Paystack, and cancelling a wallet-paid order refunds it.
+	wallet WalletSpender
 }
+
+// Errors a caller can show the buyer as they are.
+var (
+	ErrStoreWalletSignIn      = errors.New("sign in to pay from your wallet")
+	ErrStoreWalletUnavailable = errors.New("paying from the wallet is not available right now")
+)
 
 func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient, emailService *email.ResendService, storage ports.StorageService, discountService IDiscountService, discountRepo ports.IDiscountRepository, userPhones UserPhoneSaver) IStoreService {
 	return &StoreService{
@@ -70,6 +80,19 @@ func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient
 		discountRepo:    discountRepo,
 		userPhones:      userPhones,
 	}
+}
+
+// WithWallet turns on paying for store orders from the buyer's spend wallet.
+func (s *StoreService) WithWallet(w WalletSpender) *StoreService {
+	s.wallet = w
+	return s
+}
+
+// nairaToKobo converts a store amount (float naira) to integer kobo. It rounds to
+// the nearest kobo rather than truncating, so float noise like 0.1+0.2 or
+// 1234.56*100 = 123456.00000000001 can never cost or add a kobo.
+func nairaToKobo(naira float64) int64 {
+	return int64(math.Round(naira * 100))
 }
 
 func mapProductToStoreResponse(p *domain.Product) dto.StoreProductResponse {
@@ -205,10 +228,17 @@ func mapOrderToResponse(o *domain.Order) dto.OrderResponse {
 		DiscountAmount:     o.DiscountAmount,
 		PaymentStatus:      o.PaymentStatus,
 		FulfillmentStatus:  o.FulfillmentStatus,
+		PaymentMethod:      o.PaymentMethod,
 		PaystackReference:  o.PaystackReference,
 		CreatedAt:          o.CreatedAt,
 		UpdatedAt:          o.UpdatedAt,
 		Items:              make([]dto.OrderItemResponse, 0, len(o.Items)),
+	}
+
+	// A wallet order never had a Paystack transaction; the reference stored for it
+	// only keeps the column unique, so it is not shown to anyone.
+	if o.PaymentMethod == domain.PaymentMethodWallet {
+		res.PaystackReference = ""
 	}
 
 	for _, item := range o.Items {
@@ -312,6 +342,16 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		return nil, errors.New("cannot create order with no items")
 	}
 
+	// Turn a wallet payment away before anything is priced or reserved.
+	if req.PayWithWallet {
+		if userID == nil || strings.TrimSpace(*userID) == "" {
+			return nil, ErrStoreWalletSignIn
+		}
+		if s.wallet == nil {
+			return nil, ErrStoreWalletUnavailable
+		}
+	}
+
 	orderItems, cartLines, totalAmount, err := s.priceCart(ctx, req.Items)
 	if err != nil {
 		return nil, err
@@ -342,7 +382,7 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 	orderRef := generateOrderReference()
 
 	// Naira -> kobo using math.Round so a 0.01 float drift can't cost a kobo.
-	paystackAmountKobo := int(math.Round(totalAmount * 100))
+	paystackAmountKobo := int(nairaToKobo(totalAmount))
 
 	// Fetch callback URL from configs
 	callbackURL := os.Getenv("PAYSTACK_STORE_CALLBACK_URL")
@@ -359,8 +399,20 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 	// booked as paid — the same treatment free tickets already get.
 	isFree := paystackAmountKobo <= 0
 
+	// A wallet payment skips Paystack altogether. A free order never needs one
+	// either, so the wallet is left alone for it.
+	useWallet := req.PayWithWallet && !isFree
+
+	paymentMethod := domain.PaymentMethodPaystack
+	switch {
+	case isFree:
+		paymentMethod = domain.PaymentMethodFree
+	case useWallet:
+		paymentMethod = domain.PaymentMethodWallet
+	}
+
 	var authorizationURL, accessCode string
-	if !isFree {
+	if !isFree && !useWallet {
 		// Initialize Paystack payment BEFORE reserving stock. If reservation later
 		// fails (race with concurrent buyers), the orphaned Paystack txn simply
 		// expires unused — no charge, no money lost.
@@ -403,6 +455,7 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		FulfillmentStatus:  "pending",
 		PaystackReference:  paystackRef,
 		PaystackAccessCode: accessCode,
+		PaymentMethod:      paymentMethod,
 		Items:              orderItems,
 	}
 
@@ -431,6 +484,18 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 			}
 		}
 		s.dispatchResendEmails(created)
+	}
+
+	// Stock and the code hold are reserved; now take the money. From here the order
+	// is either paid and confirmed, or fully undone.
+	if useWallet {
+		if err := s.payOrderFromWallet(ctx, *userID, created); err != nil {
+			return nil, err
+		}
+		return &dto.CheckoutResponse{
+			OrderReference: created.OrderReference,
+			Paid:           true,
+		}, nil
 	}
 
 	return &dto.CheckoutResponse{
@@ -485,13 +550,27 @@ func (s *StoreService) VerifyPayment(ctx context.Context, paystackRef string) (*
 		return nil, fmt.Errorf("payment mismatch: expected %d kobo, got %d kobo", expectedKobo, verification.Data.Amount)
 	}
 
+	return s.markOrderPaid(ctx, order)
+}
+
+// markOrderPaid is everything that follows a confirmed payment, whatever took the
+// money: the Paystack confirmation and the wallet checkout both end here, so the
+// status flip, code settlement, saved address, emails and the returned order are
+// identical for both.
+func (s *StoreService) markOrderPaid(ctx context.Context, order *domain.Order) (*dto.OrderResponse, error) {
 	// Stock was already deducted when the order was created. On successful
 	// payment we only flip the status; no stock movement here.
-	err = s.repo.UpdateOrderPaymentStatus(ctx, order.ID, "paid")
+	err := s.repo.UpdateOrderPaymentStatus(ctx, order.ID, "paid")
 	if err != nil {
 		return nil, fmt.Errorf("failed to update payment status: %w", err)
 	}
+	return s.afterOrderPaid(ctx, order), nil
+}
 
+// afterOrderPaid is everything that follows an order turning paid, whatever paid
+// for it: settling the code, saving the address and phone, the emails, and the
+// refreshed order to return. None of it can undo the payment.
+func (s *StoreService) afterOrderPaid(ctx context.Context, order *domain.Order) *dto.OrderResponse {
 	// Settle the code hold. Only 'reserved' rows move, so a webhook retry that
 	// re-runs this path is a no-op.
 	if err := s.discountRepo.ConfirmRedemption(ctx, &order.ID, nil); err != nil {
@@ -537,7 +616,89 @@ func (s *StoreService) VerifyPayment(ctx context.Context, paystackRef string) (*
 	}
 
 	res := mapOrderToResponse(order)
-	return &res, nil
+	return &res
+}
+
+// abandonOrder undoes a pending order that will never be paid: it is marked
+// failed, its stock goes back and the discount-code hold is handed back. The same
+// steps VerifyPayment takes when Paystack reports a failed payment.
+func (s *StoreService) abandonOrder(ctx context.Context, orderID string) {
+	if err := s.repo.MarkOrderFailedAndRestoreStock(ctx, orderID); err != nil {
+		fmt.Printf("⚠️ WARNING: Failed to mark order %s failed / restore stock: %s\n", orderID, err.Error())
+	}
+	if err := s.discountRepo.ReleaseRedemption(ctx, &orderID, nil); err != nil {
+		fmt.Printf("⚠️ WARNING: Failed to release discount on order %s: %s\n", orderID, err.Error())
+	}
+}
+
+// payOrderFromWallet takes a freshly created (pending, stock-reserved) order's
+// total from the buyer's wallet. The debit and the order turning paid are one
+// database transaction, so the buyer is never charged for an order that stays
+// unpaid. If it fails the order is abandoned: stock and the code hold go back.
+func (s *StoreService) payOrderFromWallet(ctx context.Context, userID string, order *domain.Order) error {
+	ref := order.OrderReference
+	err := s.repo.MarkOrderPaidFromWallet(ctx, order.ID, domain.LedgerEntry{
+		UserID:      userID,
+		AmountKobo:  -nairaToKobo(order.TotalAmount),
+		Type:        domain.LedgerPurchase,
+		Reference:   &ref,
+		Description: "Store order " + order.OrderReference,
+	})
+	if err != nil {
+		// Undo steps must still run if the buyer's request was cancelled mid-way.
+		// They only touch an order that is still pending, so an order that did
+		// commit as paid (an error on the way back) is left alone.
+		s.abandonOrder(context.WithoutCancel(ctx), order.ID)
+		return err
+	}
+	s.afterOrderPaid(ctx, order)
+	return nil
+}
+
+// paidVia names how an order was paid, for the admin order email.
+func paidVia(method string) string {
+	switch method {
+	case domain.PaymentMethodWallet:
+		return "from the buyer's Showtime wallet"
+	case domain.PaymentMethodFree:
+		return "in full by a discount (no payment taken)"
+	default:
+		return "on Paystack"
+	}
+}
+
+// staleWalletOrderAge is how long a wallet order may wait for its payment. A wallet
+// payment happens inside the checkout request itself, so an order still pending
+// this long is one whose server stopped between creating it and paying for it.
+const staleWalletOrderAge = 15 * time.Minute
+
+// AbandonStaleWalletOrders frees the stock and code hold of wallet orders that
+// were created but never paid. It only touches orders that are still pending, and
+// paying an order that has been abandoned fails cleanly, so it is safe to run at
+// any time. Card orders are left alone: their buyer may still pay at Paystack.
+func (s *StoreService) AbandonStaleWalletOrders(ctx context.Context) (int, error) {
+	ids, err := s.repo.ListStaleWalletOrderIDs(ctx, time.Now().Add(-staleWalletOrderAge), 100)
+	if err != nil {
+		return 0, err
+	}
+	for _, id := range ids {
+		s.abandonOrder(ctx, id)
+	}
+	return len(ids), nil
+}
+
+// sendWalletRefundEmail tells the buyer their money is back in the wallet.
+func (s *StoreService) sendWalletRefundEmail(order *domain.Order, refundedKobo int64) {
+	if s.emailService == nil || order.CustomerEmail == "" || refundedKobo <= 0 {
+		return
+	}
+	html := email.WalletRefundEmailHTML(order.CustomerName, "Your store order "+order.OrderReference, refundedKobo, order.OrderReference)
+	to, ref := order.CustomerEmail, order.OrderReference
+	_ = SubmitJob(func() {
+		if err := s.emailService.SendEmail(to, "Refund to your wallet - "+ref, html); err != nil {
+			fmt.Printf("⚠️ WARNING: Failed to send wallet refund email for order %s: %s\n", ref, err.Error())
+		}
+	})
 }
 
 func (s *StoreService) VerifyOrder(ctx context.Context, id string) (*dto.OrderResponse, error) {
@@ -637,7 +798,7 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 			</div>
 			
 			<div style="padding: 20px;">
-				<p style="color: #333; font-size: 15px; line-height: 1.5;">A new storefront purchase was successfully processed on Paystack and is awaiting fulfillment.</p>
+				<p style="color: #333; font-size: 15px; line-height: 1.5;">A new storefront purchase was paid %s and is awaiting fulfillment.</p>
 				
 				<table style="width: 100%%; border-collapse: collapse; margin-bottom: 25px;">
 					<tr style="background-color: #f8f9fa;">
@@ -689,7 +850,7 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 				</p>
 			</div>
 		</div>
-	`, order.OrderReference, order.CustomerName, order.CustomerEmail, order.CustomerEmail, order.CustomerPhone, order.TotalAmount, itemsHTML, order.CustomerName, order.ShippingAddress, order.ShippingCity, order.ShippingState, order.ShippingCountry, order.ShippingPostalCode)
+	`, paidVia(order.PaymentMethod), order.OrderReference, order.CustomerName, order.CustomerEmail, order.CustomerEmail, order.CustomerPhone, order.TotalAmount, itemsHTML, order.CustomerName, order.ShippingAddress, order.ShippingCity, order.ShippingState, order.ShippingCountry, order.ShippingPostalCode)
 
 	_ = SubmitJob(func() {
 		if err := s.emailService.SendEmail(adminEmail, fmt.Sprintf("🚨 NEW ORDER: %s Awaiting Fulfillment", order.OrderReference), adminHTML); err != nil {
@@ -1037,7 +1198,21 @@ func mapOptionsToDomain(opts []dto.ProductOptionDTO) []domain.ProductOption {
 }
 
 func (s *StoreService) CancelOrder(ctx context.Context, id string) (*dto.OrderResponse, error) {
-	if err := s.repo.CancelOrderAndRestoreStock(ctx, id); err != nil {
+	// Read the order first: whether it was paid from the wallet decides whether the
+	// money goes back. A card payment is never refunded here, as before.
+	before, err := s.repo.GetOrder(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if before.PaymentMethod == domain.PaymentMethodWallet {
+		// The cancel and the refund commit together, so an order can't end up
+		// cancelled with the money still out. Repeating it refunds nothing more.
+		refunded, err := s.repo.CancelOrderAndRefundWallet(ctx, id, "Refund: cancelled store order "+before.OrderReference)
+		if err != nil {
+			return nil, err
+		}
+		s.sendWalletRefundEmail(before, refunded)
+	} else if err := s.repo.CancelOrderAndRestoreStock(ctx, id); err != nil {
 		return nil, err
 	}
 	// Stock came back; the code use should too.

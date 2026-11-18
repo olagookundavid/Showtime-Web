@@ -61,6 +61,25 @@ const MyOrders = lazy(() =>
 const MyProfile = lazy(() =>
   import("./pages/account/MyProfile").then((m) => ({ default: m.MyProfile })),
 );
+const MyWallet = lazy(() =>
+  import("./pages/account/MyWallet").then((m) => ({ default: m.MyWallet })),
+);
+const Vouchers = lazy(() =>
+  import("./pages/vouchers/Vouchers").then((m) => ({ default: m.Vouchers })),
+);
+const VoucherPage = lazy(() =>
+  import("./pages/vouchers/VoucherPage").then((m) => ({
+    default: m.VoucherPage,
+  })),
+);
+const BarRedeem = lazy(() =>
+  import("./pages/bar/BarRedeem").then((m) => ({ default: m.BarRedeem })),
+);
+const WalletConfirm = lazy(() =>
+  import("./pages/wallet/WalletConfirm").then((m) => ({
+    default: m.WalletConfirm,
+  })),
+);
 const ProductReviews = lazy(() =>
   import("./pages/store/ProductReviews").then((m) => ({
     default: m.ProductReviews,
@@ -226,6 +245,8 @@ const TicketsRedirect = () => {
 };
 
 const AdminLeads = lazy(() => import("./pages/admin/AdminLeads"));
+const AdminWallets = lazy(() => import("./pages/admin/AdminWallets"));
+const AdminVouchers = lazy(() => import("./pages/admin/AdminVouchers"));
 const AdminTickets = lazy(() =>
   import("./pages/admin/AdminTickets").then((m) => ({
     default: m.AdminTickets,
@@ -524,6 +545,45 @@ function App() {
                       </Route>
                       <Route path="/store/orders" element={<MyOrders />} />
                       <Route path="/account" element={<MyProfile />} />
+                      <Route
+                        path="/account/wallet"
+                        element={
+                          <ProtectedRoute actionText="view your wallet">
+                            <MyWallet />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/wallet/confirm"
+                        element={
+                          <ProtectedRoute actionText="confirm your wallet top-up">
+                            <WalletConfirm />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/vouchers"
+                        element={
+                          <ProtectedRoute actionText="buy a voucher">
+                            <Vouchers />
+                          </ProtectedRoute>
+                        }
+                      />
+                      {/* Opens for anyone holding the code (the emailed link), signed in or not. */}
+                      <Route path="/vouchers/:code" element={<VoucherPage />} />
+                      {/* The bar screen: its own permission, no admin panel needed. */}
+                      <Route
+                        path="/bar"
+                        element={
+                          <ProtectedRoute
+                            requireRole={[]}
+                            orFeature="voucher_redeem"
+                            actionText="redeem vouchers"
+                          >
+                            <BarRedeem />
+                          </ProtectedRoute>
+                        }
+                      />
 
                       {/* Fantasy Flag Football */}
                       <Route element={<FantasyLayout />}>
@@ -851,6 +911,22 @@ function App() {
                         element={
                           <FeatureGuard feature="leads">
                             <AdminLeads />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="wallets"
+                        element={
+                          <FeatureGuard feature="wallets">
+                            <AdminWallets />
+                          </FeatureGuard>
+                        }
+                      />
+                      <Route
+                        path="vouchers"
+                        element={
+                          <FeatureGuard feature="vouchers">
+                            <AdminVouchers />
                           </FeatureGuard>
                         }
                       />

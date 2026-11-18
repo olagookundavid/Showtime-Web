@@ -1,7 +1,8 @@
 import type { User } from "../../contexts";
+import { accessFor } from "../../config/featureAccess";
 import { adminSectionsFor } from "../admin/adminNav";
 
-export type PortalKind = "app_admin" | "staff" | "team_head" | "player" | "seller" | "account";
+export type PortalKind = "app_admin" | "staff" | "team_head" | "player" | "seller" | "bar" | "account";
 
 export interface PortalLink {
   to: string;
@@ -33,6 +34,11 @@ export const portalLinkFor = (user: User | null | undefined): PortalLink | undef
   if (user.isStaff) {
     const first = adminSectionsFor(user)[0]?.links[0]?.path ?? "/admin";
     return { to: first, label: `${user.roleName} Portal`, kind: "staff" };
+  }
+
+  // Bar staff hold only the redeem permission: no admin panel, just the scan screen.
+  if (accessFor(user, "voucher_redeem") === "full") {
+    return { to: "/bar", label: "Bar Screen", kind: "bar" };
   }
 
   // A fan, or a role that holds no admin features: their only landing page is their profile.

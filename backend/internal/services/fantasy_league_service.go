@@ -43,6 +43,7 @@ type FantasyLeagueService struct {
 	payoutRepo     ports.IFantasyPayoutRepository
 	authRepo       ports.IAuthRepository
 	paystackClient *PaystackClient
+	wallet         WalletSpender
 }
 
 func NewFantasyLeagueService(
@@ -235,6 +236,9 @@ func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID,
 
 	// 4. Paid league checkout flow (Paystack)
 	if league.EntryFee > 0 {
+		if req.PayWithWallet {
+			return s.joinPaidLeagueWithWallet(ctx, league, team, userID)
+		}
 		user, err := s.authRepo.GetUserByID(ctx, userID)
 		if err != nil || user == nil {
 			return nil, errors.New("user profile not found")

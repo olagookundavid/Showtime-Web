@@ -700,7 +700,12 @@ export function DataTable<T extends Record<string, any>>({
                       colSpan={columns.length}
                       className="px-4 py-12 text-center text-gray-400 dark:text-gray-500"
                     >
-                      {emptyMessage}
+                      {/* The table scrolls sideways on a phone, so a centred message
+                          would sit off-screen. On small screens it sticks to the
+                          visible left edge and is about as wide as the screen. */}
+                      <div className="sticky left-0 w-[calc(100vw-5rem)] max-w-full md:w-auto">
+                        {emptyMessage}
+                      </div>
                     </td>
                   </tr>
                 )}

@@ -18,6 +18,13 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+var (
+	// ErrTicketWalletSignIn is returned when a guest asks to pay from a wallet.
+	ErrTicketWalletSignIn = errors.New("sign in to pay with your wallet")
+	// ErrTicketWalletUnavailable is returned when wallet payment is not set up.
+	ErrTicketWalletUnavailable = errors.New("wallet payment isn't available right now")
+)
+
 type ITicketService interface {
 	// Match days (event days)
 	CreateEventDay(ctx context.Context, req dto.CreateEventDayRequest) (*dto.EventDayResponse, error)
@@ -84,6 +91,9 @@ type TicketService struct {
 	email           ports.EmailService
 	discountService IDiscountService
 	discountRepo    ports.IDiscountRepository
+	// wallet is optional: when set, a signed-in buyer can pay from their spend
+	// wallet instead of Paystack.
+	wallet WalletSpender
 }
 
 func NewTicketService(
@@ -400,17 +410,18 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	pricing := PriceTicket(sel.dayPrices(), req.Quantity, rules)
 
 	return s.checkout(ctx, checkoutInput{
-		sel:          sel,
-		pricing:      pricing,
-		purchaseType: domain.PurchaseTypeGamePass,
-		productName:  sel.product.Name,
-		email:        req.Email,
-		name:         req.Name,
-		phone:        req.Phone,
-		quantity:     req.Quantity,
-		referralCode: req.ReferralCode,
-		callbackURL:  callbackURL,
-		userID:       userID,
+		sel:           sel,
+		pricing:       pricing,
+		purchaseType:  domain.PurchaseTypeGamePass,
+		productName:   sel.product.Name,
+		email:         req.Email,
+		name:          req.Name,
+		phone:         req.Phone,
+		quantity:      req.Quantity,
+		referralCode:  req.ReferralCode,
+		callbackURL:   callbackURL,
+		userID:        userID,
+		payWithWallet: req.PayWithWallet,
 	})
 }
 
@@ -430,6 +441,9 @@ type checkoutInput struct {
 	referralCode *string
 	callbackURL  string
 	userID       *string
+	// payWithWallet takes the money from the signed-in buyer's spend wallet
+	// instead of starting a Paystack payment.
+	payWithWallet bool
 }
 
 // checkout starts payment (or settles a free pass at once) and creates the
@@ -446,6 +460,18 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 		ReferralCode       *string
 	}{in.email, in.name, in.phone, in.quantity, in.referralCode}
 	callbackURL, userID := in.callbackURL, in.userID
+
+	// Paying from the wallet needs a signed-in buyer and a wallet to take it from.
+	// A free pass takes no money, so the choice changes nothing there.
+	walletPay := in.payWithWallet && totalAmount > 0
+	if in.payWithWallet {
+		if userID == nil || *userID == "" {
+			return nil, ErrTicketWalletSignIn
+		}
+		if s.wallet == nil {
+			return nil, ErrTicketWalletUnavailable
+		}
+	}
 
 	var referralCode *string
 	if req.ReferralCode != nil && *req.ReferralCode != "" {
@@ -470,9 +496,17 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 		paystackRef := &reference
 		var paystackAccessCode *string
 		ticketStatus := domain.TicketStatusPending
+		walletPaid := false
 
 		if totalAmount == 0 {
 			// A free ticket bypasses Paystack entirely.
+			ticketStatus = domain.TicketStatusPaid
+			authURL = ""
+		} else if walletPay {
+			// Paid from the wallet: the debit is written in the same database
+			// transaction as the ticket below, so it is created already paid, like
+			// a free one, and never reaches Paystack.
+			walletPaid = true
 			ticketStatus = domain.TicketStatusPaid
 			authURL = ""
 		} else {
@@ -519,7 +553,26 @@ func (s *TicketService) checkout(ctx context.Context, in checkoutInput) (*dto.Ti
 			Days:                    days,
 		}
 
-		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
+		var err error
+		if walletPaid {
+			// The ticket code is the ledger reference, so the wallet statement
+			// names the ticket the money paid for.
+			ref := code
+			err = s.ticketRepo.CreatePaidFromWallet(ctx, ticket, domain.LedgerEntry{
+				UserID:      *userID,
+				AmountKobo:  -int64(totalAmount) * 100,
+				Type:        domain.LedgerPurchase,
+				Reference:   &ref,
+				Description: "Ticket: " + in.productName,
+			})
+		} else {
+			err = s.ticketRepo.Create(ctx, ticket)
+		}
+		if err != nil {
+			// A short wallet: nothing was charged and no ticket exists.
+			if errors.Is(err, ports.ErrWalletInsufficient) {
+				return nil, err
+			}
 			// The code (or the reference made from it) is taken: draw another.
 			if strings.Contains(err.Error(), "tickets_ticket_code_key") || strings.Contains(err.Error(), "duplicate key value") {
 				lastErr = err
@@ -625,6 +678,12 @@ func (s *TicketService) OnTicketPaid(ctx context.Context, ticket *domain.Ticket)
 func (s *TicketService) addBuyerToMarketingList(ticket *domain.Ticket) {
 	first, last := splitFullName(ticket.Name)
 	addMarketingContact(s.contacts, ticket.Email, first, last)
+}
+
+// WithWallet turns on paying for tickets from the buyer's spend wallet.
+func (s *TicketService) WithWallet(w WalletSpender) *TicketService {
+	s.wallet = w
+	return s
 }
 
 // WithContactSyncer wires in the marketing list that buyers are added to.

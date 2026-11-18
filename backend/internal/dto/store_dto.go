@@ -123,6 +123,9 @@ type CheckoutRequest struct {
 	// Optional. An invalid or inapplicable code fails the checkout outright
 	// rather than being ignored, so nobody pays full price believing otherwise.
 	DiscountCode string `json:"discount_code"`
+	// PayWithWallet pays from the signed-in buyer's spend wallet instead of
+	// Paystack. Guests are turned away.
+	PayWithWallet bool `json:"pay_with_wallet"`
 }
 
 // CheckoutResponse represents initialized Paystack payment parameters
@@ -131,6 +134,9 @@ type CheckoutResponse struct {
 	PaystackURL        string `json:"paystack_url"`
 	PaystackRef        string `json:"paystack_ref"`
 	PaystackAccessCode string `json:"paystack_access_code"`
+	// Paid is true when the order is already confirmed (paid from the wallet), so
+	// there is nothing to send the buyer to Paystack for.
+	Paid bool `json:"paid"`
 }
 
 // OrderItemResponse represents e-commerce invoice line details.
@@ -163,6 +169,7 @@ type OrderResponse struct {
 	DiscountAmount     float64             `json:"discount_amount"`
 	PaymentStatus      string              `json:"payment_status"`
 	FulfillmentStatus  string              `json:"fulfillment_status"`
+	PaymentMethod      string              `json:"payment_method"`
 	PaystackReference  string              `json:"paystack_reference,omitempty"`
 	CreatedAt          time.Time           `json:"created_at"`
 	UpdatedAt          time.Time           `json:"updated_at"`

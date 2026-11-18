@@ -27,6 +27,18 @@ type IStoreRepository interface {
 	ListSavedAddresses(ctx context.Context, userID string) ([]domain.SavedAddress, error)
 	DeductStock(ctx context.Context, productID string, variantID *string, qty int) error
 	MarkOrderFailedAndRestoreStock(ctx context.Context, orderID string) error
+	// ListStaleWalletOrderIDs returns wallet orders still waiting for payment
+	// that were created before cutoff, oldest first.
+	ListStaleWalletOrderIDs(ctx context.Context, cutoff time.Time, limit int) ([]string, error)
+	// MarkOrderPaidFromWallet flips a pending order to paid and takes the money
+	// from the buyer's spend wallet in one transaction. A short wallet fails with
+	// ErrWalletInsufficient and an order that is no longer pending with
+	// ErrOrderNotPending; either way nothing changes.
+	MarkOrderPaidFromWallet(ctx context.Context, orderID string, debit domain.LedgerEntry) error
+	// CancelOrderAndRefundWallet is CancelOrderAndRestoreStock for an order paid
+	// from the wallet: the cancel and the refund of exactly what was paid commit
+	// together. Safe to repeat; it returns the kobo refunded by this call.
+	CancelOrderAndRefundWallet(ctx context.Context, orderID, description string) (refundedKobo int64, err error)
 	CancelOrderAndRestoreStock(ctx context.Context, orderID string) error
 	SaveProductVariants(ctx context.Context, productID string, variants []domain.ProductVariant) error
 	SaveProductImages(ctx context.Context, productID string, images []domain.ProductImage) error
@@ -242,20 +254,24 @@ func (r *StoreRepository) CreateOrder(ctx context.Context, order domain.Order) (
 		}
 	}
 
+	if order.PaymentMethod == "" {
+		order.PaymentMethod = domain.PaymentMethodPaystack
+	}
+
 	orderQuery := `
 		INSERT INTO online_orders (
 			order_reference, user_id, customer_name, customer_email, customer_phone,
 			shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
 			total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code,
-			discount_code, discount_amount
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+			discount_code, discount_amount, payment_method
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		RETURNING id, created_at, updated_at`
 
 	err = tx.QueryRow(ctx, orderQuery,
 		order.OrderReference, order.UserID, order.CustomerName, order.CustomerEmail, order.CustomerPhone,
 		order.ShippingCountry, order.ShippingState, order.ShippingCity, order.ShippingAddress, order.ShippingPostalCode,
 		order.TotalAmount, order.PaymentStatus, order.FulfillmentStatus, order.PaystackReference, order.PaystackAccessCode,
-		order.DiscountCode, order.DiscountAmount,
+		order.DiscountCode, order.DiscountAmount, order.PaymentMethod,
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)
 
 	if err != nil {
@@ -331,6 +347,101 @@ func (r *StoreRepository) restoreOrderStockTx(ctx context.Context, tx pgx.Tx, or
 	return nil
 }
 
+func (r *StoreRepository) ListStaleWalletOrderIDs(ctx context.Context, cutoff time.Time, limit int) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	rows, err := r.Db.Query(ctx, `
+		SELECT id FROM online_orders
+		WHERE payment_method = 'wallet' AND payment_status = 'pending' AND created_at < $1
+		ORDER BY created_at LIMIT $2`, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// ErrOrderNotPending is returned when an order can no longer be paid.
+var ErrOrderNotPending = errors.New("this order is no longer waiting for payment")
+
+func (r *StoreRepository) MarkOrderPaidFromWallet(ctx context.Context, orderID string, debit domain.LedgerEntry) error {
+	if debit.AmountKobo >= 0 {
+		return errors.New("a wallet order payment must be a debit")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.Db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE online_orders SET payment_status = 'paid', updated_at = NOW()
+		WHERE id = $1 AND payment_status = 'pending' AND fulfillment_status <> 'cancelled'`, orderID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrOrderNotPending
+	}
+	// The order row is locked by the update above; the wallet is locked last.
+	if _, err := applySpendEntry(ctx, tx, debit); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *StoreRepository) CancelOrderAndRefundWallet(ctx context.Context, orderID, description string) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.Db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	var fulfillmentStatus, paymentStatus, method, reference string
+	err = tx.QueryRow(ctx, `
+		SELECT fulfillment_status, payment_status, payment_method, order_reference
+		FROM online_orders WHERE id = $1 FOR UPDATE`, orderID,
+	).Scan(&fulfillmentStatus, &paymentStatus, &method, &reference)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, appErrors.ErrNotFound
+		}
+		return 0, err
+	}
+	if fulfillmentStatus != "cancelled" {
+		if err := r.restoreOrderStockTx(ctx, tx, orderID); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE online_orders SET fulfillment_status = 'cancelled', updated_at = NOW() WHERE id = $1`, orderID); err != nil {
+			return 0, err
+		}
+	}
+	// Only money the wallet actually paid goes back, and only once. Checked even
+	// on an order that was already cancelled, so nothing can be left unrefunded.
+	var refunded int64
+	if method == domain.PaymentMethodWallet && paymentStatus == "paid" {
+		if refunded, err = refundPurchaseTx(ctx, tx, reference, description); err != nil {
+			return 0, err
+		}
+	}
+	return refunded, tx.Commit(ctx)
+}
+
 // MarkOrderFailedAndRestoreStock transitions a pending order to failed and
 // returns its reserved stock. Idempotent: if the order is no longer pending,
 // it does nothing (so re-runs from verify retries or webhooks are safe).
@@ -404,14 +515,14 @@ func (r *StoreRepository) GetOrder(ctx context.Context, id string) (*domain.Orde
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method
 		FROM online_orders WHERE id = $1`
 
 	var o domain.Order
 	err := r.Db.QueryRow(ctx, query, id).Scan(
 		&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 		&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -431,14 +542,14 @@ func (r *StoreRepository) GetOrderByReference(ctx context.Context, reference str
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method
 		FROM online_orders WHERE order_reference = $1 OR paystack_reference = $1`
 
 	var o domain.Order
 	err := r.Db.QueryRow(ctx, query, reference).Scan(
 		&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 		&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -458,14 +569,14 @@ func (r *StoreRepository) GetOrderByPaystackRef(ctx context.Context, paystackRef
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method
 		FROM online_orders WHERE paystack_reference = $1`
 
 	var o domain.Order
 	err := r.Db.QueryRow(ctx, query, paystackRef).Scan(
 		&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 		&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+		&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -546,7 +657,7 @@ func (r *StoreRepository) ListOrders(ctx context.Context, page, limit int, userI
 
 	query := `SELECT id, order_reference, user_id, customer_name, customer_email, customer_phone,
 		shipping_country, shipping_state, shipping_city, shipping_address, shipping_postal_code,
-		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount ` + baseQuery +
+		total_amount, payment_status, fulfillment_status, paystack_reference, paystack_access_code, created_at, updated_at, discount_code, discount_amount, payment_method ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + fmt.Sprint(argIndex) + ` OFFSET $` + fmt.Sprint(argIndex+1)
 
 	args = append(args, limit, offset)
@@ -563,7 +674,7 @@ func (r *StoreRepository) ListOrders(ctx context.Context, page, limit int, userI
 		err := rows.Scan(
 			&o.ID, &o.OrderReference, &o.UserID, &o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 			&o.ShippingCountry, &o.ShippingState, &o.ShippingCity, &o.ShippingAddress, &o.ShippingPostalCode,
-			&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount,
+			&o.TotalAmount, &o.PaymentStatus, &o.FulfillmentStatus, &o.PaystackReference, &o.PaystackAccessCode, &o.CreatedAt, &o.UpdatedAt, &o.DiscountCode, &o.DiscountAmount, &o.PaymentMethod,
 		)
 		if err != nil {
 			return nil, 0, err

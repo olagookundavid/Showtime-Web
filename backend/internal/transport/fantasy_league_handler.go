@@ -1,12 +1,14 @@
 package transport
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
 
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -204,6 +206,11 @@ func (h *FantasyLeagueHandler) JoinLeague(c *gin.Context) {
 
 	res, err := h.service.JoinLeague(c.Request.Context(), payload.UserId, seasonID, callbackURL, req)
 	if err != nil {
+		// A wallet that is too low carries a code so the page can offer a top-up.
+		if errors.Is(err, ports.ErrWalletInsufficient) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "INSUFFICIENT_BALANCE"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

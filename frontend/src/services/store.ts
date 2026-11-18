@@ -1,4 +1,5 @@
 import api from "./client";
+import { withIdempotencyKey } from "./idempotency";
 import type {
   StoreProduct,
   CheckoutPayload,
@@ -28,10 +29,12 @@ export const getStoreProduct = async (id: string): Promise<StoreProduct> => {
 
 export const initializeCheckout = async (
   payload: CheckoutPayload,
+  idempotencyKey?: string,
 ): Promise<CheckoutResponseData> => {
   const response = await api.post<{ data: CheckoutResponseData }>(
     "/store/checkout",
     payload,
+    withIdempotencyKey(idempotencyKey),
   );
   return response.data.data;
 };

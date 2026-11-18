@@ -1,4 +1,5 @@
 import api from './client';
+import { withIdempotencyKey } from "./idempotency";
 import type {
   EventDayResponse,
   TicketProductResponse,
@@ -76,8 +77,13 @@ export const quoteTicketPrice = async (
 // Ticket endpoints
 export const purchaseTicket = async (
   payload: PurchaseTicketPayload,
+  idempotencyKey?: string,
 ): Promise<TicketResponse> => {
-  const response = await api.post<TicketResponse>("/tickets/purchase", payload);
+  const response = await api.post<TicketResponse>(
+    "/tickets/purchase",
+    payload,
+    withIdempotencyKey(idempotencyKey),
+  );
   return response.data;
 };
 
@@ -290,10 +296,12 @@ export const getSeasonPassById = async (
 
 export const purchaseSeasonPass = async (
   payload: PurchaseSeasonPassPayload,
+  idempotencyKey?: string,
 ): Promise<TicketResponse> => {
   const response = await api.post<TicketResponse>(
     "/tickets/season-pass",
     payload,
+    withIdempotencyKey(idempotencyKey),
   );
   return response.data;
 };

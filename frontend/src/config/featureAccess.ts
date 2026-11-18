@@ -34,6 +34,7 @@ export type FeatureKey =
   | "tickets"
   | "referrals"
   | "leads"
+  | "wallets"
   | "event_days"
   | "store"
   | "inventory"
@@ -48,6 +49,8 @@ export type FeatureKey =
   | "season_mvps"
   | "app_settings"
   | "seller_tools"
+  | "vouchers"
+  | "voucher_redeem"
   | "administrator_tools";
 
 type AccessUser = Pick<User, "role" | "permissions"> | null | undefined;

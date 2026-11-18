@@ -20,7 +20,7 @@ import (
 )
 
 // Paystack sends every event for the account to the one webhook URL set on its
-// dashboard. Tickets, store orders and fantasy league fees each had their own
+// dashboard. Tickets, store orders, fantasy league fees and wallet top-ups each had their own
 // endpoint, so whichever one the dashboard named, the other two never heard about
 // a payment. This one handler takes any of them and hands the payment to whichever
 // part of the app its reference belongs to. Every old webhook path is served by it
@@ -47,6 +47,12 @@ type (
 	leaguePaymentConfirmer interface {
 		LeagueWebhook(ctx context.Context, payload []byte, signature string) error
 	}
+	walletPayments interface {
+		GetTopupByReference(ctx context.Context, reference string) (*domain.Topup, error)
+	}
+	walletPaymentConfirmer interface {
+		HandleWebhook(ctx context.Context, reference string) error
+	}
 )
 
 type PaystackWebhookHandler struct {
@@ -57,6 +63,8 @@ type PaystackWebhookHandler struct {
 	confirmOrder storePaymentConfirmer
 	members      leaguePayments
 	confirmFee   leaguePaymentConfirmer
+	topups       walletPayments
+	confirmTopup walletPaymentConfirmer
 }
 
 func NewPaystackWebhookHandler(
@@ -64,18 +72,20 @@ func NewPaystackWebhookHandler(
 	tickets ticketPayments, confirmTkt ticketPaymentConfirmer,
 	orders storePayments, confirmOrder storePaymentConfirmer,
 	members leaguePayments, confirmFee leaguePaymentConfirmer,
+	topups walletPayments, confirmTopup walletPaymentConfirmer,
 ) *PaystackWebhookHandler {
 	return &PaystackWebhookHandler{
 		secret: secret, tickets: tickets, confirmTkt: confirmTkt,
 		orders: orders, confirmOrder: confirmOrder, members: members, confirmFee: confirmFee,
+		topups: topups, confirmTopup: confirmTopup,
 	}
 }
 
 // errUnknownReference is a payment none of the app's parts recognise.
-var errUnknownReference = errors.New("no ticket, order or league fee has this reference")
+var errUnknownReference = errors.New("no ticket, order, league fee or wallet top-up has this reference")
 
 // Webhook godoc
-// @Summary Paystack webhook for every payment (tickets, store orders, fantasy league fees)
+// @Summary Paystack webhook for every payment (tickets, store orders, fantasy league fees, wallet top-ups)
 // @Tags payments
 // @Accept json
 // @Success 200
@@ -151,6 +161,14 @@ func (h *PaystackWebhookHandler) route(ctx context.Context, reference string, bo
 	}
 	if member != nil {
 		return h.confirmFee.LeagueWebhook(ctx, body, signature)
+	}
+
+	topup, err := h.topups.GetTopupByReference(ctx, reference)
+	if err != nil {
+		return fmt.Errorf("looking up the wallet top-up: %w", err)
+	}
+	if topup != nil {
+		return h.confirmTopup.HandleWebhook(ctx, reference)
 	}
 	return errUnknownReference
 }

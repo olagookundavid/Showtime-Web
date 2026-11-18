@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BanknotesIcon, BellIcon, DocumentTextIcon, SwatchIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon, BellIcon, DocumentTextIcon, SwatchIcon, WalletIcon } from '@heroicons/react/24/outline';
 import {
     AppearanceSettings,
     ContractSettingsPanel,
@@ -10,11 +10,12 @@ import {
     Spinner,
     Tabs,
     Button,
+    WalletSettingsPanel,
 } from '../../components';
 import { appSettingsApi } from '../../services';
 import type { AdminSettings as AdminSettingsData } from '../../types';
 
-type Tab = 'appearance' | 'contracts' | 'notifications' | 'fantasy';
+type Tab = 'appearance' | 'contracts' | 'notifications' | 'fantasy' | 'wallet';
 
 const SETTINGS_KEY = ['admin-settings'] as const;
 
@@ -33,7 +34,7 @@ export const AdminSettings = () => {
         <div className="space-y-6 pb-mobile-nav-2x">
             <DashboardPageHeader
                 title="App Settings"
-                subtitle="Site-wide choices: how the app looks, how long contracts run, who gets contract emails, and the fantasy platform cut."
+                subtitle="Site-wide choices: how the app looks, how long contracts run, who gets contract emails, the fantasy platform cut, and wallet top-up limits."
             />
 
             <Tabs
@@ -43,6 +44,7 @@ export const AdminSettings = () => {
                     { value: 'contracts', label: 'Contracts', icon: DocumentTextIcon },
                     { value: 'notifications', label: 'Notifications', icon: BellIcon },
                     { value: 'fantasy', label: 'Fantasy', icon: BanknotesIcon },
+                    { value: 'wallet', label: 'Wallet', icon: WalletIcon },
                 ]}
                 value={tab}
                 onChange={setTab}
@@ -64,6 +66,7 @@ export const AdminSettings = () => {
             {data && tab === 'contracts' && <ContractSettingsPanel settings={data.contracts} onSaved={onSaved} />}
             {data && tab === 'notifications' && <NotificationSettingsPanel settings={data.notifications} onSaved={onSaved} />}
             {data && tab === 'fantasy' && <FantasySettingsPanel settings={data.fantasy} onSaved={onSaved} />}
+            {data && tab === 'wallet' && <WalletSettingsPanel settings={data.wallet} onSaved={onSaved} />}
         </div>
     );
 };

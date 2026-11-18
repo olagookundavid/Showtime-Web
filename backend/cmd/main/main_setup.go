@@ -16,6 +16,7 @@ import (
 	"showtime-backend/config"
 	"showtime-backend/internal/broadcast"
 	"showtime-backend/internal/handlers"
+	"showtime-backend/internal/middlewares"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 	"showtime-backend/internal/storage"
@@ -375,6 +376,19 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return app.FantasyService.AutoScoreAndFinalizeMatchDays(ctx)
 	})
 
+	// Every 10 minutes, free the stock held by wallet orders whose payment never
+	// happened (the server stopped between creating the order and paying for it).
+	add("*/10 * * * *", "Stale wallet orders", func(ctx context.Context) error {
+		if app.Handlers.StaleOrders == nil {
+			return nil
+		}
+		n, err := app.Handlers.StaleOrders.AbandonStaleWalletOrders(ctx)
+		if n > 0 {
+			app.Logger.Info(fmt.Sprintf("Released %d unpaid wallet order(s)", n), nil)
+		}
+		return err
+	})
+
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
 
@@ -623,12 +637,34 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	h.AuditHandler = transport.NewAuditHandler(auditService)
 	h.LeadHandler = transport.NewLeadHandler(
 		services.NewLeadService(ports.NewLeadRepository(pool)).WithContactSyncer(emailService))
+	// The spend wallet: top-ups through Paystack, spent on vouchers and more.
+	walletRepo := ports.NewWalletRepository(pool)
+	walletService := services.NewWalletService(walletRepo, paystackClient, authRepo, appSettingRepo).
+		WithEmail(emailService)
+	h.WalletHandler = transport.NewWalletHandler(walletService)
+	ticketService.WithWallet(walletService) // tickets can be paid from the wallet
+	// Fantasy league entry fees can be paid from the wallet. The league service was
+	// built earlier, but it is a pointer, so the handler already holds this instance.
+	if ls, ok := fantasyLeagueService.(*services.FantasyLeagueService); ok {
+		ls.WithWallet(walletService)
+	}
+	// Store orders can be paid from the wallet too (same pointer trick).
+	if ss, ok := storeService.(*services.StoreService); ok {
+		ss.WithWallet(walletService)
+		h.StaleOrders = ss
+	}
+
+	voucherRepo := ports.NewVoucherRepository(pool)
+	voucherService := services.NewVoucherService(voucherRepo, authRepo, walletService).WithEmail(emailService)
+	h.VoucherHandler = transport.NewVoucherHandler(voucherService)
+	h.Idempotency = middlewares.Idempotency(ports.NewIdempotencyRepository(pool))
 	// One Paystack webhook for every kind of payment: Paystack calls a single URL.
 	h.PaystackWebhookHandler = transport.NewPaystackWebhookHandler(
 		paystackClient.GetSecretKey,
 		ticketRepo, ticketService,
 		storeRepo, storeService,
 		fantasyLeagueRepo, fantasyLeagueService,
+		walletRepo, walletService,
 	)
 	return h, auditService, authService, roleService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub, siteEventsService, matchService
 }

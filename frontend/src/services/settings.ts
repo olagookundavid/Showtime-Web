@@ -6,6 +6,7 @@ import type {
   FantasySettings,
   NotificationSettingsPayload,
   SettingsUser,
+  WalletSettings,
 } from "../types";
 
 // Site-wide display settings. The read is public (every visitor needs the app
@@ -37,6 +38,10 @@ export const appSettingsApi = {
   },
   saveFantasy: async (data: FantasySettings): Promise<AdminSettings> => {
     const res = await api.put<AdminSettings>("/admin/app-settings/fantasy", data);
+    return res.data;
+  },
+  saveWallet: async (data: WalletSettings): Promise<AdminSettings> => {
+    const res = await api.put<AdminSettings>("/admin/app-settings/wallet", data);
     return res.data;
   },
   /** Staff who could be chosen to receive the league summary. */

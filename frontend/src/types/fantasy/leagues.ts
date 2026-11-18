@@ -20,6 +20,9 @@ export interface JoinLeagueResponse {
     paystack_url?: string;
     paystack_ref?: string;
     paystack_access_code?: string;
+    // True when the fee came out of the spend wallet: the entry is already
+    // confirmed and there is no Paystack step.
+    paid_from_wallet?: boolean;
 }
 
 // my_rank is the signed-in viewer's own position, 0 when anonymous or not in

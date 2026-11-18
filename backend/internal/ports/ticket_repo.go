@@ -65,6 +65,11 @@ type TicketRepository interface {
 	// in one transaction. Each TicketDay needs EventDayID, ProductDayID and
 	// UnitPrice set.
 	Create(ctx context.Context, ticket *domain.Ticket) error
+	// CreatePaidFromWallet is Create for a ticket paid from the buyer's spend
+	// wallet: the debit is written in the same transaction as the seats and the
+	// ticket, so the buyer is never charged without a ticket or ticketed without
+	// paying. A short wallet fails with ErrWalletInsufficient and changes nothing.
+	CreatePaidFromWallet(ctx context.Context, ticket *domain.Ticket, debit domain.LedgerEntry) error
 	GetByID(ctx context.Context, id string) (*domain.Ticket, error)
 	GetByReference(ctx context.Context, reference string) (*domain.Ticket, error)
 	GetByCode(ctx context.Context, code string) (*domain.Ticket, error)
@@ -710,6 +715,21 @@ func loadTicketDays(ctx context.Context, db interface {
 }
 
 func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ticket) error {
+	return r.create(ctx, ticket, nil)
+}
+
+func (r *PostgresTicketRepository) CreatePaidFromWallet(ctx context.Context, ticket *domain.Ticket, debit domain.LedgerEntry) error {
+	if debit.AmountKobo >= 0 {
+		return fmt.Errorf("a wallet ticket payment must be a debit")
+	}
+	return r.create(ctx, ticket, &debit)
+}
+
+// create reserves seats and inserts the ticket in one transaction. With a debit,
+// the wallet is charged in that same transaction, last, after the seat rows are
+// locked: every path that locks a spend wallet takes it after its other locks,
+// so the lock order is the same everywhere and cannot deadlock.
+func (r *PostgresTicketRepository) create(ctx context.Context, ticket *domain.Ticket, debit *domain.LedgerEntry) error {
 	// A season pass has no match days (it is valid until its end date), so it takes
 	// no seats. Every other ticket must cover at least one day.
 	if len(ticket.Days) == 0 && ticket.SeasonPassID == nil {
@@ -765,6 +785,12 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 	// never takes one without the other.
 	if ticket.DiscountCodeID != nil && *ticket.DiscountCodeID != "" {
 		if err := reserveDiscountTx(ctx, tx, *ticket.DiscountCodeID, ticket.Email, ticket.UserID, nil, &ticket.ID, float64(ticket.DiscountAmount)); err != nil {
+			return err
+		}
+	}
+
+	if debit != nil {
+		if _, err := applySpendEntry(ctx, tx, *debit); err != nil {
 			return err
 		}
 	}

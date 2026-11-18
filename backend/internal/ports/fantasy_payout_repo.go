@@ -16,6 +16,15 @@ import (
 // ErrInsufficientBalance is returned when a withdrawal exceeds the wallet.
 var ErrInsufficientBalance = errors.New("your wallet balance is not enough for this payout")
 
+// ErrTransferInsufficient is returned when a transfer to the spend wallet is
+// more than the prize wallet holds. Money already held by open payout requests
+// has left the balance, so it can never be moved a second time.
+var ErrTransferInsufficient = errors.New("your prize balance is not enough for this transfer")
+
+// ErrSpendWalletFull is returned when a transfer would take the spend wallet
+// over its maximum balance.
+var ErrSpendWalletFull = errors.New("this transfer would take your spend wallet over its maximum balance")
+
 // ErrAlreadySettled is returned when a league's prizes have already been paid.
 var ErrAlreadySettled = errors.New("this league has already been settled")
 
@@ -26,6 +35,13 @@ type IFantasyPayoutRepository interface {
 	// CreditWallet books a credit and its ledger row atomically. Used for
 	// prize money and for manual admin adjustments.
 	CreditWallet(ctx context.Context, tx domain.WalletTransaction) error
+
+	// TransferToSpendWallet moves prize money into the spend wallet, one-way, in a
+	// single transaction: it locks the prize wallet and then the spend wallet,
+	// checks the balance and the spend wallet's cap, debits the prize wallet and
+	// credits the spend wallet, both with the same reference. Nothing is written
+	// unless all of it is. Fails with ErrTransferInsufficient or ErrSpendWalletFull.
+	TransferToSpendWallet(ctx context.Context, userID string, amountKobo int64, reference string, maxSpendBalanceKobo int64) (*domain.WalletTransferResult, error)
 
 	// Payout requests
 	// CreatePayoutRequest debits the wallet and records the request in one
@@ -177,9 +193,9 @@ func (r *FantasyPayoutRepository) CreditWallet(ctx context.Context, wt domain.Wa
 func applyWalletDelta(ctx context.Context, tx pgx.Tx, wt domain.WalletTransaction) error {
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO fantasy_wallet_transactions
-			(user_id, amount_kobo, type, league_id, payout_request_id, description, created_by_user_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, wt.UserID, wt.AmountKobo, wt.Type, wt.LeagueID, wt.PayoutRequestID, wt.Description, wt.CreatedByUserID); err != nil {
+			(user_id, amount_kobo, type, league_id, payout_request_id, description, created_by_user_id, reference)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, wt.UserID, wt.AmountKobo, wt.Type, wt.LeagueID, wt.PayoutRequestID, wt.Description, wt.CreatedByUserID, wt.Reference); err != nil {
 		return fmt.Errorf("failed to record wallet transaction: %w", err)
 	}
 
@@ -191,6 +207,81 @@ func applyWalletDelta(ctx context.Context, tx pgx.Tx, wt domain.WalletTransactio
 		return fmt.Errorf("failed to update wallet balance: %w", err)
 	}
 	return nil
+}
+
+// TransferToSpendWallet is the only place the two wallets are locked together.
+// The order is always prize wallet first, then spend wallet. Nothing in the repo
+// takes the spend wallet and then asks for a prize wallet (vouchers, top-ups and
+// the wallet's own Apply/ApplyOnce touch only the spend wallet), so two
+// transactions can never wait on each other.
+func (r *FantasyPayoutRepository) TransferToSpendWallet(ctx context.Context, userID string, amountKobo int64, reference string, maxSpendBalanceKobo int64) (*domain.WalletTransferResult, error) {
+	if amountKobo <= 0 {
+		return nil, errors.New("a transfer must be a positive amount")
+	}
+	if reference == "" {
+		return nil, errors.New("a transfer needs a reference")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	prize, err := lockWallet(ctx, tx, userID)
+	if err != nil {
+		return nil, err
+	}
+	// Payout requests debit the wallet the moment they are raised, so the locked
+	// balance is already net of anything held for a pending payout.
+	if prize < amountKobo {
+		return nil, ErrTransferInsufficient
+	}
+
+	// The spend wallet's row lock is held from here to commit, so the cap check
+	// cannot race with a top-up, a refund or another transfer landing on it.
+	spend, err := lockSpendWallet(ctx, tx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if maxSpendBalanceKobo > 0 && spend+amountKobo > maxSpendBalanceKobo {
+		return nil, ErrSpendWalletFull
+	}
+
+	ref := reference
+	if err := applyWalletDelta(ctx, tx, domain.WalletTransaction{
+		UserID:          userID,
+		AmountKobo:      -amountKobo,
+		Type:            domain.WalletTransfer,
+		Reference:       &ref,
+		Description:     "Moved to spend wallet",
+		CreatedByUserID: &userID,
+	}); err != nil {
+		return nil, err
+	}
+	entry, err := applySpendEntry(ctx, tx, domain.LedgerEntry{
+		UserID:          userID,
+		AmountKobo:      amountKobo,
+		Type:            domain.LedgerFantasyTransfer,
+		Reference:       &ref,
+		Description:     "From Fantasy winnings",
+		CreatedByUserID: &userID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return &domain.WalletTransferResult{
+		Reference:        reference,
+		AmountKobo:       amountKobo,
+		PrizeBalanceKobo: prize - amountKobo,
+		SpendBalanceKobo: entry.BalanceAfterKobo,
+	}, nil
 }
 
 // ─── Payout requests ──────────────────────────────────────────────────────────
