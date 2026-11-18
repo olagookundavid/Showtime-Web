@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
@@ -167,6 +168,16 @@ func (r *storeFakeRepo) CancelOrderAndRefundWallet(ctx context.Context, id, _ st
 	r.balance += back
 	r.refunds = append(r.refunds, back)
 	return back, nil
+}
+
+func (r *storeFakeRepo) ListStaleWalletOrderIDs(_ context.Context, _ time.Time, _ int) ([]string, error) {
+	var ids []string
+	for id, o := range r.orders {
+		if o.PaymentMethod == domain.PaymentMethodWallet && o.PaymentStatus == "pending" {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }
 
 func (r *storeFakeRepo) ListSavedAddresses(_ context.Context, _ string) ([]domain.SavedAddress, error) {
@@ -396,5 +407,39 @@ func TestCancellingAnUnpaidWalletOrderDoesNotRefund(t *testing.T) {
 	}
 	if len(rig.repo.refunds) != 0 || rig.repo.balance != 0 {
 		t.Fatal("nothing was paid, so nothing may come back")
+	}
+}
+
+// A server that stopped between creating a wallet order and paying for it leaves
+// the stock reserved. The cleanup frees it, and leaves paid and card orders alone.
+func TestStaleWalletOrdersAreAbandonedAndOthersLeftAlone(t *testing.T) {
+	rig := newStoreWalletRig(t, 1000, 10)
+	ctx := context.Background()
+	item := []domain.OrderItem{{ProductID: "prod-1", Quantity: 2}}
+
+	// Left pending by a crash.
+	stuck, _ := rig.repo.CreateOrder(ctx, domain.Order{PaymentStatus: "pending", PaymentMethod: domain.PaymentMethodWallet, Items: item})
+	rig.repo.orders[stuck.ID].ID = "stuck"
+	rig.repo.orders["stuck"] = rig.repo.orders[stuck.ID]
+	delete(rig.repo.orders, stuck.ID)
+	// A card order still waiting for its Paystack payment.
+	rig.repo.orders["card"] = &domain.Order{ID: "card", PaymentStatus: "pending", PaymentMethod: domain.PaymentMethodPaystack, Items: item}
+	rig.repo.product.Quantity -= 2
+	// A paid wallet order.
+	rig.repo.orders["done"] = &domain.Order{ID: "done", PaymentStatus: "paid", PaymentMethod: domain.PaymentMethodWallet, Items: item}
+	rig.repo.product.Quantity -= 2
+
+	n, err := rig.svc.AbandonStaleWalletOrders(ctx)
+	if err != nil || n != 1 {
+		t.Fatalf("abandoned %d (err %v), want 1", n, err)
+	}
+	if rig.repo.orders["stuck"].PaymentStatus != "failed" {
+		t.Fatalf("the stuck order should be failed, got %q", rig.repo.orders["stuck"].PaymentStatus)
+	}
+	if rig.repo.orders["card"].PaymentStatus != "pending" || rig.repo.orders["done"].PaymentStatus != "paid" {
+		t.Fatal("card and paid orders must be left alone")
+	}
+	if rig.repo.product.Quantity != 10-2-2 {
+		t.Fatalf("only the stuck order's 2 units should come back, stock = %d", rig.repo.product.Quantity)
 	}
 }

@@ -93,7 +93,7 @@ export const LedgerTable = ({ entries, loading }: LedgerTableProps) => {
       loading={loading}
       searchable={false}
       getRowId={(e) => e.id}
-      emptyMessage="Nothing in this wallet yet."
+      emptyMessage="Nothing in your wallet yet. Add money and every top-up and payment will show here."
     />
   );
 };

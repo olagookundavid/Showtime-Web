@@ -99,6 +99,12 @@ export const AdminOrderDetail = () => {
         order.payment_status === 'failed' ? 'text-red-600' :
         'text-amber-600';
 
+    const paidFromWallet = order.payment_method === 'wallet';
+    const paymentMethodLabel =
+        order.payment_method === 'wallet' ? 'Showtime wallet'
+        : order.payment_method === 'free' ? 'Covered by a discount'
+        : 'Paystack';
+
     const summary = (
         <ConfirmSummary rows={[
             ['Order', order.order_reference],
@@ -130,7 +136,9 @@ export const AdminOrderDetail = () => {
             case 'cancel':
                 return {
                     title: 'Cancel this order and restore its stock?',
-                    description: 'This cannot be undone. If the customer was already charged, you must process a refund manually via Paystack.',
+                    description: paidFromWallet
+                        ? 'This cannot be undone. The customer paid from their Showtime wallet, so what they paid goes back to their wallet automatically.'
+                        : 'This cannot be undone. If the customer was already charged, you must process a refund manually via Paystack.',
                     confirmLabel: 'Cancel Order',
                     tone: 'warning' as const,
                     icon: XCircleIcon,
@@ -242,6 +250,10 @@ export const AdminOrderDetail = () => {
                                 <span className={`font-black uppercase ${paymentClass}`}>{order.payment_status}</span>
                             </div>
                             <div className="flex justify-between gap-3">
+                                <span className="text-gray-500 font-bold">Paid with</span>
+                                <span className="font-bold text-sffl-navy dark:text-white">{paymentMethodLabel}</span>
+                            </div>
+                            <div className="flex justify-between gap-3">
                                 <span className="text-gray-500 font-bold">Amount</span>
                                 <span className="font-bold text-sffl-navy dark:text-white">₦{order.total_amount.toLocaleString()}</span>
                             </div>
@@ -257,7 +269,7 @@ export const AdminOrderDetail = () => {
                     <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-lg space-y-3">
                         <h2 className="text-[11px] font-black uppercase tracking-wider text-sffl-red">Actions</h2>
 
-                        {order.payment_status !== 'paid' && (
+                        {order.payment_status !== 'paid' && !paidFromWallet && (
                             <Button
                                 variant="secondary"
                                 icon={ArrowPathIcon}

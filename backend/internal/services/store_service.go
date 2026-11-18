@@ -14,6 +14,7 @@ import (
 	"showtime-backend/internal/richtext"
 	"showtime-backend/pkg/email"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -664,6 +665,26 @@ func paidVia(method string) string {
 	default:
 		return "on Paystack"
 	}
+}
+
+// staleWalletOrderAge is how long a wallet order may wait for its payment. A wallet
+// payment happens inside the checkout request itself, so an order still pending
+// this long is one whose server stopped between creating it and paying for it.
+const staleWalletOrderAge = 15 * time.Minute
+
+// AbandonStaleWalletOrders frees the stock and code hold of wallet orders that
+// were created but never paid. It only touches orders that are still pending, and
+// paying an order that has been abandoned fails cleanly, so it is safe to run at
+// any time. Card orders are left alone: their buyer may still pay at Paystack.
+func (s *StoreService) AbandonStaleWalletOrders(ctx context.Context) (int, error) {
+	ids, err := s.repo.ListStaleWalletOrderIDs(ctx, time.Now().Add(-staleWalletOrderAge), 100)
+	if err != nil {
+		return 0, err
+	}
+	for _, id := range ids {
+		s.abandonOrder(ctx, id)
+	}
+	return len(ids), nil
 }
 
 // sendWalletRefundEmail tells the buyer their money is back in the wallet.

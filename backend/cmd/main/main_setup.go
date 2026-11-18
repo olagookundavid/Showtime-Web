@@ -376,6 +376,19 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return app.FantasyService.AutoScoreAndFinalizeMatchDays(ctx)
 	})
 
+	// Every 10 minutes, free the stock held by wallet orders whose payment never
+	// happened (the server stopped between creating the order and paying for it).
+	add("*/10 * * * *", "Stale wallet orders", func(ctx context.Context) error {
+		if app.Handlers.StaleOrders == nil {
+			return nil
+		}
+		n, err := app.Handlers.StaleOrders.AbandonStaleWalletOrders(ctx)
+		if n > 0 {
+			app.Logger.Info(fmt.Sprintf("Released %d unpaid wallet order(s)", n), nil)
+		}
+		return err
+	})
+
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
 
@@ -638,6 +651,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	// Store orders can be paid from the wallet too (same pointer trick).
 	if ss, ok := storeService.(*services.StoreService); ok {
 		ss.WithWallet(walletService)
+		h.StaleOrders = ss
 	}
 
 	voucherRepo := ports.NewVoucherRepository(pool)

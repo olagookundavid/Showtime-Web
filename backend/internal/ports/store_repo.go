@@ -27,6 +27,9 @@ type IStoreRepository interface {
 	ListSavedAddresses(ctx context.Context, userID string) ([]domain.SavedAddress, error)
 	DeductStock(ctx context.Context, productID string, variantID *string, qty int) error
 	MarkOrderFailedAndRestoreStock(ctx context.Context, orderID string) error
+	// ListStaleWalletOrderIDs returns wallet orders still waiting for payment
+	// that were created before cutoff, oldest first.
+	ListStaleWalletOrderIDs(ctx context.Context, cutoff time.Time, limit int) ([]string, error)
 	// MarkOrderPaidFromWallet flips a pending order to paid and takes the money
 	// from the buyer's spend wallet in one transaction. A short wallet fails with
 	// ErrWalletInsufficient and an order that is no longer pending with
@@ -342,6 +345,29 @@ func (r *StoreRepository) restoreOrderStockTx(ctx context.Context, tx pgx.Tx, or
 		}
 	}
 	return nil
+}
+
+func (r *StoreRepository) ListStaleWalletOrderIDs(ctx context.Context, cutoff time.Time, limit int) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	rows, err := r.Db.Query(ctx, `
+		SELECT id FROM online_orders
+		WHERE payment_method = 'wallet' AND payment_status = 'pending' AND created_at < $1
+		ORDER BY created_at LIMIT $2`, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // ErrOrderNotPending is returned when an order can no longer be paid.

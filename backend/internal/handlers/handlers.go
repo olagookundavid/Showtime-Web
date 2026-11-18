@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 
 	"showtime-backend/internal/broadcast"
@@ -26,7 +28,11 @@ type Handlers struct {
 	VoucherHandler              transport.IVoucherHandler
 	// Idempotency makes money-moving requests that carry an Idempotency-Key
 	// happen once (middlewares.Idempotency). Place it after the token middleware.
-	Idempotency            gin.HandlerFunc
+	Idempotency gin.HandlerFunc
+	// StaleOrders cleans up store orders left unpaid by a crash (see cronjobs).
+	StaleOrders interface {
+		AbandonStaleWalletOrders(ctx context.Context) (int, error)
+	}
 	StatsHandler           transport.IStatsHandler
 	InventoryHandler       transport.IInventoryHandler
 	UploadHandler          transport.IUploadHandler

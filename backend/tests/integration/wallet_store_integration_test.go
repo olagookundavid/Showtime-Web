@@ -366,3 +366,43 @@ func TestWalletStore_CancelledOrderCannotBePaid(t *testing.T) {
 		t.Fatalf("payment_status = %s, want pending", s)
 	}
 }
+
+func TestWalletStore_StaleListFindsOnlyOldUnpaidWalletOrders(t *testing.T) {
+	f := newStoreWalletFixture(t)
+	ctx := context.Background()
+	buyer := f.user(t, "ZZFIXstale")
+	f.credit(t, buyer, 1_000_000)
+	p := f.product(t, 1_000, 20)
+
+	old := f.order(t, buyer, p, 1, domain.PaymentMethodWallet)
+	fresh := f.order(t, buyer, p, 1, domain.PaymentMethodWallet)
+	paid := f.order(t, buyer, p, 1, domain.PaymentMethodWallet)
+	card := f.order(t, buyer, p, 1, domain.PaymentMethodPaystack)
+	for _, o := range []*domain.Order{old, paid, card} {
+		mustExec(t, f.pool, `UPDATE online_orders SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, o.ID)
+	}
+	mustExec(t, f.pool, `UPDATE online_orders SET payment_status = 'paid' WHERE id = $1`, paid.ID)
+
+	ids, err := f.store.ListStaleWalletOrderIDs(ctx, time.Now().Add(-15*time.Minute), 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, id := range ids {
+		found[id] = true
+	}
+	if !found[old.ID] {
+		t.Fatal("the old unpaid wallet order should be listed")
+	}
+	if found[fresh.ID] || found[paid.ID] || found[card.ID] {
+		t.Fatalf("fresh, paid and card orders must not be listed: %v", found)
+	}
+
+	// Abandoning it returns the stock and a late payment then fails cleanly.
+	if err := f.store.MarkOrderFailedAndRestoreStock(ctx, old.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.MarkOrderPaidFromWallet(ctx, old.ID, orderDebit(buyer, old)); !errors.Is(err, ports.ErrOrderNotPending) {
+		t.Fatalf("paying an abandoned order: %v, want ErrOrderNotPending", err)
+	}
+}
