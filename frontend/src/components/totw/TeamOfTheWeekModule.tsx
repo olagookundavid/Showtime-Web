@@ -282,7 +282,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                     left: posX,
                     top: spot?.y || p.coord_y || "50%",
                   }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 w-12 sm:w-16 md:w-24 p-1 rounded-xl text-center transition-all duration-200 focus:outline-none group cursor-pointer ${
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 ${isPOTW ? "w-20 sm:w-28 md:w-36" : "w-12 sm:w-16 md:w-24"} p-1 rounded-xl text-center transition-all duration-200 focus:outline-none group cursor-pointer ${
                     isSelected
                       ? "scale-110 z-40"
                       : "hover:scale-105 opacity-90 hover:opacity-100"
@@ -292,15 +292,15 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 >
                   {/* Floating POTW Star Badge */}
                   {isPOTW && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-linear-to-r from-red-500 via-red-400 to-red-600 text-white text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-pulse">
-                      <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-40 px-2.5 py-1 rounded-full bg-linear-to-r from-red-500 via-red-400 to-red-600 text-white text-[10px] md:text-[11px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-1 whitespace-nowrap animate-pulse">
+                      <StarSolidIcon className="w-3.5 h-3.5" aria-hidden="true" />
                       <span>POTW</span>
                     </div>
                   )}
 
                   {/* Avatar circle */}
                   <div
-                    className={`relative w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto rounded-full border-2 overflow-hidden shadow-lg transition-all duration-200 ${
+                    className={`relative ${isPOTW ? "w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24" : "w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12"} mx-auto rounded-full border-2 overflow-hidden shadow-lg transition-all duration-200 ${
                       isSelected
                         ? isPOTW
                           ? "border-red-200 ring-4 ring-red-500 ring-offset-2 ring-offset-black/50 shadow-red-500/60"
@@ -319,7 +319,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                         className="w-full h-full object-cover object-top"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs font-black text-white/90">
+                      <div className={`w-full h-full flex items-center justify-center font-black text-white/90 ${isPOTW ? "text-base md:text-lg" : "text-xs"}`}>
                         {p.player?.jersey_number
                           ? `#${p.player.jersey_number}`
                           : p.position}
@@ -329,7 +329,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                   {/* Position pill */}
                   <span
-                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 mt-1 rounded text-[8px] md:text-[9px] font-black uppercase leading-tight shadow-xs ${
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 mt-1 rounded ${isPOTW ? "text-[11px] md:text-[12px]" : "text-[8px] md:text-[9px]"} font-black uppercase leading-tight shadow-xs ${
                       isPOTW
                         ? "bg-linear-to-r from-red-400 to-red-600 text-white border border-red-300/40"
                         : isPlayerDef
@@ -343,13 +343,13 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   </span>
 
                   {/* Player Name */}
-                  <span className="block mt-0.5 text-[9px] md:text-[10px] font-black text-white truncate drop-shadow-md leading-tight group-hover:text-yellow-300">
+                  <span className={`block mt-0.5 ${isPOTW ? "text-[12px] md:text-[13px]" : "text-[9px] md:text-[10px]"} font-black text-white truncate drop-shadow-md leading-tight group-hover:text-yellow-300`}>
                     {p.player?.name || "Player"}
                   </span>
 
                   {/* Team short code */}
                   {p.player?.team?.short_name && (
-                    <span className="hidden md:block text-[8px] font-bold text-gray-300/80 uppercase">
+                    <span className={`hidden md:block font-bold text-gray-300/80 uppercase ${isPOTW ? "text-[10px]" : "text-[8px]"}`}>
                       {p.player.team.short_name}
                     </span>
                   )}
