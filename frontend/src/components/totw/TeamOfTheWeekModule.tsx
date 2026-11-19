@@ -205,10 +205,12 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
           </div>
         </div>
 
+        {/* ── Pitch + Player Spotlight: stacked below lg, side-by-side from lg up ── */}
+        <div className="flex flex-col lg:grid lg:grid-cols-[3fr_1fr]">
         {/* ── Football Pitch Formation ──────────────────────────────── */}
         <div className="p-2 md:p-5 bg-[#051325]">
           <div
-            className="relative w-full h-145 md:h-162.5 overflow-hidden border-2 border-emerald-400/25 shadow-inner select-none"
+            className="relative w-full h-170 md:h-200 lg:h-237.5 overflow-hidden border-2 border-emerald-400/25 shadow-inner select-none"
             style={{
               background: `repeating-linear-gradient(to bottom, transparent 0, transparent calc(20% - 1px), rgba(229, 243, 220, 0.12) calc(20% - 1px), rgba(229, 243, 220, 0.12) 20%),
                                          repeating-linear-gradient(to bottom, #174C3A 0, #174C3A 20%, #134332 20%, #134332 40%)`,
@@ -272,6 +274,13 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               ) {
                 posX = "32%";
               }
+
+              // Break at the first space so a "First Last" name always lands
+              // as two lines (first name, then the rest) instead of relying
+              // on the browser to wrap wherever it happens to fit.
+              const fullName = p.player?.name || "Player";
+              const [firstNamePart, ...restNameParts] = fullName.split(" ");
+              const restNamePart = restNameParts.join(" ");
 
               return (
                 <button
@@ -343,8 +352,11 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   </span>
 
                   {/* Player Name */}
-                  <span className={`block mt-0.5 ${isPOTW ? "text-[12px] md:text-[13px]" : "text-[9px] md:text-[10px]"} font-black text-white truncate drop-shadow-md leading-tight group-hover:text-yellow-300`}>
-                    {p.player?.name || "Player"}
+                  <span className={`mt-0.5 ${isPOTW ? "text-[12px] md:text-[13px]" : "text-[9px] md:text-[10px]"} font-black text-white drop-shadow-md leading-tight group-hover:text-yellow-300`}>
+                    <span className="block truncate">{firstNamePart}</span>
+                    {restNamePart && (
+                      <span className="block truncate">{restNamePart}</span>
+                    )}
                   </span>
 
                   {/* Team short code */}
@@ -360,7 +372,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
         </div>
 
         {/* ── Carousel Profile Card ─────────────────────────────────── */}
-        <div className="bg-[#091D36] p-4 md:p-6 border-t border-white/10">
+        <div className="bg-[#091D36] p-4 md:p-6 border-t lg:border-t-0 lg:border-l border-white/10 lg:flex lg:flex-col lg:justify-start">
           <div className="flex items-center justify-between gap-3 mb-3 text-xs">
             <div className="min-w-0">
               <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-[#91A7C0]">
@@ -376,19 +388,19 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
           </div>
 
           {/* Phones: card full width with the arrows side by side below it. */}
-          <div className="grid grid-cols-2 sm:grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-1 items-center gap-2 md:gap-4 lg:gap-3">
             {/* Prev Button */}
             <Button
               tone="dark"
               variant="secondary"
-              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 px-0 border border-white/20 shadow-md"
+              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 lg:w-full lg:h-11 px-0 border border-white/20 shadow-md"
               icon={ChevronLeftIcon}
               aria-label="Previous player"
               onClick={handlePrev}
             />
 
             {/* Active Player Card */}
-            <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[170px_minmax(0,1fr)] min-h-42.5">
+            <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[170px_minmax(0,1fr)] lg:grid-cols-1 min-h-42.5">
               {/* Visual Avatar column */}
               <div
                 className={`relative flex items-center justify-center p-4 ${
@@ -539,7 +551,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             <Button
               tone="dark"
               variant="secondary"
-              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 px-0 border border-white/20 shadow-md"
+              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 lg:w-full lg:h-11 px-0 border border-white/20 shadow-md"
               icon={ChevronRightIcon}
               aria-label="Next player"
               onClick={handleNext}
@@ -571,6 +583,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               );
             })}
           </div>
+        </div>
         </div>
       </div>
     </section>
