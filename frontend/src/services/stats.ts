@@ -17,6 +17,7 @@ export const getPlayerStats = async (
   sort?: string,
   teamId?: string,
   position?: string,
+  gender?: string,
 ): Promise<PaginatedResponse<PlayerStat>> => {
   let url = "/stats/players";
   const params = new URLSearchParams();
@@ -27,6 +28,7 @@ export const getPlayerStats = async (
   if (search) params.append("search", search);
   if (sort) params.append("sort", sort);
   if (position && position !== "ALL") params.append("position", position);
+  if (gender && gender !== "ALL") params.append("gender", gender);
   params.append("page", page.toString());
   params.append("limit", limit.toString());
   if (params.toString()) url += `?${params.toString()}`;

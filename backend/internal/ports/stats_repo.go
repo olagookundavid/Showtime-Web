@@ -282,6 +282,12 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 		}
 	}
 
+	if filter.Gender != "" && strings.ToUpper(strings.TrimSpace(filter.Gender)) != "ALL" {
+		conditions = append(conditions, fmt.Sprintf("UPPER(COALESCE(p.gender, '')) = $%d", argCount))
+		args = append(args, strings.ToUpper(strings.TrimSpace(filter.Gender)))
+		argCount++
+	}
+
 	whereClause := ""
 	if len(conditions) > 0 {
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")
