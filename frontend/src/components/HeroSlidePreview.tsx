@@ -56,7 +56,7 @@ export const HeroSlidePreview = ({
             src={slide.mobile_image_url || slide.image_url}
             alt=""
             loading="lazy"
-            className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+            className="absolute inset-0 w-full h-full object-fill transition-transform duration-500 group-hover:scale-105"
           />
         </button>
 
