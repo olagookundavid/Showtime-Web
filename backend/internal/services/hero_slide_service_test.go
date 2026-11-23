@@ -22,7 +22,7 @@ func (m *mockHeroSlideRepo) Create(ctx context.Context, slide *domain.HeroSlide)
 	return nil
 }
 
-func (m *mockHeroSlideRepo) Update(ctx context.Context, id string, imageURL, mobileImageURL, destinationURL *string, displayOrder *int, isActive *bool) error {
+func (m *mockHeroSlideRepo) Update(ctx context.Context, id string, imageURL, mobileImageURL, destinationURL, headline *string, displayOrder *int, isActive *bool) error {
 	s, ok := m.slides[id]
 	if !ok {
 		return nil

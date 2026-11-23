@@ -12,7 +12,7 @@ import (
 
 type HeroSlideRepository interface {
 	Create(ctx context.Context, slide *domain.HeroSlide) error
-	Update(ctx context.Context, id string, imageURL, mobileImageURL, destinationURL *string, displayOrder *int, isActive *bool) error
+	Update(ctx context.Context, id string, imageURL, mobileImageURL, destinationURL, headline *string, displayOrder *int, isActive *bool) error
 	FindAll(ctx context.Context, activeOnly bool) ([]*domain.HeroSlide, error)
 	FindByID(ctx context.Context, id string) (*domain.HeroSlide, error)
 	// NextDisplayOrder returns one past the highest display_order currently in
@@ -36,7 +36,7 @@ func NewHeroSlideRepository(db *pgxpool.Pool) HeroSlideRepository {
 // slide.News. Non-id article columns are COALESCEd to ” since they're only
 // meaningful when the join matched (guarded by newsIDPtr != nil at scan time).
 const heroSlideSelectColumns = `
-	hs.id, hs.image_url, COALESCE(hs.mobile_image_url, ''), COALESCE(hs.destination_url, ''), hs.display_order, hs.is_active, hs.created_at, hs.updated_at,
+	hs.id, hs.image_url, COALESCE(hs.mobile_image_url, ''), COALESCE(hs.destination_url, ''), COALESCE(hs.headline, ''), hs.display_order, hs.is_active, hs.created_at, hs.updated_at,
 	hs.news_id,
 	COALESCE(n.slug, ''), COALESCE(n.title, ''), COALESCE(n.excerpt, ''), COALESCE(n.content, ''),
 	COALESCE(n.category, ''), COALESCE(n.featured_media_type, ''), COALESCE(n.featured_youtube_url, '')
@@ -49,7 +49,7 @@ func scanHeroSlide(row pgx.Row) (*domain.HeroSlide, error) {
 	var newsSlug, newsTitle, newsExcerpt, newsContent, newsCategory, newsMediaType, newsYoutubeURL string
 
 	if err := row.Scan(
-		&s.ID, &s.ImageURL, &s.MobileImageURL, &s.DestinationURL, &s.DisplayOrder, &s.IsActive, &s.CreatedAt, &s.UpdatedAt,
+		&s.ID, &s.ImageURL, &s.MobileImageURL, &s.DestinationURL, &s.Headline, &s.DisplayOrder, &s.IsActive, &s.CreatedAt, &s.UpdatedAt,
 		&newsIDPtr,
 		&newsSlug, &newsTitle, &newsExcerpt, &newsContent, &newsCategory, &newsMediaType, &newsYoutubeURL,
 	); err != nil {
@@ -74,14 +74,14 @@ func scanHeroSlide(row pgx.Row) (*domain.HeroSlide, error) {
 
 func (r *HeroSlidePGRepository) Create(ctx context.Context, slide *domain.HeroSlide) error {
 	query := `
-		INSERT INTO hero_slides (image_url, mobile_image_url, destination_url, display_order, is_active, news_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO hero_slides (image_url, mobile_image_url, destination_url, headline, display_order, is_active, news_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	err := r.db.QueryRow(ctx, query, slide.ImageURL, slide.MobileImageURL, slide.DestinationURL, slide.DisplayOrder, slide.IsActive, slide.NewsID).
+	err := r.db.QueryRow(ctx, query, slide.ImageURL, slide.MobileImageURL, slide.DestinationURL, slide.Headline, slide.DisplayOrder, slide.IsActive, slide.NewsID).
 		Scan(&slide.ID, &slide.CreatedAt, &slide.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create hero slide: %w", err)
@@ -89,7 +89,7 @@ func (r *HeroSlidePGRepository) Create(ctx context.Context, slide *domain.HeroSl
 	return nil
 }
 
-func (r *HeroSlidePGRepository) Update(ctx context.Context, id string, imageURL, mobileImageURL, destinationURL *string, displayOrder *int, isActive *bool) error {
+func (r *HeroSlidePGRepository) Update(ctx context.Context, id string, imageURL, mobileImageURL, destinationURL, headline *string, displayOrder *int, isActive *bool) error {
 	// Dynamic UPDATE — only set columns the caller actually passed. news_id is
 	// intentionally never changed here: a slide's linked article identity is
 	// fixed at creation; only the article's own content changes (handled via
@@ -111,6 +111,11 @@ func (r *HeroSlidePGRepository) Update(ctx context.Context, id string, imageURL,
 	if destinationURL != nil {
 		query += fmt.Sprintf(", destination_url = $%d", argIdx)
 		args = append(args, *destinationURL)
+		argIdx++
+	}
+	if headline != nil {
+		query += fmt.Sprintf(", headline = $%d", argIdx)
+		args = append(args, *headline)
 		argIdx++
 	}
 	if displayOrder != nil {

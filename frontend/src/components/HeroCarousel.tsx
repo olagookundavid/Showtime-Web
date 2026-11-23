@@ -70,7 +70,7 @@ export const HeroCarousel = () => {
   };
 
   return (
-    <div className="relative h-55 md:h-75 overflow-hidden rounded-lg md:rounded-xl shadow-xl">
+    <div className="relative h-55 md:h-75 overflow-hidden shadow-xl">
       {/* Slides */}
       {slides.map((slide, index) => (
         <div

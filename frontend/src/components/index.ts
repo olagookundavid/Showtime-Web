@@ -30,6 +30,7 @@ export * from './wallet';
 export * from './widgets';
 
 export { HeroCarousel } from './HeroCarousel';
+export { HeroSlidePreview } from './HeroSlidePreview';
 export { LiveHero } from './LiveHero';
 export { MainHeroCarousel } from './MainHeroCarousel';
 export { ReliveCarousel } from './ReliveCarousel';

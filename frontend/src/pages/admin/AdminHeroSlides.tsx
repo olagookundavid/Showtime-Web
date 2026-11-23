@@ -27,10 +27,11 @@ interface SlideFormState {
     imageUrl: string;
     mobileImageUrl: string;
     destinationUrl: string;
+    headline: string;
 }
 
 const emptyForm: SlideFormState = {
-    imageUrl: '', mobileImageUrl: '', destinationUrl: '',
+    imageUrl: '', mobileImageUrl: '', destinationUrl: '', headline: '',
 };
 
 const NO_SLIDES: HeroSlide[] = [];
@@ -74,6 +75,7 @@ export const AdminHeroSlides = () => {
             imageUrl: slide.image_url,
             mobileImageUrl: slide.mobile_image_url || '',
             destinationUrl: slide.destination_url || '',
+            headline: slide.headline || '',
         });
         setShowModal(true);
     };
@@ -106,12 +108,14 @@ export const AdminHeroSlides = () => {
                             image_url: form.imageUrl,
                             mobile_image_url: form.mobileImageUrl,
                             destination_url: form.destinationUrl.trim(),
+                            headline: form.headline.trim(),
                         });
                     } else {
                         await createHeroSlide({
                             image_url: form.imageUrl,
                             mobile_image_url: form.mobileImageUrl || undefined,
                             destination_url: form.destinationUrl.trim() || undefined,
+                            headline: form.headline.trim() || undefined,
                             // No display_order: the server appends after the
                             // highest one. A slide count would collide with an
                             // existing order once any slide has been deleted.
@@ -220,6 +224,7 @@ export const AdminHeroSlides = () => {
                         <ConfirmSummary rows={[
                             ['Desktop image', form.imageUrl ? 'Uploaded' : undefined],
                             ['Mobile image', form.mobileImageUrl ? 'Uploaded' : 'Uses the desktop image'],
+                            ['Headline', form.headline.trim() || 'None'],
                             ['Destination', form.destinationUrl.trim() || 'None (not clickable)'],
                         ]} />
                     ),
@@ -295,6 +300,9 @@ export const AdminHeroSlides = () => {
                                 </div>
                             </div>
                             <div className="p-4 space-y-3 flex-1 flex flex-col">
+                                {slide.headline && (
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{slide.headline}</p>
+                                )}
                                 {slide.destination_url ? (
                                     <p className="flex items-center gap-1 text-[11px] text-sffl-red min-w-0">
                                         <ArrowRightIcon className="w-3 h-3 shrink-0" aria-hidden="true" />
@@ -396,6 +404,21 @@ export const AdminHeroSlides = () => {
                                 helperText="Square ~1080×1080 for phones. Leave empty to reuse the desktop image."
                                 isCommitted={busy}
                             />
+
+                            <Field
+                                label="Headline (optional)"
+                                htmlFor="slide-headline"
+                                hint="Short caption shown in the side preview panel next to the carousel. Leave blank to show a generic label."
+                            >
+                                <Input
+                                    id="slide-headline"
+                                    type="text"
+                                    value={form.headline}
+                                    onChange={e => set('headline', e.target.value)}
+                                    maxLength={120}
+                                    placeholder="e.g. Eagles clinch playoff spot in dramatic finish"
+                                />
+                            </Field>
 
                             <hr className="border-gray-200 dark:border-gray-700" />
 

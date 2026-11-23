@@ -16,6 +16,10 @@ type HeroSlide struct {
 	// by the admin. Empty means non-clickable.
 	DestinationURL string `json:"destination_url"`
 
+	// Headline is a short caption shown in the hero carousel's side preview
+	// card. Optional; empty means the preview falls back to a generic label.
+	Headline string `json:"headline"`
+
 	// NewsID/News are legacy: slides created before DestinationURL existed
 	// link to an auto-created hidden article instead. Kept read-only so old
 	// slides keep working; Create/Update never populate NewsID anymore.

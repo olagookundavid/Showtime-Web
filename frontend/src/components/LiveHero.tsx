@@ -21,7 +21,7 @@ export const LiveHero = ({
   const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&iv_load_policy=3&modestbranding=1`;
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-black">
+    <div className="relative aspect-video w-full overflow-hidden shadow-2xl bg-black">
       {!loaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
           <div className="w-10 h-10 border-4 border-gray-700 border-t-sffl-red rounded-full animate-spin" />

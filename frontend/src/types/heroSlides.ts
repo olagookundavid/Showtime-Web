@@ -22,6 +22,9 @@ export interface HeroSlide {
     // "/news/some-slug") or a full external URL. Empty/absent means
     // non-clickable.
     destination_url?: string;
+    // Short caption shown in the carousel's side preview card. Optional;
+    // slides created before this field existed have it empty.
+    headline?: string;
     display_order: number;
     is_active: boolean;
     created_at: string;
@@ -35,6 +38,7 @@ export interface CreateHeroSlidePayload {
     image_url: string;
     mobile_image_url?: string;
     destination_url?: string;
+    headline?: string;
     display_order?: number;
     is_active?: boolean;
 }
@@ -43,6 +47,7 @@ export interface UpdateHeroSlidePayload {
     image_url?: string;
     mobile_image_url?: string;
     destination_url?: string;
+    headline?: string;
     display_order?: number;
     is_active?: boolean;
 }
