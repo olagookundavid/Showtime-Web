@@ -105,6 +105,9 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupFantasyRoutes(v1_api, app)
 	SetupTOTWRoutes(v1_api, app)
 	SetupBadgeRoutes(v1_api, app)
+	if app.Arena != nil {
+		app.Arena.Register(v1_api, commonAuth.TokenMiddleware(app.TokenMaker), app.RoleService)
+	}
 	return r
 }
 

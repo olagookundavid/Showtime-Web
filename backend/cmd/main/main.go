@@ -12,8 +12,10 @@ import (
 	"pkg-common/token"
 	"showtime-backend/cmd/api"
 	"showtime-backend/docs"
+	"showtime-backend/internal/arena"
 	"showtime-backend/internal/server"
 	"showtime-backend/internal/services"
+	"showtime-backend/pkg/email"
 
 	"github.com/gin-gonic/gin"
 )
@@ -173,6 +175,9 @@ func main() {
 		POTWService:           potwService,
 		MatchService:          matchService,
 		BroadcastHub:          broadcastHub,
+		// Clubs Arena shares this server and database. ARENA_FRONTEND_URL is the
+		// Arena site's address, used for links in its emails.
+		Arena: arena.New(pool, email.NewResendService(), arena.Config{FrontendURL: os.Getenv("ARENA_FRONTEND_URL")}),
 	}
 	// Scheduled jobs share a cancellable context so shutdown can abort any
 	// in-flight job before the DB pool is closed (see server.shutdown).

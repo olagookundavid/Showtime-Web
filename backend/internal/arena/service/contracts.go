@@ -548,3 +548,15 @@ func (s *Service) SearchPlayers(ctx context.Context, query string) ([]domain.Pla
 	out, err := s.store.ListPlayers(ctx, store.PlayerFilter{Query: query, Limit: 20})
 	return out, s.wrap(err, "players")
 }
+
+// GetContractAdmin returns any offer, for staff.
+func (s *Service) GetContractAdmin(ctx context.Context, contractID string) (*domain.Contract, error) {
+	k, err := s.store.GetContract(ctx, contractID)
+	return k, s.wrap(err, "Contract")
+}
+
+// ListPlayersOfClub is a club's current squad.
+func (s *Service) ListPlayersOfClub(ctx context.Context, clubID string) ([]domain.Player, error) {
+	out, err := s.store.Roster(ctx, clubID)
+	return out, s.wrap(err, "squad")
+}
