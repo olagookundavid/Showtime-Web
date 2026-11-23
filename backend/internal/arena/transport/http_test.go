@@ -106,6 +106,7 @@ func TestHTTPPermissionsAndFlow(t *testing.T) {
 
 	// Public reads work with no account, and an empty product says so politely.
 	e.expect(404, "GET", "/overview", "", nil)
+	e.expect(404, "GET", "/scope", "", nil)
 	code, _, formations := e.call("GET", "/formations", "", nil)
 	if code != 200 || len(formations) != 6 {
 		t.Fatalf("formations: %d %d", code, len(formations))
@@ -150,6 +151,10 @@ func TestHTTPPermissionsAndFlow(t *testing.T) {
 	e.expect(200, "POST", "/admin/seasons/"+sid+"/status", admin, map[string]any{"status": "active"})
 
 	// Public pages now have data.
+	scopeView := e.expect(200, "GET", "/scope", "", nil)
+	if divs, _ := scopeView["divisions"].([]any); len(divs) != 1 {
+		t.Fatalf("scope divisions: %v", scopeView["divisions"])
+	}
 	ov := e.expect(200, "GET", "/overview", "", nil)
 	if m := ov["metrics"].(map[string]any); m["clubs"].(float64) != 2 {
 		t.Fatalf("overview metrics: %v", m)

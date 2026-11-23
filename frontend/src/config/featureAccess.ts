@@ -51,7 +51,12 @@ export type FeatureKey =
   | "seller_tools"
   | "vouchers"
   | "voucher_redeem"
-  | "administrator_tools";
+  | "administrator_tools"
+  // Clubs Arena (the EA FC product); see backend/internal/arena.
+  | "arena_seasons"
+  | "arena_clubs"
+  | "arena_results"
+  | "arena_transfers";
 
 type AccessUser = Pick<User, "role" | "permissions"> | null | undefined;
 

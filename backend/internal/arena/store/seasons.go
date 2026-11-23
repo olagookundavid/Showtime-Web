@@ -229,7 +229,7 @@ func (s *Store) DivisionOfClub(ctx context.Context, clubID, seasonID string) (*d
 // DivisionClubRefs are the clubs in a division, for building its table.
 func (s *Store) DivisionClubRefs(ctx context.Context, divisionID string) ([]domain.ClubRef, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT c.id, c.name, c.short, c.color, c.crest_url
+		SELECT c.id, c.slug, c.name, c.short, c.color, c.crest_url
 		FROM arena_division_clubs dc JOIN arena_clubs c ON c.id = dc.club_id
 		WHERE dc.division_id = $1 ORDER BY c.name`, divisionID)
 	if err != nil {
@@ -239,7 +239,7 @@ func (s *Store) DivisionClubRefs(ctx context.Context, divisionID string) ([]doma
 	out := []domain.ClubRef{}
 	for rows.Next() {
 		var c domain.ClubRef
-		if err := rows.Scan(&c.ID, &c.Name, &c.Short, &c.Color, &c.CrestURL); err != nil {
+		if err := rows.Scan(&c.ID, &c.Slug, &c.Name, &c.Short, &c.Color, &c.CrestURL); err != nil {
 			return nil, err
 		}
 		out = append(out, c)

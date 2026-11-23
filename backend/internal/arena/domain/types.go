@@ -171,6 +171,7 @@ type Match struct {
 // ClubRef is the small club summary shown next to a match or a table row.
 type ClubRef struct {
 	ID       string `json:"id"`
+	Slug     string `json:"slug"`
 	Name     string `json:"name"`
 	Short    string `json:"short"`
 	Color    string `json:"color"`

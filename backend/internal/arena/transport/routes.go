@@ -14,6 +14,7 @@ func (h *Handler) Register(v1 *gin.RouterGroup, auth gin.HandlerFunc, roles serv
 	g := v1.Group("/arena")
 
 	// Public: anyone can read the competition.
+	g.GET("/scope", h.Scope)
 	g.GET("/overview", h.Overview)
 	g.GET("/standings", h.Standings)
 	g.GET("/matches", h.Matches)

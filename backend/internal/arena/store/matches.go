@@ -13,8 +13,8 @@ import (
 const matchSelect = `
 	SELECT m.id, m.season_id, m.division_id, d.name, m.stage, m.matchweek,
 	       m.home_club_id::text, m.away_club_id::text,
-	       h.name, h.short, h.color, h.crest_url,
-	       a.name, a.short, a.color, a.crest_url,
+	       h.slug, h.name, h.short, h.color, h.crest_url,
+	       a.slug, a.name, a.short, a.color, a.crest_url,
 	       m.kickoff_at, m.status, m.home_score, m.away_score, m.penalty_winner, m.feeds_match_id::text, m.feeds_slot
 	FROM arena_matches m
 	JOIN arena_divisions d ON d.id = m.division_id
@@ -23,17 +23,17 @@ const matchSelect = `
 
 func scanMatch(row pgx.Row) (*domain.Match, error) {
 	var m domain.Match
-	var hName, hShort, hColor, hCrest, aName, aShort, aColor, aCrest *string
+	var hSlug, hName, hShort, hColor, hCrest, aSlug, aName, aShort, aColor, aCrest *string
 	if err := row.Scan(&m.ID, &m.SeasonID, &m.DivisionID, &m.DivisionName, &m.Stage, &m.Matchweek,
-		&m.HomeClubID, &m.AwayClubID, &hName, &hShort, &hColor, &hCrest, &aName, &aShort, &aColor, &aCrest,
+		&m.HomeClubID, &m.AwayClubID, &hSlug, &hName, &hShort, &hColor, &hCrest, &aSlug, &aName, &aShort, &aColor, &aCrest,
 		&m.KickoffAt, &m.Status, &m.HomeScore, &m.AwayScore, &m.PenaltyWinner, &m.FeedsMatchID, &m.FeedsSlot); err != nil {
 		return nil, notFound(err)
 	}
 	if m.HomeClubID != nil && hName != nil {
-		m.Home = &domain.ClubRef{ID: *m.HomeClubID, Name: *hName, Short: *hShort, Color: *hColor, CrestURL: *hCrest}
+		m.Home = &domain.ClubRef{ID: *m.HomeClubID, Slug: *hSlug, Name: *hName, Short: *hShort, Color: *hColor, CrestURL: *hCrest}
 	}
 	if m.AwayClubID != nil && aName != nil {
-		m.Away = &domain.ClubRef{ID: *m.AwayClubID, Name: *aName, Short: *aShort, Color: *aColor, CrestURL: *aCrest}
+		m.Away = &domain.ClubRef{ID: *m.AwayClubID, Slug: *aSlug, Name: *aName, Short: *aShort, Color: *aColor, CrestURL: *aCrest}
 	}
 	return &m, nil
 }

@@ -1,0 +1,38 @@
+/*
+ * Clubs Arena's look. It loads the shared base styles, then re-points the
+ * brand colours the shared components read (sffl-navy, sffl-red, sffl-gold) at
+ * Arena's palette, so every Button, Input, DataTable and Modal comes out in
+ * Arena's colours without any change to them.
+ *
+ *   navy  #111923   the surface colour in dark mode and the main button colour
+ *   olive #4d7c0f   links, active states and focus (readable on white)
+ *   lime  #d3f36a   the signature highlight, used on dark surfaces
+ */
+@import "../index.css";
+
+@theme {
+  --color-arena-lime: #d3f36a;
+  --color-arena-ink: #172126;
+  --color-arena-muted: #81878b;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+}
+
+:root {
+  --app-font-family: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-sffl-navy: #111923;
+  --color-sffl-red: #4d7c0f;
+  --color-sffl-gold: #d3f36a;
+  --color-sffl-gray: #f7f8fa;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+/* Tabular figures so scores, tables and stats line up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

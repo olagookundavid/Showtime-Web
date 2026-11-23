@@ -9,6 +9,12 @@ import (
 
 // Public endpoints: anyone can read these, signed in or not.
 
+// Scope is the current season and its divisions, for the division picker.
+func (h *Handler) Scope(c *gin.Context) {
+	v, err := h.svc.ResolveScope(c.Request.Context(), c.Query("division_id"))
+	reply(c, v, err)
+}
+
 func (h *Handler) Overview(c *gin.Context) {
 	v, err := h.svc.Overview(c.Request.Context(), c.Query("division_id"))
 	reply(c, v, err)

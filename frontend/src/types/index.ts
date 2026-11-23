@@ -1,5 +1,6 @@
 export * from './adminTeams';
 export * from './analytics';
+export * from './arena';
 export * from './audit';
 export * from './auth';
 export * from './badges';
