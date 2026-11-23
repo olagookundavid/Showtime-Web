@@ -110,6 +110,11 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
   const activePlayer: TOTWPlayer = players[selectedIndex] || players[0];
   const isDefensive = activePlayer.unit === "Defence";
   const isActivePOTW = isPlayerOfTheWeek(totw, activePlayer);
+  // Break into every word so a 3+ word name stacks on its own lines,
+  // instead of ellipsing at a single-line truncate.
+  const spotlightNameWords = (activePlayer.player?.name || "Selected Player")
+    .split(" ")
+    .filter(Boolean);
 
   const handlePrev = () => {
     setSelectedIndex((prev) => (prev - 1 + players.length) % players.length);
@@ -346,9 +351,17 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                           : "bg-[#FFF8E9] text-[#102844]"
                     }`}
                   >
-                    {isPOTW
-                      ? `⭐ ${p.slot_code || p.position}`
-                      : p.slot_code || p.position}
+                    {isPOTW ? (
+                      <>
+                        <StarSolidIcon
+                          className="w-2.5 h-2.5 md:w-3 md:h-3"
+                          aria-hidden="true"
+                        />
+                        <span>{p.slot_code || p.position}</span>
+                      </>
+                    ) : (
+                      p.slot_code || p.position
+                    )}
                   </span>
 
                   {/* Player Name */}
@@ -400,20 +413,12 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             />
 
             {/* Active Player Card */}
-            <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[170px_minmax(0,1fr)] lg:grid-cols-1 min-h-42.5">
+            <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-cols-1 min-h-42.5">
               {/* Visual Avatar column */}
-              <div
-                className={`relative flex items-center justify-center p-4 ${
-                  isActivePOTW
-                    ? "bg-radial from-red-600/35 via-[#1a2b47] to-[#0e1e36]"
-                    : isDefensive
-                      ? "bg-radial from-[#315C89] via-[#183C63] to-[#102B4B]"
-                      : "bg-radial from-[#9D4646] via-[#6E3038] to-[#3D2634]"
-                }`}
-              >
+              <div className="relative overflow-hidden bg-slate-800 aspect-3/4 sm:aspect-auto md:aspect-auto lg:aspect-3/4">
                 {/* Rating Badge */}
                 <div
-                  className={`absolute top-2 left-2 md:top-3 md:left-3 w-9 h-9 md:w-11 md:h-11 rounded-full font-black text-xs md:text-sm flex items-center justify-center shadow-lg border ${
+                  className={`absolute top-2 right-2 md:top-3 md:right-3 w-9 h-9 md:w-11 md:h-11 rounded-full font-black text-xs md:text-sm flex items-center justify-center shadow-lg border ${
                     isActivePOTW
                       ? "bg-linear-to-br from-red-400 to-red-600 text-white border-red-200 ring-2 ring-red-500/80"
                       : "bg-[#F4CA67] text-[#172237] border-yellow-200"
@@ -426,39 +431,34 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                 {/* Floating POTW Badge Stamp */}
                 {isActivePOTW && (
-                  <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 rounded-full bg-linear-to-r from-red-500 to-red-400 text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md border border-white flex items-center gap-1">
+                  <div className="absolute top-2 left-2 md:top-3 md:left-3 px-2 py-0.5 rounded-full bg-linear-to-r from-red-500 to-red-400 text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md border border-white flex items-center gap-1">
                     <StarSolidIcon className="w-3 h-3" aria-hidden="true" />
                     <span>POTW</span>
                   </div>
                 )}
 
                 {/* Avatar */}
-                <div
-                  className={`w-20 h-24 md:w-28 md:h-34 overflow-hidden bg-slate-800 border-2 shadow-2xl flex items-center justify-center ${
-                    isActivePOTW
-                      ? "border-red-500 ring-2 ring-red-400/60 shadow-red-500/30"
-                      : "border-white/20"
-                  }`}
-                >
-                  {activePlayer.player?.image ? (
-                    <img
-                      src={activePlayer.player.image}
-                      alt={activePlayer.player.name}
-                      className="w-full h-full object-cover object-top"
-                    />
-                  ) : (
-                    <div className="text-3xl font-black text-white/50">
-                      {activePlayer.position}
-                    </div>
-                  )}
-                </div>
+                {activePlayer.player?.image ? (
+                  <img
+                    src={activePlayer.player.image}
+                    alt={activePlayer.player.name}
+                    className="w-full h-full object-cover object-top"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-5xl md:text-6xl font-black text-white/40">
+                    {activePlayer.position}
+                  </div>
+                )}
               </div>
 
               {/* Details column */}
               <div className="p-4 md:p-5 flex flex-col justify-center min-w-0">
                 {isActivePOTW && (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-linear-to-r from-red-500/25 via-red-400/20 to-red-500/25 border border-red-400/60 text-red-300 font-black text-[10px] md:text-xs uppercase tracking-wider shadow-sm mb-2 w-fit animate-pulse">
-                    <span className="text-xs md:text-sm">⭐</span>
+                    <StarSolidIcon
+                      className="w-3 h-3 md:w-3.5 md:h-3.5"
+                      aria-hidden="true"
+                    />
                     <span>PLAYER OF THE WEEK</span>
                   </div>
                 )}
@@ -485,16 +485,24 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   </span>
                 </div>
 
-                <h3 className="text-lg md:text-2xl font-black text-white mt-1 truncate">
+                <h3 className="text-lg md:text-2xl font-black text-white mt-1 leading-tight">
                   {activePlayer.player?.id ? (
                     <Link
                       to={`/players/${activePlayer.player.id}`}
                       className="hover:text-yellow-300 transition-colors"
                     >
-                      {activePlayer.player.name}
+                      {spotlightNameWords.map((word, i) => (
+                        <span key={i} className="block truncate">
+                          {word}
+                        </span>
+                      ))}
                     </Link>
                   ) : (
-                    activePlayer.player?.name || "Selected Player"
+                    spotlightNameWords.map((word, i) => (
+                      <span key={i} className="block truncate">
+                        {word}
+                      </span>
+                    ))
                   )}
                 </h3>
 
@@ -512,35 +520,35 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 </div>
 
                 {/* 3 Key Stats */}
-                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-white/10">
-                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 text-center">
-                    <div className="text-sm md:text-lg font-black text-white leading-tight">
+                <div className="grid grid-cols-1 gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-white/10">
+                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1 text-[9px] md:text-[10px] font-black uppercase text-[#8FA4BC] tracking-wider truncate">
+                      {activePlayer.stat1_label || "Stat 1"}
+                    </div>
+                    <div className="shrink-0 text-sm md:text-lg font-black text-white leading-tight">
                       {activePlayer.stat1_value
                         ? formatStatNumber(activePlayer.stat1_value)
                         : "—"}
                     </div>
-                    <div className="text-[8px] md:text-[9px] font-black uppercase text-[#8FA4BC] tracking-wider mt-0.5 truncate">
-                      {activePlayer.stat1_label || "Stat 1"}
-                    </div>
                   </div>
-                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 text-center">
-                    <div className="text-sm md:text-lg font-black text-white leading-tight">
+                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1 text-[9px] md:text-[10px] font-black uppercase text-[#8FA4BC] tracking-wider truncate">
+                      {activePlayer.stat2_label || "Stat 2"}
+                    </div>
+                    <div className="shrink-0 text-sm md:text-lg font-black text-white leading-tight">
                       {activePlayer.stat2_value
                         ? formatStatNumber(activePlayer.stat2_value)
                         : "—"}
                     </div>
-                    <div className="text-[8px] md:text-[9px] font-black uppercase text-[#8FA4BC] tracking-wider mt-0.5 truncate">
-                      {activePlayer.stat2_label || "Stat 2"}
-                    </div>
                   </div>
-                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 text-center">
-                    <div className="text-sm md:text-lg font-black text-white leading-tight">
+                  <div className="bg-[#06182D]/70 p-2 md:p-2.5 border border-white/10 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1 text-[9px] md:text-[10px] font-black uppercase text-[#8FA4BC] tracking-wider truncate">
+                      {activePlayer.stat3_label || "Stat 3"}
+                    </div>
+                    <div className="shrink-0 text-sm md:text-lg font-black text-white leading-tight">
                       {activePlayer.stat3_value
                         ? formatStatNumber(activePlayer.stat3_value)
                         : "—"}
-                    </div>
-                    <div className="text-[8px] md:text-[9px] font-black uppercase text-[#8FA4BC] tracking-wider mt-0.5 truncate">
-                      {activePlayer.stat3_label || "Stat 3"}
                     </div>
                   </div>
                 </div>
