@@ -30,6 +30,7 @@ func heroSlideToResponse(s *domain.HeroSlide, includeNewsDetail bool) dto.HeroSl
 		ImageURL:       s.ImageURL,
 		MobileImageURL: s.MobileImageURL,
 		DestinationURL: s.DestinationURL,
+		Headline:       s.Headline,
 		DisplayOrder:   s.DisplayOrder,
 		IsActive:       s.IsActive,
 		CreatedAt:      s.CreatedAt,
@@ -91,6 +92,7 @@ func (s *HeroSlideService) Create(ctx context.Context, req dto.CreateHeroSlideRe
 		ImageURL:       req.ImageURL,
 		MobileImageURL: req.MobileImageURL,
 		DestinationURL: req.DestinationURL,
+		Headline:       req.Headline,
 		DisplayOrder:   displayOrder,
 		IsActive:       isActive,
 	}
@@ -102,7 +104,7 @@ func (s *HeroSlideService) Create(ctx context.Context, req dto.CreateHeroSlideRe
 }
 
 func (s *HeroSlideService) Update(ctx context.Context, id string, req dto.UpdateHeroSlideRequest) error {
-	return s.repo.Update(ctx, id, req.ImageURL, req.MobileImageURL, req.DestinationURL, req.DisplayOrder, req.IsActive)
+	return s.repo.Update(ctx, id, req.ImageURL, req.MobileImageURL, req.DestinationURL, req.Headline, req.DisplayOrder, req.IsActive)
 }
 
 func (s *HeroSlideService) Delete(ctx context.Context, id string) error {

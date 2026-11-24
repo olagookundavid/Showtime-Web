@@ -1,4 +1,13 @@
-import { MainHeroCarousel, LiveHero, ReliveCarousel, HeroCarousel, TeamOfTheWeekModule, Spinner, LightboxImage } from "../components";
+import {
+  MainHeroCarousel,
+  LiveHero,
+  ReliveCarousel,
+  HeroCarousel,
+  TeamOfTheWeekModule,
+  Spinner,
+  NewsCard,
+  ButtonLink,
+} from "../components";
 import { useLiveStream } from "../hooks";
 import { htmlToPlainText } from "../utils";
 import { Link } from "react-router-dom";
@@ -63,59 +72,14 @@ export const Landing = () => {
 
         {loadingTeamNews ? (
           <Spinner label="Loading news…" />
-        ) :teamNews.length > 0 ? (
+        ) : teamNews.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {teamNews.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group border border-gray-100 dark:border-gray-700/50 hover:scale-[1.01]"
-              >
-                <div className="h-48 overflow-hidden relative bg-gray-100 dark:bg-gray-900">
-                  <LightboxImage
-                    src={item.featured_image || ""}
-                    alt={item.title}
-                    thumbnailClassName="w-full h-full"
-                    imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <Link
-                  to={`/news/${item.slug}`}
-                  className="p-4 sm:p-5 flex flex-col flex-1"
-                >
-                  <h3 className="text-base font-black text-sffl-navy dark:text-white mb-2 line-clamp-2 group-hover:text-sffl-red transition-colors">
-                    {item.title}
-                  </h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-3 mb-4 flex-1 leading-relaxed">
-                    {item.excerpt || htmlToPlainText(item.content).substring(0, 120) + "…"}
-                  </p>
-                  <div className="flex flex-wrap justify-between items-center gap-2 mt-auto pt-4 border-t border-gray-50 dark:border-gray-700/30">
-                    <div className="flex flex-wrap items-center gap-2 min-w-0">
-                      <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                        {new Date(item.created_at).toLocaleDateString(
-                          undefined,
-                          { month: "short", day: "numeric", year: "numeric" },
-                        )}
-                      </span>
-                      {item.category && (
-                        <span className="bg-sffl-red/10 text-sffl-red text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
-                          {item.category}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sffl-red text-xs font-bold group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                      Read More
-                      <ArrowRightIcon
-                        className="w-3.5 h-3.5"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </div>
-                </Link>
-              </div>
+              <NewsCard key={item.id} article={item} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/20 border border-dashed border-gray-200 dark:border-gray-700">
             <p className="text-gray-500 dark:text-gray-400 font-medium italic">
               No recent news available.
             </p>
@@ -127,11 +91,11 @@ export const Landing = () => {
       <section className="px-1 md:px-0">
         <div className="max-w-2xl mx-auto">
           {/* Commissioner's Note */}
-          <div className="bg-sffl-navy dark:bg-gray-800 text-white p-5 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group min-h-80">
+          <div className="bg-sffl-navy dark:bg-gray-800 text-white p-5 md:p-8 shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group min-h-80">
             {/* Commissioner background image */}
             <div className="absolute inset-0 z-0 overflow-hidden">
               <img
-                src="/images/leadership/adebare_adejumo_2.webp"
+                src="https://cdn.showtimeflag.football/files/adebare-adejumo.webp"
                 alt="Adebare Adejumo - League Commissioner"
                 loading="lazy"
                 decoding="async"
@@ -165,20 +129,23 @@ export const Landing = () => {
                     htmlToPlainText(latestNote.content).substring(0, 200) + "…"}
                 </p>
                 <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/10">
-                  <Link
+                  <ButtonLink
                     to={`/news/${latestNote.slug}`}
-                    className="min-h-11 text-white bg-sffl-red hover:bg-sffl-red/90 px-6 py-2.5 rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2 border border-sffl-red/30 hover:scale-[1.02] active:scale-95 shadow-lg"
+                    variant="primary"
+                    size="lg"
+                    shape="square"
+                    icon={ArrowRightIcon}
+                    iconPosition="right"
                   >
                     Read Full Note
-                    <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
-                  </Link>
+                  </ButtonLink>
                   <span className="text-xs text-gray-300 font-medium italic hidden sm:inline">
                     — Adebare Adejumo
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-white/10 rounded-2xl relative z-10 backdrop-blur-xs">
+              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-white/10 relative z-10 backdrop-blur-xs">
                 <p className="text-gray-300 dark:text-gray-400 italic font-medium">
                   No commissioner's note at this time.
                 </p>

@@ -30,6 +30,7 @@ export const PlayerStats = () => {
   const urlSearch = searchParams.get("search");
   const urlTeam = searchParams.get("team");
   const urlPos = searchParams.get("pos");
+  const urlGender = searchParams.get("gender");
 
   const {
     competitions,
@@ -47,8 +48,11 @@ export const PlayerStats = () => {
   const [positionFilter, setPositionFilter] = useState<string>(() => {
     return urlPos || "QB";
   });
+  const [genderFilter, setGenderFilter] = useState<string>(() => {
+    return urlGender || "ALL";
+  });
 
-  const urlState = JSON.stringify([urlSearch, urlPos]);
+  const urlState = JSON.stringify([urlSearch, urlPos, urlGender]);
   const [previousUrlState, setPreviousUrlState] = useState(urlState);
   if (urlState !== previousUrlState) {
     setPreviousUrlState(urlState);
@@ -56,6 +60,8 @@ export const PlayerStats = () => {
       setSearchQuery(urlSearch);
     if (urlPos !== null && urlPos !== positionFilter)
       setPositionFilter(urlPos || "QB");
+    if (urlGender !== null && urlGender !== genderFilter)
+      setGenderFilter(urlGender || "ALL");
   }
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("");
@@ -101,6 +107,7 @@ export const PlayerStats = () => {
       sortBy,
       urlTeam,
       positionFilter,
+      genderFilter,
     ],
     queryFn: () =>
       getPlayerStats(
@@ -113,6 +120,7 @@ export const PlayerStats = () => {
         sortBy || undefined,
         urlTeam || undefined,
         positionFilter || undefined,
+        genderFilter || undefined,
       ),
   });
 
@@ -334,6 +342,39 @@ export const PlayerStats = () => {
                 }}
               >
                 {pos.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Gender Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 bg-white dark:bg-gray-800 p-3 rounded-none border border-gray-100 dark:border-gray-700 shadow-sm">
+          <span className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-gray-400 shrink-0 mr-1">
+            Gender:
+          </span>
+          {[
+            { id: "ALL", label: "All" },
+            { id: "M", label: "Men" },
+            { id: "F", label: "Women" },
+          ].map((g) => {
+            const isActive = (genderFilter || "ALL") === g.id;
+            return (
+              <Button
+                key={g.id}
+                size="sm"
+                variant={isActive ? "navy" : "secondary"}
+                className="shrink-0"
+                aria-pressed={isActive}
+                onClick={() => {
+                  setGenderFilter(g.id);
+                  setPage(1);
+                  const params = new URLSearchParams(searchParams);
+                  if (g.id === "ALL") params.delete("gender");
+                  else params.set("gender", g.id);
+                  setSearchParams(params, { replace: true });
+                }}
+              >
+                {g.label}
               </Button>
             );
           })}

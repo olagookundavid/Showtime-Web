@@ -6,6 +6,7 @@ type CreateHeroSlideRequest struct {
 	ImageURL       string `json:"image_url" binding:"required"`
 	MobileImageURL string `json:"mobile_image_url"`  // optional square variant for mobile
 	DestinationURL string `json:"destination_url"`   // optional; internal path or external URL, pasted in by the admin
+	Headline       string `json:"headline"`          // optional caption shown in the side preview panel
 	DisplayOrder   *int   `json:"display_order"`
 	IsActive       *bool  `json:"is_active"`
 }
@@ -14,6 +15,7 @@ type UpdateHeroSlideRequest struct {
 	ImageURL       *string `json:"image_url"`
 	MobileImageURL *string `json:"mobile_image_url"`  // nil = unchanged, "" = clear
 	DestinationURL *string `json:"destination_url"`   // nil = unchanged, "" = clear
+	Headline       *string `json:"headline"`          // nil = unchanged, "" = clear
 	DisplayOrder   *int    `json:"display_order"`
 	IsActive       *bool   `json:"is_active"`
 }
@@ -41,6 +43,7 @@ type HeroSlideResponse struct {
 	// NewsSlug/News fields, which are kept only for slides created before
 	// this field existed.
 	DestinationURL string                 `json:"destination_url,omitempty"`
+	Headline       string                 `json:"headline,omitempty"`
 	NewsSlug       string                 `json:"news_slug,omitempty"`
 	News           *HeroSlideNewsResponse `json:"news,omitempty"`
 }

@@ -180,6 +180,7 @@ type StatsFilter struct {
 	PlayerID      string
 	TeamID        string
 	Position      string
+	Gender        string
 	SearchQuery   string
 	SortBy        string // stat column key; empty = alphabetical by name
 	Page          int

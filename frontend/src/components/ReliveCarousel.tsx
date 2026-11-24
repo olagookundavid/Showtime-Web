@@ -72,7 +72,7 @@ export const ReliveCarousel = () => {
         {isLoading ? (
           <Spinner label="Loading highlights…" className="py-12" />
         ) : (
-          <div className="flex flex-col items-center justify-center gap-2 text-center py-12 px-4 bg-gray-50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col items-center justify-center gap-2 text-center py-12 px-4 bg-gray-50 dark:bg-gray-800/20 border border-dashed border-gray-200 dark:border-gray-700">
             <VideoCameraSlashIcon
               className="w-8 h-8 text-gray-400 dark:text-gray-500"
               aria-hidden="true"
@@ -125,7 +125,7 @@ export const ReliveCarousel = () => {
             <div
               key={video.id}
               onClick={() => setSelectedVideo(video)}
-              className="flex-none w-65 sm:w-75 md:w-[320px] bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700/60 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-sffl-red/40 cursor-pointer snap-start flex flex-col group/card"
+              className="flex-none w-65 sm:w-75 md:w-[320px] bg-white dark:bg-gray-800 overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700/60 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-sffl-red/40 cursor-pointer snap-start flex flex-col group/card"
             >
               {/* Thumbnail Container */}
               <div className="relative aspect-video w-full overflow-hidden bg-black">
@@ -212,6 +212,7 @@ export const ReliveCarousel = () => {
           onClose={() => setSelectedVideo(null)}
           title={selectedVideo.title}
           maxWidth="4xl"
+          shape="square"
           footer={
             <>
               <p className="text-xs text-gray-500 dark:text-gray-400 sm:mr-auto self-center">
@@ -239,7 +240,7 @@ export const ReliveCarousel = () => {
           }
         >
           {/* YouTube 16:9 Video Embed */}
-          <div className="relative aspect-video w-full bg-black rounded-xl overflow-hidden">
+          <div className="relative aspect-video w-full bg-black overflow-hidden">
             <iframe
               src={`https://www.youtube-nocookie.com/embed/${selectedVideo.video_id}?autoplay=1&rel=0&modestbranding=1`}
               title={selectedVideo.title}
