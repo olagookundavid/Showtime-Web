@@ -15,7 +15,7 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // playerSelect lists a player with their current club (the open registration).
 const playerSelect = `
 	SELECT p.id, p.user_id::text, p.gamertag, p.ea_id, p.platform, p.primary_position, p.avatar_url,
-	       r.club_id::text, COALESCE(c.name, ''), COALESCE(c.short, ''), COALESCE(c.color, ''),
+	       r.club_id::text, COALESCE(c.slug, ''), COALESCE(c.name, ''), COALESCE(c.short, ''), COALESCE(c.color, ''),
 	       r.shirt_number, COALESCE(r.squad_role, ''), p.created_at
 	FROM arena_players p
 	LEFT JOIN arena_registrations r ON r.player_id = p.id AND r.ended_at IS NULL
@@ -25,7 +25,7 @@ func scanPlayer(row pgx.Row) (*domain.Player, error) {
 	var p domain.Player
 	var shirt *int16
 	if err := row.Scan(&p.ID, &p.UserID, &p.Gamertag, &p.EAID, &p.Platform, &p.PrimaryPosition, &p.AvatarURL,
-		&p.ClubID, &p.ClubName, &p.ClubShort, &p.ClubColor, &shirt, &p.SquadRole, &p.CreatedAt); err != nil {
+		&p.ClubID, &p.ClubSlug, &p.ClubName, &p.ClubShort, &p.ClubColor, &shirt, &p.SquadRole, &p.CreatedAt); err != nil {
 		return nil, notFound(err)
 	}
 	if shirt != nil {

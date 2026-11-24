@@ -10,6 +10,37 @@ import (
 	"showtime-backend/internal/arena/store"
 )
 
+// publicClub removes what only a club's own people and staff should see: the
+// manager's name, email and account id.
+func publicClub(c domain.Club) domain.Club {
+	c.ManagerUserID = nil
+	c.ManagerName = ""
+	c.ManagerEmail = ""
+	return c
+}
+
+// publicPlayer removes a player's account id and EA ID for the public pages.
+// Managers and staff still get them from their own endpoints.
+func publicPlayer(p domain.Player) domain.Player {
+	p.UserID = nil
+	p.EAID = ""
+	return p
+}
+
+// PublicClubs lists clubs for visitors, without anyone's contact details.
+func (s *Service) PublicClubs(ctx context.Context, f ClubFilter) ([]domain.Club, error) {
+	f.IncludeArchived = false
+	f.Unassigned = false
+	clubs, err := s.ListClubs(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	for i := range clubs {
+		clubs[i] = publicClub(clubs[i])
+	}
+	return clubs, nil
+}
+
 // table builds a division's league table from its clubs and league matches.
 func (s *Service) table(ctx context.Context, st *store.Store, divisionID string) ([]domain.StandingRow, error) {
 	refs, err := st.DivisionClubRefs(ctx, divisionID)
@@ -372,7 +403,7 @@ func (s *Service) ClubProfile(ctx context.Context, slug string) (*ClubProfile, e
 	if err != nil {
 		return nil, s.wrap(err, "Club")
 	}
-	p := &ClubProfile{Club: *club, Recent: []domain.Match{}, Upcoming: []domain.Match{}, Squad: []domain.PlayerSeasonStats{}}
+	p := &ClubProfile{Club: publicClub(*club), Recent: []domain.Match{}, Upcoming: []domain.Match{}, Squad: []domain.PlayerSeasonStats{}}
 	if club.DivisionID == nil {
 		return p, nil
 	}
@@ -437,7 +468,7 @@ func (s *Service) PlayerProfile(ctx context.Context, id string) (*PlayerProfile,
 	if err != nil {
 		return nil, s.wrap(err, "Player")
 	}
-	prof := &PlayerProfile{Player: *p}
+	prof := &PlayerProfile{Player: publicPlayer(*p)}
 	if p.ClubID != nil {
 		if season, err := s.store.CurrentSeason(ctx); err == nil {
 			if d, err := s.store.DivisionOfClub(ctx, *p.ClubID, season.ID); err == nil {

@@ -236,8 +236,12 @@ func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
 	// is just "can this person reach the admin panel at all", not a per-feature check.
 	// It is derived from the roles table rather than listed here, so a newly created role
 	// can upload from its first request.
-	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.StaffOrRolesMiddleware(app.RoleService,
-		domain.RoleTeamHead, domain.RolePlayerPending, domain.RoleSeller,
+	//
+	// Clubs Arena's club/player managers don't open the Showtime admin panel, so
+	// holding arena_clubs lets them upload crests and player photos too.
+	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.StaffRolesOrFeaturesMiddleware(app.RoleService,
+		[]string{domain.RoleTeamHead, domain.RolePlayerPending, domain.RoleSeller},
+		[]string{domain.FeatureArenaClubs},
 	))
 	{
 		uploadRoutes.POST("/presign", app.Handlers.UploadHandler.PresignUpload)

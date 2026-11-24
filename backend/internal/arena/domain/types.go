@@ -126,6 +126,7 @@ type Player struct {
 	PrimaryPosition string    `json:"primary_position"`
 	AvatarURL       string    `json:"avatar_url"`
 	ClubID          *string   `json:"club_id"`
+	ClubSlug        string    `json:"club_slug,omitempty"`
 	ClubName        string    `json:"club_name,omitempty"`
 	ClubShort       string    `json:"club_short,omitempty"`
 	ClubColor       string    `json:"club_color,omitempty"`

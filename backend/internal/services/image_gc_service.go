@@ -73,6 +73,8 @@ var referencedImageQueries = []string{
 	`SELECT image_url FROM badge_icons WHERE image_url IS NOT NULL AND image_url <> ''`,
 	`SELECT claimed_photo FROM player_claims WHERE claimed_photo <> ''`,
 	`SELECT url FROM media_files`,
+	`SELECT crest_url FROM arena_clubs WHERE crest_url <> ''`,
+	`SELECT avatar_url FROM arena_players WHERE avatar_url <> ''`,
 }
 
 // protectedPrefixes are never swept, referenced or not:

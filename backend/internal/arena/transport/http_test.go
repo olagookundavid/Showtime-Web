@@ -167,8 +167,27 @@ func TestHTTPPermissionsAndFlow(t *testing.T) {
 	}
 	first := list[0].(map[string]any)
 	mid := str(first, "id")
+	// Public pages must never carry anyone's contact details or account ids.
+	for _, path := range []string{"/clubs", "/clubs/" + str(clubA, "slug"), "/overview", "/standings", "/matches?state=upcoming"} {
+		_, obj, arr := e.call("GET", path, "", nil)
+		raw, _ := json.Marshal(map[string]any{"o": obj, "a": arr})
+		for _, banned := range []string{"@example.com", `"manager_email":"`, `"manager_user_id":"`, `"manager_name":"`} {
+			if bytes.Contains(raw, []byte(banned)) {
+				t.Fatalf("public %s leaks %q: %s", path, banned, raw)
+			}
+		}
+	}
 	e.expect(200, "GET", "/clubs/"+str(clubA, "slug"), "", nil)
 	e.expect(404, "GET", "/clubs/nope", "", nil)
+
+	// A public player profile hides the account link and EA ID; staff still see them.
+	pub := e.expect(200, "GET", "/players/"+aPlayers[0], "", nil)["player"].(map[string]any)
+	if pub["user_id"] != nil || str(pub, "ea_id") != "" {
+		t.Fatalf("public player profile leaks account details: %v", pub)
+	}
+	if staff := e.expect(200, "GET", "/admin/players/"+aPlayers[0], admin, nil); staff["gamertag"] == nil {
+		t.Fatalf("staff should still see the player: %v", staff)
+	}
 
 	// Results: the fan can't, staff can, and a wrong total is refused.
 	e.expect(403, "PUT", "/admin/matches/"+mid+"/result", fan, map[string]any{"home_score": 1, "away_score": 0})

@@ -40,7 +40,7 @@ func (h *Handler) MatchDetail(c *gin.Context) {
 }
 
 func (h *Handler) Clubs(c *gin.Context) {
-	out, err := h.svc.ListClubs(c.Request.Context(), service.ClubFilter{DivisionID: c.Query("division_id"), Query: c.Query("q")})
+	out, err := h.svc.PublicClubs(c.Request.Context(), service.ClubFilter{DivisionID: c.Query("division_id"), Query: c.Query("q")})
 	reply(c, out, err)
 }
 
