@@ -43,7 +43,7 @@ export const CompactMatchesWidget = ({
 
     if (isLoading) {
         return (
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-sffl-navy text-white">
                     <h3 className="text-sm font-black uppercase tracking-wider">{title}</h3>
                 </div>
@@ -56,7 +56,7 @@ export const CompactMatchesWidget = ({
 
     if (sortedMatches.length === 0) {
         return (
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-sffl-navy text-white">
                     <h3 className="text-sm font-black uppercase tracking-wider">{title}</h3>
                 </div>
@@ -68,7 +68,7 @@ export const CompactMatchesWidget = ({
     }
 
     return (
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 bg-sffl-navy text-white">
                 <h3 className="min-w-0 text-sm font-black uppercase tracking-wider">{title}</h3>
                 <div className="flex items-center gap-2">
@@ -89,6 +89,7 @@ export const CompactMatchesWidget = ({
                         key={m.id}
                         m={m}
                         isFinal={false}
+                        shape="square"
                     />
                 ))}
             </div>

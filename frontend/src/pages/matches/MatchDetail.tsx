@@ -2,10 +2,10 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getMatchDetail, getPublicMatchStats } from '../../services';
-import { Loader, Button, LightboxImage, PlayByPlayTimeline, PublicMatchStats, MatchSummaryTab, getUnifiedMatchMvp, MatchTeamSheetTab, CommentSection, BackButton, FootballIcon } from '../../components';
+import { Loader, Button, LightboxImage, PlayByPlayTimeline, PublicMatchStats, MatchSummaryTab, getUnifiedMatchMvp, MatchTeamSheetTab, MatchHighlightsTab, CommentSection, BackButton, FootballIcon, buttonClass } from '../../components';
 import { formatMatchTime, formatMatchDate } from '../../utils';
 import { useLiveMatchScore } from '../../hooks';
-import { MapPinIcon, PlayIcon, TicketIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, TicketIcon } from '@heroicons/react/24/outline';
 
 export const MatchDetail = () => {
     const { id } = useParams<{ id: string }>();
@@ -29,8 +29,8 @@ export const MatchDetail = () => {
     });
 
     const tabParam = searchParams.get('tab');
-    type MatchTab = 'summary' | 'rating' | 'plays' | 'stats' | 'discussions';
-    const initialTab: MatchTab = (tabParam === 'summary' || tabParam === 'discussions' || tabParam === 'plays' || tabParam === 'stats' || tabParam === 'rating') ? tabParam : 'summary';
+    type MatchTab = 'summary' | 'rating' | 'plays' | 'stats' | 'highlights' | 'discussions';
+    const initialTab: MatchTab = (tabParam === 'summary' || tabParam === 'discussions' || tabParam === 'plays' || tabParam === 'stats' || tabParam === 'rating' || tabParam === 'highlights') ? tabParam : 'summary';
 
     const [activeTab, setActiveTab] = useState<MatchTab>(initialTab);
 
@@ -54,7 +54,7 @@ export const MatchDetail = () => {
                 <FootballIcon className="w-14 h-14 mx-auto mb-6 text-gray-400" aria-hidden="true" />
                 <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white mb-3">Match Not Found</h1>
                 <p className="text-gray-500 mb-8">This match could not be loaded. It may have been removed.</p>
-                <BackButton fallback={backLink} className="inline-flex items-center gap-2 min-h-11 px-6 py-3 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
+                <BackButton fallback={backLink} className="inline-flex items-center gap-2 min-h-11 px-6 py-3 bg-sffl-red text-white font-bold hover:bg-red-700 transition-colors">
                     Back to Matches
                 </BackButton>
             </div>
@@ -97,7 +97,7 @@ export const MatchDetail = () => {
             </div>
 
             {/* Match Card Header */}
-            <div className="bg-sffl-navy rounded-2xl shadow-2xl overflow-hidden border border-white/5 relative">
+            <div className="bg-sffl-navy shadow-2xl overflow-hidden border border-white/5 relative">
                 <div className="absolute inset-0 bg-cover bg-center opacity-10" style={{ backgroundImage: `url('/images/card_pattern.svg')` }} />
                 <div className="relative p-4 sm:p-6 md:p-12">
                     {/* Competition + date */}
@@ -155,7 +155,7 @@ export const MatchDetail = () => {
                         {/* Score / Time */}
                         <div className="flex flex-col items-center gap-1 md:gap-2 shrink-0">
                             {isBye ? (
-                                <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 rounded-xl md:rounded-2xl text-center border border-white/10">
+                                <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 text-center border border-white/10">
                                     <div className="text-white font-black text-xl md:text-4xl tracking-tight">
                                         BYE
                                     </div>
@@ -168,7 +168,7 @@ export const MatchDetail = () => {
                                     {awayScore ?? 0}
                                 </div>
                             ) : (
-                                <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 rounded-xl md:rounded-2xl text-center border border-white/10">
+                                <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 text-center border border-white/10">
                                     <div className="text-white font-black text-xl md:text-4xl tracking-tight">
                                         {formatMatchTime(match.start_time, match.date)}
                                     </div>
@@ -224,44 +224,32 @@ export const MatchDetail = () => {
                 </div>
             </div>
 
-            {/* ── Action Links (Highlights / Tickets) ── */}
-            {(match.highlights_url || match.ticket_url) && (
+            {/* ── Action Link (Tickets) ── */}
+            {match.ticket_url && (
                 <div className="flex flex-wrap gap-3">
-                    {match.highlights_url && (
-                        <a
-                            href={match.highlights_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 min-h-11 px-5 py-3 bg-sffl-red text-white font-bold text-sm rounded-xl shadow-lg hover:bg-red-700 hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
-                        >
-                            <PlayIcon className="w-4 h-4" aria-hidden="true" />
-                            Watch Highlights
-                        </a>
-                    )}
-                    {match.ticket_url && (
-                        <a
-                            href={match.ticket_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 min-h-11 px-5 py-3 bg-white dark:bg-gray-800 text-sffl-navy dark:text-white font-bold text-sm rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
-                        >
-                            <TicketIcon className="w-4 h-4" aria-hidden="true" />
-                            Get Tickets
-                        </a>
-                    )}
+                    <a
+                        href={match.ticket_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={buttonClass('navy', 'md', false, 'text-sm', 'light', 'square')}
+                    >
+                        <TicketIcon className="w-4 h-4" aria-hidden="true" />
+                        Get Tickets
+                    </a>
                 </div>
             )}
 
-            {/* ── 5 Clean, Evenly Spaced Segmented Tabs ── */}
+            {/* ── 6 Clean, Evenly Spaced Segmented Tabs ── */}
             {!isBye && (
                 <div className="space-y-6">
                     {/* Segmented High-Contrast Tab Bar */}
-                    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 mb-6 text-center">
+                    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-1.5 border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 mb-6 text-center">
                         {([
                             ['summary', 'Summary'],
                             ['rating', 'Team Sheets'],
                             ['plays', 'Play by Play'],
                             ['stats', 'Match Stats'],
+                            ['highlights', 'Highlights'],
                             ['discussions', 'Discussions'],
                         ] as const).map(([key, label]) => {
                             const isActive = activeTab === key;
@@ -269,6 +257,7 @@ export const MatchDetail = () => {
                                 <Button
                                     key={key}
                                     size="sm"
+                                    shape="square"
                                     variant={isActive ? 'primary' : 'ghost'}
                                     aria-pressed={isActive}
                                     className="uppercase tracking-tight"
@@ -307,7 +296,15 @@ export const MatchDetail = () => {
                         <PublicMatchStats matchId={match.id} />
                     )}
 
-                    {/* Tab 4: Discussions */}
+                    {/* Tab 4: Highlights */}
+                    {activeTab === 'highlights' && (
+                        <MatchHighlightsTab
+                            highlightsUrl={match.highlights_url}
+                            title={`${homeTeam?.name ?? 'Home'} vs ${awayTeam?.name ?? 'Away'} Highlights`}
+                        />
+                    )}
+
+                    {/* Tab 5: Discussions */}
                     {activeTab === 'discussions' && (
                         <CommentSection entityType="match" entityId={match.id} />
                     )}

@@ -3,7 +3,7 @@ import { youTubeEmbedUrl } from '../../utils';
 
 // YouTube iframe with a visible loading state — the raw iframe paints as a
 // black box for a second or two on slow connections, which reads as broken.
-export const YouTubeEmbed = ({ videoId, title }: { videoId: string; title: string }) => {
+export const YouTubeEmbed = ({ videoId, title, autoplay = false }: { videoId: string; title: string; autoplay?: boolean }) => {
     const [loaded, setLoaded] = useState(false);
 
     return (
@@ -16,7 +16,7 @@ export const YouTubeEmbed = ({ videoId, title }: { videoId: string; title: strin
             )}
             <iframe
                 className={`w-full h-full transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-                src={youTubeEmbedUrl(videoId)}
+                src={youTubeEmbedUrl(videoId, autoplay)}
                 title={title}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen

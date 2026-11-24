@@ -4,14 +4,17 @@ import { CalendarDaysIcon, TicketIcon } from "@heroicons/react/24/outline";
 import type { Match } from "../../types";
 import { generateGoogleCalendarLink, formatMatchTime, formatMatchDate } from "../../utils";
 import { Button, ButtonLink, LightboxImage } from "../ui";
+import type { Shape } from "../ui/buttonStyles";
 import { useLiveMatchScore } from "../../hooks";
 
 interface MatchCardProps {
   match: Match;
   onClick: () => void;
+  shape?: Shape;
 }
 
-export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
+export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick, shape = "round" }) => {
+  const radius = shape === "square" ? "rounded-none" : "rounded-xl";
   const isFinished = match.status === "FINISHED";
   const isLive = match.status === "LIVE";
   const { homeScore, awayScore } = useLiveMatchScore(
@@ -32,7 +35,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
   return (
     <div
       onClick={isBye ? undefined : onClick}
-      className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden group ${
+      className={`bg-white dark:bg-gray-800 ${radius} shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden group ${
         isBye
           ? "cursor-default"
           : "hover:shadow-xl transition-all duration-300 cursor-pointer hover:border-blue-500/50"

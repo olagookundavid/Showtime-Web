@@ -13,6 +13,7 @@ export type { BracketColumn, PitchStarterNode } from '../../types';
 export { CompactMatchCard } from './CompactMatchCard';
 export { CompactMatchesWidget } from './CompactMatchesWidget';
 export { MatchCard } from './MatchCard';
+export { MatchHighlightsTab } from './MatchHighlightsTab';
 export { MatchStandingsTable } from './MatchStandingsTable';
 export { MatchSummaryTab } from './MatchSummaryTab';
 export { getUnifiedMatchMvp, calculatePlayerFantasyPoints } from './matchMvp';

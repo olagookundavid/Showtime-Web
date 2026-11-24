@@ -126,7 +126,7 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({
 
   return (
     <div className="space-y-0">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-t-lg md:rounded-t-xl bg-sffl-navy px-3 py-2 md:px-6 md:py-3 text-white font-bold text-sm md:text-lg">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 bg-sffl-navy px-3 py-2 md:px-6 md:py-3 text-white font-bold text-sm md:text-lg">
         <div className="flex items-center gap-2">
           <TrophyIcon className="w-5 h-5 text-yellow-500" aria-hidden="true" />
           <span>{isCup ? "Cup Standings" : "Team Standings"}</span>

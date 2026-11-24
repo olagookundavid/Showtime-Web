@@ -362,6 +362,7 @@ export const Standings = () => {
                 <MatchCard
                   key={m.id}
                   match={m}
+                  shape="square"
                   onClick={() => {
                     const params = new URLSearchParams();
                     if (activeCompetitionId)

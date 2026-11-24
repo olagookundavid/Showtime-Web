@@ -83,8 +83,8 @@ export const parseYouTubeId = (input: string): string | null => {
     return null;
 };
 
-export const youTubeEmbedUrl = (videoId: string) =>
-    `https://www.youtube-nocookie.com/embed/${videoId}`;
+export const youTubeEmbedUrl = (videoId: string, autoplay = false) =>
+    `https://www.youtube-nocookie.com/embed/${videoId}${autoplay ? '?autoplay=1&rel=0&modestbranding=1' : ''}`;
 
 export const youTubeThumbnailUrl = (videoId: string) =>
     `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
