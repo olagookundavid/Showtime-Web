@@ -81,7 +81,10 @@ func Idempotency(store IdempotencyStore) gin.HandlerFunc {
 		c.Request.Body = io.NopCloser(bytes.NewReader(body))
 
 		scope := c.Request.Method + " " + c.FullPath()
-		sum := sha256.Sum256(append([]byte(scope+"\n"), body...))
+		// The hash covers the real path, not the route pattern, so a key reused
+		// for the same body on a different :id (another user's wallet, say) is
+		// refused instead of replaying the first answer.
+		sum := sha256.Sum256(append([]byte(c.Request.Method+" "+c.Request.URL.Path+"\n"), body...))
 		hash := hex.EncodeToString(sum[:])
 		userID := payload.UserId
 

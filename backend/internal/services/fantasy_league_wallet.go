@@ -65,9 +65,15 @@ func (s *FantasyLeagueService) joinPaidLeagueWithWallet(ctx context.Context, lea
 	// membership (the column is the member's unique payment reference, and a wallet
 	// reference can never match a Paystack transaction), but it never replaces an
 	// earlier card reference, which would orphan a late card payment.
+	//
+	// When an earlier card attempt is still open, the wallet reference is built
+	// from it. If that card payment succeeds later, verifyPayment can find this
+	// wallet payment from the card reference alone and refund it, so the manager
+	// ends up paying once.
 	ref := fmt.Sprintf("%s%d-%s", walletLeagueRefPrefix, time.Now().Unix(), suffix)
 	memberRef := &ref
 	if keepRef != nil {
+		ref = walletRefForCard(*keepRef)
 		memberRef = keepRef
 	}
 
@@ -101,3 +107,52 @@ func (s *FantasyLeagueService) joinPaidLeagueWithWallet(ctx context.Context, lea
 
 // walletLeagueRefPrefix marks a league payment reference made for a wallet entry.
 const walletLeagueRefPrefix = "FNTW-"
+
+// walletRefForCard is the ledger reference of a wallet entry paid while the card
+// attempt cardRef was still open.
+func walletRefForCard(cardRef string) string {
+	return walletLeagueRefPrefix + cardRef
+}
+
+// walletPaymentLookup is the part of the wallet service that says how much of a
+// payment is still unrefunded. It is kept off WalletSpender, which the store and
+// ticket flows share and don't need it.
+type walletPaymentLookup interface {
+	UnrefundedPaymentKobo(ctx context.Context, reference string) (int64, error)
+}
+
+// The real wallet must keep providing it, or the refund would silently stop.
+var _ walletPaymentLookup = (*WalletService)(nil)
+
+// refundWalletIfCardAlsoPaid handles a manager who joined with the wallet while
+// an earlier card attempt was open, and whose card payment then went through as
+// well. The card payment stands as the entry fee and the wallet payment is put
+// back. It does nothing unless a wallet payment is tied to cardRef, has not been
+// refunded, and Paystack confirms the card charge, so it is safe to repeat.
+func (s *FantasyLeagueService) refundWalletIfCardAlsoPaid(ctx context.Context, member *domain.FantasyLeagueMember, cardRef string) error {
+	if s.wallet == nil || s.paystackClient == nil || strings.HasPrefix(cardRef, walletLeagueRefPrefix) {
+		return nil
+	}
+	lookup, ok := s.wallet.(walletPaymentLookup)
+	if !ok {
+		return nil
+	}
+	walletRef := walletRefForCard(cardRef)
+	owed, err := lookup.UnrefundedPaymentKobo(ctx, walletRef)
+	if err != nil {
+		return fmt.Errorf("failed to check the wallet payment for this league: %w", err)
+	}
+	if owed <= 0 {
+		return nil
+	}
+	resp, err := s.paystackClient.VerifyTransaction(cardRef)
+	if err != nil {
+		return fmt.Errorf("paystack verification call failed: %w", err)
+	}
+	if resp.Data.Status != "success" || int64(resp.Data.Amount) < owed {
+		return nil
+	}
+	_, err = s.wallet.Refund(ctx, member.UserID, owed, walletRef,
+		"Refund: league entry was also paid by card")
+	return err
+}

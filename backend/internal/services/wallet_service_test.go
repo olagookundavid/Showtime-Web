@@ -35,7 +35,11 @@ func (r *fakeWalletRepo) ListEntries(_ context.Context, userID string, _ int) ([
 	}
 	return out, nil
 }
-func (r *fakeWalletRepo) CreateTopup(_ context.Context, t *domain.Topup) error {
+func (r *fakeWalletRepo) CreateTopup(ctx context.Context, t *domain.Topup, maxBalanceKobo int64, since time.Time) error {
+	pending, _ := r.PendingTopupsKobo(ctx, t.UserID, since)
+	if r.balance[t.UserID]+pending+t.AmountKobo > maxBalanceKobo {
+		return ports.ErrTopupOverLimit
+	}
 	t.Status = domain.TopupPending
 	cp := *t
 	r.topups[t.PaystackReference] = &cp
@@ -498,5 +502,29 @@ func TestAdminAdjustOfZeroIsAUserError(t *testing.T) {
 	s, _, _ := walletFixture()
 	if _, err := s.AdminAdjust(context.Background(), "u1", 0, "typo", "staff"); !errors.Is(err, ErrAdjustAmount) {
 		t.Fatalf("err = %v, want ErrAdjustAmount", err)
+	}
+}
+
+// UnrefundedPaymentKobo reports what a wallet payment still owes back, and
+// nothing once it has been refunded or if it never happened.
+func TestUnrefundedPaymentKobo(t *testing.T) {
+	s, repo, _ := walletFixture()
+	ctx := context.Background()
+	repo.balance["u1"] = 500_000
+
+	if owed, err := s.UnrefundedPaymentKobo(ctx, "FNTW-none"); err != nil || owed != 0 {
+		t.Fatalf("never paid: owed=%d err=%v, want 0", owed, err)
+	}
+	if _, err := s.Pay(ctx, "u1", 120_000, "FNTW-card1", "league entry"); err != nil {
+		t.Fatal(err)
+	}
+	if owed, _ := s.UnrefundedPaymentKobo(ctx, "FNTW-card1"); owed != 120_000 {
+		t.Fatalf("owed = %d, want 120000", owed)
+	}
+	if _, err := s.Refund(ctx, "u1", 120_000, "FNTW-card1", "refund"); err != nil {
+		t.Fatal(err)
+	}
+	if owed, _ := s.UnrefundedPaymentKobo(ctx, "FNTW-card1"); owed != 0 {
+		t.Fatalf("after refund owed = %d, want 0", owed)
 	}
 }

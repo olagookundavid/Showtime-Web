@@ -21,6 +21,7 @@ import {
   adminSearchWalletUsers,
   formatKobo,
 } from "../../services";
+import { useIdempotencyKey } from "../../hooks";
 import { getApiErrorMessage } from "../../utils";
 import type { WalletUser } from "../../types";
 
@@ -63,9 +64,13 @@ const AdminWallets = () => {
   const canReview = amountKobo !== null && reason.trim().length > 0;
   const signedKobo = amountKobo === null ? 0 : direction === "credit" ? amountKobo : -amountKobo;
 
+  // A retry after a lost answer reuses the key, so the server applies it once.
+  const attempt = useIdempotencyKey();
   const adjust = useMutation({
-    mutationFn: () => adminAdjustWallet(selected!.id, signedKobo, reason.trim()),
+    mutationFn: () =>
+      adminAdjustWallet(selected!.id, signedKobo, reason.trim(), attempt.current()),
     onSuccess: () => {
+      attempt.settle();
       toast.success("Wallet updated");
       queryClient.invalidateQueries({ queryKey: ["adminUserWallet", selected?.id] });
       setConfirming(false);
@@ -74,6 +79,7 @@ const AdminWallets = () => {
       setReason("");
     },
     onError: (err) => {
+      attempt.settle(err);
       setConfirming(false);
       toast.error(getApiErrorMessage(err, "We could not change that wallet."));
     },

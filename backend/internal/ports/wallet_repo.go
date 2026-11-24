@@ -15,13 +15,22 @@ import (
 // ErrWalletInsufficient is returned when a debit is more than the wallet holds.
 var ErrWalletInsufficient = errors.New("your wallet balance is not enough for this")
 
+// ErrTopupOverLimit is returned when a new top-up, with the balance and the
+// unpaid top-ups already started, would take the wallet past its maximum.
+var ErrTopupOverLimit = errors.New("this top-up would take the wallet past its maximum balance")
+
 type IWalletRepository interface {
 	// GetWallet returns the wallet, or an implicit empty one for a user who has
 	// never used it. Wallets are created on first credit, so nobody needs a backfill.
 	GetWallet(ctx context.Context, userID string) (*domain.Wallet, error)
 	ListEntries(ctx context.Context, userID string, limit int) ([]domain.LedgerEntry, error)
 
-	CreateTopup(ctx context.Context, t *domain.Topup) error
+	// CreateTopup records a new PENDING top-up, but only if the balance plus the
+	// user's unpaid top-ups started after pendingSince plus this one stay within
+	// maxBalanceKobo; otherwise it returns ErrTopupOverLimit. The check and the
+	// insert happen under the wallet's row lock, so two top-ups started at the
+	// same moment can't both squeeze under the cap.
+	CreateTopup(ctx context.Context, t *domain.Topup, maxBalanceKobo int64, pendingSince time.Time) error
 	// GetTopupByReference returns nil, nil when the reference is not a top-up.
 	GetTopupByReference(ctx context.Context, reference string) (*domain.Topup, error)
 	// SettleTopup turns a top-up PAID and credits the wallet, in one database
@@ -152,16 +161,42 @@ func (r *WalletRepository) ListEntries(ctx context.Context, userID string, limit
 	return list, rows.Err()
 }
 
-func (r *WalletRepository) CreateTopup(ctx context.Context, t *domain.Topup) error {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+func (r *WalletRepository) CreateTopup(ctx context.Context, t *domain.Topup, maxBalanceKobo int64, pendingSince time.Time) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	return r.pool.QueryRow(ctx, `
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Holding the wallet lock makes concurrent top-up starts for one user take
+	// turns, so each one sees the others' pending rows.
+	balance, err := lockSpendWallet(ctx, tx, t.UserID)
+	if err != nil {
+		return err
+	}
+	var pending int64
+	if err := tx.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount_kobo), 0)::bigint FROM wallet_topups
+		WHERE user_id = $1 AND status = 'PENDING' AND created_at > $2`, t.UserID, pendingSince,
+	).Scan(&pending); err != nil {
+		return err
+	}
+	if balance+pending+t.AmountKobo > maxBalanceKobo {
+		return ErrTopupOverLimit
+	}
+
+	if err := tx.QueryRow(ctx, `
 		INSERT INTO wallet_topups (user_id, amount_kobo, paystack_reference, paystack_access_code)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, status, created_at
 	`, t.UserID, t.AmountKobo, t.PaystackReference, t.PaystackAccessCode,
-	).Scan(&t.ID, &t.Status, &t.CreatedAt)
+	).Scan(&t.ID, &t.Status, &t.CreatedAt); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 const topupColumns = `id, user_id, amount_kobo, status, paystack_reference, paystack_access_code, created_at, paid_at`

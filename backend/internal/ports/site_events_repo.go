@@ -442,7 +442,12 @@ func (r *PostgresSiteEventsRepository) Conversions(ctx context.Context, sc SiteS
 	err := r.db.QueryRow(ctx, `
 		SELECT COUNT(*), COALESCE(SUM(total_amount), 0)::float8
 		FROM online_orders
-		WHERE payment_status = 'paid' AND `+where, args...,
+		WHERE payment_status = 'paid'
+		  -- Cancelling a wallet order refunds it to the wallet straight away, so
+		  -- that money was never kept. (Card refunds are made by hand, outside
+		  -- the system, so a cancelled card order still counts.)
+		  AND NOT (payment_method = 'wallet' AND fulfillment_status = 'cancelled')
+		  AND `+where, args...,
 	).Scan(&c.StoreOrders, &c.StoreRevenue)
 	return c, err
 }

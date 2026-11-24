@@ -3,7 +3,11 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"showtime-backend/internal/domain"
@@ -264,7 +268,116 @@ func TestJoinLeagueWithWallet_KeepsEarlierCardReference(t *testing.T) {
 	if got.PaymentStatus != domain.LeaguePaymentPaid || len(repo.debits) != 1 {
 		t.Fatalf("status=%s debits=%d, want PAID and 1", got.PaymentStatus, len(repo.debits))
 	}
-	if *repo.debits[0].Reference == cardRef {
-		t.Fatal("the ledger keeps its own wallet reference")
+	if *repo.debits[0].Reference != walletRefForCard(cardRef) {
+		t.Fatalf("ledger reference = %s, want %s so a late card payment can find it", *repo.debits[0].Reference, walletRefForCard(cardRef))
+	}
+}
+
+// refundingSpender is a wallet that remembers what each reference paid and
+// whether it was refunded, the way WalletService does.
+type refundingSpender struct {
+	mu       sync.Mutex
+	paid     map[string]int64
+	refunded map[string]bool
+	refunds  int
+}
+
+func (f *refundingSpender) Pay(context.Context, string, int64, string, string) (bool, error) {
+	return false, errors.New("not used")
+}
+
+func (f *refundingSpender) Refund(_ context.Context, _ string, _ int64, ref, _ string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.paid[ref] == 0 || f.refunded[ref] {
+		return false, nil
+	}
+	f.refunded[ref] = true
+	f.refunds++
+	return true, nil
+}
+
+func (f *refundingSpender) UnrefundedPaymentKobo(_ context.Context, ref string) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.refunded[ref] {
+		return 0, nil
+	}
+	return f.paid[ref], nil
+}
+
+// stubPaystack answers every verify with the given status and amount, and
+// counts the calls.
+func stubPaystack(t *testing.T, status string, amount int) (*PaystackClient, *atomic.Int32) {
+	t.Helper()
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		_, _ = fmt.Fprintf(w, `{"status":true,"data":{"status":%q,"amount":%d,"currency":"NGN"}}`, status, amount)
+	}))
+	t.Cleanup(srv.Close)
+	return &PaystackClient{secretKey: "sk_test", baseURL: srv.URL, client: srv.Client()}, &calls
+}
+
+func paidMemberWithCard(cardRef string) *domain.FantasyLeagueMember {
+	return &domain.FantasyLeagueMember{
+		ID: "m1", LeagueID: "league-1", UserID: "user-1",
+		PaymentStatus: domain.LeaguePaymentPaid, PaystackReference: &cardRef,
+	}
+}
+
+// A manager joins with the wallet while a card attempt is open, then the card
+// payment goes through as well. The wallet payment is refunded once, however
+// many times the confirmation arrives.
+func TestLateCardPaymentRefundsTheWalletEntry(t *testing.T) {
+	cardRef := "FNT-1700000000-ABC"
+	spender := &refundingSpender{paid: map[string]int64{walletRefForCard(cardRef): 100000}, refunded: map[string]bool{}}
+	ps, calls := stubPaystack(t, "success", 100000)
+	svc := &FantasyLeagueService{paystackClient: ps}
+	svc.WithWallet(spender)
+
+	for i := 0; i < 3; i++ { // webhook, its retry, and the browser confirm
+		if err := svc.verifyPayment(context.Background(), paidMemberWithCard(cardRef), cardRef); err != nil {
+			t.Fatalf("verifyPayment: %v", err)
+		}
+	}
+	if spender.refunds != 1 {
+		t.Fatalf("wallet refunded %d times, want 1", spender.refunds)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("Paystack asked %d times, want 1 (once refunded, no further checks)", calls.Load())
+	}
+}
+
+// A card attempt that never completed leaves the wallet payment alone.
+func TestUnpaidCardAttemptKeepsTheWalletEntry(t *testing.T) {
+	cardRef := "FNT-1700000000-DEF"
+	spender := &refundingSpender{paid: map[string]int64{walletRefForCard(cardRef): 100000}, refunded: map[string]bool{}}
+	ps, _ := stubPaystack(t, "abandoned", 0)
+	svc := &FantasyLeagueService{paystackClient: ps}
+	svc.WithWallet(spender)
+
+	if err := svc.verifyPayment(context.Background(), paidMemberWithCard(cardRef), cardRef); err != nil {
+		t.Fatalf("verifyPayment: %v", err)
+	}
+	if spender.refunds != 0 {
+		t.Fatal("the wallet was refunded although the card was never charged")
+	}
+}
+
+// An ordinary card member has no wallet payment, so a repeat confirmation does
+// not reach Paystack at all.
+func TestPaidCardMemberWithoutWalletEntryIsUntouched(t *testing.T) {
+	cardRef := "FNT-1700000000-GHI"
+	spender := &refundingSpender{paid: map[string]int64{}, refunded: map[string]bool{}}
+	ps, calls := stubPaystack(t, "success", 100000)
+	svc := &FantasyLeagueService{paystackClient: ps}
+	svc.WithWallet(spender)
+
+	if err := svc.verifyPayment(context.Background(), paidMemberWithCard(cardRef), cardRef); err != nil {
+		t.Fatalf("verifyPayment: %v", err)
+	}
+	if spender.refunds != 0 || calls.Load() != 0 {
+		t.Fatalf("refunds=%d paystack calls=%d, want 0 and 0", spender.refunds, calls.Load())
 	}
 }

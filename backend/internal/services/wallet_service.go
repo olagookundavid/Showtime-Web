@@ -221,8 +221,11 @@ func (s *WalletService) StartTopup(ctx context.Context, userID string, amountKob
 		return nil, fmt.Errorf("%w (₦%d)", ErrWalletFull, maxBalance/100)
 	}
 	// Unpaid top-ups started recently count too: otherwise several checkouts
-	// started back to back would each pass this check and all be paid.
-	pending, err := s.repo.PendingTopupsKobo(ctx, userID, time.Now().Add(-pendingTopupWindow))
+	// started back to back would each pass this check and all be paid. These
+	// early checks give the clearer message; CreateTopup repeats the check under
+	// the wallet lock for top-ups started at the very same moment.
+	pendingSince := time.Now().Add(-pendingTopupWindow)
+	pending, err := s.repo.PendingTopupsKobo(ctx, userID, pendingSince)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +255,13 @@ func (s *WalletService) StartTopup(ctx context.Context, userID string, amountKob
 		PaystackReference:  reference,
 		PaystackAccessCode: &accessCode,
 	}
-	if err := s.repo.CreateTopup(ctx, topup); err != nil {
+	// Paystack is asked first so no row exists for a payment that could not
+	// start. If the locked check refuses it, the initialised transaction is never
+	// shown to the user and simply lapses on Paystack's side.
+	if err := s.repo.CreateTopup(ctx, topup, maxBalance, pendingSince); err != nil {
+		if errors.Is(err, ports.ErrTopupOverLimit) {
+			return nil, ErrTopupPending
+		}
 		return nil, fmt.Errorf("could not record the top-up: %w", err)
 	}
 	return &dto.TopupInitResponse{Reference: reference, AuthorizationURL: resp.Data.AuthorizationURL}, nil
@@ -426,6 +435,22 @@ func (s *WalletService) Pay(ctx context.Context, userID string, amountKobo int64
 		Description: description,
 	})
 	return applied, err
+}
+
+// UnrefundedPaymentKobo is how much Pay took for reference that has not been
+// refunded yet: 0 when the reference was never paid from the wallet or was
+// already refunded.
+func (s *WalletService) UnrefundedPaymentKobo(ctx context.Context, reference string) (int64, error) {
+	reference = strings.TrimSpace(reference)
+	paid, err := s.repo.FindEntry(ctx, domain.LedgerPurchase, reference)
+	if err != nil || paid == nil {
+		return 0, err
+	}
+	refunded, err := s.repo.FindEntry(ctx, domain.LedgerRefund, "REFUND-"+reference)
+	if err != nil || refunded != nil {
+		return 0, err
+	}
+	return -paid.AmountKobo, nil
 }
 
 func (s *WalletService) Refund(ctx context.Context, userID string, amountKobo int64, reference, description string) (bool, error) {

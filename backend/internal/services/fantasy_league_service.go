@@ -384,7 +384,9 @@ func (s *FantasyLeagueService) VerifyLeaguePayment(ctx context.Context, userID, 
 
 func (s *FantasyLeagueService) verifyPayment(ctx context.Context, member *domain.FantasyLeagueMember, reference string) error {
 	if member.PaymentStatus == domain.LeaguePaymentPaid {
-		return nil // already verified (idempotent)
+		// Already paid (idempotent). If it was paid from the wallet while this card
+		// attempt was open and the card went through too, refund the wallet.
+		return s.refundWalletIfCardAlsoPaid(ctx, member, reference)
 	}
 
 	// Verify with Paystack API
