@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { ProtectedRoute } from '../components';
 import type { FeatureKey } from '../config/featureAccess';
 import { usePermissions } from '../hooks';
@@ -21,12 +21,18 @@ export const RequireFeature = ({ features, children }: { features: FeatureKey[];
   );
 };
 
-/** Signed in as the manager of a club. */
+/**
+ * Signed in as the manager of a club. Staff with full club access may also open
+ * these pages for any club by adding ?club_id=, to help a manager or step in.
+ */
 export const RequireManager = ({ children }: { children: ReactNode }) => {
   const me = useArenaMe();
+  const { canEdit } = usePermissions();
+  const [params] = useSearchParams();
+  const actingForClub = Boolean(params.get('club_id')) && canEdit('arena_clubs');
   return (
     <RequireSignIn actionText="manage your club">
-      {me.isLoading ? <Loader /> : me.data?.managed_club ? children : <Navigate to="/me" replace />}
+      {me.isLoading ? <Loader /> : me.data?.managed_club || actingForClub ? children : <Navigate to="/me" replace />}
     </RequireSignIn>
   );
 };

@@ -14,11 +14,3 @@ export type StatusTone = keyof typeof tones;
 export const StatusBadge = ({ tone = 'neutral', children }: { tone?: StatusTone; children: ReactNode }) => (
   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${tones[tone]}`}>{children}</span>
 );
-
-/** The badge tone for each contract status. */
-export const contractTone = (status: string): StatusTone => {
-  if (status === 'signed') return 'success';
-  if (status === 'rejected' || status === 'release_declined') return 'danger';
-  if (status === 'withdrawn') return 'neutral';
-  return 'pending';
-};

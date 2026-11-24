@@ -1,2 +1,3 @@
 export * from './utils';
-export { ArenaScopeProvider, useArenaScope } from './ArenaScope';
+export { ArenaScopeProvider } from './ArenaScope';
+export { useArenaScope } from './useArenaScope';

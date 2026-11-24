@@ -4,7 +4,7 @@ import { ButtonLink, DashboardShell, Select } from '../components';
 import { useAuth } from '../contexts';
 import { arenaBottomNav, arenaSectionsFor } from './arenaNav';
 import { useArenaMe } from './hooks';
-import { useArenaScope } from './ArenaScope';
+import { useArenaScope } from './useArenaScope';
 
 const BRAND = {
   logoSrc: '/logo.svg',

@@ -81,6 +81,7 @@ export interface ArenaPlayer {
   primary_position: string;
   avatar_url: string;
   club_id: string | null;
+  club_slug?: string;
   club_name?: string;
   club_short?: string;
   club_color?: string;

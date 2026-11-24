@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { arenaApi } from '../services';
-import type { ArenaDivision, ArenaSeason } from '../types';
+import { ArenaScopeContext, type ArenaScopeValue } from './useArenaScope';
 
 const STORAGE_KEY = 'arena_division';
 
@@ -12,20 +12,6 @@ const readStored = (): string => {
     return '';
   }
 };
-
-interface ArenaScopeValue {
-  /** The season being shown (the live one, or the latest). */
-  season: ArenaSeason | null;
-  divisions: ArenaDivision[];
-  /** The division being shown. Empty until the first load, or when there are none. */
-  division: ArenaDivision | null;
-  /** The id to send to the API: the visitor's choice, or empty for the default. */
-  divisionId: string;
-  setDivisionId: (id: string) => void;
-  isLoading: boolean;
-}
-
-const ArenaScopeContext = createContext<ArenaScopeValue | undefined>(undefined);
 
 /**
  * Which division the public pages are showing. The visitor's choice is
@@ -60,10 +46,4 @@ export const ArenaScopeProvider = ({ children }: { children: ReactNode }) => {
     [data, isLoading, setDivisionId],
   );
   return <ArenaScopeContext.Provider value={value}>{children}</ArenaScopeContext.Provider>;
-};
-
-export const useArenaScope = (): ArenaScopeValue => {
-  const ctx = useContext(ArenaScopeContext);
-  if (!ctx) throw new Error('useArenaScope must be used within ArenaScopeProvider');
-  return ctx;
 };

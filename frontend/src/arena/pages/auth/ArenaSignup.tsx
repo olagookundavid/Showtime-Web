@@ -5,6 +5,10 @@ import { useAuth } from '../../../contexts';
 import { useReturnUrl, withReturnUrl } from '../../../hooks';
 import { AuthCard } from './AuthCard';
 
+// The server's rule, checked here first so the message appears before the request.
+const PASSWORD_RULE = /^(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const PASSWORD_HINT = 'Use at least 8 characters, with a number and a symbol.';
+
 export const ArenaSignup = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -25,7 +29,7 @@ export const ArenaSignup = () => {
     e.preventDefault();
     setError('');
     if (password !== confirm) return setError('The two passwords do not match.');
-    if (password.length < 6) return setError('Use a password of at least 6 characters.');
+    if (!PASSWORD_RULE.test(password)) return setError(PASSWORD_HINT);
     setLoading(true);
     const result = await signup(firstName, lastName, email, password);
     setLoading(false);
@@ -63,7 +67,7 @@ export const ArenaSignup = () => {
         <Field label="Email address" htmlFor="su-email">
           <Input id="su-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
-        <Field label="Password" htmlFor="su-password" hint="At least 6 characters.">
+        <Field label="Password" htmlFor="su-password" hint={PASSWORD_HINT}>
           <Input id="su-password" type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field label="Confirm password" htmlFor="su-confirm">

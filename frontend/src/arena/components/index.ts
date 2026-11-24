@@ -1,4 +1,5 @@
 export { Crest } from './Crest';
+export { DivisionGate } from './DivisionGate';
 export { EmptyState } from './EmptyState';
 export { FormBadges } from './FormBadges';
 export { MatchRow } from './MatchRow';
@@ -8,5 +9,6 @@ export type { PitchSlot } from './PitchBoard';
 export { PlayerFace } from './PlayerFace';
 export { StandingsTable } from './StandingsTable';
 export { StatTile } from './StatTile';
-export { StatusBadge, contractTone } from './StatusBadge';
+export { StatusBadge } from './StatusBadge';
+export { contractTone } from './contractTone';
 export type { StatusTone } from './StatusBadge';
