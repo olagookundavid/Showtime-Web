@@ -119,10 +119,10 @@ export const TeamDetail = () => {
   if (!team) {
     return (
       <div className="space-y-6">
-        <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+        <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-none shadow-xl">
           <h1 className="text-3xl md:text-5xl font-black italic">TEAM</h1>
         </div>
-        <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 rounded-xl text-center">
+        <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 rounded-none text-center">
           <ShieldCheckIcon
             className="w-10 h-10 mx-auto mb-3 text-gray-400"
             aria-hidden="true"
@@ -150,16 +150,16 @@ export const TeamDetail = () => {
       </div>
 
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-sffl-navy text-white p-4 md:p-8 rounded-none shadow-xl">
         <div className="flex items-center gap-4 md:gap-6 min-w-0">
           {team.logo ? (
             <img
               src={team.logo}
               alt={team.name}
-              className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 shrink-0 object-contain rounded-lg bg-white/10 p-2"
+              className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 shrink-0 object-contain rounded-none bg-white/10 p-2"
             />
           ) : (
-            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 shrink-0 bg-white/10 rounded-lg flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-black">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 shrink-0 bg-white/10 rounded-none flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-black">
               {team.short_name?.toUpperCase() ||
                 team.name.substring(0, 3).toUpperCase()}
             </div>
@@ -200,6 +200,7 @@ export const TeamDetail = () => {
                 <Select
                   id="team-competition"
                   tone="dark"
+                  shape="square"
                   value={selectedCompetitionId}
                   onChange={(e) => setSelectedCompetitionId(e.target.value)}
                 >
@@ -217,6 +218,7 @@ export const TeamDetail = () => {
             </div>
             {(linkedPlayoff || parentLeague) && (
               <Button
+                shape="square"
                 className="w-full sm:w-auto whitespace-nowrap"
                 icon={linkedPlayoff ? TrophyIcon : ArrowLeftIcon}
                 onClick={() =>
@@ -240,7 +242,7 @@ export const TeamDetail = () => {
               ? `/stats?comp=${activeCompetitionId}&team=${team.id}`
               : `/stats?team=${team.id}`
           }
-          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
+          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-none p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
         >
           <ChartBarIcon
             className="w-6 h-6 md:w-7 md:h-7 mb-1 text-sffl-navy dark:text-white group-hover:text-white"
@@ -252,7 +254,7 @@ export const TeamDetail = () => {
         </Link>
         <Link
           to={standingsHref}
-          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
+          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-none p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
         >
           <TrophyIcon
             className="w-6 h-6 md:w-7 md:h-7 mb-1 text-sffl-navy dark:text-white group-hover:text-white"
@@ -268,7 +270,7 @@ export const TeamDetail = () => {
               ? `/matches?comp=${activeCompetitionId}&team=${team.id}`
               : `/matches?team=${team.id}`
           }
-          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
+          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-none p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
         >
           <FootballIcon
             className="w-6 h-6 md:w-7 md:h-7 mb-1 text-sffl-navy dark:text-white group-hover:text-white"
@@ -313,7 +315,7 @@ export const TeamDetail = () => {
         {loadingPlayers ? (
           <Spinner size="sm" label="Loading roster…" className="py-8" />
         ) : players.length === 0 ? (
-          <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700 rounded-xl p-8 text-center text-gray-500">
+          <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700 rounded-none p-8 text-center text-gray-500">
             No players listed for this team yet.
           </div>
         ) : (
@@ -335,11 +337,11 @@ export const TeamDetail = () => {
                 </h3>
               </div>
               {mainSquad.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center text-gray-400 text-sm border border-gray-100 dark:border-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-none p-6 text-center text-gray-400 text-sm border border-gray-100 dark:border-gray-700">
                   No players assigned to main squad.
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
+                <div className="bg-white dark:bg-gray-800 rounded-none shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
                   {mainSquad.map((player) => (
                     <div
                       key={player.id}
@@ -351,10 +353,10 @@ export const TeamDetail = () => {
                           <img
                             src={player.image}
                             alt={player.name}
-                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm shrink-0"
+                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-none object-cover border border-gray-200 dark:border-gray-700 shadow-sm shrink-0"
                           />
                         ) : (
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/50 border border-sffl-navy/20 dark:border-gray-700 flex items-center justify-center text-lg font-black text-sffl-navy dark:text-gray-200 shrink-0">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-none bg-sffl-navy/10 dark:bg-sffl-navy/50 border border-sffl-navy/20 dark:border-gray-700 flex items-center justify-center text-lg font-black text-sffl-navy dark:text-gray-200 shrink-0">
                             #{player.jersey_number || "?"}
                           </div>
                         )}
@@ -415,7 +417,7 @@ export const TeamDetail = () => {
                       <div className="flex items-center self-start sm:self-auto shrink-0">
                         <Link
                           to={`/players/${player.id}?team=${team.id}`}
-                          className="flex items-center gap-1.5 min-h-11 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                          className="flex items-center gap-1.5 min-h-11 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-none bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
                         >
                           <span>Profile</span>
                           <ArrowRightIcon
@@ -447,7 +449,7 @@ export const TeamDetail = () => {
                     </span>
                   </h3>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
+                <div className="bg-white dark:bg-gray-800 rounded-none shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
                   {reserveSquad.map((player) => (
                     <div
                       key={player.id}
@@ -459,10 +461,10 @@ export const TeamDetail = () => {
                           <img
                             src={player.image}
                             alt={player.name}
-                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm shrink-0"
+                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-none object-cover border border-gray-200 dark:border-gray-700 shadow-sm shrink-0"
                           />
                         ) : (
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 dark:border-amber-500/30 flex items-center justify-center text-lg font-black text-amber-600 dark:text-amber-400 shrink-0">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-none bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 dark:border-amber-500/30 flex items-center justify-center text-lg font-black text-amber-600 dark:text-amber-400 shrink-0">
                             #{player.jersey_number || "?"}
                           </div>
                         )}
@@ -523,7 +525,7 @@ export const TeamDetail = () => {
                       <div className="flex items-center self-start sm:self-auto shrink-0">
                         <Link
                           to={`/players/${player.id}?team=${team.id}`}
-                          className="flex items-center gap-1.5 min-h-11 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                          className="flex items-center gap-1.5 min-h-11 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-none bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
                         >
                           <span>Profile</span>
                           <ArrowRightIcon

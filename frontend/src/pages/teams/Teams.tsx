@@ -55,7 +55,7 @@ export const Teams = () => {
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-none shadow-xl">
         <div>
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             TEAMS
@@ -67,7 +67,7 @@ export const Teams = () => {
       </div>
 
       {teams.length === 0 ? (
-        <div className="bg-gray-100 dark:bg-gray-800 p-8 md:p-16 rounded-xl text-center">
+        <div className="bg-gray-100 dark:bg-gray-800 p-8 md:p-16 rounded-none text-center">
           <ShieldCheckIcon
             className="w-10 h-10 md:w-14 md:h-14 mx-auto mb-4 text-gray-400"
             aria-hidden="true"
@@ -84,7 +84,7 @@ export const Teams = () => {
               <div key={team.id} ref={isLast ? lastCardRef : null}>
                 <Link
                   to={`/teams/${team.id}`}
-                  className="block bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-xl transition-all overflow-hidden border border-gray-100 dark:border-gray-700 group"
+                  className="block bg-white dark:bg-gray-800 rounded-none shadow-sm hover:shadow-xl transition-all overflow-hidden border border-gray-100 dark:border-gray-700 group"
                 >
                   <div className="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
                     {team.logo ? (
@@ -94,7 +94,7 @@ export const Teams = () => {
                         className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-sffl-navy to-sffl-navy/80 text-white text-3xl md:text-5xl font-black rounded-lg">
+                      <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-sffl-navy to-sffl-navy/80 text-white text-3xl md:text-5xl font-black rounded-none">
                         {team.short_name?.toUpperCase() ||
                           team.name.substring(0, 3).toUpperCase()}
                       </div>

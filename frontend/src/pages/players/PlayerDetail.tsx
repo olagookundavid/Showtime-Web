@@ -30,7 +30,7 @@ const StatCard = ({
   value: number | string;
 }) => {
   return (
-    <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+    <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-gray-100 dark:border-gray-700">
       <div className="text-2xl md:text-4xl font-black text-sffl-navy dark:text-white mb-1 md:mb-2">
         {formatStatNumber(value)}
       </div>
@@ -180,7 +180,7 @@ export const PlayerDetail = () => {
       </div>
 
       {/* Player Header */}
-      <div className="bg-linear-to-r from-sffl-navy to-sffl-red rounded-2xl overflow-hidden">
+      <div className="bg-linear-to-r from-sffl-navy to-sffl-red rounded-none overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 p-4 sm:p-6 md:p-8">
           {/* Player Image */}
           <div className="relative w-full max-w-64 sm:max-w-72 md:max-w-96 mx-auto md:mx-0">
@@ -188,11 +188,11 @@ export const PlayerDetail = () => {
               <LightboxImage
                 src={player.image}
                 alt={player.name}
-                thumbnailClassName="w-full aspect-square rounded-xl shadow-2xl"
+                thumbnailClassName="w-full aspect-square rounded-none shadow-2xl"
                 imgClassName="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full aspect-square bg-gray-200 dark:bg-gray-700/50 rounded-xl flex items-center justify-center">
+              <div className="w-full aspect-square bg-gray-200 dark:bg-gray-700/50 rounded-none flex items-center justify-center">
                 <div className="text-7xl md:text-9xl font-black text-gray-300 dark:text-gray-600">
                   #{player.jersey_number}
                 </div>
@@ -301,7 +301,7 @@ export const PlayerDetail = () => {
               </div>
             )}
             {player.bio && (
-              <div className="mt-4 p-4 bg-black/20 dark:bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+              <div className="mt-4 p-4 bg-black/20 dark:bg-white/5 backdrop-blur-sm rounded-none border border-white/10">
                 {/* Always light-on-dark: the bio sits on the player hero. */}
                 <RichContent html={player.bio} variant="basic" className="prose-invert italic" />
               </div>
@@ -312,11 +312,11 @@ export const PlayerDetail = () => {
 
       {/* Achievements & Career Honors Showcase (grows dynamically as badges accumulate) */}
       {playerBadges.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in">
+        <div className="bg-white dark:bg-gray-800 rounded-none shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in">
           {/* Header */}
           <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-md shrink-0">
+              <div className="w-10 h-10 rounded-none bg-linear-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-md shrink-0">
                 <TrophyIcon className="w-5 h-5" aria-hidden="true" />
               </div>
               <div>
@@ -357,7 +357,7 @@ export const PlayerDetail = () => {
                     type="button"
                     onClick={() => setSelectedBadge(badge)}
                     aria-label={`${badge.name}, won ${count} ${count === 1 ? "time" : "times"}. View details`}
-                    className="group relative flex flex-col items-center w-20 sm:w-24 md:w-28 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red rounded-xl transition-transform duration-200 hover:scale-105 active:scale-95"
+                    className="group relative flex flex-col items-center w-20 sm:w-24 md:w-28 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red rounded-none transition-transform duration-200 hover:scale-105 active:scale-95"
                   >
                     {/* Badge PNG Artwork */}
                     <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 flex items-center justify-center p-1">
@@ -386,7 +386,7 @@ export const PlayerDetail = () => {
       )}
 
       {/* Stats Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-none shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
         {/* Stats Filters */}
         <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -398,6 +398,7 @@ export const PlayerDetail = () => {
               <Field label="Competition" htmlFor="player-stats-competition" className="w-full sm:w-45">
                 <Select
                   id="player-stats-competition"
+                  shape="square"
                   value={compId}
                   onChange={(e) => handleCompChange(e.target.value)}
                 >
@@ -417,6 +418,7 @@ export const PlayerDetail = () => {
               >
                 <Select
                   id="player-stats-match-day"
+                  shape="square"
                   value={matchDate}
                   onChange={(e) => {
                     const params = new URLSearchParams(searchParams);
@@ -469,9 +471,10 @@ export const PlayerDetail = () => {
               </div>
 
               {/* View Switcher: List vs Grid */}
-              <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl border border-gray-200 dark:border-gray-600 self-start sm:self-auto">
+              <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-none border border-gray-200 dark:border-gray-600 self-start sm:self-auto">
                 <Button
                   size="sm"
+                  shape="square"
                   variant={statViewMode === "list" ? "secondary" : "ghost"}
                   icon={ListBulletIcon}
                   aria-pressed={statViewMode === "list"}
@@ -481,6 +484,7 @@ export const PlayerDetail = () => {
                 </Button>
                 <Button
                   size="sm"
+                  shape="square"
                   variant={statViewMode === "grid" ? "secondary" : "ghost"}
                   icon={Squares2X2Icon}
                   aria-pressed={statViewMode === "grid"}
@@ -496,6 +500,7 @@ export const PlayerDetail = () => {
               <div className="flex items-center gap-1.5 overflow-x-auto pb-4 mb-4 scrollbar-thin">
                 <Button
                   size="sm"
+                  shape="square"
                   variant={selectedStatCategory === "ALL" ? "navy" : "secondary"}
                   className="shrink-0"
                   aria-pressed={selectedStatCategory === "ALL"}
@@ -511,6 +516,7 @@ export const PlayerDetail = () => {
                     <Button
                       key={cat}
                       size="sm"
+                      shape="square"
                       variant={selectedStatCategory === cat ? "navy" : "secondary"}
                       className="shrink-0"
                       aria-pressed={selectedStatCategory === cat}
@@ -525,7 +531,7 @@ export const PlayerDetail = () => {
 
             {/* Stats Display: List or Grid */}
             {statViewMode === "list" ? (
-              <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+              <div className="bg-white dark:bg-gray-800 rounded-none border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
                 <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
                   {displayedStats.map((statDef) => {
                     const val = stats[statDef.key as keyof typeof stats] ?? 0;
@@ -588,6 +594,7 @@ export const PlayerDetail = () => {
         onClose={() => setSelectedBadge(null)}
         title="Badge details"
         maxWidth="md"
+        shape="square"
       >
         {selectedBadge && (
           <div className="text-gray-900 dark:text-white">
@@ -627,7 +634,7 @@ export const PlayerDetail = () => {
                   {selectedBadge.awards.map((award, i) => (
                     <div
                       key={award.id || i}
-                      className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 text-xs flex items-center justify-between gap-2"
+                      className="p-2.5 rounded-none bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 text-xs flex items-center justify-between gap-2"
                     >
                       <div className="min-w-0">
                         <div className="font-bold text-gray-900 dark:text-white truncate">
