@@ -1,17 +1,20 @@
 import React from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Button } from "./Button";
+import type { Shape } from "./buttonStyles";
 
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  shape?: Shape;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
   currentPage,
   totalPages,
   onPageChange,
+  shape = "round",
 }) => {
   // if (totalPages <= 1) return null; // Always show for now per user request
 
@@ -59,6 +62,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       {/* Previous Button */}
       <Button
         variant="secondary"
+        shape={shape}
         icon={ChevronLeftIcon}
         disabled={currentPage === 1}
         aria-label="Previous page"
@@ -77,6 +81,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           ) : (
             <Button
               variant={currentPage === page ? "primary" : "secondary"}
+              shape={shape}
               className="min-w-11"
               aria-label={`Page ${page}`}
               aria-current={currentPage === page ? "page" : undefined}
@@ -91,6 +96,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       {/* Next Button */}
       <Button
         variant="secondary"
+        shape={shape}
         icon={ChevronRightIcon}
         iconPosition="right"
         disabled={currentPage === totalPages}

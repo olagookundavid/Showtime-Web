@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getCompetitions,
@@ -9,7 +9,7 @@ import {
   sortCompetitionsBySeason,
   dropdownCompetitionsFor,
 } from "../../services";
-import type { PaginatedResponse, Match, Competition } from "../../types";
+import type { Match, Competition } from "../../types";
 import {
   Loader,
   Button,
@@ -24,6 +24,7 @@ import {
   SeasonStageTabs,
   FootballIcon,
   TeamLink,
+  Pagination,
 } from "../../components";
 import { lagosToday, cupStageOf } from "../../utils";
 import {
@@ -32,10 +33,11 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-// The server returns an unfiltered match list oldest-first, so the newest
-// matches would sit on the last page of the infinite scroll. The "All" tab
-// loads the whole competition in one request and reorders it here instead.
-const ALL_TAB_LIMIT = 500;
+// A competition's full match list — even a whole season — comfortably fits
+// under this ceiling, so every status filter fetches it in one request and
+// paginates the resulting matchday accordions entirely client-side.
+const MATCH_FETCH_LIMIT = 500;
+const ACCORDION_PAGE_SIZE = 4;
 
 export const MatchHub = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,6 +65,10 @@ export const MatchHub = () => {
   const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>(
     {},
   );
+  // null = "derive from the matchday page containing latestMatchdayKey".
+  // Reset to null (not to 1) on filter/competition/team change so the
+  // expanded-by-default matchday stays visible without an extra click.
+  const [accordionPage, setAccordionPage] = useState<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -183,52 +189,27 @@ export const MatchHub = () => {
   });
   const standings = standingsData || [];
 
-  const {
-    data: infiniteMatchesData,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage: matchesLoading,
-    isLoading: initialMatchesLoading,
-  } = useInfiniteQuery({
-    queryKey: [
-      "publicMatchesInfinite",
-      selectedCompetitionId,
-      statusFilter,
-      teamParam,
-    ],
-    queryFn: ({ pageParam = 1 }) =>
+  const { data: matchesData, isLoading: initialMatchesLoading } = useQuery({
+    queryKey: ["publicMatches", selectedCompetitionId, statusFilter, teamParam],
+    queryFn: () =>
       getMatches(
         selectedCompetitionId,
-        pageParam as number,
-        statusFilter === "ALL" ? ALL_TAB_LIMIT : 10,
+        1,
+        MATCH_FETCH_LIMIT,
         statusFilter === "ALL" ? undefined : statusFilter,
         undefined,
         teamParam || undefined,
       ),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage.total_pages) return undefined;
-      return allPages.length < lastPage.total_pages
-        ? allPages.length + 1
-        : undefined;
-    },
     enabled: !!selectedCompetitionId,
   });
 
-  // No client-side team filtering: ?team= is pushed into the query above. Doing
-  // it here meant a club's fixtures were spread across pages that were never
-  // fetched — and with the visible list too short to scroll, the infinite-scroll
-  // observer never fired to fetch them.
+  // ?team= is pushed into the query above (server-side filter), not applied
+  // client-side here.
   //
   // The "All" tab reads most-recent-first: today and past match days newest
   // first, then upcoming fixtures soonest first.
   const matches = useMemo(() => {
-    const loaded =
-      infiniteMatchesData?.pages?.reduce(
-        (acc: Match[], p: PaginatedResponse<Match>) =>
-          acc.concat(p?.data || []),
-        [],
-      ) || [];
+    const loaded = matchesData?.data || [];
     if (statusFilter !== "ALL") return loaded;
 
     const today = lagosToday();
@@ -243,27 +224,8 @@ export const MatchHub = () => {
       if (da === db) return 0;
       return aUpcoming ? da.localeCompare(db) : db.localeCompare(da);
     });
-  }, [infiniteMatchesData, statusFilter]);
-  const hasMore = hasNextPage;
+  }, [matchesData, statusFilter]);
   const loading = loadingComps || initialMatchesLoading;
-
-  // Intersection Observer callback ref
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastMatchElementRef = useCallback(
-    (node: HTMLDivElement) => {
-      if (matchesLoading) return;
-
-      if (observer.current) observer.current.disconnect();
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasNextPage) {
-          fetchNextPage();
-        }
-      });
-
-      if (node) observer.current.observe(node);
-    },
-    [matchesLoading, hasNextPage, fetchNextPage],
-  );
 
   const handleCompetitionChange = (compId: string) => {
     setSelectedCompetitionId(compId);
@@ -290,6 +252,11 @@ export const MatchHub = () => {
     },
     {},
   );
+  const matchdayKeys = Object.keys(groupedMatches);
+  const totalAccordionPages = Math.max(
+    1,
+    Math.ceil(matchdayKeys.length / ACCORDION_PAGE_SIZE),
+  );
 
   // The one matchday open by default: the most recent played/live day, or
   // (if every day is still upcoming) the soonest one — independent of
@@ -303,6 +270,30 @@ export const MatchHub = () => {
     return dateKeys.slice().sort()[0];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matches]);
+
+  // The accordion page that contains latestMatchdayKey, so the matchday
+  // that's expanded by default is actually visible without an extra click.
+  const defaultAccordionPage = useMemo(() => {
+    const index = matchdayKeys.indexOf(latestMatchdayKey ?? "");
+    return index === -1 ? 1 : Math.floor(index / ACCORDION_PAGE_SIZE) + 1;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestMatchdayKey, matches]);
+
+  // Reset to "derive from the latest matchday" whenever the underlying view
+  // changes identity — not on every render, so explicit Previous/Next/page
+  // clicks persist while the visitor stays on the same filter/competition/team.
+  useEffect(() => {
+    setAccordionPage(null);
+  }, [selectedCompetitionId, statusFilter, teamParam]);
+
+  const currentAccordionPage = Math.min(
+    accordionPage ?? defaultAccordionPage,
+    totalAccordionPages,
+  );
+  const visibleMatchdayKeys = matchdayKeys.slice(
+    (currentAccordionPage - 1) * ACCORDION_PAGE_SIZE,
+    currentAccordionPage * ACCORDION_PAGE_SIZE,
+  );
 
   // Every day defaults to collapsed except the latest matchday, until the
   // visitor explicitly toggles one — then their choice for that day wins.
@@ -433,7 +424,7 @@ export const MatchHub = () => {
             <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
               <Spinner label="Loading matches…" className="py-16" />
             </div>
-          ) : matches.length === 0 && !matchesLoading ? (
+          ) : matches.length === 0 ? (
             <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 text-center">
               <FootballIcon
                 className="w-10 h-10 mx-auto mb-3 text-gray-400"
@@ -445,8 +436,9 @@ export const MatchHub = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              {Object.entries(groupedMatches).map(
-                ([dateStr, dayMatches]: [string, Match[]]) => (
+              {visibleMatchdayKeys.map((dateStr) => {
+                const dayMatches = groupedMatches[dateStr];
+                return (
                   <div
                     key={dateStr}
                     className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm"
@@ -507,24 +499,18 @@ export const MatchHub = () => {
                       </div>
                     )}
                   </div>
-                ),
-              )}
+                );
+              })}
             </div>
           )}
 
-          {/* Infinite Scroll Sentinel — sits at the bottom of the whole list
-              (not inside any one matchday) so loading more matches keeps
-              working no matter which accordions are open or collapsed. */}
-          {matches.length > 0 && <div ref={lastMatchElementRef} className="h-1" aria-hidden="true" />}
-
-          {matchesLoading && (
-            <Spinner size="sm" label="Loading more matches…" className="py-6" />
-          )}
-
-          {!hasMore && matches.length > 0 && (
-            <div className="text-center py-6 text-gray-400 font-medium">
-              No more matches to load.
-            </div>
+          {totalAccordionPages > 1 && (
+            <Pagination
+              currentPage={currentAccordionPage}
+              totalPages={totalAccordionPages}
+              onPageChange={setAccordionPage}
+              shape="square"
+            />
           )}
         </div>
 
