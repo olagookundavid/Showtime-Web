@@ -10,6 +10,21 @@ jobs:
   backend:
     name: Backend (build + test)
     runs-on: ubuntu-latest
+    # Clubs Arena's store, service and HTTP tests run against a real Postgres (they
+    # create and drop their own throwaway databases). Without ARENA_TEST_DB_URL
+    # they skip, so the rest of the suite doesn't depend on it.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -32,6 +47,8 @@ jobs:
         run: go vet ./...
       - name: Test
         working-directory: backend
+        env:
+          ARENA_TEST_DB_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
         run: go test ./...
 
   frontend:
@@ -50,3 +67,7 @@ jobs:
       - name: Build (tsc + vite)
         working-directory: frontend
         run: npm run build
+      # Clubs Arena is a second site built from the same folder.
+      - name: Build Clubs Arena (vite --mode arena)
+        working-directory: frontend
+        run: npx vite build --mode arena
