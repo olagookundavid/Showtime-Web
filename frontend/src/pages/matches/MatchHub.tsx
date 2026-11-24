@@ -273,10 +273,11 @@ export const MatchHub = () => {
   };
 
   const toggleDateCollapse = (date: string) => {
-    setCollapsedDates((prev) => ({
-      ...prev,
-      [date]: !prev[date],
-    }));
+    setCollapsedDates((prev) => {
+      const currentlyCollapsed =
+        date in prev ? prev[date] : date !== latestMatchdayKey;
+      return { ...prev, [date]: !currentlyCollapsed };
+    });
   };
 
   // Grouping Matches by Date (assuming match.date is formatted logically e.g., 'YYYY-MM-DD' or similar)
@@ -290,12 +291,32 @@ export const MatchHub = () => {
     {},
   );
 
+  // The one matchday open by default: the most recent played/live day, or
+  // (if every day is still upcoming) the soonest one — independent of
+  // whichever order the current status filter happens to list dates in.
+  const latestMatchdayKey = useMemo(() => {
+    const dateKeys = Object.keys(groupedMatches);
+    if (dateKeys.length === 0) return null;
+    const today = lagosToday();
+    const past = dateKeys.filter((d) => d <= today).sort();
+    if (past.length > 0) return past[past.length - 1];
+    return dateKeys.slice().sort()[0];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches]);
+
+  // Every day defaults to collapsed except the latest matchday, until the
+  // visitor explicitly toggles one — then their choice for that day wins.
+  const isDateCollapsed = (dateStr: string) =>
+    dateStr in collapsedDates
+      ? collapsedDates[dateStr]
+      : dateStr !== latestMatchdayKey;
+
   if (loading && competitions.length === 0) return <Loader />;
 
   return (
     <div className="space-y-4 md:space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-sffl-navy text-white p-4 md:p-8 shadow-xl">
         <div className="min-w-0">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             MATCH HUB
@@ -336,6 +357,7 @@ export const MatchHub = () => {
             <Select
               id="match-hub-competition"
               tone="dark"
+              shape="square"
               value={selectedCompetitionId}
               onChange={(e) => handleCompetitionChange(e.target.value)}
             >
@@ -391,7 +413,7 @@ export const MatchHub = () => {
             </h2>
 
             {/* Status Filter */}
-            <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex gap-1 w-full sm:w-auto">
+            <div className="bg-gray-100 dark:bg-gray-800 p-1 flex gap-1 w-full sm:w-auto">
               {(["ALL", "LIVE", "FINISHED", "SCHEDULED"] as const).map((f) => (
                 <Button
                   key={f}
@@ -408,11 +430,11 @@ export const MatchHub = () => {
           </div>
 
           {initialMatchesLoading ? (
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
               <Spinner label="Loading matches…" className="py-16" />
             </div>
           ) : matches.length === 0 && !matchesLoading ? (
-            <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 rounded-xl text-center">
+            <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 text-center">
               <FootballIcon
                 className="w-10 h-10 mx-auto mb-3 text-gray-400"
                 aria-hidden="true"
@@ -424,22 +446,22 @@ export const MatchHub = () => {
           ) : (
             <div className="space-y-6">
               {Object.entries(groupedMatches).map(
-                ([dateStr, dayMatches]: [string, Match[]], groupIndex) => (
+                ([dateStr, dayMatches]: [string, Match[]]) => (
                   <div
                     key={dateStr}
-                    className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm"
+                    className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm"
                   >
                     <button
                       type="button"
                       onClick={() => toggleDateCollapse(dateStr)}
-                      aria-expanded={!collapsedDates[dateStr]}
+                      aria-expanded={!isDateCollapsed(dateStr)}
                       className="w-full flex items-center justify-between gap-2 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700/50"
                     >
                       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                         <span className="font-bold text-gray-500 dark:text-gray-400 text-base sm:text-lg">
                           {new Date(dateStr).getFullYear()}
                         </span>
-                        <div className="bg-sffl-navy text-white w-10 h-10 shrink-0 rounded-lg flex flex-col items-center justify-center font-bold">
+                        <div className="bg-sffl-navy text-white w-10 h-10 shrink-0 flex flex-col items-center justify-center font-bold">
                           <span className="text-xs tracking-wider uppercase">
                             {new Date(dateStr).toLocaleString("default", {
                               month: "short",
@@ -457,42 +479,31 @@ export const MatchHub = () => {
                       </div>
                       <div className="text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 w-8 h-8 shrink-0 rounded-full flex items-center justify-center shadow-sm">
                         <ChevronDownIcon
-                          className={`w-5 h-5 transition-transform duration-200 ${collapsedDates[dateStr] ? "rotate-180" : ""}`}
+                          className={`w-5 h-5 transition-transform duration-200 ${isDateCollapsed(dateStr) ? "rotate-180" : ""}`}
                           strokeWidth={2.5}
                           aria-hidden="true"
                         />
                       </div>
                     </button>
 
-                    {!collapsedDates[dateStr] && (
+                    {!isDateCollapsed(dateStr) && (
                       <div className="p-3 sm:p-4 grid grid-cols-1 gap-4">
-                        {dayMatches.map((match: Match, index: number) => {
-                          // Check if this is the absolute last match globally to attach the infinite scroll ref
-                          const isLastOverall =
-                            groupIndex ===
-                              Object.keys(groupedMatches).length - 1 &&
-                            index === dayMatches.length - 1;
-
-                          return (
-                            <div
-                              ref={isLastOverall ? lastMatchElementRef : null}
-                              key={match.id}
-                            >
-                              <MatchCard
-                                match={match}
-                                onClick={() => {
-                                  const params = new URLSearchParams();
-                                  if (selectedCompetitionId)
-                                    params.set("comp", selectedCompetitionId);
-                                  if (teamParam) params.set("team", teamParam);
-                                  navigate(
-                                    `/matches/${match.id}?${params.toString()}`,
-                                  );
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
+                        {dayMatches.map((match: Match) => (
+                          <MatchCard
+                            key={match.id}
+                            match={match}
+                            shape="square"
+                            onClick={() => {
+                              const params = new URLSearchParams();
+                              if (selectedCompetitionId)
+                                params.set("comp", selectedCompetitionId);
+                              if (teamParam) params.set("team", teamParam);
+                              navigate(
+                                `/matches/${match.id}?${params.toString()}`,
+                              );
+                            }}
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
@@ -501,7 +512,11 @@ export const MatchHub = () => {
             </div>
           )}
 
-          {/* Infinite Scroll Loader */}
+          {/* Infinite Scroll Sentinel — sits at the bottom of the whole list
+              (not inside any one matchday) so loading more matches keeps
+              working no matter which accordions are open or collapsed. */}
+          {matches.length > 0 && <div ref={lastMatchElementRef} className="h-1" aria-hidden="true" />}
+
           {matchesLoading && (
             <Spinner size="sm" label="Loading more matches…" className="py-6" />
           )}
@@ -513,18 +528,21 @@ export const MatchHub = () => {
           )}
         </div>
 
-        {/* Right Column: Standings, Bracket, or Matches Widget (1/3 width) — sticky sidebar */}
-        <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-[calc(var(--chrome-h,8rem)+1rem)] self-start space-y-6">
+        {/* Right Column: Standings, Bracket, or Matches Widget (1/3 width) —
+            scrolls in normal flow with the matches column, not pinned, so
+            the two columns move at the same rate. */}
+        <div className="hidden lg:block lg:col-span-1 self-start space-y-6">
           {isKnockout ? (
             <div className="space-y-6">
               <BracketView
                 competitionId={selectedCompetitionId}
                 compact
                 cup={isCup}
+                shape="square"
                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
               />
 
-              <div className="bg-sffl-navy rounded-xl p-6 text-white shadow-lg border border-gray-700/50">
+              <div className="bg-sffl-navy p-6 text-white shadow-lg border border-gray-700/50">
                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
                 <p className="text-sm text-gray-300 mb-4">
                   Don't miss a single moment of the SFFL season.
@@ -553,7 +571,7 @@ export const MatchHub = () => {
                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
               />
 
-              <div className="bg-sffl-navy rounded-xl p-6 text-white shadow-lg border border-gray-700/50">
+              <div className="bg-sffl-navy p-6 text-white shadow-lg border border-gray-700/50">
                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
                 <p className="text-sm text-gray-300 mb-4">
                   Don't miss a single moment of the SFFL season.
@@ -569,7 +587,7 @@ export const MatchHub = () => {
               </div>
             </div>
           ) : standingsLoading ? (
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
               <Spinner label="Loading standings…" className="py-12" />
             </div>
           ) : standings.length > 0 ? (
@@ -582,7 +600,7 @@ export const MatchHub = () => {
                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
               />
 
-              <div className="bg-sffl-navy rounded-xl p-6 text-white shadow-lg border border-gray-700/50">
+              <div className="bg-sffl-navy p-6 text-white shadow-lg border border-gray-700/50">
                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
                 <p className="text-sm text-gray-300 mb-4">
                   Don't miss a single moment of the SFFL season.
@@ -598,7 +616,7 @@ export const MatchHub = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-100 dark:bg-gray-800 p-8 rounded-xl text-center text-gray-500">
+            <div className="bg-gray-100 dark:bg-gray-800 p-8 text-center text-gray-500">
               No standings available.
             </div>
           )}
