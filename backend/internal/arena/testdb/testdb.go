@@ -10,12 +10,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"math/rand"
 	"net/url"
 	"os"
+	"sort"
 	"testing"
 	"time"
 
+	arenasql "showtime-backend/internal/arena/sql"
 	sqlembed "showtime-backend/internal/sql"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -65,6 +68,22 @@ func New(t *testing.T) *pgxpool.Pool {
 	}
 	if err := goose.Up(migrate, "migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
+	}
+	// Arena's own scripts are never run by the backend (production gets them by
+	// hand), so the tests apply them here, in file name order.
+	files, err := fs.Glob(arenasql.Migrations, "migrations/*.sql")
+	if err != nil {
+		t.Fatalf("list arena scripts: %v", err)
+	}
+	sort.Strings(files)
+	for _, f := range files {
+		body, err := arenasql.Migrations.ReadFile(f)
+		if err != nil {
+			t.Fatalf("read %s: %v", f, err)
+		}
+		if _, err := migrate.ExecContext(ctx, string(body)); err != nil {
+			t.Fatalf("apply %s: %v", f, err)
+		}
 	}
 	_ = migrate.Close()
 

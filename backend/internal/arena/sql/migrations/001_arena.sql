@@ -1,4 +1,11 @@
--- +goose Up
+-- Clubs Arena, migration 001: tables, indexes and the arena_admin role.
+--
+-- NOT run by the backend. Run it by hand on the production database
+-- (psql "$DB_URL" -f 001_arena.sql). It is safe to re-run: every statement is
+-- IF NOT EXISTS / ON CONFLICT DO NOTHING, and it runs as one transaction.
+-- Needs the Showtime tables users, roles and role_permissions to exist.
+
+BEGIN;
 
 -- Clubs Arena: an EA FC Pro Clubs tournament product that shares this database
 -- and the users table with Showtime but is otherwise self-contained. Every table
@@ -229,19 +236,4 @@ INSERT INTO role_permissions (role_key, feature, level) VALUES
     ('arena_admin', 'arena_transfers', 'full')
 ON CONFLICT (role_key, feature) DO NOTHING;
 
--- +goose Down
-DROP TABLE IF EXISTS arena_follows;
-DROP TABLE IF EXISTS arena_match_player_stats;
-DROP TABLE IF EXISTS arena_team_sheet_players;
-DROP TABLE IF EXISTS arena_team_sheets;
-DROP TABLE IF EXISTS arena_matches;
-DROP TABLE IF EXISTS arena_registrations;
-DROP TABLE IF EXISTS arena_contract_events;
-DROP TABLE IF EXISTS arena_contracts;
-DROP TABLE IF EXISTS arena_players;
-DROP TABLE IF EXISTS arena_division_clubs;
-DROP TABLE IF EXISTS arena_clubs;
-DROP TABLE IF EXISTS arena_divisions;
-DROP TABLE IF EXISTS arena_seasons;
-DELETE FROM role_permissions WHERE role_key = 'arena_admin';
-DELETE FROM roles WHERE key = 'arena_admin';
+COMMIT;
