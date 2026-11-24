@@ -34,6 +34,7 @@ import {
   adminVoidVoucher,
   formatKobo,
 } from "../../../services";
+import { useIdempotencyKey } from "../../../hooks";
 import { getApiErrorMessage } from "../../../utils";
 import type { AdminVoucher, VoucherStatus, WalletUser } from "../../../types";
 
@@ -93,23 +94,30 @@ export const VouchersIssued = () => {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["adminVouchers"] });
 
+  // A retry after a lost answer reuses the key, so the voucher is issued once.
+  const attempt = useIdempotencyKey();
   const issue = useMutation({
     mutationFn: () =>
-      adminIssueVoucher({
-        product_id: productId,
-        holder_name: holderName.trim(),
-        holder_email: holderEmail.trim() || undefined,
-        holder_user_id: linked?.id,
-        valid_from: from,
-        valid_to: to,
-      }),
+      adminIssueVoucher(
+        {
+          product_id: productId,
+          holder_name: holderName.trim(),
+          holder_email: holderEmail.trim() || undefined,
+          holder_user_id: linked?.id,
+          valid_from: from,
+          valid_to: to,
+        },
+        attempt.current(),
+      ),
     onSuccess: (v) => {
+      attempt.settle();
       toast.success(`Voucher ${v.code} issued`);
       refresh();
       setIssueConfirm(false);
       setIssueOpen(false);
     },
     onError: (err) => {
+      attempt.settle(err);
       setIssueConfirm(false);
       toast.error(getApiErrorMessage(err, "We could not issue that voucher."));
     },

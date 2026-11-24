@@ -315,17 +315,9 @@ func (h *TicketHandler) SaveGamePassRules(c *gin.Context) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // paymentCallbackURL is where Paystack sends the buyer back to: the frontend's
-// confirmation page, taken from the request's origin when there is one.
+// confirmation page.
 func paymentCallbackURL(c *gin.Context) string {
-	scheme := "https"
-	if c.Request.TLS == nil {
-		scheme = "http"
-	}
-	callbackURL := scheme + "://" + c.Request.Host + "/tickets/confirm"
-	if origin := c.GetHeader("Origin"); origin != "" {
-		callbackURL = origin + "/tickets/confirm"
-	}
-	return callbackURL
+	return paystackReturnURL(c, "/tickets/confirm")
 }
 
 // optionalUserID is the signed-in buyer, from the token and never the body, or

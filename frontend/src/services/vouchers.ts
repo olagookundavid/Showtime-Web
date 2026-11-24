@@ -112,8 +112,13 @@ export const adminListVouchers = async (
 
 export const adminIssueVoucher = async (
   input: IssueVoucherInput,
+  idempotencyKey?: string,
 ): Promise<AdminVoucher> => {
-  const res = await api.post<{ data: AdminVoucher }>("/admin/vouchers", input);
+  const res = await api.post<{ data: AdminVoucher }>(
+    "/admin/vouchers",
+    input,
+    withIdempotencyKey(idempotencyKey),
+  );
   return res.data.data;
 };
 

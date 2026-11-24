@@ -32,17 +32,9 @@ func NewWalletHandler(service services.IWalletService) IWalletHandler {
 }
 
 // walletCallbackURL is where Paystack sends the user back to: the frontend's
-// wallet confirmation page, taken from the request's origin when there is one.
+// wallet confirmation page.
 func walletCallbackURL(c *gin.Context) string {
-	scheme := "https"
-	if c.Request.TLS == nil {
-		scheme = "http"
-	}
-	base := scheme + "://" + c.Request.Host
-	if origin := c.GetHeader("Origin"); origin != "" {
-		base = origin
-	}
-	return base + "/wallet/confirm"
+	return paystackReturnURL(c, "/wallet/confirm")
 }
 
 // respondWalletError turns the service's errors into the right status. The ones

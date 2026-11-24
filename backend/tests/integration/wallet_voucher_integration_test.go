@@ -138,7 +138,8 @@ func TestWallet_TopupSettlesOnceUnderConcurrentDelivery(t *testing.T) {
 	ctx := context.Background()
 	u := f.user(t, "ZZFIXtopup")
 	ref := fmt.Sprintf("WLT-FIX%d", time.Now().UnixNano()%1000000)
-	if err := f.wallets.CreateTopup(ctx, &domain.Topup{UserID: u, AmountKobo: 250_000, PaystackReference: ref}); err != nil {
+	if err := f.wallets.CreateTopup(ctx, &domain.Topup{UserID: u, AmountKobo: 250_000, PaystackReference: ref},
+		domain.DefaultMaxBalanceKobo, time.Now().Add(-time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -164,6 +165,46 @@ func TestWallet_TopupSettlesOnceUnderConcurrentDelivery(t *testing.T) {
 	}
 	if b := f.balance(t, u); b != 250_000 {
 		t.Fatalf("balance = %d, want 250000", b)
+	}
+}
+
+// Top-ups started at the same moment must not, between them, pass the maximum
+// balance: each start sees the others' pending rows because they take turns on
+// the wallet lock.
+func TestWallet_ConcurrentTopupStartsRespectMaxBalance(t *testing.T) {
+	f := newWalletFixture(t)
+	ctx := context.Background()
+	u := f.user(t, "ZZFIXcap")
+	f.credit(t, u, 100_000)
+	const maxBalance = 400_000 // room for exactly three top-ups of 100,000
+	since := time.Now().Add(-time.Hour)
+
+	var ok, refused int32
+	var wg sync.WaitGroup
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			ref := fmt.Sprintf("WLT-CAP%d-%d", time.Now().UnixNano()%1000000, i)
+			err := f.wallets.CreateTopup(ctx, &domain.Topup{UserID: u, AmountKobo: 100_000, PaystackReference: ref}, maxBalance, since)
+			switch {
+			case err == nil:
+				atomic.AddInt32(&ok, 1)
+			case errors.Is(err, ports.ErrTopupOverLimit):
+				atomic.AddInt32(&refused, 1)
+			default:
+				t.Errorf("unexpected error: %v", err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	if ok != 3 || refused != 9 {
+		t.Fatalf("started=%d refused=%d, want 3 and 9", ok, refused)
+	}
+	pending, err := f.wallets.PendingTopupsKobo(ctx, u, since)
+	if err != nil || pending != 300_000 {
+		t.Fatalf("pending = %d (%v), want 300000", pending, err)
 	}
 }
 

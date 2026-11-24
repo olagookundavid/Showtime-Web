@@ -634,7 +634,8 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		walletsGroup.GET("/users", app.Handlers.WalletHandler.AdminSearchUsers)
 		walletsGroup.GET("/users/:id", app.Handlers.WalletHandler.AdminGetWallet)
-		walletsGroup.POST("/users/:id/adjust", app.Handlers.WalletHandler.AdminAdjust)
+		// Idempotent so a retried request can't credit or debit twice.
+		walletsGroup.POST("/users/:id/adjust", app.Handlers.Idempotency, app.Handlers.WalletHandler.AdminAdjust)
 	}
 
 	// Voucher bundles, giving vouchers away, cancelling them, and what was redeemed.
@@ -642,7 +643,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	vouchersGroup.Use(middlewares.FeatureAccessMiddleware(app.RoleService, domain.FeatureVouchers))
 	{
 		vouchersGroup.GET("", app.Handlers.VoucherHandler.AdminList)
-		vouchersGroup.POST("", app.Handlers.VoucherHandler.AdminIssue)
+		vouchersGroup.POST("", app.Handlers.Idempotency, app.Handlers.VoucherHandler.AdminIssue)
 		vouchersGroup.GET("/products", app.Handlers.VoucherHandler.AdminListProducts)
 		vouchersGroup.POST("/products", app.Handlers.VoucherHandler.AdminCreateProduct)
 		vouchersGroup.PUT("/products/:id", app.Handlers.VoucherHandler.AdminUpdateProduct)

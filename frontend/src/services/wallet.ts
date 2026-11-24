@@ -60,10 +60,12 @@ export const adminAdjustWallet = async (
   userId: string,
   amountKobo: number,
   reason: string,
+  idempotencyKey?: string,
 ): Promise<LedgerEntry> => {
   const res = await api.post<{ data: LedgerEntry }>(
     `/admin/wallets/users/${userId}/adjust`,
     { amount_kobo: amountKobo, reason },
+    withIdempotencyKey(idempotencyKey),
   );
   return res.data.data;
 };

@@ -240,3 +240,36 @@ func TestIdempotency_HandlerSeesTheFullBody(t *testing.T) {
 		t.Fatalf("handler read %q from the body, want the original body", got)
 	}
 }
+
+// The same key and body sent to a different :id (another user's wallet, say)
+// must be refused, not answered with the first request's response.
+func TestIdempotency_SameKeyOtherPathParamIsRefused(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	var runs atomic.Int32
+	auth := func(c *gin.Context) {
+		c.Set("authorization_payload", &token.Payload{UserId: "staff", ExpiredAt: time.Now().Add(time.Hour)})
+	}
+	router.POST("/users/:id/adjust", auth, Idempotency(newMemIdempotency()), func(c *gin.Context) {
+		runs.Add(1)
+		c.JSON(http.StatusOK, gin.H{"user": c.Param("id")})
+	})
+	post := func(path string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"amount_kobo":1000}`))
+		req.Header.Set(IdempotencyKeyHeader, testKey)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		return w
+	}
+
+	if w := post("/users/a/adjust"); w.Code != http.StatusOK {
+		t.Fatalf("first request: %d", w.Code)
+	}
+	w := post("/users/b/adjust")
+	if w.Code != http.StatusUnprocessableEntity || runs.Load() != 1 {
+		t.Fatalf("code=%d runs=%d, want 422 and 1", w.Code, runs.Load())
+	}
+	if replay := post("/users/a/adjust"); replay.Header().Get("Idempotent-Replayed") != "true" {
+		t.Fatal("the original request should still replay")
+	}
+}
