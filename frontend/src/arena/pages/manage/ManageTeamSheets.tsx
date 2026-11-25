@@ -89,7 +89,7 @@ export const ArenaManageTeamSheets = () => {
             icon={ExclamationTriangleIcon}
             title="Something went wrong"
             description={errorMessage(fixturesQ.error)}
-            action={<Button onClick={() => fixturesQ.refetch()}>Try again</Button>}
+            action={<Button shape="square" onClick={() => fixturesQ.refetch()}>Try again</Button>}
           />
         </Panel>
       </div>
@@ -101,7 +101,7 @@ export const ArenaManageTeamSheets = () => {
       {header}
 
       {clubId && (
-        <div role="status" className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+        <div role="status" className="flex items-start gap-3 border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
           <UserCircleIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <p>
             <span className="font-bold">Acting for {actingQ.data?.club.name ?? 'another club'}.</span> You are editing this club's team sheets as organiser staff.
@@ -116,7 +116,7 @@ export const ArenaManageTeamSheets = () => {
             title="No upcoming matches"
             description="You can pick a team sheet once the organiser has scheduled your next fixture."
             action={
-              <ButtonLink to="/matches" variant="outline">
+              <ButtonLink shape="square" to="/matches" variant="outline">
                 See all matches
               </ButtonLink>
             }
@@ -135,13 +135,13 @@ export const ArenaManageTeamSheets = () => {
                       type="button"
                       onClick={() => choose(m.id)}
                       aria-pressed={selected}
-                      className={`flex min-h-11 w-full min-w-0 items-center gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sffl-red ${
+                      className={`flex min-h-11 w-full min-w-0 items-center gap-3 border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sffl-red ${
                         selected
-                          ? 'border-sffl-red bg-lime-50 dark:border-arena-lime dark:bg-white/10'
+                          ? 'border-sffl-red bg-red-50 dark:bg-white/10'
                           : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10'
                       }`}
                     >
-                      {opponent ? <Crest club={opponent} size="md" /> : <span className="h-9 w-9 shrink-0 rounded-lg bg-gray-200 dark:bg-white/10" aria-hidden="true" />}
+                      {opponent ? <Crest club={opponent} size="md" /> : <span className="h-9 w-9 shrink-0 bg-gray-200 dark:bg-white/10" aria-hidden="true" />}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold text-sffl-navy dark:text-white">
                           {m.home_club_id === myId ? 'vs' : 'at'} {opponent?.name ?? 'To be decided'}
@@ -158,7 +158,7 @@ export const ArenaManageTeamSheets = () => {
             </ul>
             {fixtures.length > PREVIEW && !expanded && (
               <div className="mt-3">
-                <Button variant="ghost" icon={ArrowRightIcon} iconPosition="right" onClick={() => setShowAll(true)}>
+                <Button shape="square" variant="ghost" icon={ArrowRightIcon} iconPosition="right" onClick={() => setShowAll(true)}>
                   Show all {fixtures.length} matches
                 </Button>
               </div>
@@ -173,7 +173,7 @@ export const ArenaManageTeamSheets = () => {
                 icon={ExclamationTriangleIcon}
                 title="Something went wrong"
                 description={errorMessage(editorQ.error)}
-                action={<Button onClick={() => editorQ.refetch()}>Try again</Button>}
+                action={<Button shape="square" onClick={() => editorQ.refetch()}>Try again</Button>}
               />
             </Panel>
           ) : (
@@ -182,7 +182,7 @@ export const ArenaManageTeamSheets = () => {
 
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Looking for something else? Browse the{' '}
-            <Link to="/matches" className="font-bold text-sffl-red hover:underline dark:text-arena-lime">
+            <Link to="/matches" className="font-bold text-sffl-red hover:underline">
               full match list
             </Link>
             .

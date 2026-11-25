@@ -2,6 +2,7 @@ export { Crest } from './Crest';
 export { DivisionGate } from './DivisionGate';
 export { EmptyState } from './EmptyState';
 export { FormBadges } from './FormBadges';
+export { HeroPitchArt } from './HeroPitchArt';
 export { MatchRow } from './MatchRow';
 export { Panel } from './Panel';
 export { PitchBoard } from './PitchBoard';

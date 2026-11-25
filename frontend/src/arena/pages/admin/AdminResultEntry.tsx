@@ -37,7 +37,7 @@ export const ArenaAdminResultEntry = () => {
             icon={ClipboardDocumentListIcon}
             title="We couldn't open this match"
             description={error ? errorMessage(error) : 'It may not exist any more, or it is still waiting for its clubs to be decided.'}
-            action={<ButtonLink to="/admin/results">Back to results</ButtonLink>}
+            action={<ButtonLink shape="square" to="/admin/results">Back to results</ButtonLink>}
           />
         </Panel>
       </div>

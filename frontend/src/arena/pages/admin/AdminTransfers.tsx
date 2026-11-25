@@ -118,7 +118,7 @@ export const ArenaAdminTransfers = () => {
               </p>
             </div>
             {canView('arena_seasons') && (
-              <ButtonLink to={`/admin/seasons/${season.id}`} variant="secondary" icon={ArrowsRightLeftIcon}>
+              <ButtonLink shape="square" to={`/admin/seasons/${season.id}`} variant="secondary" icon={ArrowsRightLeftIcon}>
                 {season.transfer_window_open ? 'Close the window' : 'Open the window'}
               </ButtonLink>
             )}
@@ -131,7 +131,7 @@ export const ArenaAdminTransfers = () => {
 
       <div className="w-full sm:max-w-xs">
         <Field label="Show" htmlFor="transfers-status">
-          <Select id="transfers-status" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}>
+          <Select shape="square" id="transfers-status" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}>
             {FILTERS.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}

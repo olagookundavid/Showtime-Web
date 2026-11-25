@@ -36,7 +36,7 @@ export const RescheduleModal = ({ match, onClose }: RescheduleModalProps) => {
   });
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={onClose}
       title="Reschedule match"
@@ -44,10 +44,10 @@ export const RescheduleModal = ({ match, onClose }: RescheduleModalProps) => {
       maxWidth="md"
       footer={
         <>
-          <Button variant="outline" onClick={onClose} disabled={save.isPending}>
+          <Button shape="square" variant="outline" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID} loading={save.isPending}>
+          <Button shape="square" type="submit" form={FORM_ID} loading={save.isPending}>
             Save
           </Button>
         </>
@@ -73,7 +73,7 @@ export const RescheduleModal = ({ match, onClose }: RescheduleModalProps) => {
           hint="West Africa Time, wherever you are."
           error={submitted && missing ? 'Choose a new kick-off time, or tick Postponed.' : undefined}
         >
-          <Input
+          <Input shape="square"
             id="reschedule-kickoff"
             type="datetime-local"
             value={kickoff}

@@ -21,7 +21,7 @@ interface ShirtAndRoleProps {
 export const ShirtAndRoleFields = ({ shirt, onShirt, role, onRole, idPrefix, error }: ShirtAndRoleProps) => (
   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
     <Field label="Shirt number (optional)" htmlFor={`${idPrefix}-shirt`} hint="Leave empty to give the first free number." error={error}>
-      <Input
+      <Input shape="square"
         id={`${idPrefix}-shirt`}
         inputMode="numeric"
         value={shirt}
@@ -31,7 +31,7 @@ export const ShirtAndRoleFields = ({ shirt, onShirt, role, onRole, idPrefix, err
       />
     </Field>
     <Field label="Squad role" htmlFor={`${idPrefix}-role`}>
-      <Select id={`${idPrefix}-role`} value={role} onChange={(e) => onRole(e.target.value as ArenaSquadRole)}>
+      <Select shape="square" id={`${idPrefix}-role`} value={role} onChange={(e) => onRole(e.target.value as ArenaSquadRole)}>
         {SQUAD_ROLES.map((r) => (
           <option key={r.value} value={r.value}>
             {r.label}
@@ -55,7 +55,7 @@ export const PlayerDetailsFields = ({ value, onChange, idPrefix, showErrors }: P
   return (
     <>
       <Field label="Gamertag" htmlFor={`${idPrefix}-tag`} hint="The name they play under in EA FC." error={showErrors ? errors.gamertag : ''}>
-        <Input
+        <Input shape="square"
           id={`${idPrefix}-tag`}
           value={value.gamertag}
           onChange={(e) => onChange({ ...value, gamertag: e.target.value })}
@@ -65,11 +65,11 @@ export const PlayerDetailsFields = ({ value, onChange, idPrefix, showErrors }: P
         />
       </Field>
       <Field label="EA ID (optional)" htmlFor={`${idPrefix}-ea`} hint="Their EA account ID, if you have it.">
-        <Input id={`${idPrefix}-ea`} value={value.eaId} onChange={(e) => onChange({ ...value, eaId: e.target.value })} maxLength={40} autoComplete="off" />
+        <Input shape="square" id={`${idPrefix}-ea`} value={value.eaId} onChange={(e) => onChange({ ...value, eaId: e.target.value })} maxLength={40} autoComplete="off" />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Platform" htmlFor={`${idPrefix}-platform`}>
-          <Select id={`${idPrefix}-platform`} value={value.platform} onChange={(e) => onChange({ ...value, platform: e.target.value as ArenaPlatform })}>
+          <Select shape="square" id={`${idPrefix}-platform`} value={value.platform} onChange={(e) => onChange({ ...value, platform: e.target.value as ArenaPlatform })}>
             {PLATFORMS.map((p) => (
               <option key={p.value} value={p.value}>
                 {p.label}
@@ -78,7 +78,7 @@ export const PlayerDetailsFields = ({ value, onChange, idPrefix, showErrors }: P
           </Select>
         </Field>
         <Field label="Main position" htmlFor={`${idPrefix}-position`} error={showErrors ? errors.position : ''}>
-          <Select
+          <Select shape="square"
             id={`${idPrefix}-position`}
             value={value.position}
             onChange={(e) => onChange({ ...value, position: e.target.value })}
@@ -157,7 +157,7 @@ export const PlayerFormModal = ({ player, onClose }: PlayerFormModalProps) => {
   };
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={mutation.isPending ? undefined : onClose}
       title={editing ? `Edit ${player.gamertag}` : 'Add a player'}
@@ -165,10 +165,10 @@ export const PlayerFormModal = ({ player, onClose }: PlayerFormModalProps) => {
       maxWidth="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+          <Button shape="square" variant="secondary" onClick={onClose} disabled={mutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form="arena-player-form" loading={mutation.isPending}>
+          <Button shape="square" type="submit" form="arena-player-form" loading={mutation.isPending}>
             {editing ? 'Save changes' : 'Add player'}
           </Button>
         </>
@@ -182,10 +182,10 @@ export const PlayerFormModal = ({ player, onClose }: PlayerFormModalProps) => {
         {!editing && (
           <>
             <Field label="Account email (optional)" htmlFor="player-email" hint="Links this player to their Arena login so they can sign contracts. They must already have an account.">
-              <Input id="player-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" placeholder="player@example.com" />
+              <Input shape="square" id="player-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" placeholder="player@example.com" />
             </Field>
             <Field label="Club (optional)" htmlFor="player-club" hint="Leave empty to add them as a free agent.">
-              <Select id="player-club" value={clubId} onChange={(e) => setClubId(e.target.value)}>
+              <Select shape="square" id="player-club" value={clubId} onChange={(e) => setClubId(e.target.value)}>
                 <option value="">Free agent (no club)</option>
                 {clubs.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -230,7 +230,7 @@ export const PlayerRegisterModal = ({ player, onClose }: { player: ArenaPlayer; 
   };
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={mutation.isPending ? undefined : onClose}
       title={`Register ${player.gamertag}`}
@@ -238,10 +238,10 @@ export const PlayerRegisterModal = ({ player, onClose }: { player: ArenaPlayer; 
       maxWidth="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+          <Button shape="square" variant="secondary" onClick={onClose} disabled={mutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form="arena-register-form" loading={mutation.isPending}>
+          <Button shape="square" type="submit" form="arena-register-form" loading={mutation.isPending}>
             Register to club
           </Button>
         </>
@@ -249,7 +249,7 @@ export const PlayerRegisterModal = ({ player, onClose }: { player: ArenaPlayer; 
     >
       <form id="arena-register-form" onSubmit={submit} noValidate className="space-y-4">
         <Field label="Club" htmlFor="register-club" error={submitted && !clubId ? 'Choose a club.' : ''}>
-          <Select id="register-club" value={clubId} onChange={(e) => setClubId(e.target.value)} invalid={submitted && !clubId}>
+          <Select shape="square" id="register-club" value={clubId} onChange={(e) => setClubId(e.target.value)} invalid={submitted && !clubId}>
             <option value="">Choose a club</option>
             {clubs.map((c) => (
               <option key={c.id} value={c.id}>
@@ -293,7 +293,7 @@ export const PlayerLinkModal = ({ player, onClose }: { player: ArenaPlayer; onCl
 
   return (
     <>
-      <Modal
+      <Modal shape="square"
         open
         onClose={mutation.isPending ? undefined : onClose}
         title={`Link ${player.gamertag} to an account`}
@@ -301,10 +301,10 @@ export const PlayerLinkModal = ({ player, onClose }: { player: ArenaPlayer; onCl
         maxWidth="md"
         footer={
           <>
-            <Button variant="secondary" onClick={onClose}>
+            <Button shape="square" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" form="arena-link-form" icon={LinkIcon}>
+            <Button shape="square" type="submit" form="arena-link-form" icon={LinkIcon}>
               Link account
             </Button>
           </>
@@ -317,7 +317,7 @@ export const PlayerLinkModal = ({ player, onClose }: { player: ArenaPlayer; onCl
             hint="They must already have signed up to Arena with this email."
             error={submitted && !email.trim() ? 'Enter the account email.' : ''}
           >
-            <Input id="link-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" invalid={submitted && !email.trim()} placeholder="player@example.com" />
+            <Input shape="square" id="link-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" invalid={submitted && !email.trim()} placeholder="player@example.com" />
           </Field>
         </form>
       </Modal>

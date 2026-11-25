@@ -17,7 +17,7 @@ export const ArenaClubs = () => {
     <div className="space-y-6">
       <DashboardPageHeader title="Clubs" subtitle="Every club in the division, with its squad, form and fixtures." />
       <Field label="Search clubs" htmlFor="club-search" className="max-w-md">
-        <Input id="club-search" icon={MagnifyingGlassIcon} placeholder="Club name" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input shape="square" id="club-search" icon={MagnifyingGlassIcon} placeholder="Club name" value={search} onChange={(e) => setSearch(e.target.value)} />
       </Field>
       <DivisionGate query={clubs}>
         {shown.length === 0 ? (
@@ -30,7 +30,7 @@ export const ArenaClubs = () => {
                 <li key={c.id}>
                   <Link
                     to={`/clubs/${c.slug}`}
-                    className="block h-full rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-sffl-red dark:border-white/10 dark:bg-white/5 dark:hover:border-arena-lime"
+                    className="block h-full border border-gray-200 bg-white p-4 transition-colors hover:border-sffl-red dark:border-white/10 dark:bg-white/5"
                   >
                     <div className="flex items-center gap-3">
                       <Crest club={c} size="lg" />
@@ -47,7 +47,7 @@ export const ArenaClubs = () => {
                         ['Points', row ? row.points : '-'],
                         ['Goals', row ? row.gf : '-'],
                       ].map(([label, value]) => (
-                        <div key={label} className="rounded-lg bg-gray-50 p-2 dark:bg-white/5">
+                        <div key={label} className="bg-gray-50 p-2 dark:bg-white/5">
                           <dd className="tabular text-lg font-black text-sffl-navy dark:text-white">{value}</dd>
                           <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{label}</dt>
                         </div>

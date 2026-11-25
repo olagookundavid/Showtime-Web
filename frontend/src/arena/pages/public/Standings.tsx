@@ -32,7 +32,7 @@ export const ArenaStandings = () => {
             {data.playoff_spots > 0 && (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 See how the playoffs work on the{' '}
-                <Link to="/tournament" className="font-bold text-sffl-red hover:underline dark:text-arena-lime">
+                <Link to="/tournament" className="font-bold text-sffl-red hover:underline">
                   Tournament page
                 </Link>
                 .

@@ -163,7 +163,7 @@ export const ArenaAdminClubs = () => {
 
   const toolbar = (
     <>
-      <Select
+      <Select shape="square"
         aria-label="Filter by division"
         value={unassigned ? '' : divisionId}
         onChange={(e) => setDivisionId(e.target.value)}
@@ -183,7 +183,7 @@ export const ArenaAdminClubs = () => {
   );
 
   const addButton = (
-    <Button icon={PlusIcon} onClick={() => setForm({})}>
+    <Button shape="square" icon={PlusIcon} onClick={() => setForm({})}>
       Register club
     </Button>
   );

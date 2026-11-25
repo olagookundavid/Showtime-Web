@@ -30,14 +30,14 @@ export const OfferDetailModal = ({ contract, onClose }: OfferDetailModalProps) =
   const events = c.events ?? [];
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={onClose}
       title={`Offer to ${c.player_name}`}
       subtitle={`From ${c.club_name}`}
       maxWidth="xl"
       footer={
-        <Button variant="secondary" onClick={onClose}>
+        <Button shape="square" variant="secondary" onClick={onClose}>
           Close
         </Button>
       }

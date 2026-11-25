@@ -107,7 +107,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
 
   return (
     <>
-      <Modal
+      <Modal shape="square"
         open
         onClose={send.isPending ? undefined : onClose}
         title="Make an offer"
@@ -115,10 +115,10 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
         maxWidth="xl"
         footer={
           <>
-            <Button variant="secondary" onClick={onClose}>
+            <Button shape="square" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" form={FORM_ID} icon={PaperAirplaneIcon}>
+            <Button shape="square" type="submit" form={FORM_ID} icon={PaperAirplaneIcon}>
               Review offer
             </Button>
           </>
@@ -127,7 +127,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
         <form id={FORM_ID} onSubmit={submit} className="space-y-5" noValidate>
           {player ? (
             <Field label="Player" error={shown('player')}>
-              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-600">
+              <div className="flex flex-wrap items-center gap-3 border border-gray-200 p-3 dark:border-gray-600">
                 <PlayerFace name={player.gamertag} src={player.avatar_url} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-gray-900 dark:text-white">{player.gamertag}</p>
@@ -135,14 +135,14 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
                     {player.primary_position} &middot; {platformLabel(player.platform)} &middot; {player.club_name || 'Free agent'}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setPlayer(null)}>
+                <Button shape="square" variant="outline" size="sm" onClick={() => setPlayer(null)}>
                   Change player
                 </Button>
               </div>
             </Field>
           ) : (
             <Field label="Player" htmlFor="offer-player-search" hint="Type at least 2 letters of their gamertag. You can search every registered player." error={shown('player')}>
-              <Input
+              <Input shape="square"
                 id="offer-player-search"
                 icon={MagnifyingGlassIcon}
                 value={search}
@@ -152,7 +152,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
                 invalid={!!shown('player')}
               />
               {term.length >= 2 && (
-                <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600" aria-label="Matching players">
+                <div className="mt-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-600" aria-label="Matching players">
                   {results.isFetching ? (
                     <Spinner size="sm" className="py-4" label="Searching" />
                   ) : results.isError ? (
@@ -184,7 +184,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
 
           {player && !errors.player && (
             <p
-              className={`flex items-start gap-2 rounded-lg p-3 text-sm ${
+              className={`flex items-start gap-2 p-3 text-sm ${
                 atOtherClub ? 'bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200' : 'bg-sky-50 text-sky-900 dark:bg-sky-500/10 dark:text-sky-200'
               }`}
             >
@@ -201,7 +201,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Squad role" htmlFor="offer-role" hint="Where they would sit in your squad.">
-              <Select id="offer-role" value={role} onChange={(e) => setRole(e.target.value as ArenaSquadRole)}>
+              <Select shape="square" id="offer-role" value={role} onChange={(e) => setRole(e.target.value as ArenaSquadRole)}>
                 {SQUAD_ROLES.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
@@ -215,7 +215,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
               hint={seasonEnd ? `Latest allowed: ${formatDateOnly(seasonEnd)} (end of the season).` : undefined}
               error={shown('endDate')}
             >
-              <Input
+              <Input shape="square"
                 id="offer-end"
                 type="date"
                 value={endDate}
@@ -228,7 +228,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
           </div>
 
           <Field label="Fee (₦)" htmlFor="offer-fee" hint="Recorded only, nothing is charged in this version." error={shown('fee')}>
-            <Input
+            <Input shape="square"
               id="offer-fee"
               type="number"
               inputMode="numeric"
@@ -247,7 +247,7 @@ export const OfferMakeModal = ({ preselected, myClubId, blockedPlayerIds, season
             hint={`${terms.length} / ${MAX_TERMS}. The player reads this before signing.`}
             error={shown('terms')}
           >
-            <Textarea
+            <Textarea shape="square"
               id="offer-terms"
               value={terms}
               maxLength={MAX_TERMS}

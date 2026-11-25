@@ -16,7 +16,7 @@ const TeamBlock = ({ club }: { club: ArenaClubRef | null }) =>
     </Link>
   ) : (
     <div className="flex flex-col items-center gap-2 text-center text-gray-500">
-      <span className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-300" aria-hidden="true" />
+      <span className="h-20 w-20 border-2 border-dashed border-gray-300" aria-hidden="true" />
       <span className="font-bold">To be decided</span>
     </div>
   );
@@ -88,7 +88,7 @@ export const ArenaMatchDetail = () => {
         icon={ExclamationTriangleIcon}
         title="We couldn't find that match"
         description="It may have been removed, or the link is wrong."
-        action={<Link to="/matches" className="font-bold text-sffl-red underline dark:text-arena-lime">Back to matches</Link>}
+        action={<Link to="/matches" className="font-bold text-sffl-red underline">Back to matches</Link>}
       />
     );
   }
@@ -107,7 +107,7 @@ export const ArenaMatchDetail = () => {
         back={{ to: '/matches', label: 'All matches' }}
       />
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-8 dark:border-white/10 dark:bg-white/5">
+      <section className="border border-gray-200 bg-white p-5 sm:p-8 dark:border-white/10 dark:bg-white/5">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-8">
           <TeamBlock club={match.home} />
           <div className="text-center">

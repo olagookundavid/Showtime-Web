@@ -152,7 +152,7 @@ export const ArenaAdminHome = () => {
         actions={
           canSeasons &&
           (season ? (
-            <ButtonLink to={seasonPath} variant="outline" icon={CalendarDaysIcon}>
+            <ButtonLink shape="square" to={seasonPath} variant="outline" icon={CalendarDaysIcon}>
               Open {season.name}
             </ButtonLink>
           ) : null)
@@ -168,7 +168,7 @@ export const ArenaAdminHome = () => {
             title="Your season could not be loaded"
             description={errorMessage(loadError)}
             action={
-              <Button
+              <Button shape="square"
                 variant="outline"
                 onClick={() => {
                   void seasonsQuery.refetch();
@@ -187,7 +187,7 @@ export const ArenaAdminHome = () => {
             title="No season yet"
             description="A season holds your divisions, clubs and fixtures. Create the first one and this page will walk you through the rest."
             action={
-              <ButtonLink to="/admin/seasons" icon={PlusIcon}>
+              <ButtonLink shape="square" to="/admin/seasons" icon={PlusIcon}>
                 Create the first season
               </ButtonLink>
             }
@@ -226,7 +226,7 @@ export const ArenaAdminHome = () => {
                 title={`${season.name} is finished`}
                 description="Its tables and results are final. Create the next season when you are ready to start again."
                 action={
-                  <ButtonLink to="/admin/seasons" icon={PlusIcon}>
+                  <ButtonLink shape="square" to="/admin/seasons" icon={PlusIcon}>
                     Create the next season
                   </ButtonLink>
                 }
@@ -243,8 +243,8 @@ export const ArenaAdminHome = () => {
                   return (
                     <li
                       key={step.title}
-                      className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
-                        isCurrent ? 'border-sffl-red bg-lime-50 dark:border-arena-lime dark:bg-arena-lime/5' : 'border-gray-200 dark:border-white/10'
+                      className={`flex flex-col gap-3 border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                        isCurrent ? 'border-sffl-red bg-red-50 dark:bg-sffl-red/5' : 'border-gray-200 dark:border-white/10'
                       }`}
                     >
                       <div className="flex min-w-0 items-start gap-3">
@@ -268,7 +268,7 @@ export const ArenaAdminHome = () => {
                       {canSeasons && (
                         <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
                           {step.actions.map((a, n) => (
-                            <ButtonLink
+                            <ButtonLink shape="square"
                               key={a.label}
                               to={a.to}
                               variant={isCurrent && n === step.actions.length - 1 ? 'primary' : 'outline'}
@@ -297,9 +297,9 @@ export const ArenaAdminHome = () => {
               <li key={l.to}>
                 <Link
                   to={l.to}
-                  className="flex min-h-11 items-center gap-3 rounded-xl border border-gray-200 p-4 transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-sffl-red dark:border-white/10 dark:hover:bg-white/5"
+                  className="flex min-h-11 items-center gap-3 border border-gray-200 p-4 transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-sffl-red dark:border-white/10 dark:hover:bg-white/5"
                 >
-                  <l.icon className="h-6 w-6 shrink-0 text-sffl-red dark:text-arena-lime" aria-hidden="true" />
+                  <l.icon className="h-6 w-6 shrink-0 text-sffl-red" aria-hidden="true" />
                   <span className="min-w-0">
                     <span className="block text-sm font-extrabold text-sffl-navy dark:text-white">{l.label}</span>
                     <span className="block text-xs text-gray-600 dark:text-gray-400">{l.description}</span>

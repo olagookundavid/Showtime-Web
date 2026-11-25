@@ -65,7 +65,7 @@ export const DivisionClubsModal = ({ division, divisions, onClose }: DivisionClu
     });
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={onClose}
       title="Manage clubs"
@@ -73,10 +73,10 @@ export const DivisionClubsModal = ({ division, divisions, onClose }: DivisionClu
       maxWidth="xl"
       footer={
         <>
-          <Button variant="outline" onClick={onClose} disabled={save.isPending}>
+          <Button shape="square" variant="outline" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!changed}>
+          <Button shape="square" onClick={() => save.mutate()} loading={save.isPending} disabled={!changed}>
             Save clubs
           </Button>
         </>
@@ -95,12 +95,12 @@ export const DivisionClubsModal = ({ division, divisions, onClose }: DivisionClu
           icon={ShieldCheckIcon}
           title="No clubs registered yet"
           description="Register your clubs first, then come back to put them in this division."
-          action={<ButtonLink to="/admin/clubs">Register clubs</ButtonLink>}
+          action={<ButtonLink shape="square" to="/admin/clubs">Register clubs</ButtonLink>}
         />
       ) : (
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <Input
+            <Input shape="square"
               icon={MagnifyingGlassIcon}
               type="search"
               aria-label="Search clubs"
@@ -114,7 +114,7 @@ export const DivisionClubsModal = ({ division, divisions, onClose }: DivisionClu
             </p>
           </div>
 
-          <ul className="mt-3 divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-white/10 dark:border-white/10">
+          <ul className="mt-3 divide-y divide-gray-100 border border-gray-200 dark:divide-white/10 dark:border-white/10">
             {visible.length === 0 && <li className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No club matches that search.</li>}
             {visible.map((c) => {
               const elsewhere = otherDivision.get(c.id);

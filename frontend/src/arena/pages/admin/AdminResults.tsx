@@ -167,7 +167,7 @@ export const ArenaAdminResults = () => {
             icon={ClipboardDocumentListIcon}
             title="There is nothing to enter results for yet"
             description="Results belong to fixtures, and fixtures belong to a division. Set up a season, add a division and generate its fixtures first."
-            action={<ButtonLink to="/admin/seasons">Go to Seasons</ButtonLink>}
+            action={<ButtonLink shape="square" to="/admin/seasons">Go to Seasons</ButtonLink>}
           />
         </Panel>
       </div>
@@ -180,7 +180,7 @@ export const ArenaAdminResults = () => {
 
       <div className="w-full sm:max-w-xs">
         <Field label="Division" htmlFor="results-division">
-          <Select id="results-division" value={divisionId} onChange={(e) => setDivisionId(e.target.value)}>
+          <Select shape="square" id="results-division" value={divisionId} onChange={(e) => setDivisionId(e.target.value)}>
             {divisions.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -191,12 +191,12 @@ export const ArenaAdminResults = () => {
       </div>
 
       {counts.needs > 0 && filter !== 'needs' && (
-        <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-500/10">
+        <div role="status" className="flex flex-col gap-2 border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-500/10">
           <p className="flex items-start gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
             <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
             {counts.needs === 1 ? '1 match has kicked off and is waiting for a result.' : `${counts.needs} matches have kicked off and are waiting for a result.`}
           </p>
-          <Button variant="warning" size="sm" onClick={() => setFilter('needs')}>
+          <Button shape="square" variant="warning" size="sm" onClick={() => setFilter('needs')}>
             Show them
           </Button>
         </div>
@@ -219,7 +219,7 @@ export const ArenaAdminResults = () => {
             icon={CalendarDaysIcon}
             title="This division has no fixtures yet"
             description="Generate the league fixtures from the season's page, then come back to enter results as matches are played."
-            action={<ButtonLink to="/admin/seasons">Go to Seasons</ButtonLink>}
+            action={<ButtonLink shape="square" to="/admin/seasons">Go to Seasons</ButtonLink>}
           />
         </Panel>
       ) : (

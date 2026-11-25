@@ -56,7 +56,7 @@ const Callout = ({
 }) => (
   <div
     role="status"
-    className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
+    className={`flex items-start gap-3 border p-4 text-sm ${
       tone === 'warning'
         ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
         : 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200'
@@ -194,7 +194,7 @@ export const SheetEditorView = ({ editor, clubId, onDirtyChange }: SheetEditorVi
 
   return (
     <div className="space-y-4">
-      <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <section className="flex min-w-0 flex-col gap-3 border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex min-w-0 items-center gap-3">
           {opponent && <Crest club={opponent} size="lg" />}
           <div className="min-w-0">
@@ -250,7 +250,7 @@ export const SheetEditorView = ({ editor, clubId, onDirtyChange }: SheetEditorVi
         <Panel title="Lineup">
           <div className="space-y-4">
             <Field label="Formation" htmlFor="sheet-formation" hint="Players keep their place where their position still fits. Check the lineup after you change it.">
-              <Select
+              <Select shape="square"
                 id="sheet-formation"
                 value={draft.formation}
                 disabled={readOnly}
@@ -280,7 +280,7 @@ export const SheetEditorView = ({ editor, clubId, onDirtyChange }: SheetEditorVi
                     <span className="sr-only">Place {i + 1}: </span>
                     {pos}
                   </label>
-                  <Select
+                  <Select shape="square"
                     id={`sheet-slot-${i}`}
                     value={draft.starters[i] ?? ''}
                     disabled={readOnly}
@@ -299,7 +299,7 @@ export const SheetEditorView = ({ editor, clubId, onDirtyChange }: SheetEditorVi
               ))}
             </ul>
             <Field label="Captain" htmlFor="sheet-captain" className="mt-5" hint="The captain has to be one of your starters.">
-              <Select
+              <Select shape="square"
                 id="sheet-captain"
                 value={draft.captain}
                 disabled={readOnly || starterIds.length === 0}
@@ -374,12 +374,12 @@ export const SheetEditorView = ({ editor, clubId, onDirtyChange }: SheetEditorVi
 
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {submitted ? (
-                <Button icon={PencilSquareIcon} variant="secondary" loading={reopen.isPending} onClick={() => setConfirm('reopen')} className="w-full sm:w-auto">
+                <Button shape="square" icon={PencilSquareIcon} variant="secondary" loading={reopen.isPending} onClick={() => setConfirm('reopen')} className="w-full sm:w-auto">
                   Edit again
                 </Button>
               ) : (
                 <>
-                  <Button
+                  <Button shape="square"
                     variant="outline"
                     icon={SparklesIcon}
                     disabled={busy}
@@ -389,10 +389,10 @@ export const SheetEditorView = ({ editor, clubId, onDirtyChange }: SheetEditorVi
                   >
                     Auto-pick
                   </Button>
-                  <Button variant="secondary" disabled={busy} loading={save.isPending && !save.variables} onClick={() => save.mutate(false)} className="w-full sm:w-auto">
+                  <Button shape="square" variant="secondary" disabled={busy} loading={save.isPending && !save.variables} onClick={() => save.mutate(false)} className="w-full sm:w-auto">
                     Save draft
                   </Button>
-                  <Button
+                  <Button shape="square"
                     icon={PaperAirplaneIcon}
                     disabled={problems.length > 0 || busy}
                     onClick={() => setConfirm('submit')}

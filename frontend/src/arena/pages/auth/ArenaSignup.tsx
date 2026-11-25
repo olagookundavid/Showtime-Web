@@ -44,7 +44,7 @@ export const ArenaSignup = () => {
       footer={
         <>
           Already have an account?{' '}
-          <Link to={withReturnUrl('/login', returnUrl)} className="font-bold text-sffl-red hover:underline dark:text-arena-lime">
+          <Link to={withReturnUrl('/login', returnUrl)} className="font-bold text-sffl-red hover:underline">
             Log in
           </Link>
         </>
@@ -52,28 +52,28 @@ export const ArenaSignup = () => {
     >
       <form onSubmit={submit} className="space-y-4">
         {error && (
-          <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+          <p role="alert" className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
             {error}
           </p>
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="First name" htmlFor="su-first">
-            <Input id="su-first" autoComplete="given-name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            <Input shape="square" id="su-first" autoComplete="given-name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
           </Field>
           <Field label="Last name" htmlFor="su-last">
-            <Input id="su-last" autoComplete="family-name" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            <Input shape="square" id="su-last" autoComplete="family-name" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </Field>
         </div>
         <Field label="Email address" htmlFor="su-email">
-          <Input id="su-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input shape="square" id="su-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Password" htmlFor="su-password" hint={PASSWORD_HINT}>
-          <Input id="su-password" type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input shape="square" id="su-password" type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field label="Confirm password" htmlFor="su-confirm">
-          <Input id="su-confirm" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <Input shape="square" id="su-confirm" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
-        <Button type="submit" variant="navy" size="lg" fullWidth loading={loading}>
+        <Button shape="square" type="submit" variant="navy" size="lg" fullWidth loading={loading}>
           Create account
         </Button>
       </form>

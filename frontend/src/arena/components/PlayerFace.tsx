@@ -7,7 +7,7 @@ export const PlayerFace = ({ name, src, size = 'md' }: { name: string; src?: str
   src ? (
     <img src={src} alt="" loading="lazy" className={`${sizes[size]} shrink-0 rounded-full object-cover bg-gray-100`} />
   ) : (
-    <span aria-hidden="true" className={`${sizes[size]} shrink-0 inline-flex items-center justify-center rounded-full bg-sffl-navy font-black text-arena-lime dark:bg-white/10`}>
+    <span aria-hidden="true" className={`${sizes[size]} shrink-0 inline-flex items-center justify-center rounded-full bg-sffl-navy font-black text-sffl-red dark:bg-white/10`}>
       {initialsOf(name)}
     </span>
   );

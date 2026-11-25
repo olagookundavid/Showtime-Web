@@ -156,7 +156,7 @@ export const ArenaAdminPlayers = () => {
 
   const toolbar = (
     <>
-      <Select
+      <Select shape="square"
         aria-label="Filter by club"
         value={freeOnly ? '' : clubId}
         onChange={(e) => {
@@ -185,7 +185,7 @@ export const ArenaAdminPlayers = () => {
   );
 
   const addButton = (
-    <Button icon={PlusIcon} onClick={() => setDialog({ kind: 'form' })}>
+    <Button shape="square" icon={PlusIcon} onClick={() => setDialog({ kind: 'form' })}>
       Add player
     </Button>
   );

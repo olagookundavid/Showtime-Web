@@ -41,7 +41,7 @@ export const ArenaLogin = () => {
       footer={
         <>
           New to Clubs Arena?{' '}
-          <Link to={withReturnUrl('/signup', returnUrl)} className="font-bold text-sffl-red hover:underline dark:text-arena-lime">
+          <Link to={withReturnUrl('/signup', returnUrl)} className="font-bold text-sffl-red hover:underline">
             Create an account
           </Link>
         </>
@@ -49,17 +49,17 @@ export const ArenaLogin = () => {
     >
       <form onSubmit={submit} className="space-y-4">
         <Field label="Email address" htmlFor="login-email">
-          <Input id="login-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input shape="square" id="login-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Password" htmlFor="login-password">
-          <Input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input shape="square" id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <div className="text-right">
-          <Link to="/forgot-password" className="text-sm font-bold text-sffl-red hover:underline dark:text-arena-lime">
+          <Link to="/forgot-password" className="text-sm font-bold text-sffl-red hover:underline">
             Forgot your password?
           </Link>
         </div>
-        <Button type="submit" variant="navy" size="lg" fullWidth loading={loading}>
+        <Button shape="square" type="submit" variant="navy" size="lg" fullWidth loading={loading}>
           Log in
         </Button>
       </form>

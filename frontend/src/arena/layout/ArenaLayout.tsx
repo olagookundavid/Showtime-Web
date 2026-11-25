@@ -10,7 +10,7 @@ const BRAND = {
   logoSrc: '/logo.svg',
   name: (
     <>
-      CLUBS<span className="text-sffl-red dark:text-arena-lime">ARENA</span>
+      CLUBS<span className="text-sffl-red">ARENA</span>
     </>
   ),
 };
@@ -20,7 +20,7 @@ const DivisionPicker = () => {
   const { divisions, divisionId, setDivisionId } = useArenaScope();
   if (divisions.length < 2) return null;
   return (
-    <Select
+    <Select shape="square"
       aria-label="Division"
       value={divisionId}
       onChange={(e) => setDivisionId(e.target.value)}
@@ -64,7 +64,7 @@ export const ArenaLayout = () => {
         <>
           <DivisionPicker />
           {!isAuthenticated && (
-            <ButtonLink to="/login" size="sm" variant="navy" icon={ArrowRightEndOnRectangleIcon} className="ml-2">
+            <ButtonLink shape="square" to="/login" size="sm" variant="navy" icon={ArrowRightEndOnRectangleIcon} className="ml-2">
               Log in
             </ButtonLink>
           )}

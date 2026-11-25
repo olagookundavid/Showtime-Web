@@ -77,7 +77,7 @@ export const ClubFormModal = ({ club, onClose }: ClubFormModalProps) => {
   const show = (key: keyof typeof errors) => (submitted ? errors[key] : '');
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={mutation.isPending ? undefined : onClose}
       title={editing ? `Edit ${club.name}` : 'Register a club'}
@@ -85,10 +85,10 @@ export const ClubFormModal = ({ club, onClose }: ClubFormModalProps) => {
       maxWidth="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+          <Button shape="square" variant="secondary" onClick={onClose} disabled={mutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form="arena-club-form" loading={mutation.isPending}>
+          <Button shape="square" type="submit" form="arena-club-form" loading={mutation.isPending}>
             {editing ? 'Save changes' : 'Register club'}
           </Button>
         </>
@@ -96,12 +96,12 @@ export const ClubFormModal = ({ club, onClose }: ClubFormModalProps) => {
     >
       <form id="arena-club-form" onSubmit={submit} noValidate className="space-y-4">
         <Field label="Club name" htmlFor="club-name" error={show('name')}>
-          <Input id="club-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={45} autoComplete="off" invalid={!!show('name')} placeholder="e.g. Lagos Lions" />
+          <Input shape="square" id="club-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={45} autoComplete="off" invalid={!!show('name')} placeholder="e.g. Lagos Lions" />
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Abbreviation" htmlFor="club-short" hint="2 or 3 letters or numbers, shown on tables and badges." error={show('short')}>
-            <Input
+            <Input shape="square"
               id="club-short"
               value={short}
               onChange={(e) => setShort(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3))}
@@ -112,7 +112,7 @@ export const ClubFormModal = ({ club, onClose }: ClubFormModalProps) => {
             />
           </Field>
           <Field label="Founded (optional)" htmlFor="club-founded" error={show('founded')}>
-            <Input
+            <Input shape="square"
               id="club-founded"
               inputMode="numeric"
               value={founded}
@@ -130,9 +130,9 @@ export const ClubFormModal = ({ club, onClose }: ClubFormModalProps) => {
               aria-label="Pick the club colour"
               value={HEX.test(color) ? color : DEFAULT_COLOR}
               onChange={(e) => setColor(e.target.value)}
-              className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-600 dark:bg-gray-800"
+              className="h-11 w-14 shrink-0 cursor-pointer border border-gray-300 bg-white p-1 dark:border-gray-600 dark:bg-gray-800"
             />
-            <Input
+            <Input shape="square"
               id="club-color-hex"
               value={color}
               onChange={(e) => setColor(e.target.value.startsWith('#') || !e.target.value ? e.target.value : `#${e.target.value}`)}
@@ -156,7 +156,7 @@ export const ClubFormModal = ({ club, onClose }: ClubFormModalProps) => {
         {!editing && (
           <>
             <Field label="Division (optional)" htmlFor="club-division" hint="You can also place clubs from the season's page. A division that already has fixtures can't take new clubs.">
-              <Select id="club-division" value={divisionId} onChange={(e) => setDivisionId(e.target.value)}>
+              <Select shape="square" id="club-division" value={divisionId} onChange={(e) => setDivisionId(e.target.value)}>
                 <option value="">Not in a division yet</option>
                 {divisions.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -166,7 +166,7 @@ export const ClubFormModal = ({ club, onClose }: ClubFormModalProps) => {
               </Select>
             </Field>
             <Field label="Manager's email (optional)" htmlFor="club-manager" hint="The manager picks the team and makes offers. They must already have an Arena account.">
-              <Input id="club-manager" type="email" value={managerEmail} onChange={(e) => setManagerEmail(e.target.value)} autoComplete="off" placeholder="manager@example.com" />
+              <Input shape="square" id="club-manager" type="email" value={managerEmail} onChange={(e) => setManagerEmail(e.target.value)} autoComplete="off" placeholder="manager@example.com" />
             </Field>
           </>
         )}

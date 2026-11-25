@@ -23,20 +23,20 @@ const ProfileForm = ({ id, value, onChange, onSubmit }: { id: string; value: Are
     className="grid gap-4 sm:grid-cols-2"
   >
     <Field label="Gamertag" htmlFor={`${id}-tag`} hint="The name clubs will see. It must be unique." className="sm:col-span-2">
-      <Input id={`${id}-tag`} required minLength={2} maxLength={32} value={value.gamertag} onChange={(e) => onChange({ ...value, gamertag: e.target.value })} />
+      <Input shape="square" id={`${id}-tag`} required minLength={2} maxLength={32} value={value.gamertag} onChange={(e) => onChange({ ...value, gamertag: e.target.value })} />
     </Field>
     <Field label="EA ID" htmlFor={`${id}-ea`} hint="Optional. Your EA account name.">
-      <Input id={`${id}-ea`} maxLength={40} value={value.ea_id} onChange={(e) => onChange({ ...value, ea_id: e.target.value })} />
+      <Input shape="square" id={`${id}-ea`} maxLength={40} value={value.ea_id} onChange={(e) => onChange({ ...value, ea_id: e.target.value })} />
     </Field>
     <Field label="Platform" htmlFor={`${id}-platform`}>
-      <Select id={`${id}-platform`} value={value.platform} onChange={(e) => onChange({ ...value, platform: e.target.value as ArenaPlatform })}>
+      <Select shape="square" id={`${id}-platform`} value={value.platform} onChange={(e) => onChange({ ...value, platform: e.target.value as ArenaPlatform })}>
         {PLATFORMS.map((p) => (
           <option key={p.value} value={p.value}>{p.label}</option>
         ))}
       </Select>
     </Field>
     <Field label="Main position" htmlFor={`${id}-pos`} className="sm:col-span-2">
-      <Select id={`${id}-pos`} value={value.primary_position} onChange={(e) => onChange({ ...value, primary_position: e.target.value })}>
+      <Select shape="square" id={`${id}-pos`} value={value.primary_position} onChange={(e) => onChange({ ...value, primary_position: e.target.value })}>
         {POSITIONS.map((p) => (
           <option key={p} value={p}>{p}</option>
         ))}
@@ -80,7 +80,7 @@ export const ArenaMyProfile = () => {
             Clubs can only send contract offers to players with a profile. It takes a minute, and you can change it later.
           </p>
           <ProfileForm id="create-profile" value={form} onChange={setForm} onSubmit={() => save.mutate(form)} />
-          <Button type="submit" form="create-profile" variant="navy" className="mt-5" loading={save.isPending}>
+          <Button shape="square" type="submit" form="create-profile" variant="navy" className="mt-5" loading={save.isPending}>
             Create my profile
           </Button>
         </Panel>
@@ -104,7 +104,7 @@ export const ArenaMyProfile = () => {
                 )}
               </p>
             </div>
-            <Button
+            <Button shape="square"
               variant="outline"
               size="sm"
               icon={PencilSquareIcon}
@@ -126,14 +126,14 @@ export const ArenaMyProfile = () => {
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 You have <span className="font-black">{data.open_offers}</span> {data.open_offers === 1 ? 'offer' : 'offers'} waiting for your answer.
               </p>
-              <ButtonLink to="/me/contracts" variant="navy" size="sm" icon={DocumentTextIcon} className="mt-3">Review offers</ButtonLink>
+              <ButtonLink shape="square" to="/me/contracts" variant="navy" size="sm" icon={DocumentTextIcon} className="mt-3">Review offers</ButtonLink>
             </div>
           ) : (
             <EmptyState
               icon={DocumentTextIcon}
               title="No offers waiting"
               description={player ? 'When a club offers you a contract it appears here and in My Contracts.' : 'Create your player profile so clubs can find you.'}
-              action={<ButtonLink to="/me/contracts" variant="outline" size="sm">My contracts</ButtonLink>}
+              action={<ButtonLink shape="square" to="/me/contracts" variant="outline" size="sm">My contracts</ButtonLink>}
             />
           )}
         </Panel>
@@ -146,10 +146,10 @@ export const ArenaMyProfile = () => {
                 <Link to={`/clubs/${followedClub.slug}`} className="block truncate text-lg font-extrabold text-sffl-navy hover:underline dark:text-white">{followedClub.name}</Link>
                 <p className="text-xs text-gray-500">The club you follow</p>
               </div>
-              <Button variant="secondary" size="sm" loading={followed.pending} onClick={followed.clear}>Stop following</Button>
+              <Button shape="square" variant="secondary" size="sm" loading={followed.pending} onClick={followed.clear}>Stop following</Button>
             </div>
           ) : (
-            <EmptyState icon={ShieldCheckIcon} title="You aren't following a club" description="Follow one to see its position and form on the overview." action={<ButtonLink to="/clubs" variant="navy" size="sm">Choose a club</ButtonLink>} />
+            <EmptyState icon={ShieldCheckIcon} title="You aren't following a club" description="Follow one to see its position and form on the overview." action={<ButtonLink shape="square" to="/clubs" variant="navy" size="sm">Choose a club</ButtonLink>} />
           )}
         </Panel>
 
@@ -163,7 +163,7 @@ export const ArenaMyProfile = () => {
                   {data.pending_releases > 0 ? `${data.pending_releases} release ${data.pending_releases === 1 ? 'request needs' : 'requests need'} your answer.` : 'Manage your squad, transfers and team sheets.'}
                 </p>
               </div>
-              <ButtonLink to="/manage" variant="navy" icon={Squares2X2Icon}>Open my club</ButtonLink>
+              <ButtonLink shape="square" to="/manage" variant="navy" icon={Squares2X2Icon}>Open my club</ButtonLink>
             </div>
           </Panel>
         )}
@@ -176,14 +176,14 @@ export const ArenaMyProfile = () => {
         </p>
       )}
 
-      <Modal
+      <Modal shape="square"
         open={editing}
         onClose={() => setEditing(false)}
         title="Edit your profile"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
-            <Button type="submit" form="edit-profile" variant="navy" loading={save.isPending}>Save changes</Button>
+            <Button shape="square" variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button shape="square" type="submit" form="edit-profile" variant="navy" loading={save.isPending}>Save changes</Button>
           </>
         }
       >

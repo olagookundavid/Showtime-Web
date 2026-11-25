@@ -272,10 +272,10 @@ export const DivisionPanel = ({ season, division, divisions, clubsById, canManag
 
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" icon={ShieldCheckIcon} disabled={clubsDisabled} onClick={() => setManagingClubs(true)}>
+            <Button shape="square" variant="outline" size="sm" icon={ShieldCheckIcon} disabled={clubsDisabled} onClick={() => setManagingClubs(true)}>
               Manage clubs
             </Button>
-            <Button variant="outline" size="sm" icon={PencilSquareIcon} onClick={() => setEditing(true)}>
+            <Button shape="square" variant="outline" size="sm" icon={PencilSquareIcon} onClick={() => setEditing(true)}>
               Edit division
             </Button>
             <RowActions label={`More actions for ${division.name}`} actions={moreActions} />
@@ -293,7 +293,7 @@ export const DivisionPanel = ({ season, division, divisions, clubsById, canManag
               icon={CalendarDaysIcon}
               title="Fixtures could not be loaded"
               description={errorMessage(matchesQuery.error)}
-              action={<Button variant="outline" onClick={() => matchesQuery.refetch()}>Try again</Button>}
+              action={<Button shape="square" variant="outline" onClick={() => matchesQuery.refetch()}>Try again</Button>}
             />
           ) : division.club_count === 0 && !hasFixtures ? (
             <EmptyState
@@ -301,7 +301,7 @@ export const DivisionPanel = ({ season, division, divisions, clubsById, canManag
               title="No clubs in this division yet"
               description="Choose the clubs that will play here. You need at least 2 before you can make fixtures."
               action={
-                <Button icon={ShieldCheckIcon} disabled={clubsDisabled} onClick={() => setManagingClubs(true)}>
+                <Button shape="square" icon={ShieldCheckIcon} disabled={clubsDisabled} onClick={() => setManagingClubs(true)}>
                   Add clubs
                 </Button>
               }
@@ -317,11 +317,11 @@ export const DivisionPanel = ({ season, division, divisions, clubsById, canManag
               }
               action={
                 readOnly ? undefined : division.club_count < 2 ? (
-                  <Button icon={ShieldCheckIcon} disabled={clubsDisabled} onClick={() => setManagingClubs(true)}>
+                  <Button shape="square" icon={ShieldCheckIcon} disabled={clubsDisabled} onClick={() => setManagingClubs(true)}>
                     Add clubs
                   </Button>
                 ) : (
-                  <Button icon={CalendarDaysIcon} onClick={() => setMakingFixtures(true)}>
+                  <Button shape="square" icon={CalendarDaysIcon} onClick={() => setMakingFixtures(true)}>
                     Make fixtures
                   </Button>
                 )
@@ -334,7 +334,7 @@ export const DivisionPanel = ({ season, division, divisions, clubsById, canManag
               </p>
 
               {division.playoff_spots > 0 && (
-                <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-sffl-navy dark:text-white">Playoffs</p>
                     <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">{playoffRule(division.playoff_spots)}</p>
@@ -347,7 +347,7 @@ export const DivisionPanel = ({ season, division, divisions, clubsById, canManag
                     </p>
                   </div>
                   {!hasPlayoffs && (
-                    <Button
+                    <Button shape="square"
                       icon={TrophyIcon}
                       className="shrink-0"
                       disabled={!allPlayed || readOnly}
@@ -368,7 +368,7 @@ export const DivisionPanel = ({ season, division, divisions, clubsById, canManag
                 emptyMessage="No matches in this round."
                 headerActions={
                   rounds.length > 1 ? (
-                    <Select aria-label={`Show round in ${division.name}`} value={round} onChange={(e) => setRound(e.target.value)} className="w-full sm:w-52">
+                    <Select shape="square" aria-label={`Show round in ${division.name}`} value={round} onChange={(e) => setRound(e.target.value)} className="w-full sm:w-52">
                       <option value="">All rounds</option>
                       {rounds.map((r) => (
                         <option key={r} value={r}>

@@ -20,13 +20,13 @@ export const Crest = ({ club, size = 'md', className = '' }: CrestProps) =>
       src={club.crest_url}
       alt=""
       loading="lazy"
-      className={`${sizes[size]} shrink-0 rounded-lg object-cover bg-gray-100 dark:bg-white/10 ${className}`}
+      className={`${sizes[size]} shrink-0 object-cover bg-gray-100 dark:bg-white/10 ${className}`}
     />
   ) : (
     <span
       aria-hidden="true"
       style={{ backgroundColor: club.color }}
-      className={`${sizes[size]} shrink-0 inline-flex items-center justify-center rounded-lg font-black tracking-wide text-white ${className}`}
+      className={`${sizes[size]} shrink-0 inline-flex items-center justify-center font-black tracking-wide text-white ${className}`}
     >
       {club.short}
     </span>

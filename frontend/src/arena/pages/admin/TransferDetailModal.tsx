@@ -21,13 +21,13 @@ export const TransferDetailModal = ({ contract, onClose }: { contract: ArenaCont
   const k = data ?? contract;
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={onClose}
       title={`${k.player_name}: contract`}
       subtitle={`Offered by ${k.club_name}`}
       maxWidth="2xl"
-      footer={<Button variant="secondary" onClick={onClose}>Close</Button>}
+      footer={<Button shape="square" variant="secondary" onClick={onClose}>Close</Button>}
     >
       <dl className="divide-y divide-gray-100 dark:divide-white/10">
         <Row label="Status">
@@ -68,7 +68,7 @@ export const TransferDetailModal = ({ contract, onClose }: { contract: ArenaCont
       ) : k.events && k.events.length > 0 ? (
         <ol className="mt-2 space-y-2">
           {k.events.map((e, i) => (
-            <li key={`${e.at}-${i}`} className="flex flex-col gap-0.5 rounded-lg bg-gray-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 dark:bg-white/5">
+            <li key={`${e.at}-${i}`} className="flex flex-col gap-0.5 bg-gray-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 dark:bg-white/5">
               <span className="min-w-0 break-words text-sm font-semibold text-gray-900 dark:text-white">{e.label}</span>
               <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(e.at)}</span>
             </li>

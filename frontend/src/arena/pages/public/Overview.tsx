@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRightIcon, CalendarDaysIcon, ChartBarIcon, FlagIcon, ShieldCheckIcon, TrophyIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { ButtonLink, DashboardPageHeader, Tabs } from '../../../components';
-import { Crest, DivisionGate, EmptyState, MatchRow, Panel, PlayerFace, StandingsTable, StatTile } from '../../components';
+import { Crest, DivisionGate, EmptyState, HeroPitchArt, MatchRow, Panel, PlayerFace, StandingsTable, StatTile } from '../../components';
 import { useFollowedClub, useOverview } from '../../hooks';
 import type { ArenaStandingRow } from '../../../types';
 import { ordinal } from '../../utils';
@@ -27,28 +27,24 @@ export const ArenaOverview = () => {
       <DivisionGate query={overview}>
         {data && (
           <>
-            <section className="relative overflow-hidden rounded-2xl bg-sffl-navy p-6 text-white sm:p-10">
-              <svg aria-hidden="true" viewBox="0 0 300 200" className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-arena-lime/15 sm:block" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M20 10h260v180H20zM150 10v180" />
-                <circle cx="150" cy="100" r="34" />
-                <path d="M20 60h42v80H20M280 60h-42v80h42" />
-              </svg>
+            <section className="relative overflow-hidden bg-sffl-navy p-6 text-white sm:p-10">
+              <HeroPitchArt className="pointer-events-none absolute -right-10 top-0 hidden h-full w-2/3 text-white/20 sm:block" />
               <div className="relative max-w-xl">
-                <p className="inline-flex items-center gap-2 rounded-full bg-arena-lime/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-arena-lime">
-                  <span className="h-1.5 w-1.5 rounded-full bg-arena-lime" aria-hidden="true" />
+                <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/80">
+                  <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
                   {data.scope.division?.name}
                 </p>
                 <h2 className="mt-4 text-4xl font-extrabold uppercase leading-none sm:text-6xl">
-                  Your club. Your game. <span className="text-arena-lime">Your glory.</span>
+                  Your club. Your game. <span className="text-sffl-gold">Your glory.</span>
                 </h2>
                 <p className="mt-3 text-white/80">The competition never stops. Stay ahead of every match.</p>
                 {data.champion ? (
-                  <p className="mt-5 inline-flex items-center gap-2 rounded-lg bg-arena-lime px-4 py-2 font-bold text-sffl-navy">
+                  <p className="mt-5 inline-flex items-center gap-2 bg-sffl-gold px-4 py-2 font-bold text-sffl-navy">
                     <TrophyIcon className="h-5 w-5" aria-hidden="true" />
                     {data.champion.name} are the champions
                   </p>
                 ) : (
-                  <ButtonLink to="/matches" tone="dark" variant="secondary" icon={ArrowUpRightIcon} iconPosition="right" className="mt-5">
+                  <ButtonLink shape="square" to="/matches" tone="dark" variant="secondary" icon={ArrowUpRightIcon} iconPosition="right" className="mt-5">
                     Explore matches
                   </ButtonLink>
                 )}
@@ -109,7 +105,7 @@ export const ArenaOverview = () => {
                       icon={ShieldCheckIcon}
                       title="Pick your club"
                       description="Follow a club to see its position and form here every time you visit."
-                      action={<ButtonLink to="/clubs" variant="navy" size="sm">Choose a club</ButtonLink>}
+                      action={<ButtonLink shape="square" to="/clubs" variant="navy" size="sm">Choose a club</ButtonLink>}
                     />
                   )}
                 </Panel>
@@ -120,7 +116,7 @@ export const ArenaOverview = () => {
                     <ol className="-my-1">
                       {data.top_scorers.map((p, i) => (
                         <li key={`${p.player_id}-${p.club_id}`}>
-                          <Link to={`/players/${p.player_id}`} className="flex min-h-14 items-center gap-3 rounded-lg px-1 py-2 hover:bg-gray-50 dark:hover:bg-white/5">
+                          <Link to={`/players/${p.player_id}`} className="flex min-h-14 items-center gap-3 px-1 py-2 hover:bg-gray-50 dark:hover:bg-white/5">
                             <span className="tabular w-5 text-center text-sm font-black text-gray-500">{i + 1}</span>
                             <PlayerFace name={p.gamertag} size="sm" />
                             <span className="min-w-0 flex-1">
@@ -161,7 +157,7 @@ const MyClubCard = ({ clubId, standing }: { clubId: string; standing: ArenaStand
     return (
       <p className="py-2 text-sm text-gray-600 dark:text-gray-400">
         Your followed club isn't in this division.{' '}
-        <button type="button" onClick={clear} disabled={pending} className="font-bold text-sffl-red underline dark:text-arena-lime">
+        <button type="button" onClick={clear} disabled={pending} className="font-bold text-sffl-red underline">
           Stop following
         </button>
         <span className="sr-only">{clubId}</span>
@@ -183,13 +179,13 @@ const MyClubCard = ({ clubId, standing }: { clubId: string; standing: ArenaStand
           ['Points', standing.points],
           ['Wins', standing.won],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-lg bg-gray-50 p-2 dark:bg-white/5">
+          <div key={label} className="bg-gray-50 p-2 dark:bg-white/5">
             <dd className="tabular text-xl font-black text-sffl-navy dark:text-white">{value}</dd>
             <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{label}</dt>
           </div>
         ))}
       </dl>
-      <ButtonLink to={`/clubs/${standing.club.slug}`} variant="outline" size="sm" fullWidth className="mt-4">
+      <ButtonLink shape="square" to={`/clubs/${standing.club.slug}`} variant="outline" size="sm" fullWidth className="mt-4">
         View club
       </ButtonLink>
     </div>

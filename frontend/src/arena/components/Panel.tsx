@@ -14,11 +14,11 @@ interface PanelProps {
 
 /** A titled card. Every section of every page uses it so they all read the same. */
 export const Panel = ({ title, link, children, className = '', flush = false }: PanelProps) => (
-  <section className={`min-w-0 rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-white/5 ${className}`}>
+  <section className={`min-w-0 border border-gray-200 bg-white dark:border-white/10 dark:bg-white/5 ${className}`}>
     <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 sm:px-5">
       <h2 className="text-xl font-extrabold text-sffl-navy dark:text-white">{title}</h2>
       {link && (
-        <Link to={link.to} className="inline-flex items-center gap-1 min-h-11 text-sm font-bold text-sffl-red hover:underline dark:text-arena-lime">
+        <Link to={link.to} className="inline-flex items-center gap-1 min-h-11 text-sm font-bold text-sffl-red hover:underline">
           {link.label}
           <ArrowUpRightIcon className="w-4 h-4" aria-hidden="true" />
         </Link>

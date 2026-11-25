@@ -45,7 +45,7 @@ export const ArenaClubProfile = () => {
       <EmptyState
         icon={ExclamationTriangleIcon}
         title="We couldn't find that club"
-        action={<Link to="/clubs" className="font-bold text-sffl-red underline dark:text-arena-lime">Back to clubs</Link>}
+        action={<Link to="/clubs" className="font-bold text-sffl-red underline">Back to clubs</Link>}
       />
     );
   }
@@ -58,17 +58,20 @@ export const ArenaClubProfile = () => {
     <div className="space-y-6">
       <DashboardPageHeader title={club.name} subtitle="The squad, the form, and everything the club plays for." back={{ to: '/clubs', label: 'All clubs' }} />
 
-      <section className="flex flex-wrap items-center gap-4 rounded-2xl bg-sffl-navy p-5 text-white sm:p-8">
+      <section className="flex flex-wrap items-center gap-4 bg-sffl-navy p-5 text-white sm:p-8">
         <Crest club={club} size="xl" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-widest text-arena-lime">Pro Clubs · {club.division_name || 'No division yet'}</p>
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/80">
+            <span className="h-px w-6 bg-sffl-red" aria-hidden="true" />
+            Pro Clubs · {club.division_name || 'No division yet'}
+          </p>
           <h2 className="mt-1 break-words text-3xl font-extrabold uppercase sm:text-5xl">{club.name}</h2>
           <p className="mt-1 text-sm text-white/75">
             {club.squad_size} {club.squad_size === 1 ? 'player' : 'players'}
             {club.founded_year ? ` · Est. ${club.founded_year}` : ''}
           </p>
         </div>
-        <Button
+        <Button shape="square"
           variant={following ? 'secondary' : 'primary'}
           tone="dark"
           icon={following ? CheckIcon : ShieldCheckIcon}

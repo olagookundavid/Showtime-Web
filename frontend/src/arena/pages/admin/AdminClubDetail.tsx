@@ -49,7 +49,7 @@ const ManagerModal = ({ club, onClose }: { club: ArenaClub; onClose: () => void 
   };
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={mutation.isPending ? undefined : onClose}
       title={club.manager_user_id ? 'Change manager' : 'Assign a manager'}
@@ -57,10 +57,10 @@ const ManagerModal = ({ club, onClose }: { club: ArenaClub; onClose: () => void 
       maxWidth="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+          <Button shape="square" variant="secondary" onClick={onClose} disabled={mutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form="arena-manager-form" loading={mutation.isPending}>
+          <Button shape="square" type="submit" form="arena-manager-form" loading={mutation.isPending}>
             {club.manager_user_id ? 'Change manager' : 'Assign manager'}
           </Button>
         </>
@@ -73,7 +73,7 @@ const ManagerModal = ({ club, onClose }: { club: ArenaClub; onClose: () => void 
           hint="They must already have an Arena account. Ask them to sign up first if they don't."
           error={submitted && !email.trim() ? 'Enter the manager’s email.' : ''}
         >
-          <Input id="manager-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" invalid={submitted && !email.trim()} placeholder="manager@example.com" />
+          <Input shape="square" id="manager-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" invalid={submitted && !email.trim()} placeholder="manager@example.com" />
         </Field>
       </form>
     </Modal>
@@ -176,7 +176,7 @@ export const ArenaAdminClubDetail = () => {
       <div className="space-y-6">
         <DashboardPageHeader title="Club" subtitle="This club could not be loaded." back={{ to: '/admin/clubs', label: 'Clubs' }} />
         <Panel title="Club not found">
-          <EmptyState title="We couldn't find this club" description="It may have been deleted. Go back to the list to pick another." action={<ButtonLink to="/admin/clubs">Back to clubs</ButtonLink>} />
+          <EmptyState title="We couldn't find this club" description="It may have been deleted. Go back to the list to pick another." action={<ButtonLink shape="square" to="/admin/clubs">Back to clubs</ButtonLink>} />
         </Panel>
       </div>
     );
@@ -193,10 +193,10 @@ export const ArenaAdminClubDetail = () => {
         back={{ to: '/admin/clubs', label: 'Clubs' }}
         actions={
           <>
-            <Button variant="secondary" icon={PencilSquareIcon} onClick={() => setEditing(true)}>
+            <Button shape="square" variant="secondary" icon={PencilSquareIcon} onClick={() => setEditing(true)}>
               Edit club
             </Button>
-            <Button icon={PlusIcon} onClick={() => setAdding(true)} disabled={archived}>
+            <Button shape="square" icon={PlusIcon} onClick={() => setAdding(true)} disabled={archived}>
               Add player
             </Button>
           </>
@@ -219,7 +219,7 @@ export const ArenaAdminClubDetail = () => {
                   {club.color}
                 </span>
               </div>
-              <Link to={`/clubs/${club.slug}`} className="inline-flex min-h-11 items-center text-sm font-bold text-sffl-red hover:underline dark:text-arena-lime">
+              <Link to={`/clubs/${club.slug}`} className="inline-flex min-h-11 items-center text-sm font-bold text-sffl-red hover:underline">
                 View public page
               </Link>
             </div>
@@ -236,10 +236,10 @@ export const ArenaAdminClubDetail = () => {
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Picks the team sheet for each match and makes contract offers.</p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" icon={UserPlusIcon} onClick={() => setManagerModal(true)}>
+                <Button shape="square" variant="secondary" icon={UserPlusIcon} onClick={() => setManagerModal(true)}>
                   Change manager
                 </Button>
-                <Button variant="outline" icon={UserMinusIcon} onClick={() => setRemovingManager(true)}>
+                <Button shape="square" variant="outline" icon={UserMinusIcon} onClick={() => setRemovingManager(true)}>
                   Remove manager
                 </Button>
               </div>
@@ -249,7 +249,7 @@ export const ArenaAdminClubDetail = () => {
               icon={UserPlusIcon}
               title="No manager yet"
               description="Without a manager, nobody can pick this club's team or make offers. Give it one using the email of their Arena account."
-              action={<Button icon={UserPlusIcon} onClick={() => setManagerModal(true)}>Assign a manager</Button>}
+              action={<Button shape="square" icon={UserPlusIcon} onClick={() => setManagerModal(true)}>Assign a manager</Button>}
             />
           )}
         </Panel>
@@ -267,7 +267,7 @@ export const ArenaAdminClubDetail = () => {
               title="This squad is empty"
               description="A club needs players before its manager can pick a team. Add a free agent or create a new player."
               action={
-                <Button icon={PlusIcon} onClick={() => setAdding(true)} disabled={archived}>
+                <Button shape="square" icon={PlusIcon} onClick={() => setAdding(true)} disabled={archived}>
                   Add player
                 </Button>
               }

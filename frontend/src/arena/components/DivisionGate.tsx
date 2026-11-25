@@ -37,7 +37,7 @@ export const DivisionGate = ({ query, children }: { query?: UseQueryResult<unkno
         icon={ExclamationTriangleIcon}
         title="We couldn't load this page"
         description="Check your connection and try again."
-        action={<Button variant="navy" onClick={() => query.refetch()}>Try again</Button>}
+        action={<Button shape="square" variant="navy" onClick={() => query.refetch()}>Try again</Button>}
       />
     );
   }

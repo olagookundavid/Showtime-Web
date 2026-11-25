@@ -100,7 +100,7 @@ export const FixturePreviewModal = ({ division, season, onClose }: FixturePrevie
 
   return (
     <>
-      <Modal
+      <Modal shape="square"
         open
         onClose={onClose}
         title="Make fixtures"
@@ -109,19 +109,19 @@ export const FixturePreviewModal = ({ division, season, onClose }: FixturePrevie
         footer={
           preview ? (
             <>
-              <Button variant="outline" onClick={() => setPreview(null)} disabled={createMut.isPending}>
+              <Button shape="square" variant="outline" onClick={() => setPreview(null)} disabled={createMut.isPending}>
                 Change settings
               </Button>
-              <Button icon={CalendarDaysIcon} onClick={() => setConfirming(true)}>
+              <Button shape="square" icon={CalendarDaysIcon} onClick={() => setConfirming(true)}>
                 Create fixtures
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={onClose}>
+              <Button shape="square" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" form={FORM_ID} loading={previewMut.isPending}>
+              <Button shape="square" type="submit" form={FORM_ID} loading={previewMut.isPending}>
                 Preview fixtures
               </Button>
             </>
@@ -145,7 +145,7 @@ export const FixturePreviewModal = ({ division, season, onClose }: FixturePrevie
               getRowId={rowId}
               emptyMessage="No matches in this matchweek."
               headerActions={
-                <Select aria-label="Show matchweek" value={week} onChange={(e) => setWeek(e.target.value)} className="w-full sm:w-52">
+                <Select shape="square" aria-label="Show matchweek" value={week} onChange={(e) => setWeek(e.target.value)} className="w-full sm:w-52">
                   <option value="">All matchweeks</option>
                   {weeks.map((w) => (
                     <option key={w} value={w}>
@@ -173,14 +173,14 @@ export const FixturePreviewModal = ({ division, season, onClose }: FixturePrevie
               Fixtures are made for the {division.club_count} clubs in {division.name}. Matches are played on {WEEKDAYS[division.kickoff_day]}s, so the first matchweek is the first {WEEKDAYS[division.kickoff_day]} on or after the date you choose.
             </p>
             <Field label="First date" htmlFor="fixtures-first-date" hint="Matchweek 1 is on or after this date.">
-              <Input id="fixtures-first-date" type="date" value={firstDate} required onChange={(e) => setFirstDate(e.target.value)} />
+              <Input shape="square" id="fixtures-first-date" type="date" value={firstDate} required onChange={(e) => setFirstDate(e.target.value)} />
             </Field>
             <Field
               label="How many times do clubs meet?"
               htmlFor="fixtures-legs"
               hint={legs === '2' ? 'Home and away: every club plays every other club twice.' : 'Once: every club plays every other club one time.'}
             >
-              <Select id="fixtures-legs" value={legs} onChange={(e) => setLegs(e.target.value as '1' | '2')}>
+              <Select shape="square" id="fixtures-legs" value={legs} onChange={(e) => setLegs(e.target.value as '1' | '2')}>
                 <option value="2">Home and away (twice)</option>
                 <option value="1">Once</option>
               </Select>

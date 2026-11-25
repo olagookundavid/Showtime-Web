@@ -98,7 +98,7 @@ export const ArenaManageClub = () => {
             icon={ExclamationTriangleIcon}
             title="Something went wrong"
             description={errorMessage(clubQ.error, 'Your club could not be loaded. Please try again.')}
-            action={<Button onClick={() => clubQ.refetch()}>Try again</Button>}
+            action={<Button shape="square" onClick={() => clubQ.refetch()}>Try again</Button>}
           />
         </Panel>
       </div>
@@ -147,13 +147,13 @@ export const ArenaManageClub = () => {
         title="My Club"
         subtitle="Your squad, your next match and what needs doing."
         actions={
-          <ButtonLink to="/manage/teamsheets" icon={ClipboardDocumentListIcon}>
+          <ButtonLink shape="square" to="/manage/teamsheets" icon={ClipboardDocumentListIcon}>
             Pick team sheet
           </ButtonLink>
         }
       />
 
-      <section className="flex min-w-0 items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/5 sm:p-5">
+      <section className="flex min-w-0 items-center gap-4 border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/5 sm:p-5">
         <Crest club={club} size="xl" />
         <div className="min-w-0">
           <h2 className="wrap-break-word text-2xl font-black text-sffl-navy dark:text-white">{club.name}</h2>
@@ -194,10 +194,10 @@ export const ArenaManageClub = () => {
             {todos.map((t) => (
               <li key={t.key} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <p className="flex min-w-0 items-start gap-3 text-sm text-gray-800 dark:text-gray-200">
-                  <t.icon className="mt-0.5 h-5 w-5 shrink-0 text-sffl-red dark:text-arena-lime" aria-hidden="true" />
+                  <t.icon className="mt-0.5 h-5 w-5 shrink-0 text-sffl-red" aria-hidden="true" />
                   <span className="min-w-0 wrap-break-word">{t.text}</span>
                 </p>
-                <ButtonLink to={t.to} variant="outline" size="sm" className="self-start sm:self-auto">
+                <ButtonLink shape="square" to={t.to} variant="outline" size="sm" className="self-start sm:self-auto">
                   {t.label}
                 </ButtonLink>
               </li>
@@ -213,7 +213,7 @@ export const ArenaManageClub = () => {
             title="No players in your squad yet"
             description="Players join your squad when they sign a contract you've offered. Free agents are the quickest way to start."
             action={
-              <ButtonLink to="/manage/transfers?tab=free" icon={ArrowsRightLeftIcon}>
+              <ButtonLink shape="square" to="/manage/transfers?tab=free" icon={ArrowsRightLeftIcon}>
                 Find players to sign
               </ButtonLink>
             }

@@ -212,7 +212,7 @@ export const ArenaManageTransfers = () => {
   );
 
   const makeOfferButton = (
-    <Button icon={PaperAirplaneIcon} disabled={closed} title={closed ? CLOSED_HINT : undefined} onClick={() => setMakeFor({ player: null })}>
+    <Button shape="square" icon={PaperAirplaneIcon} disabled={closed} title={closed ? CLOSED_HINT : undefined} onClick={() => setMakeFor({ player: null })}>
       Make an offer
     </Button>
   );
@@ -222,7 +222,7 @@ export const ArenaManageTransfers = () => {
       <EmptyState
         title="Something went wrong"
         description={errorMessage(contractsQ.error, 'Your transfers could not be loaded. Please try again.')}
-        action={<Button onClick={() => contractsQ.refetch()}>Try again</Button>}
+        action={<Button shape="square" onClick={() => contractsQ.refetch()}>Try again</Button>}
       />
     </Panel>
   );
@@ -238,7 +238,7 @@ export const ArenaManageTransfers = () => {
       />
 
       {closed && (
-        <div role="status" className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div role="status" className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           <LockClosedIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <p>
             <span className="font-bold">The transfer window is closed.</span> Offers can't be made or signed, and releases can't be approved, until the organiser opens it. You can still look at your offers, withdraw them and decline requests.
@@ -305,7 +305,7 @@ export const ArenaManageTransfers = () => {
               Players with no club. They get your offer straight away. To sign someone from another club, use Make an offer and search for them.
             </p>
             <Field label="Search free agents" htmlFor="free-agent-search">
-              <Input
+              <Input shape="square"
                 id="free-agent-search"
                 icon={MagnifyingGlassIcon}
                 value={agentSearch}
@@ -326,7 +326,7 @@ export const ArenaManageTransfers = () => {
             <EmptyState
               title="Something went wrong"
               description={errorMessage(agentsQ.error)}
-              action={<Button onClick={() => agentsQ.refetch()}>Try again</Button>}
+              action={<Button shape="square" onClick={() => agentsQ.refetch()}>Try again</Button>}
             />
           ) : (
             <DataTable data={agents} columns={agentColumns} getRowId={(p) => p.id} loading={agentsQ.isLoading} searchable={false} emptyMessage="No free agents found." />

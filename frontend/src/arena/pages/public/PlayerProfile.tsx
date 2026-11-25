@@ -40,7 +40,7 @@ export const ArenaPlayerProfile = () => {
       <EmptyState
         icon={ExclamationTriangleIcon}
         title="We couldn't find that player"
-        action={<Link to="/players" className="font-bold text-sffl-red underline dark:text-arena-lime">Back to player stats</Link>}
+        action={<Link to="/players" className="font-bold text-sffl-red underline">Back to player stats</Link>}
       />
     );
   }
@@ -53,7 +53,7 @@ export const ArenaPlayerProfile = () => {
         subtitle={player.club_id ? `${player.primary_position} at ${player.club_name}${player.shirt_number ? `, number ${player.shirt_number}` : ''}` : `${player.primary_position}, currently a free agent`}
         back={{ to: '/players', label: 'Player stats' }}
       />
-      <section className="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
+      <section className="flex flex-wrap items-center gap-4 border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
         <PlayerFace name={player.gamertag} src={player.avatar_url} size="lg" />
         <div className="min-w-0 flex-1">
           <p className="text-xl font-extrabold text-sffl-navy dark:text-white">{player.gamertag}</p>

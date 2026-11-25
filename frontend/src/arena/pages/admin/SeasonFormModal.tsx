@@ -57,7 +57,7 @@ export const SeasonFormModal = ({ season, suggestedNumber = 1, onClose, onSaved 
   };
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={save.isPending ? undefined : onClose}
       title={editing ? 'Edit season' : 'New season'}
@@ -65,10 +65,10 @@ export const SeasonFormModal = ({ season, suggestedNumber = 1, onClose, onSaved 
       maxWidth="lg"
       footer={
         <>
-          <Button variant="outline" onClick={onClose} disabled={save.isPending}>
+          <Button shape="square" variant="outline" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID} loading={save.isPending}>
+          <Button shape="square" type="submit" form={FORM_ID} loading={save.isPending}>
             {editing ? 'Save changes' : 'Create season'}
           </Button>
         </>
@@ -90,7 +90,7 @@ export const SeasonFormModal = ({ season, suggestedNumber = 1, onClose, onSaved 
           hint={editing ? "The number can't be changed once the season exists." : 'Seasons are numbered in order: 1, 2, 3...'}
           error={submitted ? errors.number : undefined}
         >
-          <Input
+          <Input shape="square"
             id="season-number"
             type="number"
             inputMode="numeric"
@@ -103,7 +103,7 @@ export const SeasonFormModal = ({ season, suggestedNumber = 1, onClose, onSaved 
           />
         </Field>
         <Field label="Season name" htmlFor="season-name" error={submitted ? errors.name : undefined}>
-          <Input
+          <Input shape="square"
             id="season-name"
             value={name}
             maxLength={60}
@@ -116,10 +116,10 @@ export const SeasonFormModal = ({ season, suggestedNumber = 1, onClose, onSaved 
           />
         </Field>
         <Field label="Start date" htmlFor="season-start" hint="Optional. Fixtures begin on or after this date.">
-          <Input id="season-start" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
+          <Input shape="square" id="season-start" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
         </Field>
         <Field label="End date" htmlFor="season-end" hint="Optional." error={submitted ? errors.dates : undefined}>
-          <Input id="season-end" type="date" value={endsOn} min={startsOn || undefined} invalid={submitted && Boolean(errors.dates)} onChange={(e) => setEndsOn(e.target.value)} />
+          <Input shape="square" id="season-end" type="date" value={endsOn} min={startsOn || undefined} invalid={submitted && Boolean(errors.dates)} onChange={(e) => setEndsOn(e.target.value)} />
         </Field>
       </form>
     </Modal>

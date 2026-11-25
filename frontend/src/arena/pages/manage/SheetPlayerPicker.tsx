@@ -37,7 +37,7 @@ export const SheetPlayerPicker = ({ slot, slotPositions, draft, roster, onPick, 
   };
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={onClose}
       title={`Choose your ${position}`}
@@ -45,11 +45,11 @@ export const SheetPlayerPicker = ({ slot, slotPositions, draft, roster, onPick, 
       maxWidth="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button shape="square" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           {current && (
-            <Button variant="outline" onClick={() => onPick('')}>
+            <Button shape="square" variant="outline" onClick={() => onPick('')}>
               Leave this slot empty
             </Button>
           )}
@@ -70,7 +70,7 @@ export const SheetPlayerPicker = ({ slot, slotPositions, draft, roster, onPick, 
                   type="button"
                   onClick={() => onPick(p.id)}
                   aria-pressed={p.id === current}
-                  className={`flex min-h-12 w-full items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-sffl-red dark:hover:bg-white/5 ${
+                  className={`flex min-h-12 w-full items-center gap-3 px-2 py-2 text-left outline-none hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-sffl-red dark:hover:bg-white/5 ${
                     p.id === current ? 'bg-gray-50 dark:bg-white/10' : ''
                   }`}
                 >

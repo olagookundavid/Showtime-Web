@@ -53,16 +53,16 @@ const OfferModal = ({ contract, gamertag, onClose }: { contract: ArenaContract; 
   const canDecide = c.status === 'awaiting_player';
   return (
     <>
-      <Modal open onClose={onClose} title="Player agreement" subtitle={`${c.club_name} · ${CONTRACT_STATUS_LABEL[c.status]}`} maxWidth="2xl"
+      <Modal shape="square" open onClose={onClose} title="Player agreement" subtitle={`${c.club_name} · ${CONTRACT_STATUS_LABEL[c.status]}`} maxWidth="2xl"
         footer={
           canDecide ? (
             <>
-              <Button variant="secondary" onClick={onClose}>Decide later</Button>
-              <Button variant="danger" icon={XCircleIcon} onClick={() => setRejecting(true)}>Reject offer</Button>
-              <Button type="submit" form="sign-form" variant="success" icon={CheckCircleIcon} loading={sign.isPending}>Agree and sign</Button>
+              <Button shape="square" variant="secondary" onClick={onClose}>Decide later</Button>
+              <Button shape="square" variant="danger" icon={XCircleIcon} onClick={() => setRejecting(true)}>Reject offer</Button>
+              <Button shape="square" type="submit" form="sign-form" variant="success" icon={CheckCircleIcon} loading={sign.isPending}>Agree and sign</Button>
             </>
           ) : (
-            <Button variant="secondary" onClick={onClose}>Close</Button>
+            <Button shape="square" variant="secondary" onClick={onClose}>Close</Button>
           )
         }
       >
@@ -81,7 +81,7 @@ const OfferModal = ({ contract, gamertag, onClose }: { contract: ArenaContract; 
               ['Season fee', `${formatNaira(c.fee_ngn)} (recorded only)`],
               ['Status', CONTRACT_STATUS_LABEL[c.status]],
             ].map(([k, v]) => (
-              <div key={k} className="rounded-lg bg-gray-50 p-3 dark:bg-white/5">
+              <div key={k} className="bg-gray-50 p-3 dark:bg-white/5">
                 <dt className="text-xs text-gray-500">{k}</dt>
                 <dd className="font-bold text-sffl-navy dark:text-white">{v}</dd>
               </div>
@@ -91,13 +91,13 @@ const OfferModal = ({ contract, gamertag, onClose }: { contract: ArenaContract; 
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-500">Terms of the offer</h3>
             <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{c.terms}</p>
           </div>
-          {c.reason && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">Note: {c.reason}</p>}
+          {c.reason && <p className="bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">Note: {c.reason}</p>}
           {c.status === 'awaiting_release' && (
-            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+            <p className="bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
               This offer is waiting for {c.from_club_name || 'your current club'} to release you. You can sign once they agree.
             </p>
           )}
-          {c.signature && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200">Signed by <b>{c.signature}</b> on {formatDateTime(c.signed_at)}.</p>}
+          {c.signature && <p className="bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200">Signed by <b>{c.signature}</b> on {formatDateTime(c.signed_at)}.</p>}
 
           {canDecide && (
             <form
@@ -106,10 +106,10 @@ const OfferModal = ({ contract, gamertag, onClose }: { contract: ArenaContract; 
                 e.preventDefault();
                 sign.mutate();
               }}
-              className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-white/10"
+              className="space-y-3 border border-gray-200 p-4 dark:border-white/10"
             >
               <Field label="To sign, type your gamertag" htmlFor="sign-name" hint={`Type ${gamertag} exactly as it appears on your profile.`}>
-                <Input id="sign-name" autoComplete="off" required value={signature} onChange={(e) => setSignature(e.target.value)} />
+                <Input shape="square" id="sign-name" autoComplete="off" required value={signature} onChange={(e) => setSignature(e.target.value)} />
               </Field>
               <Checkbox label={`I have read the terms and agree to join ${c.club_name}.`} checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             </form>
@@ -136,7 +136,7 @@ const OfferModal = ({ contract, gamertag, onClose }: { contract: ArenaContract; 
         description={`${c.club_name} will be told you turned it down. You can still accept other offers.`}
         body={
           <Field label="Reason (optional)" htmlFor="reject-reason">
-            <Textarea id="reject-reason" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <Textarea shape="square" id="reject-reason" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Field>
         }
         confirmLabel="Reject offer"
@@ -197,7 +197,7 @@ export const ArenaMyContracts = () => {
             icon={DocumentTextIcon}
             title="Clubs can't send you offers yet"
             description="Create your player profile so managers can find you and offer you a contract."
-            action={<Link to="/me" className="font-bold text-sffl-red underline dark:text-arena-lime">Create my profile</Link>}
+            action={<Link to="/me" className="font-bold text-sffl-red underline">Create my profile</Link>}
           />
         </Panel>
       ) : (

@@ -34,7 +34,7 @@ export const OfferDeclineModal = ({ contract, onClose }: { contract: ArenaContra
   };
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={decline.isPending ? undefined : onClose}
       title={`Decline the request for ${contract.player_name}?`}
@@ -42,10 +42,10 @@ export const OfferDeclineModal = ({ contract, onClose }: { contract: ArenaContra
       maxWidth="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={decline.isPending}>
+          <Button shape="square" variant="secondary" onClick={onClose} disabled={decline.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID} variant="danger" icon={XCircleIcon} loading={decline.isPending}>
+          <Button shape="square" type="submit" form={FORM_ID} variant="danger" icon={XCircleIcon} loading={decline.isPending}>
             Decline request
           </Button>
         </>
@@ -53,7 +53,7 @@ export const OfferDeclineModal = ({ contract, onClose }: { contract: ArenaContra
     >
       <form id={FORM_ID} onSubmit={submit}>
         <Field label="Reason (optional)" htmlFor="decline-reason" hint={`${reason.length} / ${MAX_REASON}. ${contract.club_name} can read this on the offer.`}>
-          <Textarea
+          <Textarea shape="square"
             id="decline-reason"
             value={reason}
             maxLength={MAX_REASON}

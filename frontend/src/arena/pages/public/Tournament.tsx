@@ -31,9 +31,12 @@ export const ArenaTournament = () => {
       <DivisionGate query={overview}>
         {season && division && (
           <>
-            <section className="rounded-2xl bg-sffl-navy p-6 text-white sm:p-8">
-              <p className="text-xs font-bold uppercase tracking-widest text-arena-lime">{season.name}</p>
-              <h2 className="mt-1 text-3xl font-extrabold uppercase sm:text-5xl">Build the competition. <span className="text-arena-lime">Win the Arena.</span></h2>
+            <section className="bg-sffl-navy p-6 text-white sm:p-8">
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/80">
+                <span className="h-px w-8 bg-sffl-red" aria-hidden="true" />
+                {season.name}
+              </p>
+              <h2 className="mt-1 text-3xl font-extrabold uppercase sm:text-5xl">Build the competition. <span className="text-sffl-gold">Win the Arena.</span></h2>
               <p className="mt-2 text-white/75">
                 {season.starts_on ? `${formatDateOnly(season.starts_on)}${season.ends_on ? ` to ${formatDateOnly(season.ends_on)}` : ''}` : 'Dates to be announced'}
               </p>
@@ -65,9 +68,9 @@ export const ArenaTournament = () => {
                         : 'This division is decided by the league table alone.',
                 },
               ].map(({ icon: Icon, label, title, text }) => (
-                <div key={label} className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
+                <div key={label} className="border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
                   <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                    <Icon className="h-4 w-4 text-sffl-red dark:text-arena-lime" aria-hidden="true" />
+                    <Icon className="h-4 w-4 text-sffl-red" aria-hidden="true" />
                     {label}
                   </p>
                   <p className="mt-2 text-xl font-extrabold text-sffl-navy dark:text-white">{title}</p>
@@ -85,7 +88,7 @@ export const ArenaTournament = () => {
                         type="button"
                         onClick={() => setDivisionId(d.id)}
                         aria-pressed={d.id === division.id}
-                        className={`w-full min-h-11 rounded-xl border p-4 text-left transition-colors ${d.id === division.id ? 'border-sffl-red bg-lime-50 dark:border-arena-lime dark:bg-arena-lime/10' : 'border-gray-200 hover:border-sffl-red dark:border-white/10'}`}
+                        className={`w-full min-h-11 border p-4 text-left transition-colors ${d.id === division.id ? 'border-sffl-red bg-red-50 dark:bg-sffl-red/10' : 'border-gray-200 hover:border-sffl-red dark:border-white/10'}`}
                       >
                         <span className="block font-extrabold text-sffl-navy dark:text-white">{d.name}</span>
                         <span className="block text-sm text-gray-600 dark:text-gray-400">{d.description || `${d.club_count} clubs`}</span>
@@ -102,7 +105,7 @@ export const ArenaTournament = () => {
                 {bracket.data && (bracket.data.semis.length > 0 || bracket.data.final) ? (
                   <>
                     {bracket.data.champion && (
-                      <p className="mx-4 mb-3 inline-flex items-center gap-2 rounded-lg bg-arena-lime px-3 py-2 font-bold text-sffl-navy sm:mx-5">
+                      <p className="mx-4 mb-3 inline-flex items-center gap-2 bg-sffl-gold px-3 py-2 font-bold text-sffl-navy sm:mx-5">
                         <TrophyIcon className="h-5 w-5" aria-hidden="true" />
                         <Crest club={bracket.data.champion} size="sm" />
                         {bracket.data.champion.name} are the champions

@@ -111,7 +111,7 @@ const buildColumns = (update: (id: string, patch: Partial<EntryRow>) => void, se
   {
     header: 'Goals',
     cell: (r) => (
-      <Input
+      <Input shape="square"
         aria-label={`${r.gamertag} goals`}
         type="number"
         inputMode="numeric"
@@ -127,7 +127,7 @@ const buildColumns = (update: (id: string, patch: Partial<EntryRow>) => void, se
   {
     header: 'Assists',
     cell: (r) => (
-      <Input
+      <Input shape="square"
         aria-label={`${r.gamertag} assists`}
         type="number"
         inputMode="numeric"
@@ -143,7 +143,7 @@ const buildColumns = (update: (id: string, patch: Partial<EntryRow>) => void, se
   {
     header: 'Rating (0-10)',
     cell: (r) => (
-      <Input
+      <Input shape="square"
         aria-label={`${r.gamertag} rating`}
         type="number"
         inputMode="decimal"
@@ -208,9 +208,9 @@ const PlayersSection = ({ club, rows, score, columns }: SectionProps) => {
         </span>
       </div>
       {rows.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 p-4 text-sm text-gray-600 dark:border-white/10 dark:text-gray-400">
+        <p className="border border-gray-200 p-4 text-sm text-gray-600 dark:border-white/10 dark:text-gray-400">
           {club.name} has no players registered, so there are no stats to enter.{' '}
-          <Link to="/admin/clubs" className="font-bold text-sffl-red hover:underline dark:text-arena-lime">
+          <Link to="/admin/clubs" className="font-bold text-sffl-red hover:underline">
             Add players on the Clubs page
           </Link>
           .
@@ -337,7 +337,7 @@ export const ResultEntryForm = ({ form }: { form: ArenaResultForm }) => {
   const when = match.kickoff_at ? `${formatMatchDate(match.kickoff_at)}, ${formatKickoffTime(match.kickoff_at)} WAT` : 'Kick-off to be confirmed';
 
   const scoreBox = (label: string, value: string, set: (v: string) => void, shown?: number) => (
-    <Input
+    <Input shape="square"
       aria-label={label}
       type="number"
       inputMode="numeric"
@@ -361,7 +361,7 @@ export const ResultEntryForm = ({ form }: { form: ArenaResultForm }) => {
         back={{ to: '/admin/results', label: 'Results' }}
         actions={
           played ? (
-            <Button variant="danger" icon={TrashIcon} onClick={() => setClearing(true)}>
+            <Button shape="square" variant="danger" icon={TrashIcon} onClick={() => setClearing(true)}>
               Clear result
             </Button>
           ) : undefined
@@ -388,7 +388,7 @@ export const ResultEntryForm = ({ form }: { form: ArenaResultForm }) => {
             <Checkbox label="This match was a forfeit" hint="The winner is given a 3-0 win and no player stats are kept." checked={forfeit} onChange={(e) => setForfeit(e.target.checked)} />
             {forfeit && (
               <Field label="Who won?" htmlFor="forfeit-winner" className="mt-2">
-                <Select id="forfeit-winner" value={forfeitWinner} onChange={(e) => setForfeitWinner(e.target.value as '' | Side)} invalid={!forfeitWinner}>
+                <Select shape="square" id="forfeit-winner" value={forfeitWinner} onChange={(e) => setForfeitWinner(e.target.value as '' | Side)} invalid={!forfeitWinner}>
                   <option value="">Choose the winner</option>
                   <option value="home">{form.home.club.name}</option>
                   <option value="away">{form.away.club.name}</option>
@@ -398,7 +398,7 @@ export const ResultEntryForm = ({ form }: { form: ArenaResultForm }) => {
           </div>
           {needsPenalty && (
             <Field label="Level after extra time? Who won on penalties?" htmlFor="penalty-winner" hint="A knockout match can't end in a draw.">
-              <Select id="penalty-winner" value={penalty} onChange={(e) => setPenalty(e.target.value as '' | Side)} invalid={!penalty}>
+              <Select shape="square" id="penalty-winner" value={penalty} onChange={(e) => setPenalty(e.target.value as '' | Side)} invalid={!penalty}>
                 <option value="">Choose the winner</option>
                 <option value="home">{form.home.club.name}</option>
                 <option value="away">{form.away.club.name}</option>
@@ -409,7 +409,7 @@ export const ResultEntryForm = ({ form }: { form: ArenaResultForm }) => {
       </Panel>
 
       {forfeit ? (
-        <p className="flex items-start gap-2 rounded-xl border border-gray-200 p-4 text-sm text-gray-700 dark:border-white/10 dark:text-gray-300">
+        <p className="flex items-start gap-2 border border-gray-200 p-4 text-sm text-gray-700 dark:border-white/10 dark:text-gray-300">
           <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           Forfeits are recorded as a 3-0 win and no player stats are kept.
         </p>
@@ -436,7 +436,7 @@ export const ResultEntryForm = ({ form }: { form: ArenaResultForm }) => {
 
       <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-white/10">
         {problems.length > 0 && (
-          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             <p className="font-bold">Fix this to save:</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5">
               {problems.map((p) => (
@@ -446,10 +446,10 @@ export const ResultEntryForm = ({ form }: { form: ArenaResultForm }) => {
           </div>
         )}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="secondary" onClick={() => navigate('/admin/results')} disabled={save.isPending}>
+          <Button shape="square" variant="secondary" onClick={() => navigate('/admin/results')} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={problems.length > 0}>
+          <Button shape="square" onClick={() => save.mutate()} loading={save.isPending} disabled={problems.length > 0}>
             {played ? 'Save changes' : 'Save result'}
           </Button>
         </div>

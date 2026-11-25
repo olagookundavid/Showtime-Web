@@ -65,7 +65,7 @@ export const StandingsTable = ({ rows, brief = false, playoffSpots = 0, highligh
       emptyMessage="No clubs in this division yet."
       rowClassName={(r) =>
         r.club.id === highlightClubId
-          ? 'bg-lime-50 dark:bg-arena-lime/10'
+          ? 'bg-red-50 dark:bg-sffl-red/10'
           : playoffSpots > 0 && r.rank <= playoffSpots
             ? 'bg-emerald-50/60 dark:bg-emerald-500/5'
             : 'bg-white dark:bg-transparent'

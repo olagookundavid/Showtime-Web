@@ -30,10 +30,10 @@ export const ArenaPlayers = () => {
       <DashboardPageHeader title="Player Stats" subtitle="The numbers behind the names. Find the standout performers." />
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_12rem]">
         <Field label="Search players" htmlFor="player-search">
-          <Input id="player-search" icon={MagnifyingGlassIcon} placeholder="Gamertag or club" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input shape="square" id="player-search" icon={MagnifyingGlassIcon} placeholder="Gamertag or club" value={search} onChange={(e) => setSearch(e.target.value)} />
         </Field>
         <Field label="Club" htmlFor="player-club">
-          <Select id="player-club" value={clubId} onChange={(e) => setClubId(e.target.value)}>
+          <Select shape="square" id="player-club" value={clubId} onChange={(e) => setClubId(e.target.value)}>
             <option value="">All clubs</option>
             {(clubs.data ?? []).map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -41,7 +41,7 @@ export const ArenaPlayers = () => {
           </Select>
         </Field>
         <Field label="Sort by" htmlFor="player-sort">
-          <Select id="player-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+          <Select shape="square" id="player-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
             <option value="goals">Most goals</option>
             <option value="assists">Most assists</option>
             <option value="rating">Highest rating</option>
@@ -62,7 +62,7 @@ export const ArenaPlayers = () => {
               <li key={`${p.player_id}-${p.club_id}`}>
                 <Link
                   to={`/players/${p.player_id}`}
-                  className="block h-full rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-sffl-red focus-visible:outline-2 focus-visible:outline-sffl-red dark:border-white/10 dark:bg-white/5 dark:hover:border-arena-lime"
+                  className="block h-full border border-gray-200 bg-white p-4 transition-colors hover:border-sffl-red focus-visible:outline-2 focus-visible:outline-sffl-red dark:border-white/10 dark:bg-white/5"
                 >
                   <div className="flex items-center gap-3">
                     <PlayerFace name={p.gamertag} />
@@ -73,7 +73,7 @@ export const ArenaPlayers = () => {
                         {p.club_name}
                       </p>
                     </div>
-                    <span className="rounded bg-sffl-navy px-2 py-1 text-xs font-black text-arena-lime">{p.position}</span>
+                    <span className="rounded bg-sffl-navy px-2 py-1 text-xs font-black text-sffl-red">{p.position}</span>
                   </div>
                   <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
                     {[

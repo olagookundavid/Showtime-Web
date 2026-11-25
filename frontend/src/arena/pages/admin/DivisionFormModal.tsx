@@ -57,7 +57,7 @@ export const DivisionFormModal = ({ seasonId, division, onClose }: DivisionFormM
   const setSlot = (index: number, value: string) => setSlots((prev) => prev.map((s, i) => (i === index ? value : s)));
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={onClose}
       title={editing ? 'Edit division' : 'Add a division'}
@@ -65,10 +65,10 @@ export const DivisionFormModal = ({ seasonId, division, onClose }: DivisionFormM
       maxWidth="xl"
       footer={
         <>
-          <Button variant="outline" onClick={onClose} disabled={save.isPending}>
+          <Button shape="square" variant="outline" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={FORM_ID} loading={save.isPending}>
+          <Button shape="square" type="submit" form={FORM_ID} loading={save.isPending}>
             {editing ? 'Save changes' : 'Add division'}
           </Button>
         </>
@@ -85,7 +85,7 @@ export const DivisionFormModal = ({ seasonId, division, onClose }: DivisionFormM
         }}
       >
         <Field label="Division name" htmlFor="division-name" error={submitted ? errors.name : undefined} className="sm:col-span-2">
-          <Input
+          <Input shape="square"
             id="division-name"
             value={name}
             maxLength={40}
@@ -95,18 +95,18 @@ export const DivisionFormModal = ({ seasonId, division, onClose }: DivisionFormM
           />
         </Field>
         <Field label="Description" htmlFor="division-description" hint="Optional. One short line shown to visitors." className="sm:col-span-2">
-          <Input id="division-description" value={description} maxLength={90} placeholder="The top flight" onChange={(e) => setDescription(e.target.value)} />
+          <Input shape="square" id="division-description" value={description} maxLength={90} placeholder="The top flight" onChange={(e) => setDescription(e.target.value)} />
         </Field>
 
         <Field label="Playoff places" htmlFor="division-playoffs" hint="How many clubs go on to the knock-out rounds after the league.">
-          <Select id="division-playoffs" value={playoffSpots} onChange={(e) => setPlayoffSpots(e.target.value)}>
+          <Select shape="square" id="division-playoffs" value={playoffSpots} onChange={(e) => setPlayoffSpots(e.target.value)}>
             <option value="0">No playoffs</option>
             <option value="2">Top 2 (straight final)</option>
             <option value="4">Top 4 (semi-finals and final)</option>
           </Select>
         </Field>
         <Field label="Match day" htmlFor="division-day" hint="The day of the week matches are played.">
-          <Select id="division-day" value={day} onChange={(e) => setDay(e.target.value)}>
+          <Select shape="square" id="division-day" value={day} onChange={(e) => setDay(e.target.value)}>
             {WEEKDAYS.map((w, i) => (
               <option key={w} value={i}>
                 {w}
@@ -124,7 +124,7 @@ export const DivisionFormModal = ({ seasonId, division, onClose }: DivisionFormM
             <ul className="flex flex-col gap-2">
               {slots.map((slot, i) => (
                 <li key={i} className="flex items-center gap-2">
-                  <Input
+                  <Input shape="square"
                     type="time"
                     aria-label={`Kick-off time ${i + 1}`}
                     value={slot}
@@ -132,7 +132,7 @@ export const DivisionFormModal = ({ seasonId, division, onClose }: DivisionFormM
                     className="w-full max-w-48"
                     onChange={(e) => setSlot(i, e.target.value)}
                   />
-                  <IconButton
+                  <IconButton shape="square"
                     icon={TrashIcon}
                     variant="danger"
                     label={`Remove kick-off time ${i + 1}`}
@@ -143,7 +143,7 @@ export const DivisionFormModal = ({ seasonId, division, onClose }: DivisionFormM
               ))}
             </ul>
           </Field>
-          <Button
+          <Button shape="square"
             variant="outline"
             size="sm"
             icon={PlusIcon}

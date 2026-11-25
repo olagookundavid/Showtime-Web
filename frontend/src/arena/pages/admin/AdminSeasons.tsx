@@ -28,7 +28,7 @@ export const ArenaAdminSeasons = () => {
         accessor: 'name',
         sortable: true,
         cell: (s) => (
-          <Link to={`/admin/seasons/${s.id}`} className="font-bold text-sffl-red hover:underline dark:text-arena-lime">
+          <Link to={`/admin/seasons/${s.id}`} className="font-bold text-sffl-red hover:underline">
             {s.name}
           </Link>
         ),
@@ -69,7 +69,7 @@ export const ArenaAdminSeasons = () => {
         title="Seasons"
         subtitle="Create a season, then open it to add divisions, put clubs in them and make the fixtures."
         actions={
-          <Button icon={PlusIcon} onClick={() => setCreating(true)}>
+          <Button shape="square" icon={PlusIcon} onClick={() => setCreating(true)}>
             New season
           </Button>
         }
@@ -81,14 +81,14 @@ export const ArenaAdminSeasons = () => {
             icon={TrophyIcon}
             title="Seasons could not be loaded"
             description={errorMessage(error)}
-            action={<Button variant="outline" onClick={() => refetch()}>Try again</Button>}
+            action={<Button shape="square" variant="outline" onClick={() => refetch()}>Try again</Button>}
           />
         ) : !isLoading && seasons.length === 0 ? (
           <EmptyState
             icon={TrophyIcon}
             title="No seasons yet"
             description="A season holds your divisions, clubs and fixtures. Create the first one to get started."
-            action={<Button icon={PlusIcon} onClick={() => setCreating(true)}>Create the first season</Button>}
+            action={<Button shape="square" icon={PlusIcon} onClick={() => setCreating(true)}>Create the first season</Button>}
           />
         ) : (
           <DataTable

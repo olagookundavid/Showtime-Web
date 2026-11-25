@@ -93,7 +93,7 @@ const Fact = ({ label, children }: { label: string; children: ReactNode }) => (
 );
 
 const ActionBlock = ({ title, children, action }: { title: string; children: ReactNode; action: ReactNode }) => (
-  <div className="flex min-w-0 flex-col justify-between gap-3 rounded-xl border border-gray-200 p-4 dark:border-white/10">
+  <div className="flex min-w-0 flex-col justify-between gap-3 border border-gray-200 p-4 dark:border-white/10">
     <div>
       <h3 className="text-sm font-extrabold text-sffl-navy dark:text-white">{title}</h3>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{children}</p>
@@ -178,10 +178,10 @@ export const ArenaAdminSeasonDetail = () => {
             description={errorMessage(error, 'It may have been removed, or you may not have access.')}
             action={
               <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="outline" onClick={() => refetch()}>
+                <Button shape="square" variant="outline" onClick={() => refetch()}>
                   Try again
                 </Button>
-                <ButtonLink to="/admin/seasons">All seasons</ButtonLink>
+                <ButtonLink shape="square" to="/admin/seasons">All seasons</ButtonLink>
               </div>
             }
           />
@@ -209,7 +209,7 @@ export const ArenaAdminSeasonDetail = () => {
         back={{ to: '/admin/seasons', label: 'Seasons' }}
         actions={
           !completed && (
-            <Button icon={PlusIcon} onClick={() => setAddingDivision(true)}>
+            <Button shape="square" icon={PlusIcon} onClick={() => setAddingDivision(true)}>
               Add division
             </Button>
           )
@@ -238,7 +238,7 @@ export const ArenaAdminSeasonDetail = () => {
                 key={a.title}
                 title={a.title}
                 action={
-                  <Button variant={a.variant} icon={a.icon} onClick={() => setPending({ kind: 'status', to: a.to })}>
+                  <Button shape="square" variant={a.variant} icon={a.icon} onClick={() => setPending({ kind: 'status', to: a.to })}>
                     {a.button}
                   </Button>
                 }
@@ -250,11 +250,11 @@ export const ArenaAdminSeasonDetail = () => {
               title="Transfer window"
               action={
                 season.transfer_window_open ? (
-                  <Button variant="outline" icon={LockClosedIcon} onClick={() => setPending({ kind: 'window', open: false })}>
+                  <Button shape="square" variant="outline" icon={LockClosedIcon} onClick={() => setPending({ kind: 'window', open: false })}>
                     Close transfer window
                   </Button>
                 ) : (
-                  <Button variant="info" icon={LockOpenIcon} disabled={completed} onClick={() => setPending({ kind: 'window', open: true })}>
+                  <Button shape="square" variant="info" icon={LockOpenIcon} disabled={completed} onClick={() => setPending({ kind: 'window', open: true })}>
                     Open transfer window
                   </Button>
                 )
@@ -267,7 +267,7 @@ export const ArenaAdminSeasonDetail = () => {
           </div>
 
           <div>
-            <Button variant="outline" size="sm" icon={PencilSquareIcon} onClick={() => setEditingSeason(true)}>
+            <Button shape="square" variant="outline" size="sm" icon={PencilSquareIcon} onClick={() => setEditingSeason(true)}>
               Edit season
             </Button>
           </div>
@@ -290,7 +290,7 @@ export const ArenaAdminSeasonDetail = () => {
               description="A division is a league of clubs that play each other. Add one, put clubs in it, then make its fixtures."
               action={
                 !completed && (
-                  <Button icon={PlusIcon} onClick={() => setAddingDivision(true)}>
+                  <Button shape="square" icon={PlusIcon} onClick={() => setAddingDivision(true)}>
                     Add division
                   </Button>
                 )

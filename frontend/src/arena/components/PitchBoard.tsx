@@ -32,7 +32,7 @@ export const PitchBoard = ({ formation, slots, label }: { formation: ArenaFormat
   <div
     role="group"
     aria-label={label}
-    className="relative mx-auto w-full max-w-md aspect-[10/13] overflow-hidden rounded-xl bg-linear-to-b from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-900"
+    className="relative mx-auto w-full max-w-md aspect-[10/13] overflow-hidden bg-linear-to-b from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-900"
   >
     <PitchLines />
     {slots.map((s) => {
@@ -41,7 +41,7 @@ export const PitchBoard = ({ formation, slots, label }: { formation: ArenaFormat
         <>
           <span
             className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-black tabular ${
-              s.number === null ? 'border-dashed border-white/70 bg-white/10 text-white' : 'border-white bg-sffl-navy text-arena-lime'
+              s.number === null ? 'border-dashed border-white/70 bg-white/10 text-white' : 'border-white bg-sffl-navy text-sffl-red'
             }`}
           >
             {s.number ?? '+'}
@@ -61,7 +61,7 @@ export const PitchBoard = ({ formation, slots, label }: { formation: ArenaFormat
           type="button"
           onClick={s.onSelect}
           style={style}
-          className={`${cls} min-h-11 min-w-11 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-arena-lime`}
+          className={`${cls} min-h-11 min-w-11 outline-none focus-visible:ring-2 focus-visible:ring-sffl-red`}
           aria-label={`${formation.slots[s.index]}: ${s.label}. Change player`}
         >
           {body}

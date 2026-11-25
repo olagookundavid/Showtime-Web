@@ -77,7 +77,7 @@ export const ClubAddPlayerModal = ({ club, onClose }: { club: ArenaClub; onClose
   };
 
   return (
-    <Modal
+    <Modal shape="square"
       open
       onClose={busy ? undefined : onClose}
       title={`Add a player to ${club.name}`}
@@ -85,10 +85,10 @@ export const ClubAddPlayerModal = ({ club, onClose }: { club: ArenaClub; onClose
       maxWidth="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>
+          <Button shape="square" variant="secondary" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="submit" form="arena-club-add-player" loading={busy} disabled={mode === 'existing' && !picked}>
+          <Button shape="square" type="submit" form="arena-club-add-player" loading={busy} disabled={mode === 'existing' && !picked}>
             {mode === 'existing' ? 'Add to squad' : 'Create and add'}
           </Button>
         </>
@@ -108,10 +108,10 @@ export const ClubAddPlayerModal = ({ club, onClose }: { club: ArenaClub; onClose
         {mode === 'existing' ? (
           <>
             <Field label="Find a free agent" htmlFor="add-search" hint="Search by gamertag or EA ID.">
-              <Input id="add-search" icon={MagnifyingGlassIcon} value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" placeholder="Start typing a gamertag" />
+              <Input shape="square" id="add-search" icon={MagnifyingGlassIcon} value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" placeholder="Start typing a gamertag" />
             </Field>
 
-            <div role="group" aria-label="Free agents" className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+            <div role="group" aria-label="Free agents" className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700">
               {free.isLoading ? (
                 <div className="flex justify-center p-6">
                   <Spinner />
