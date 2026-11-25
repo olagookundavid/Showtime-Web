@@ -16,6 +16,8 @@ export { getNews, getNewsBySlug, getNewsById, createNews, updateNews, deleteNews
 
 export { getRelivePlaylist, reliveApi } from './relive';
 
+export { arenaApi } from './arena';
+
 export { getLiveStatus, liveApi } from './livestream';
 
 export {

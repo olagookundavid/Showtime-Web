@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import type { Html5Qrcode } from "html5-qrcode";
 
 interface QrScannerProps {
   /** Called once with the text of the first QR code read. */
@@ -28,6 +28,10 @@ export const QrScanner = ({ onScan, onError }: QrScannerProps) => {
     let scanner: Html5Qrcode | null = null;
 
     const running = lastShutdown.current.then(async () => {
+      if (cancelled) return false;
+      // Loaded here, not at the top, so the ~300 KB scanner only downloads when a
+      // camera screen opens and never slows the pages that merely import this file.
+      const { Html5Qrcode } = await import("html5-qrcode");
       if (cancelled) return false;
       scanner = new Html5Qrcode(elementId);
       try {

@@ -83,6 +83,13 @@ const (
 	FeatureVouchers           = "vouchers"
 	FeatureVoucherRedeem      = "voucher_redeem"
 	FeatureAdministratorTools = "administrator_tools"
+
+	// Clubs Arena (the EA FC Pro Clubs product). Holding one of these does not open
+	// the Showtime admin panel, so Arena staff never see Showtime's admin.
+	FeatureArenaSeasons   = "arena_seasons"
+	FeatureArenaClubs     = "arena_clubs"
+	FeatureArenaResults   = "arena_results"
+	FeatureArenaTransfers = "arena_transfers"
 )
 
 // FeatureCatalog is every feature a role can be given, in display order.
@@ -136,6 +143,11 @@ var FeatureCatalog = []FeatureDef{
 	{FeatureAuditLog, "Audit trail", "System", "See who changed what, and what the system did on its own.", true},
 	{FeatureAppSettings, "App settings", "System", "Site-wide settings.", true},
 	{FeatureAdministratorTools, "Administrator tools", "System", "Superuser-only tools. Only App Admin has these.", true},
+
+	{FeatureArenaSeasons, "Arena seasons & fixtures", "Clubs Arena", "Seasons, divisions, fixtures and the playoffs.", false},
+	{FeatureArenaClubs, "Arena clubs & players", "Clubs Arena", "Register clubs, assign managers, and manage players and squads.", false},
+	{FeatureArenaResults, "Arena results & stats", "Clubs Arena", "Enter match scores and player statistics.", false},
+	{FeatureArenaTransfers, "Arena transfers", "Clubs Arena", "Oversee contracts and the transfer window.", false},
 }
 
 var featureIndex = func() map[string]FeatureDef {

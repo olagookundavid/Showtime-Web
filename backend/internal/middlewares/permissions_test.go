@@ -120,3 +120,23 @@ func TestStaffOrRoles(t *testing.T) {
 		}
 	}
 }
+
+func TestStaffRolesOrFeatures(t *testing.T) {
+	roles := newStub(t)
+	roles.access["club"] = services.NewTestAccess("u7", "arena_admin", map[string]domain.AccessLevel{domain.FeatureArenaClubs: domain.AccessFull})
+	roles.access["clubview"] = services.NewTestAccess("u8", "arena_viewer", map[string]domain.AccessLevel{domain.FeatureArenaClubs: domain.AccessView})
+	roles.access["results"] = services.NewTestAccess("u9", "arena_results", map[string]domain.AccessLevel{domain.FeatureArenaResults: domain.AccessFull})
+
+	gate := StaffRolesOrFeaturesMiddleware(roles, []string{domain.RoleTeamHead}, []string{domain.FeatureArenaClubs})
+	for user, want := range map[string]int{
+		"full":     http.StatusOK,        // Showtime staff still pass
+		"club":     http.StatusOK,        // holds the listed feature
+		"clubview": http.StatusOK,        // any level counts
+		"results":  http.StatusForbidden, // a different Arena feature does not
+		"none":     http.StatusForbidden,
+	} {
+		if w := serve(t, roles, user, http.MethodPost, gate); w.Code != want {
+			t.Errorf("%s: status = %d, want %d", user, w.Code, want)
+		}
+	}
+}

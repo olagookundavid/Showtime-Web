@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:arena": "vite --mode arena",
+    "build:arena": "tsc -b && vite build --mode arena",
+    "preview:arena": "vite preview --mode arena"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.8.0",

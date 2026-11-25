@@ -98,6 +98,14 @@ func FeatureAccessMiddleware(roleSvc services.IRoleService, featureKey string) g
 // member needs whichever feature they work in: the feature using the upload is
 // gated separately.
 func StaffOrRolesMiddleware(roleSvc services.IRoleService, fixedRoles ...string) gin.HandlerFunc {
+	return StaffRolesOrFeaturesMiddleware(roleSvc, fixedRoles, nil)
+}
+
+// StaffRolesOrFeaturesMiddleware is StaffOrRolesMiddleware that also lets in anyone
+// holding one of the listed features at any level. It is for products that don't
+// open the Showtime admin panel (Clubs Arena's roles) but still need a shared
+// endpoint such as file upload.
+func StaffRolesOrFeaturesMiddleware(roleSvc services.IRoleService, fixedRoles []string, features []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		access, ok := resolveAccess(c, roleSvc)
 		if !ok {
@@ -109,6 +117,12 @@ func StaffOrRolesMiddleware(roleSvc services.IRoleService, fixedRoles ...string)
 		}
 		for _, r := range fixedRoles {
 			if access.Role == r {
+				c.Next()
+				return
+			}
+		}
+		for _, f := range features {
+			if access.Level(f) != domain.AccessNone {
 				c.Next()
 				return
 			}

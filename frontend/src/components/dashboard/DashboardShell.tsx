@@ -4,7 +4,7 @@ import { useAuth, useTheme } from "../../contexts";
 import { useScrollLock } from "../../hooks";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DashboardBottomNav } from "./DashboardBottomNav";
-import { DashboardBrand } from "./DashboardBrand";
+import { DashboardBrand, type DashboardBrandConfig } from "./DashboardBrand";
 import { DashboardClock } from "./DashboardClock";
 import { DashboardNavLinks } from "./DashboardNavLinks";
 import { DashboardUserMenu } from "./DashboardUserMenu";
@@ -41,6 +41,10 @@ interface DashboardShellProps {
   outletContext?: unknown;
   /** Extra top-bar controls, placed before the theme button (the player portal's notification bell). */
   topBarActions?: ReactNode;
+  /** Another product's logo and name (Clubs Arena). Showtime's when left out. */
+  brand?: DashboardBrandConfig;
+  /** A flat background instead of Showtime's stadium photo and red/navy tints. */
+  plainBackground?: boolean;
 }
 
 const readCollapsed = (key: string) => {
@@ -74,6 +78,8 @@ export const DashboardShell = ({
   logoutDescription,
   outletContext,
   topBarActions,
+  brand,
+  plainBackground = false,
 }: DashboardShellProps) => {
   const { logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -138,6 +144,7 @@ export const DashboardShell = ({
     >
       {/* Global Background - Atmospheric version */}
       <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
+        {!plainBackground && (<>
         <div
           className="absolute inset-0 bg-[url('/images/branding/home-bg.webp')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700"
           style={{ backgroundAttachment: "fixed" }}
@@ -148,6 +155,7 @@ export const DashboardShell = ({
 
         {/* Vignette for depth */}
         <div className="absolute inset-0 [background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.05)_100%)] dark:[background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
+        </>)}
       </div>
 
       {/* Sidebar (desktop). Only the link list scrolls; the brand block stays put.
@@ -162,7 +170,7 @@ export const DashboardShell = ({
             collapsed ? "justify-center px-2" : "px-5"
           }`}
         >
-          <DashboardBrand to={homePath} label={brandLabel} collapsed={collapsed} />
+          <DashboardBrand to={homePath} label={brandLabel} collapsed={collapsed} brand={brand} />
         </div>
 
         <DashboardNavLinks
@@ -204,7 +212,7 @@ export const DashboardShell = ({
             >
               <Bars3Icon className="w-6 h-6" aria-hidden="true" />
             </button>
-            <DashboardBrand to={homePath} label={brandLabel} compact />
+            <DashboardBrand to={homePath} label={brandLabel} compact brand={brand} />
           </div>
 
           <div className="flex-1" />
@@ -269,7 +277,7 @@ export const DashboardShell = ({
         }`}
       >
         <div className="h-16 shrink-0 flex items-center justify-between gap-2 pl-4 pr-2 border-b-2 border-sffl-red">
-          <DashboardBrand to={homePath} label={brandLabel} onClick={closeDrawer} />
+          <DashboardBrand to={homePath} label={brandLabel} onClick={closeDrawer} brand={brand} />
           <button
             ref={closeButtonRef}
             type="button"

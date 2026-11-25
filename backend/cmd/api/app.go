@@ -6,6 +6,7 @@ import (
 
 	"pkg-common/token"
 	"showtime-backend/config"
+	"showtime-backend/internal/arena"
 	"showtime-backend/internal/broadcast"
 	"showtime-backend/internal/handlers"
 	"showtime-backend/internal/ports"
@@ -40,6 +41,10 @@ type Application struct {
 	POTWService           services.IPOTWService
 	MatchService          services.IMatchService
 	BroadcastHub          *broadcast.Hub
+
+	// Arena is the Clubs Arena (EA FC Pro Clubs) product. It is self-contained and
+	// only borrows accounts, roles and email from the rest of the app.
+	Arena *arena.Module
 
 	// Cron is the background scheduler. CronCancel cancels the context shared by
 	// all scheduled jobs. Both are stopped during shutdown, before the DB pool is

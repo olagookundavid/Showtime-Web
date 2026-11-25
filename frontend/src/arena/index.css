@@ -1,0 +1,57 @@
+/*
+ * Clubs Arena's look. It loads the shared base styles and brand colours
+ * (sffl-navy, sffl-red, sffl-gold) as is, so Arena reads as unmistakably
+ * Showtime rather than its own sub-brand — only the body font and a couple
+ * of neutral tones are Arena's own.
+ */
+@import "../index.css";
+
+@theme {
+  --color-arena-ink: #172126;
+  --color-arena-muted: #81878b;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+
+  /* Shared components (ConfirmDialog's "info" tone — e.g. the logout prompt
+     — and Button's "navy" variant's light-mode hover) reach for Tailwind's
+     literal blue palette, which has nothing to do with any brand. Arena has
+     no separate "info" colour of its own, so it borrows navy here instead,
+     confined to this stylesheet alone — the rest of the site keeps blue. */
+  --color-blue-100: color-mix(in srgb, var(--color-sffl-navy) 15%, white);
+  --color-blue-400: color-mix(in srgb, var(--color-sffl-navy) 30%, white);
+  --color-blue-500: var(--color-sffl-navy);
+  --color-blue-600: var(--color-sffl-navy);
+  --color-blue-700: color-mix(in srgb, var(--color-sffl-navy) 80%, black);
+  --color-blue-900: color-mix(in srgb, var(--color-sffl-navy) 80%, black);
+}
+
+:root {
+  --app-font-family: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-sffl-gray: #f7f8fa;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+/* Tabular figures so scores, tables and stats line up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Every dialog (ConfirmDialog included) gets the same red strip as Arena's
+   cards, on the shared Modal's panel — [data-dialog] is the hook the shared
+   stylesheet already uses to mean "a modal is open". */
+[data-dialog] > div {
+  position: relative;
+}
+
+[data-dialog] > div::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--color-sffl-red);
+}

@@ -71,7 +71,8 @@ export const Modal = ({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (!closeOnBackdrop) return;
-      if (e.key === "Escape" && openModals[openModals.length - 1] === id) onClose?.();
+      if (e.key === "Escape" && openModals[openModals.length - 1] === id)
+        onClose?.();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -90,7 +91,7 @@ export const Modal = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white dark:bg-gray-800 ${isRight ? "rounded-none h-[100dvh] max-h-[100dvh]" : shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl ${isRight ? "" : maxWidth === "full" ? "h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)]" : "max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh]"} flex flex-col overflow-hidden ${isRight ? "" : "my-auto"} border border-gray-100 dark:border-gray-700 ${isRight ? "animate-panel-in" : "animate-modal-in"}`}
+        className={`bg-white dark:bg-gray-800 ${isRight ? "rounded-none h-dvh max-h-dvh" : shape === "square" ? "rounded-none" : "rounded-2xl"} ${widthClass[maxWidth]} w-full shadow-2xl ${isRight ? "" : maxWidth === "full" ? "h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)]" : "max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh]"} flex flex-col overflow-hidden ${isRight ? "" : "my-auto"} border border-gray-100 dark:border-gray-700 ${isRight ? "animate-panel-in" : "animate-modal-in"}`}
       >
         {(title || subtitle || onClose) && (
           <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">

@@ -1,0 +1,6 @@
+# Clubs Arena. Public pages are crawlable; signed-in areas are not.
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /manage
+Disallow: /me

@@ -124,10 +124,11 @@ export const ConfirmDialog = ({
             </div>
 
             <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-                <Button variant="secondary" onClick={dismiss} disabled={pending} className="w-full sm:w-auto">
+                <Button shape="square" variant="secondary" onClick={dismiss} disabled={pending} className="w-full sm:w-auto">
                     Cancel
                 </Button>
                 <Button
+                    shape="square"
                     variant={tone}
                     onClick={handleConfirmClick}
                     loading={pending}

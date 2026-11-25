@@ -1,5 +1,6 @@
 export { DashboardBottomNav } from './DashboardBottomNav';
 export { DashboardBrand } from './DashboardBrand';
+export type { DashboardBrandConfig } from './DashboardBrand';
 export { DashboardClock } from './DashboardClock';
 export { DashboardNavLinks } from './DashboardNavLinks';
 export { DashboardPageHeader } from './DashboardPageHeader';
