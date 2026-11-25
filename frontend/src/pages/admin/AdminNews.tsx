@@ -19,6 +19,7 @@ import { Button, Checkbox, Field, ImageUploadField, Input, Modal, Select, Textar
 import { parseYouTubeId, youTubeThumbnailUrl, getApiErrorMessage, isRichTextEmpty } from '../../utils';
 import { FANTASY_NEWS_CATEGORIES, NEWS_CATEGORIES } from '../../constants';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts';
 
 interface ArticleForm {
     title: string; excerpt: string; content: string;
@@ -57,6 +58,7 @@ type PendingAction = { kind: 'save' } | { kind: 'delete'; article: News };
 
 export const AdminNews = () => {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('');
@@ -78,11 +80,16 @@ export const AdminNews = () => {
 
     const set = <K extends keyof ArticleForm>(field: K, value: ArticleForm[K]) =>
         setForm(prev => ({ ...prev, [field]: value }));
-    const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
+    // The author starts as whoever is posting, so every new article says who put it up.
+    const openCreate = () => { setEditingId(null); setForm({ ...emptyForm, author: user?.name ?? '' }); setShowModal(true); };
 
     const requestSave = () => {
         if (!form.title.trim()) {
             toast.error('Please enter a title.');
+            return;
+        }
+        if (!form.author.trim()) {
+            toast.error('Please enter the author, so readers know who put this up.');
             return;
         }
         if (isRichTextEmpty(form.content)) {
@@ -267,7 +274,7 @@ export const AdminNews = () => {
                                 <Input id="news-title" type="text" value={form.title} onChange={e => set('title', e.target.value)} placeholder="Article title" />
                             </Field>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Field label="Author" htmlFor="news-author">
+                                <Field label="Author *" htmlFor="news-author">
                                     <Input id="news-author" type="text" value={form.author} onChange={e => set('author', e.target.value)} placeholder="Author name" />
                                 </Field>
                                 <Field label="Category" htmlFor="news-category">

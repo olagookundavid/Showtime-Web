@@ -81,7 +81,7 @@ export const NewsCard = ({ article }: NewsCardProps) => {
 
         {/* Footer: author + read more */}
         <div className="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-          <span className="truncate">{article.author}</span>
+          <span className="truncate">{article.author ? `By ${article.author}` : ''}</span>
           <span className="inline-flex items-center gap-1 font-bold text-sffl-red whitespace-nowrap">
             Read more
             <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
