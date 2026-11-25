@@ -24,11 +24,11 @@ export const ArenaPlayerProfile = () => {
           </Link>
         ),
       },
-      { header: 'Date', cell: (l) => formatMatchDate(l.kickoff_at) },
-      { header: 'Score', align: 'right', className: 'tabular', cell: (l) => `${l.goals_for} : ${l.goals_against}` },
-      { header: 'Goals', align: 'right', className: 'tabular', cell: (l) => l.goals },
-      { header: 'Assists', align: 'right', className: 'tabular', cell: (l) => l.assists },
-      { header: 'Rating', align: 'right', className: 'tabular', cell: (l) => (l.rating === null ? '' : l.rating.toFixed(1)) },
+      { header: 'Date', align: 'center', cell: (l) => formatMatchDate(l.kickoff_at) },
+      { header: 'Score', align: 'center', className: 'tabular', cell: (l) => `${l.goals_for} : ${l.goals_against}` },
+      { header: 'Goals', align: 'center', className: 'tabular', cell: (l) => l.goals },
+      { header: 'Assists', align: 'center', className: 'tabular', cell: (l) => l.assists },
+      { header: 'Rating', align: 'center', className: 'tabular', cell: (l) => (l.rating === null ? '' : l.rating.toFixed(1)) },
     ],
     [],
   );

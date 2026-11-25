@@ -65,7 +65,7 @@ export const ArenaPlayers = () => {
                   className="block h-full border border-gray-200 bg-white p-4 transition-colors hover:border-sffl-red focus-visible:outline-2 focus-visible:outline-sffl-red dark:border-white/10 dark:bg-white/5"
                 >
                   <div className="flex items-center gap-3">
-                    <PlayerFace name={p.gamertag} />
+                    <PlayerFace name={p.gamertag} src={p.avatar_url} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-extrabold text-sffl-navy dark:text-white">{p.gamertag}</p>
                       <p className="truncate text-xs text-gray-500 dark:text-gray-400">

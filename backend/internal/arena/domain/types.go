@@ -206,6 +206,7 @@ type PlayerSeasonStats struct {
 	ClubShort   string   `json:"club_short"`
 	ClubColor   string   `json:"club_color"`
 	ShirtNumber *int     `json:"shirt_number"`
+	AvatarURL   string   `json:"avatar_url"`
 	Apps        int      `json:"apps"`
 	Goals       int      `json:"goals"`
 	Assists     int      `json:"assists"`

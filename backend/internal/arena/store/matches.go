@@ -290,7 +290,7 @@ func (s *Store) PlayerSeasonStats(ctx context.Context, f PlayerStatsFilter) ([]d
 		), t AS (
 			SELECT * FROM played UNION ALL SELECT * FROM squad
 		)
-		SELECT p.id, p.gamertag, p.primary_position, c.id, c.name, c.short, c.color, cur.shirt_number,
+		SELECT p.id, p.gamertag, p.primary_position, c.id, c.name, c.short, c.color, cur.shirt_number, p.avatar_url,
 		       SUM(t.apps)::int, SUM(t.goals)::int, SUM(t.assists)::int,
 		       ROUND(AVG(t.rating), 2)::float8, COUNT(*) FILTER (WHERE t.motm)::int
 		FROM t
@@ -298,7 +298,7 @@ func (s *Store) PlayerSeasonStats(ctx context.Context, f PlayerStatsFilter) ([]d
 		JOIN arena_clubs c ON c.id = t.club_id
 		LEFT JOIN arena_registrations cur ON cur.player_id = p.id AND cur.club_id = c.id AND cur.ended_at IS NULL
 		`+where+`
-		GROUP BY p.id, p.gamertag, p.primary_position, c.id, c.name, c.short, c.color, cur.shirt_number
+		GROUP BY p.id, p.gamertag, p.primary_position, c.id, c.name, c.short, c.color, cur.shirt_number, p.avatar_url
 		ORDER BY SUM(t.goals) DESC, SUM(t.assists) DESC, LOWER(p.gamertag)`, args...)
 	if err != nil {
 		return nil, err
@@ -308,7 +308,7 @@ func (s *Store) PlayerSeasonStats(ctx context.Context, f PlayerStatsFilter) ([]d
 	for rows.Next() {
 		var x domain.PlayerSeasonStats
 		var shirt *int16
-		if err := rows.Scan(&x.PlayerID, &x.Gamertag, &x.Position, &x.ClubID, &x.ClubName, &x.ClubShort, &x.ClubColor, &shirt,
+		if err := rows.Scan(&x.PlayerID, &x.Gamertag, &x.Position, &x.ClubID, &x.ClubName, &x.ClubShort, &x.ClubColor, &shirt, &x.AvatarURL,
 			&x.Apps, &x.Goals, &x.Assists, &x.AvgRating, &x.MOTMs); err != nil {
 			return nil, err
 		}

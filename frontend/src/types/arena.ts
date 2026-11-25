@@ -134,6 +134,7 @@ export interface ArenaPlayerSeasonStats {
   club_short: string;
   club_color: string;
   shirt_number: number | null;
+  avatar_url: string;
   apps: number;
   goals: number;
   assists: number;

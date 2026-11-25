@@ -87,13 +87,6 @@ export const ArenaOverview = () => {
                     />
                   )}
                 </Panel>
-                <Panel title="League standings" link={{ to: '/standings', label: 'Full table' }} flush>
-                  <StandingsTable rows={data.standings} brief playoffSpots={data.scope.division?.playoff_spots} highlightClubId={clubId} />
-                  <p className="px-4 py-3 text-xs text-gray-500 sm:px-5 dark:text-gray-400">
-                    Your club is highlighted
-                    {data.scope.division && data.scope.division.playoff_spots > 0 ? ` · Top ${data.scope.division.playoff_spots} qualify for the playoffs` : ''}
-                  </p>
-                </Panel>
               </div>
 
               <div className="min-w-0 space-y-6">
@@ -135,6 +128,14 @@ export const ArenaOverview = () => {
                 </Panel>
               </div>
             </div>
+
+            <Panel title="League standings" link={{ to: '/standings', label: 'Full table' }} flush>
+              <StandingsTable rows={data.standings} playoffSpots={data.scope.division?.playoff_spots} highlightClubId={clubId} />
+              <p className="px-4 py-3 text-xs text-gray-500 sm:px-5 dark:text-gray-400">
+                Your club is highlighted
+                {data.scope.division && data.scope.division.playoff_spots > 0 ? ` · Top ${data.scope.division.playoff_spots} qualify for the playoffs` : ''}
+              </p>
+            </Panel>
 
             {data.upcoming.length > 0 && (
               <Panel title="Next up on the pitch" link={{ to: '/matches', label: 'View schedule' }} flush>
