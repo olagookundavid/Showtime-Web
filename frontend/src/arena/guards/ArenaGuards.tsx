@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { ProtectedRoute } from '../components';
-import type { FeatureKey } from '../config/featureAccess';
-import { usePermissions } from '../hooks';
-import { Loader } from '../components';
-import { useArenaMe } from './hooks';
+import { ProtectedRoute } from '../../components';
+import type { FeatureKey } from '../../config/featureAccess';
+import { usePermissions } from '../../hooks';
+import { Loader } from '../../components';
+import { useArenaMe } from '../hooks';
 
 /** Signed-in users only. Visitors get the sign-in prompt, then come straight back. */
 export const RequireSignIn = ({ children, actionText }: { children: ReactNode; actionText: string }) => (

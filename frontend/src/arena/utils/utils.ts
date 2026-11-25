@@ -1,4 +1,4 @@
-import type { ArenaContractStatus, ArenaMatch, ArenaSquadRole } from '../types';
+import type { ArenaContractStatus, ArenaMatch, ArenaSquadRole } from '../../types';
 
 /** Every time in Arena is shown in West Africa Time, wherever the visitor is. */
 const TZ = 'Africa/Lagos';

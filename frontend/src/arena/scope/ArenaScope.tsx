@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { arenaApi } from '../services';
+import { arenaApi } from '../../services';
 import { ArenaScopeContext, type ArenaScopeValue } from './useArenaScope';
 
 const STORAGE_KEY = 'arena_division';

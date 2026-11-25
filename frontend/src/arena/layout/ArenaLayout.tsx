@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
-import { ButtonLink, DashboardShell, Select } from '../components';
-import { useAuth } from '../contexts';
+import { ButtonLink, DashboardShell, Select } from '../../components';
+import { useAuth } from '../../contexts';
 import { arenaBottomNav, arenaSectionsFor } from './arenaNav';
-import { useArenaMe } from './hooks';
-import { useArenaScope } from './useArenaScope';
+import { useArenaMe } from '../hooks';
+import { useArenaScope } from '../scope';
 
 const BRAND = {
   logoSrc: '/logo.svg',

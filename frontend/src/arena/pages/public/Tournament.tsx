@@ -4,7 +4,7 @@ import { DashboardPageHeader, DataTable, type Column } from '../../../components
 import { arenaApi } from '../../../services';
 import type { ArenaSeason } from '../../../types';
 import { Crest, DivisionGate, EmptyState, MatchRow, Panel, StatusBadge } from '../../components';
-import { useArenaScope } from '../../useArenaScope';
+import { useArenaScope } from '../../scope';
 import { useBracket, useOverview } from '../../hooks';
 import { formatDateOnly, WEEKDAYS } from '../../utils';
 

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { ArenaDivision, ArenaSeason } from '../types';
+import type { ArenaDivision, ArenaSeason } from '../../types';
 
 export interface ArenaScopeValue {
   /** The season being shown (the live one, or the latest). */

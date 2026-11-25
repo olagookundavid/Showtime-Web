@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { arenaApi } from '../../services';
-import { useArenaScope } from '../useArenaScope';
+import { useArenaScope } from '../scope';
 
 /**
  * The public pages all show "the chosen division". Each hook waits for the

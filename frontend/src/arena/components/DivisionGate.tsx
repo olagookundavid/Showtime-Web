@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { ExclamationTriangleIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import { Button, Spinner } from '../../components';
-import { useArenaScope } from '../useArenaScope';
+import { useArenaScope } from '../scope';
 import { EmptyState } from './EmptyState';
 
 /**

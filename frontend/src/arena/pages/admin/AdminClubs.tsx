@@ -26,7 +26,7 @@ import {
 import { arenaApi } from '../../../services';
 import type { ArenaClub } from '../../../types';
 import { Crest, EmptyState, Panel, StatusBadge } from '../../components';
-import { useArenaScope } from '../../useArenaScope';
+import { useArenaScope } from '../../scope';
 import { errorMessage } from '../../utils';
 import { ClubFormModal } from './ClubForm';
 

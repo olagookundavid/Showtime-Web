@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import './arena.css'
-import { ArenaApp } from './ArenaApp'
+import './index.css'
+import { ArenaApp } from './app'
 
 // Results change when an organiser saves one, so data is treated as fresh for
 // a short while rather than forever.

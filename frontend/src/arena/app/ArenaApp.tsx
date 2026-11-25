@@ -1,45 +1,45 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, ThemeProvider } from '../contexts';
-import { ErrorBoundary, Loader, ScrollToTop } from '../components';
-import { ArenaScopeProvider } from './ArenaScope';
-import { ArenaLayout } from './ArenaLayout';
-import { RequireFeature, RequireManager, RequireSignIn } from './ArenaGuards';
-import { ArenaLogin, ArenaSignup } from './pages/auth';
+import { AuthProvider, ThemeProvider } from '../../contexts';
+import { ErrorBoundary, Loader, ScrollToTop } from '../../components';
+import { ArenaScopeProvider } from '../scope';
+import { ArenaLayout } from '../layout';
+import { RequireFeature, RequireManager, RequireSignIn } from '../guards';
+import { ArenaLogin, ArenaSignup } from '../pages/auth';
 
 // Pages load on demand so a visitor only downloads the area they open.
 const page = <K extends string>(loader: () => Promise<Record<K, React.ComponentType>>, name: K) =>
   lazy(() => loader().then((m) => ({ default: m[name] })));
 
-const Overview = page(() => import('./pages/public/Overview'), 'ArenaOverview');
-const Matches = page(() => import('./pages/public/Matches'), 'ArenaMatches');
-const MatchDetail = page(() => import('./pages/public/MatchDetail'), 'ArenaMatchDetail');
-const Standings = page(() => import('./pages/public/Standings'), 'ArenaStandings');
-const Players = page(() => import('./pages/public/Players'), 'ArenaPlayers');
-const PlayerProfile = page(() => import('./pages/public/PlayerProfile'), 'ArenaPlayerProfile');
-const Clubs = page(() => import('./pages/public/Clubs'), 'ArenaClubs');
-const ClubProfile = page(() => import('./pages/public/ClubProfile'), 'ArenaClubProfile');
-const Tournament = page(() => import('./pages/public/Tournament'), 'ArenaTournament');
+const Overview = page(() => import('../pages/public/Overview'), 'ArenaOverview');
+const Matches = page(() => import('../pages/public/Matches'), 'ArenaMatches');
+const MatchDetail = page(() => import('../pages/public/MatchDetail'), 'ArenaMatchDetail');
+const Standings = page(() => import('../pages/public/Standings'), 'ArenaStandings');
+const Players = page(() => import('../pages/public/Players'), 'ArenaPlayers');
+const PlayerProfile = page(() => import('../pages/public/PlayerProfile'), 'ArenaPlayerProfile');
+const Clubs = page(() => import('../pages/public/Clubs'), 'ArenaClubs');
+const ClubProfile = page(() => import('../pages/public/ClubProfile'), 'ArenaClubProfile');
+const Tournament = page(() => import('../pages/public/Tournament'), 'ArenaTournament');
 
-const MyProfile = page(() => import('./pages/me/MyProfile'), 'ArenaMyProfile');
-const MyContracts = page(() => import('./pages/me/MyContracts'), 'ArenaMyContracts');
+const MyProfile = page(() => import('../pages/me/MyProfile'), 'ArenaMyProfile');
+const MyContracts = page(() => import('../pages/me/MyContracts'), 'ArenaMyContracts');
 
-const ManageClub = page(() => import('./pages/manage/ManageClub'), 'ArenaManageClub');
-const ManageTransfers = page(() => import('./pages/manage/ManageTransfers'), 'ArenaManageTransfers');
-const ManageTeamSheets = page(() => import('./pages/manage/ManageTeamSheets'), 'ArenaManageTeamSheets');
+const ManageClub = page(() => import('../pages/manage/ManageClub'), 'ArenaManageClub');
+const ManageTransfers = page(() => import('../pages/manage/ManageTransfers'), 'ArenaManageTransfers');
+const ManageTeamSheets = page(() => import('../pages/manage/ManageTeamSheets'), 'ArenaManageTeamSheets');
 
-const AdminHome = page(() => import('./pages/admin/AdminHome'), 'ArenaAdminHome');
-const AdminSeasons = page(() => import('./pages/admin/AdminSeasons'), 'ArenaAdminSeasons');
-const AdminSeasonDetail = page(() => import('./pages/admin/AdminSeasonDetail'), 'ArenaAdminSeasonDetail');
-const AdminClubs = page(() => import('./pages/admin/AdminClubs'), 'ArenaAdminClubs');
-const AdminClubDetail = page(() => import('./pages/admin/AdminClubDetail'), 'ArenaAdminClubDetail');
-const AdminPlayers = page(() => import('./pages/admin/AdminPlayers'), 'ArenaAdminPlayers');
-const AdminResults = page(() => import('./pages/admin/AdminResults'), 'ArenaAdminResults');
-const AdminResultEntry = page(() => import('./pages/admin/AdminResultEntry'), 'ArenaAdminResultEntry');
-const AdminTransfers = page(() => import('./pages/admin/AdminTransfers'), 'ArenaAdminTransfers');
+const AdminHome = page(() => import('../pages/admin/AdminHome'), 'ArenaAdminHome');
+const AdminSeasons = page(() => import('../pages/admin/AdminSeasons'), 'ArenaAdminSeasons');
+const AdminSeasonDetail = page(() => import('../pages/admin/AdminSeasonDetail'), 'ArenaAdminSeasonDetail');
+const AdminClubs = page(() => import('../pages/admin/AdminClubs'), 'ArenaAdminClubs');
+const AdminClubDetail = page(() => import('../pages/admin/AdminClubDetail'), 'ArenaAdminClubDetail');
+const AdminPlayers = page(() => import('../pages/admin/AdminPlayers'), 'ArenaAdminPlayers');
+const AdminResults = page(() => import('../pages/admin/AdminResults'), 'ArenaAdminResults');
+const AdminResultEntry = page(() => import('../pages/admin/AdminResultEntry'), 'ArenaAdminResultEntry');
+const AdminTransfers = page(() => import('../pages/admin/AdminTransfers'), 'ArenaAdminTransfers');
 
-const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword').then((m) => ({ default: m.ForgotPassword })));
+const ForgotPassword = lazy(() => import('../../pages/auth/ForgotPassword').then((m) => ({ default: m.ForgotPassword })));
 
 const ARENA_FEATURES = ['arena_seasons', 'arena_clubs', 'arena_results', 'arena_transfers'] as const;
 

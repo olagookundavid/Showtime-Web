@@ -7,7 +7,7 @@ import { usePermissions } from '../../../hooks';
 import { arenaApi } from '../../../services';
 import type { ArenaContract, ArenaContractStatus } from '../../../types';
 import { Crest, EmptyState, Panel, StatusBadge, contractTone } from '../../components';
-import { useArenaScope } from '../../useArenaScope';
+import { useArenaScope } from '../../scope';
 import { CONTRACT_STATUS_LABEL, errorMessage, formatDateOnly, formatNaira, squadRoleLabel } from '../../utils';
 import { TransferDetailModal } from './TransferDetailModal';
 

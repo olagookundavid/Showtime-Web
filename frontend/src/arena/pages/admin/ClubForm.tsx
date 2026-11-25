@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { Button, Field, ImageUploadField, Input, Modal, Select } from '../../../components';
 import { arenaApi } from '../../../services';
 import type { ArenaClub, ArenaClubInput } from '../../../types';
-import { useArenaScope } from '../../useArenaScope';
+import { useArenaScope } from '../../scope';
 import { errorMessage } from '../../utils';
 
 const HEX = /^#[0-9a-f]{6}$/i;

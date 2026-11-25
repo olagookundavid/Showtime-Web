@@ -19,10 +19,10 @@ import {
   ShieldCheckIcon as ShieldCheckSolid,
   TableCellsIcon as TableCellsSolid,
 } from '@heroicons/react/24/solid';
-import type { DashboardBottomNavItem, DashboardNavSection } from '../components';
-import type { User } from '../contexts';
-import { accessFor } from '../config/featureAccess';
-import type { ArenaMe } from '../types';
+import type { DashboardBottomNavItem, DashboardNavSection } from '../../components';
+import type { User } from '../../contexts';
+import { accessFor } from '../../config/featureAccess';
+import type { ArenaMe } from '../../types';
 
 /** The sidebar: the competition for everyone, then what each person's account unlocks. */
 export const arenaSectionsFor = (user: User | null, me: ArenaMe | undefined): DashboardNavSection[] => {

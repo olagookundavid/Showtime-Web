@@ -7,7 +7,7 @@ import { Button, ButtonLink, ConfirmDialog, ConfirmSummary, DashboardPageHeader,
 import { arenaApi } from '../../../services';
 import type { ArenaMatch } from '../../../types';
 import { Crest, EmptyState, Panel, StatusBadge, type StatusTone } from '../../components';
-import { useArenaScope } from '../../useArenaScope';
+import { useArenaScope } from '../../scope';
 import { errorMessage, formatKickoffTime, formatMatchDate, matchRound } from '../../utils';
 
 type MatchState = 'played' | 'forfeit' | 'overdue' | 'upcoming' | 'postponed' | 'waiting';
