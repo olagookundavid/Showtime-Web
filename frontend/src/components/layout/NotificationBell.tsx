@@ -16,6 +16,7 @@ import { Spinner } from '../ui/Spinner';
 /** Where a notification leads, if it is about something with its own page. */
 const notificationLink = (n: NotificationData): string | null => {
     if (n.reference_type === 'potw_poll' && n.reference_id) return `/potw/${n.reference_id}`;
+    if (n.reference_type === 'voucher' && n.reference_id) return `/vouchers/${n.reference_id}`;
     return null;
 };
 

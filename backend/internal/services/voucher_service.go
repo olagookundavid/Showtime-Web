@@ -39,6 +39,7 @@ var (
 type (
 	voucherUsers interface {
 		GetUserByID(ctx context.Context, id string) (*domain.User, error)
+		GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	}
 	voucherUserSearch interface {
 		AdminSearchUsers(ctx context.Context, search string) ([]dto.WalletUser, error)
@@ -71,6 +72,7 @@ type VoucherService struct {
 	users  voucherUsers
 	search voucherUserSearch
 	email  ports.EmailService
+	notif  INotificationService
 	now    func() time.Time
 }
 
@@ -81,6 +83,12 @@ func NewVoucherService(repo ports.IVoucherRepository, users voucherUsers, search
 // WithEmail turns on the voucher emails.
 func (s *VoucherService) WithEmail(e ports.EmailService) *VoucherService {
 	s.email = e
+	return s
+}
+
+// WithNotifications turns on the in-app "you got a voucher" notification.
+func (s *VoucherService) WithNotifications(n INotificationService) *VoucherService {
+	s.notif = n
 	return s
 }
 
@@ -322,11 +330,18 @@ func (s *VoucherService) Purchase(ctx context.Context, buyerID string, req dto.P
 	v := snapshot(product, holder, from, to)
 	v.Source = domain.VoucherPurchased
 	v.PurchasedByUserID = &buyerID
+	if holder.email != "" {
+		if linked, err := s.users.GetUserByEmail(ctx, holder.email); err == nil && linked != nil {
+			uid := linked.ID
+			v.HolderUserID = &uid
+		}
+	}
 	if err := s.save(ctx, v, s.repo.CreatePurchased); err != nil {
 		return nil, err
 	}
 
 	s.sendEmails(ctx, v)
+	s.notifyReceived(ctx, v, buyerID, s.buyerName(ctx, buyerID))
 	out := s.view(v)
 	return &out, nil
 }
@@ -357,6 +372,10 @@ func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto
 		if strings.TrimSpace(emailAddr) == "" {
 			emailAddr = linked.Email
 		}
+	} else if emailAddr = strings.TrimSpace(emailAddr); emailAddr != "" {
+		if found, err := s.users.GetUserByEmail(ctx, emailAddr); err == nil && found != nil {
+			linked = found
+		}
 	}
 	holder, err := cleanHolder(req.HolderName, emailAddr)
 	if err != nil {
@@ -379,8 +398,30 @@ func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto
 	}
 
 	s.sendEmails(ctx, v)
+	s.notifyReceived(ctx, v, staffID, "Showtime")
 	out := s.adminView(v)
 	return &out, nil
+}
+
+// buyerName is the name shown to the recipient of a gifted voucher, so they know who
+// sent it. Falls back to "Someone" when the buyer can't be looked up.
+func (s *VoucherService) buyerName(ctx context.Context, buyerID string) string {
+	if u, err := s.users.GetUserByID(ctx, buyerID); err == nil && u != nil {
+		if name := walletUserName(u); name != "" {
+			return name
+		}
+	}
+	return "Someone"
+}
+
+// notifyReceived tells the voucher's linked holder it landed in their account, unless
+// they are the one who just bought or issued it (a self-purchase needs no alert).
+func (s *VoucherService) notifyReceived(ctx context.Context, v *domain.Voucher, actorID, fromLabel string) {
+	if s.notif == nil || v.HolderUserID == nil || *v.HolderUserID == actorID {
+		return
+	}
+	msg := fromLabel + " sent you a " + v.Name + " voucher, valid until " + v.ValidTo.Format("2 Jan 2006") + "."
+	_ = s.notif.Send(ctx, *v.HolderUserID, "VOUCHER_RECEIVED", "New voucher", msg, "voucher", &v.Code)
 }
 
 // ---- reading ----

@@ -655,7 +655,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	}
 
 	voucherRepo := ports.NewVoucherRepository(pool)
-	voucherService := services.NewVoucherService(voucherRepo, authRepo, walletService).WithEmail(emailService)
+	voucherService := services.NewVoucherService(voucherRepo, authRepo, walletService).WithEmail(emailService).WithNotifications(notifService)
 	h.VoucherHandler = transport.NewVoucherHandler(voucherService)
 	h.Idempotency = middlewares.Idempotency(ports.NewIdempotencyRepository(pool))
 	// One Paystack webhook for every kind of payment: Paystack calls a single URL.

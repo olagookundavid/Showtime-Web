@@ -171,6 +171,33 @@ func (fakeVoucherUsers) GetUserByID(_ context.Context, id string) (*domain.User,
 	return &domain.User{ID: id, FullName: "User " + id, Email: id + "@example.com"}, nil
 }
 
+// GetUserByEmail mirrors GetUserByID: an email of the form "<id>@example.com" resolves
+// to that id's account, anything else is an unknown address.
+func (fakeVoucherUsers) GetUserByEmail(_ context.Context, email string) (*domain.User, error) {
+	id, ok := strings.CutSuffix(email, "@example.com")
+	if !ok || id == "" || id == testGhostUserID {
+		return nil, errors.New("not found")
+	}
+	return &domain.User{ID: id, FullName: "User " + id, Email: email}, nil
+}
+
+// fakeVoucherNotifier records every "you got a voucher" send, so tests can assert
+// who was notified (and that a self-purchase notifies nobody).
+type fakeVoucherNotifier struct {
+	sent []struct{ userID, title, message string }
+}
+
+func (f *fakeVoucherNotifier) Send(_ context.Context, userID, _, title, message, _ string, _ *string) error {
+	f.sent = append(f.sent, struct{ userID, title, message string }{userID, title, message})
+	return nil
+}
+func (f *fakeVoucherNotifier) GetUserNotifications(context.Context, string, bool, int, int) (dto.PaginatedResult[dto.NotificationResponse], error) {
+	return dto.PaginatedResult[dto.NotificationResponse]{}, nil
+}
+func (f *fakeVoucherNotifier) MarkAsRead(context.Context, string, string) error  { return nil }
+func (f *fakeVoucherNotifier) MarkAllAsRead(context.Context, string) error      { return nil }
+func (f *fakeVoucherNotifier) GetUnreadCount(context.Context, string) (int, error) { return 0, nil }
+
 type fakeVoucherSearch struct{}
 
 func (fakeVoucherSearch) AdminSearchUsers(context.Context, string) ([]dto.WalletUser, error) {
@@ -533,6 +560,63 @@ func TestAdminIssueLinksAnAccountAndTakesItsEmail(t *testing.T) {
 		ProductID: testMissingProductID, HolderName: "Ada", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
 	}); !errors.Is(err, ErrVoucherProductGone) {
 		t.Errorf("unknown product: got %v", err)
+	}
+}
+
+func TestPurchaseLinksAndNotifiesAnExistingAccountByEmail(t *testing.T) {
+	s, repo := voucherFixture()
+	notif := &fakeVoucherNotifier{}
+	s.WithNotifications(notif)
+	repo.balance["buyer"] = 1_000_000
+
+	req := purchaseReq("2026-11-10", "2026-11-12")
+	req.HolderEmail = testVoucherUserID + "@example.com"
+	v, err := s.Purchase(context.Background(), "buyer", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := repo.vouchers[v.Code]
+	if saved.HolderUserID == nil || *saved.HolderUserID != testVoucherUserID {
+		t.Errorf("HolderUserID = %v, want %s", saved.HolderUserID, testVoucherUserID)
+	}
+	if len(notif.sent) != 1 || notif.sent[0].userID != testVoucherUserID {
+		t.Errorf("notifications sent: %+v", notif.sent)
+	}
+}
+
+func TestPurchaseForYourselfDoesNotNotify(t *testing.T) {
+	s, repo := voucherFixture()
+	notif := &fakeVoucherNotifier{}
+	s.WithNotifications(notif)
+	repo.balance["buyer"] = 1_000_000
+
+	req := purchaseReq("2026-11-10", "2026-11-12")
+	req.HolderEmail = "buyer@example.com"
+	if _, err := s.Purchase(context.Background(), "buyer", req); err != nil {
+		t.Fatal(err)
+	}
+	if len(notif.sent) != 0 {
+		t.Errorf("a self-purchase notified someone: %+v", notif.sent)
+	}
+}
+
+func TestAdminIssueLinksByEmailWhenNoAccountIsPicked(t *testing.T) {
+	s, _ := voucherFixture()
+	notif := &fakeVoucherNotifier{}
+	s.WithNotifications(notif)
+
+	v, err := s.AdminIssue(context.Background(), "admin", dto.IssueVoucherRequest{
+		ProductID: testOldBundleID, HolderName: "Ada", HolderEmail: testVoucherUserID + "@example.com",
+		ValidFrom: "2026-11-10", ValidTo: "2026-11-11",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.HolderUserID == nil || *v.HolderUserID != testVoucherUserID {
+		t.Errorf("HolderUserID = %v, want %s", v.HolderUserID, testVoucherUserID)
+	}
+	if len(notif.sent) != 1 || notif.sent[0].userID != testVoucherUserID {
+		t.Errorf("notifications sent: %+v", notif.sent)
 	}
 }
 

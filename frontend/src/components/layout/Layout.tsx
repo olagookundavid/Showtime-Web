@@ -37,6 +37,8 @@ import {
   TrophyIcon,
   UserCircleIcon,
   ClipboardDocumentListIcon,
+  WalletIcon,
+  GiftIcon,
   ArrowRightOnRectangleIcon,
   SparklesIcon,
   QrCodeIcon,
@@ -519,6 +521,81 @@ export const Layout = () => {
                   )}
                 </div>
               </div>
+
+              {/* Section My Account: Wallet, Vouchers, Profile */}
+              {isAuthenticated && (
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <span className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                      My Account
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <Link
+                      to="/account/wallet"
+                      onClick={() => setIsMoreMenuOpen(false)}
+                      className="col-span-2 flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center shrink-0">
+                          <WalletIcon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
+                            My Wallet
+                          </span>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                            Balance & Transactions
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                    </Link>
+
+                    <Link
+                      to="/vouchers"
+                      onClick={() => setIsMoreMenuOpen(false)}
+                      className="col-span-2 flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center shrink-0">
+                          <GiftIcon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
+                            My Vouchers
+                          </span>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                            Buy & Redeem Vouchers
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                    </Link>
+
+                    <Link
+                      to="/account"
+                      onClick={() => setIsMoreMenuOpen(false)}
+                      className="col-span-2 flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center shrink-0">
+                          <UserCircleIcon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
+                            Edit Profile
+                          </span>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                            Account Settings
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               {/* Section 4: News */}
               <div className="mb-5">
