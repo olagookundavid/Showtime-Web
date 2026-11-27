@@ -4,7 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { ArrowLeftIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import {
   Button,
-  VoucherItemsList,
+  VoucherContents,
   VoucherStateBadge,
   formatVoucherRange,
 } from "../../components";
@@ -102,9 +102,9 @@ export const VoucherPage = () => {
 
             <div>
               <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
-                This voucher covers
+                {v.kind === "VALUE" ? "This voucher is worth" : "This voucher covers"}
               </h2>
-              <VoucherItemsList items={v.items} />
+              <VoucherContents voucher={v} />
             </div>
 
             <p className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">

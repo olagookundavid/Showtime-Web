@@ -21,12 +21,19 @@ const (
 	voucherMaxSpanDays = 366
 	voucherMaxItems    = 20
 	voucherCodeTries   = 5
+	// voucherMaxValueKobo caps a price voucher at ₦1,000,000, the same ceiling as a wallet.
+	voucherMaxValueKobo = 100_000_000
+	// DefaultValueVoucherDescription is used when an admin leaves a price voucher's
+	// description empty. The admin form pre-fills the same text so it can be edited.
+	DefaultValueVoucherDescription = "Valid for anything at the Showtime bar."
 )
 
 // Errors a caller can show the user as they are.
 var (
 	ErrVoucherProductInvalid = errors.New("a voucher bundle needs a name, a price above zero and at least one item")
 	ErrVoucherProductGone    = errors.New("that voucher is not on sale")
+	ErrVoucherKind           = errors.New("a voucher is either a bundle or a price voucher")
+	ErrVoucherValueInvalid   = errors.New("a price voucher needs a name and an amount above zero, up to ₦1,000,000")
 	ErrVoucherHolder         = errors.New("say who the voucher is for")
 	ErrVoucherHolderEmail    = errors.New("that email address does not look right")
 	ErrVoucherDates          = errors.New("choose valid dates: the last day cannot be before the first, and the first cannot be in the past")
@@ -157,10 +164,17 @@ func (s *VoucherService) view(v *domain.Voucher) dto.VoucherView {
 	if items == nil {
 		items = []domain.VoucherItem{}
 	}
+	kind := v.Kind
+	if kind == "" {
+		kind = domain.VoucherKindBundle
+	}
 	return dto.VoucherView{
 		ID:             v.ID,
 		Code:           v.Code,
+		Kind:           kind,
 		Name:           v.Name,
+		Description:    v.Description,
+		PriceKobo:      v.PriceKobo,
 		Items:          items,
 		HolderName:     v.HolderName,
 		ValidFrom:      v.ValidFrom.Format(voucherDateLayout),
@@ -179,7 +193,6 @@ func (s *VoucherService) adminView(v *domain.Voucher) dto.AdminVoucherView {
 	return dto.AdminVoucherView{
 		VoucherView:       s.view(v),
 		Source:            v.Source,
-		PriceKobo:         v.PriceKobo,
 		HolderEmail:       v.HolderEmail,
 		HolderUserID:      v.HolderUserID,
 		PurchasedByUserID: v.PurchasedByUserID,
@@ -272,19 +285,55 @@ func snapshot(p *domain.VoucherProduct, h holderInput, from, to time.Time) *doma
 	copy(items, p.Items)
 	pid := p.ID
 	v := &domain.Voucher{
-		ProductID:  &pid,
-		Name:       p.Name,
-		Items:      items,
-		PriceKobo:  p.PriceKobo,
-		HolderName: h.name,
-		ValidFrom:  from,
-		ValidTo:    to,
+		ProductID:   &pid,
+		Kind:        domain.VoucherKindBundle,
+		Name:        p.Name,
+		Description: p.Description,
+		Items:       items,
+		PriceKobo:   p.PriceKobo,
+		HolderName:  h.name,
+		ValidFrom:   from,
+		ValidTo:     to,
 	}
-	if h.email != "" {
-		e := h.email
-		v.HolderEmail = &e
-	}
+	v.HolderEmail = h.emailPtr()
 	return v
+}
+
+func (h holderInput) emailPtr() *string {
+	if h.email == "" {
+		return nil
+	}
+	e := h.email
+	return &e
+}
+
+// cleanValueVoucher checks the name, amount and description of a price voucher.
+// An empty description gets the default.
+func cleanValueVoucher(req dto.IssueVoucherRequest) (name, description string, err error) {
+	name = strings.TrimSpace(req.Name)
+	description = strings.TrimSpace(req.Description)
+	if name == "" || len(name) > 100 || req.AmountKobo <= 0 || req.AmountKobo > voucherMaxValueKobo || len(description) > 300 {
+		return "", "", ErrVoucherValueInvalid
+	}
+	if description == "" {
+		description = DefaultValueVoucherDescription
+	}
+	return name, description, nil
+}
+
+// valueVoucher is a price voucher: an amount of money, no items, no product.
+func valueVoucher(name, description string, amountKobo int64, h holderInput, from, to time.Time) *domain.Voucher {
+	return &domain.Voucher{
+		Kind:        domain.VoucherKindValue,
+		Name:        name,
+		Description: description,
+		Items:       []domain.VoucherItem{},
+		PriceKobo:   amountKobo,
+		HolderName:  h.name,
+		HolderEmail: h.emailPtr(),
+		ValidFrom:   from,
+		ValidTo:     to,
+	}
 }
 
 // save stores a voucher under a fresh code, trying again if the code is taken.
@@ -332,16 +381,37 @@ func (s *VoucherService) Purchase(ctx context.Context, buyerID string, req dto.P
 }
 
 func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto.IssueVoucherRequest) (*dto.AdminVoucherView, error) {
-	// An admin may issue a bundle that is no longer on sale, so only existence is checked.
-	if !isUUID(req.ProductID) {
-		return nil, ErrVoucherProductGone
+	kind := domain.VoucherKind(strings.ToUpper(strings.TrimSpace(req.Kind)))
+	if kind == "" {
+		kind = domain.VoucherKindBundle
 	}
-	product, err := s.repo.GetProduct(ctx, req.ProductID)
-	if err != nil {
-		return nil, err
-	}
-	if product == nil {
-		return nil, ErrVoucherProductGone
+
+	var (
+		product           *domain.VoucherProduct
+		valueName, valueD string
+	)
+	switch kind {
+	case domain.VoucherKindBundle:
+		// An admin may issue a bundle that is no longer on sale, so only existence is checked.
+		if !isUUID(req.ProductID) {
+			return nil, ErrVoucherProductGone
+		}
+		var err error
+		product, err = s.repo.GetProduct(ctx, req.ProductID)
+		if err != nil {
+			return nil, err
+		}
+		if product == nil {
+			return nil, ErrVoucherProductGone
+		}
+	case domain.VoucherKindValue:
+		var err error
+		valueName, valueD, err = cleanValueVoucher(req)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, ErrVoucherKind
 	}
 
 	emailAddr := req.HolderEmail
@@ -350,6 +420,7 @@ func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto
 		if !isUUID(id) {
 			return nil, ErrWalletUserNotFound
 		}
+		var err error
 		linked, err = s.users.GetUserByID(ctx, id)
 		if err != nil || linked == nil {
 			return nil, ErrWalletUserNotFound
@@ -367,7 +438,12 @@ func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto
 		return nil, err
 	}
 
-	v := snapshot(product, holder, from, to)
+	var v *domain.Voucher
+	if kind == domain.VoucherKindValue {
+		v = valueVoucher(valueName, valueD, req.AmountKobo, holder, from, to)
+	} else {
+		v = snapshot(product, holder, from, to)
+	}
 	v.Source = domain.VoucherAdminIssued
 	v.IssuedByUserID = &staffID
 	if linked != nil {
@@ -495,9 +571,10 @@ func voucherEmailItems(items []domain.VoucherItem) []email.VoucherEmailItem {
 	return out
 }
 
-// sendEmails sends the voucher to the person it is for (when we have their email)
-// and, for a purchase, a copy to the buyer. It runs in the background and a failure
-// to send never undoes the voucher.
+// sendEmails sends the voucher to everyone it concerns, once each: the address
+// given for the person it is for, the email of the account it was linked to (which
+// may be a different address), and, for a purchase, the buyer. It runs in the
+// background and a failure to send never undoes the voucher.
 func (s *VoucherService) sendEmails(ctx context.Context, v *domain.Voucher) {
 	if s.email == nil {
 		return
@@ -507,16 +584,15 @@ func (s *VoucherService) sendEmails(ctx context.Context, v *domain.Voucher) {
 		VoucherName: v.Name,
 		Code:        v.Code,
 		Items:       voucherEmailItems(v.Items),
+		PriceKobo:   v.PriceKobo,
+		IsValue:     v.Kind == domain.VoucherKindValue,
+		Description: v.Description,
 		ValidFrom:   v.ValidFrom.Format("Mon 2 Jan 2006"),
 		ValidTo:     v.ValidTo.Format("Mon 2 Jan 2006"),
 		Free:        v.Source == domain.VoucherAdminIssued,
 	}
 
-	type letter struct{ to, html string }
-	var letters []letter
-
-	var buyerEmail string
-	var buyerName string
+	var buyerEmail, buyerName string
 	if v.PurchasedByUserID != nil && s.users != nil {
 		if u, err := s.users.GetUserByID(ctx, *v.PurchasedByUserID); err == nil && u != nil {
 			buyerEmail = strings.TrimSpace(u.Email)
@@ -527,21 +603,43 @@ func (s *VoucherService) sendEmails(ctx context.Context, v *domain.Voucher) {
 		}
 	}
 
+	type letter struct{ to, html string }
+	var letters []letter
+	sent := map[string]bool{}
+	add := func(to string, d email.VoucherEmailData) {
+		to = strings.TrimSpace(to)
+		key := strings.ToLower(to)
+		if to == "" || sent[key] {
+			return
+		}
+		sent[key] = true
+		letters = append(letters, letter{to: to, html: email.VoucherEmailHTML(d)})
+	}
+
+	// The person it is for, at the address that was given.
 	if v.HolderEmail != nil && *v.HolderEmail != "" {
 		d := data
 		d.Greeting = v.HolderName
 		if !strings.EqualFold(*v.HolderEmail, buyerEmail) {
 			d.GiftedBy = buyerName
 		}
-		letters = append(letters, letter{to: *v.HolderEmail, html: email.VoucherEmailHTML(d)})
+		add(*v.HolderEmail, d)
 	}
-	if buyerEmail != "" && (v.HolderEmail == nil || !strings.EqualFold(*v.HolderEmail, buyerEmail)) {
+	// The account it was linked to, if its email is not the one above.
+	if v.HolderUserID != nil && s.users != nil {
+		if u, err := s.users.GetUserByID(ctx, *v.HolderUserID); err == nil && u != nil {
+			d := data
+			d.Greeting = v.HolderName
+			add(u.Email, d)
+		}
+	}
+	if buyerEmail != "" {
 		d := data
 		d.Greeting = buyerName
 		if d.Greeting == "" {
 			d.Greeting = "there"
 		}
-		letters = append(letters, letter{to: buyerEmail, html: email.VoucherEmailHTML(d)})
+		add(buyerEmail, d)
 	}
 
 	for _, l := range letters {

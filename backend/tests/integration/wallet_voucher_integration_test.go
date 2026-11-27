@@ -462,3 +462,59 @@ func TestVoucher_AdminIssuedListsAndFilters(t *testing.T) {
 		t.Fatalf("switching a product off should hide it from the shop: %d -> %d", len(active), len(after))
 	}
 }
+
+// A price voucher is stored with its amount and description, no items and no
+// product, and is redeemed exactly once. The database itself refuses a price
+// voucher with no value, or one that was bought.
+func TestVoucher_PriceVoucherRoundTripAndConstraints(t *testing.T) {
+	f := newWalletFixture(t)
+	ctx := context.Background()
+	staff := f.user(t, "ZZFIXstaff")
+
+	v := &domain.Voucher{
+		Code: "VCH-ZZFIXVALUE1", Kind: domain.VoucherKindValue, Name: "Thank you voucher",
+		Description: "Valid for anything at the Showtime bar.", PriceKobo: 1_000_000,
+		Source: domain.VoucherAdminIssued, HolderName: "ZZFIX Holder", ValidFrom: day(0), ValidTo: day(1),
+	}
+	if err := f.vouchers.CreateIssued(ctx, v); err != nil {
+		t.Fatal(err)
+	}
+	got, err := f.vouchers.GetByCode(ctx, v.Code)
+	if err != nil || got == nil {
+		t.Fatalf("lookup: %v %v", got, err)
+	}
+	if got.Kind != domain.VoucherKindValue || got.PriceKobo != 1_000_000 || got.Description != v.Description ||
+		got.ProductID != nil || len(got.Items) != 0 {
+		t.Fatalf("unexpected price voucher: %+v", got)
+	}
+
+	if _, ok, err := f.vouchers.Redeem(ctx, v.Code, staff, day(0)); err != nil || !ok {
+		t.Fatalf("first redeem: ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := f.vouchers.Redeem(ctx, v.Code, staff, day(0)); err != nil || ok {
+		t.Fatalf("second redeem: ok=%v err=%v, want refused", ok, err)
+	}
+
+	worthless := *v
+	worthless.Code, worthless.PriceKobo = "VCH-ZZFIXVALUE2", 0
+	if err := f.vouchers.CreateIssued(ctx, &worthless); err == nil {
+		t.Error("a price voucher worth nothing should be refused by the database")
+	}
+	bought := *v
+	bought.Code, bought.Source = "VCH-ZZFIXVALUE3", domain.VoucherPurchased
+	if err := f.vouchers.CreateIssued(ctx, &bought); err == nil {
+		t.Error("a price voucher that was bought should be refused by the database")
+	}
+
+	// A bundle still defaults to kind BUNDLE and keeps its items.
+	p := f.product(t, 450_000)
+	b := voucherFor(p, "VCH-ZZFIXBUNDLE1", staff, day(0), day(0))
+	b.Source = domain.VoucherAdminIssued
+	if err := f.vouchers.CreateIssued(ctx, b); err != nil {
+		t.Fatal(err)
+	}
+	gotB, _ := f.vouchers.GetByCode(ctx, b.Code)
+	if gotB.Kind != domain.VoucherKindBundle || len(gotB.Items) != 2 {
+		t.Fatalf("bundle after the change: %+v", gotB)
+	}
+}

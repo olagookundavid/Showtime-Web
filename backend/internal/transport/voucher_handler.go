@@ -55,6 +55,8 @@ func respondVoucherError(c *gin.Context, err error) {
 	case errors.Is(err, services.ErrVoucherNotVoidable):
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	case errors.Is(err, services.ErrVoucherProductInvalid),
+		errors.Is(err, services.ErrVoucherValueInvalid),
+		errors.Is(err, services.ErrVoucherKind),
 		errors.Is(err, services.ErrVoucherHolder),
 		errors.Is(err, services.ErrVoucherHolderEmail),
 		errors.Is(err, services.ErrVoucherDates),

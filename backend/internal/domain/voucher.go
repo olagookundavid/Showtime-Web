@@ -2,10 +2,10 @@ package domain
 
 import "time"
 
-// A voucher is a fixed bundle of items (say a burger and a drink) given to a named
-// person for a date or date range. They show its code at the bar; staff redeem it
-// once, only on a valid date. It is bought from the spend wallet or issued free by
-// an admin.
+// A voucher is given to a named person for a date or date range. They show its code
+// at the bar; staff redeem it once, only on a valid date. It is either a fixed
+// bundle of items (say a burger and a drink), bought from the spend wallet or
+// issued free by an admin, or a set amount of money that an admin gives away.
 
 type VoucherItem struct {
 	Name string `json:"name"`
@@ -23,6 +23,16 @@ type VoucherProduct struct {
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 }
+
+// VoucherKind says what a voucher is worth. A BUNDLE covers a fixed list of items.
+// A VALUE voucher is a set amount of money (PriceKobo) that is taken off the bill
+// at the bar; it has no items and is only ever an admin gift.
+type VoucherKind string
+
+const (
+	VoucherKindBundle VoucherKind = "BUNDLE"
+	VoucherKindValue  VoucherKind = "VALUE"
+)
 
 type VoucherStatus string
 
@@ -53,11 +63,15 @@ const (
 )
 
 type Voucher struct {
-	ID        string        `json:"id"`
-	Code      string        `json:"code"`
-	ProductID *string       `json:"product_id,omitempty"`
-	Name      string        `json:"name"`
-	Items     []VoucherItem `json:"items"`
+	ID        string      `json:"id"`
+	Code      string      `json:"code"`
+	ProductID *string     `json:"product_id,omitempty"`
+	Kind      VoucherKind `json:"kind"`
+	Name      string      `json:"name"`
+	// Description is the line the holder reads about what it can be used for.
+	Description string        `json:"description"`
+	Items       []VoucherItem `json:"items"`
+	// PriceKobo is the bundle's price, or the amount of a VALUE voucher.
 	PriceKobo int64         `json:"price_kobo"`
 	Source    VoucherSource `json:"source"`
 
