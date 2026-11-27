@@ -189,7 +189,7 @@ export {
   adminCreateVoucherProduct,
   adminUpdateVoucherProduct,
   adminListVouchers,
-  adminIssueVoucher,
+  adminIssueVouchers,
   adminVoidVoucher,
   adminListRedemptions,
   adminSearchVoucherUsers,

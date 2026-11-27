@@ -8,9 +8,10 @@ export interface VoucherItem {
   qty: number;
 }
 
-/** A bundle on sale. */
+/** A bundle on sale, or a price voucher kept to give away (kind "VALUE": price_kobo is its amount, no items). */
 export interface VoucherProduct {
   id: string;
+  kind: VoucherKind;
   name: string;
   description: string;
   price_kobo: number;
@@ -21,6 +22,8 @@ export interface VoucherProduct {
 }
 
 export interface VoucherProductInput {
+  /** Fixed when the product is made; leave it out when editing. */
+  kind?: VoucherKind;
   name: string;
   description: string;
   price_kobo: number;
@@ -89,20 +92,20 @@ export interface PurchaseVoucherInput {
   valid_to: string;
 }
 
-/**
- * Giving a voucher away. A bundle needs product_id. A price voucher (kind "VALUE")
- * needs name and amount_kobo instead; description is optional text about what it
- * can be used for.
- */
-export interface IssueVoucherInput {
-  kind?: VoucherKind;
-  product_id?: string;
-  name?: string;
-  description?: string;
-  amount_kobo?: number;
+/** One person a voucher is given to. holder_user_id links their account. */
+export interface IssueRecipient {
   holder_name: string;
   holder_email?: string;
   holder_user_id?: string;
+}
+
+/**
+ * Giving the same bundle (or price voucher) to one or more people, all valid on the
+ * same dates. Each person gets a voucher of their own, and it is all or nothing.
+ */
+export interface IssueVoucherInput {
+  product_id: string;
+  recipients: IssueRecipient[];
   valid_from: string;
   valid_to: string;
 }

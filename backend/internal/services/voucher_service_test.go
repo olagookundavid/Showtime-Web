@@ -35,7 +35,9 @@ func newFakeVoucherRepo() *fakeVoucherRepo {
 func (r *fakeVoucherRepo) ListProducts(_ context.Context, activeOnly bool) ([]domain.VoucherProduct, error) {
 	out := []domain.VoucherProduct{}
 	for _, p := range r.products {
-		if !activeOnly || p.Active {
+		// Like the real one, the shop list is active bundles only: price vouchers are
+		// for giving away.
+		if !activeOnly || (p.Active && p.Kind != domain.VoucherKindValue) {
 			out = append(out, *p)
 		}
 	}
@@ -47,7 +49,7 @@ func (r *fakeVoucherRepo) GetProduct(_ context.Context, id string) (*domain.Vouc
 }
 
 func (r *fakeVoucherRepo) CreateProduct(_ context.Context, p *domain.VoucherProduct) error {
-	p.ID = "prod-new"
+	p.ID = uuid.NewString()
 	r.products[p.ID] = p
 	return nil
 }
@@ -85,6 +87,23 @@ func (r *fakeVoucherRepo) CreatePurchased(_ context.Context, v *domain.Voucher) 
 }
 
 func (r *fakeVoucherRepo) CreateIssued(_ context.Context, v *domain.Voucher) error { return r.store(v) }
+
+// CreateIssuedBatch is all or nothing, like the real one: if any code is taken,
+// none of the vouchers is kept.
+func (r *fakeVoucherRepo) CreateIssuedBatch(_ context.Context, vs []*domain.Voucher) error {
+	for _, v := range vs {
+		r.tries++
+		if r.taken[v.Code] {
+			return ports.ErrVoucherCodeTaken
+		}
+	}
+	for _, v := range vs {
+		if err := r.store(v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (r *fakeVoucherRepo) GetByCode(_ context.Context, code string) (*domain.Voucher, error) {
 	return r.vouchers[code], nil
@@ -516,10 +535,10 @@ func TestVoidRefundsOnlyPurchasedVouchers(t *testing.T) {
 	}
 
 	issued, _ := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: testBurgerID, HolderName: "Guest", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
+		ProductID: testBurgerID, Recipients: []dto.IssueRecipient{{HolderName: "Guest"}}, ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
 	})
 	before := repo.balance["admin"]
-	if _, err := s.AdminVoid(ctx, issued.ID, "admin", true); err != nil {
+	if _, err := s.AdminVoid(ctx, issued[0].ID, "admin", true); err != nil {
 		t.Fatal(err)
 	}
 	if repo.balance["admin"] != before {
@@ -534,12 +553,14 @@ func TestAdminIssueLinksAnAccountAndTakesItsEmail(t *testing.T) {
 	s, _ := voucherFixture()
 	ctx := context.Background()
 
-	v, err := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: testOldBundleID, HolderName: "Ada", HolderUserID: testVoucherUserID, ValidFrom: "2026-11-10", ValidTo: "2026-11-11",
+	vs, err := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
+		ProductID: testOldBundleID, Recipients: []dto.IssueRecipient{{HolderName: "Ada", HolderUserID: testVoucherUserID}},
+		ValidFrom: "2026-11-10", ValidTo: "2026-11-11",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	v := vs[0]
 	if v.Source != domain.VoucherAdminIssued || v.HolderUserID == nil || *v.HolderUserID != testVoucherUserID {
 		t.Errorf("unexpected: %+v", v)
 	}
@@ -552,12 +573,14 @@ func TestAdminIssueLinksAnAccountAndTakesItsEmail(t *testing.T) {
 	}
 
 	if _, err := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: testBurgerID, HolderName: "Ada", HolderUserID: testGhostUserID, ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
+		ProductID: testBurgerID, Recipients: []dto.IssueRecipient{{HolderName: "Ada", HolderUserID: testGhostUserID}},
+		ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
 	}); !errors.Is(err, ErrWalletUserNotFound) {
 		t.Errorf("unknown account: got %v", err)
 	}
 	if _, err := s.AdminIssue(ctx, "admin", dto.IssueVoucherRequest{
-		ProductID: testMissingProductID, HolderName: "Ada", ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
+		ProductID: testMissingProductID, Recipients: []dto.IssueRecipient{{HolderName: "Ada"}},
+		ValidFrom: "2026-11-10", ValidTo: "2026-11-10",
 	}); !errors.Is(err, ErrVoucherProductGone) {
 		t.Errorf("unknown product: got %v", err)
 	}
@@ -605,13 +628,15 @@ func TestAdminIssueLinksByEmailWhenNoAccountIsPicked(t *testing.T) {
 	notif := &fakeVoucherNotifier{}
 	s.WithNotifications(notif)
 
-	v, err := s.AdminIssue(context.Background(), "admin", dto.IssueVoucherRequest{
-		ProductID: testOldBundleID, HolderName: "Ada", HolderEmail: testVoucherUserID + "@example.com",
-		ValidFrom: "2026-11-10", ValidTo: "2026-11-11",
+	vs, err := s.AdminIssue(context.Background(), "admin", dto.IssueVoucherRequest{
+		ProductID:  testOldBundleID,
+		Recipients: []dto.IssueRecipient{{HolderName: "Ada", HolderEmail: testVoucherUserID + "@example.com"}},
+		ValidFrom:  "2026-11-10", ValidTo: "2026-11-11",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	v := vs[0]
 	if v.HolderUserID == nil || *v.HolderUserID != testVoucherUserID {
 		t.Errorf("HolderUserID = %v, want %s", v.HolderUserID, testVoucherUserID)
 	}

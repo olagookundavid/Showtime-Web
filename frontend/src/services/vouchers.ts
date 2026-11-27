@@ -110,11 +110,12 @@ export const adminListVouchers = async (
   return res.data;
 };
 
-export const adminIssueVoucher = async (
+/** Gives the same voucher to each recipient and returns the vouchers made, in order. */
+export const adminIssueVouchers = async (
   input: IssueVoucherInput,
   idempotencyKey?: string,
-): Promise<AdminVoucher> => {
-  const res = await api.post<{ data: AdminVoucher }>(
+): Promise<AdminVoucher[]> => {
+  const res = await api.post<{ data: AdminVoucher[] }>(
     "/admin/vouchers",
     input,
     withIdempotencyKey(idempotencyKey),

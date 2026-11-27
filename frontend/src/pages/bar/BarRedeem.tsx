@@ -21,7 +21,7 @@ import {
   formatVoucherRange,
   summariseVoucher,
 } from "../../components";
-import { barLookupVoucher, barRedeemVoucher } from "../../services";
+import { barLookupVoucher, barRedeemVoucher, formatKobo } from "../../services";
 import { getApiErrorMessage } from "../../utils";
 import type { Voucher } from "../../types";
 
@@ -244,7 +244,9 @@ export const BarRedeem = () => {
             <ConfirmSummary
               rows={[
                 ["For", v.holder_name],
-                [v.kind === "VALUE" ? "Take off the bill" : "Items", summariseVoucher(v)],
+                v.kind === "VALUE"
+                  ? ["Take off the bill", formatKobo(v.price_kobo)]
+                  : ["Items", summariseVoucher(v)],
                 ["Code", v.code],
               ]}
             />
