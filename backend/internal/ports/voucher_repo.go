@@ -72,7 +72,7 @@ func NewVoucherRepository(pool *pgxpool.Pool) IVoucherRepository {
 }
 
 const voucherSelect = `
-	SELECT v.id, v.code, v.product_id, v.name, v.items, v.price_kobo, v.source,
+	SELECT v.id, v.code, v.product_id, v.kind, v.name, v.description, v.items, v.price_kobo, v.source,
 	       v.holder_name, v.holder_email, v.holder_user_id, v.purchased_by_user_id, v.issued_by_user_id,
 	       v.valid_from, v.valid_to, v.status, v.redeemed_at, v.redeemed_by_user_id,
 	       COALESCE(NULLIF(ru.full_name, ''), ''),
@@ -82,7 +82,7 @@ const voucherSelect = `
 
 func scanVoucher(row pgx.Row) (*domain.Voucher, error) {
 	var v domain.Voucher
-	err := row.Scan(&v.ID, &v.Code, &v.ProductID, &v.Name, &v.Items, &v.PriceKobo, &v.Source,
+	err := row.Scan(&v.ID, &v.Code, &v.ProductID, &v.Kind, &v.Name, &v.Description, &v.Items, &v.PriceKobo, &v.Source,
 		&v.HolderName, &v.HolderEmail, &v.HolderUserID, &v.PurchasedByUserID, &v.IssuedByUserID,
 		&v.ValidFrom, &v.ValidTo, &v.Status, &v.RedeemedAt, &v.RedeemedByUserID,
 		&v.RedeemedByName,
@@ -207,18 +207,21 @@ const insertVoucher = `
 	INSERT INTO vouchers
 		(code, product_id, name, items, price_kobo, source,
 		 holder_name, holder_email, holder_user_id, purchased_by_user_id, issued_by_user_id,
-		 valid_from, valid_to)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		 valid_from, valid_to, kind, description)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	RETURNING id, status, created_at`
 
 func insertVoucherRow(ctx context.Context, tx pgx.Tx, v *domain.Voucher) error {
 	if v.Items == nil {
 		v.Items = []domain.VoucherItem{}
 	}
+	if v.Kind == "" {
+		v.Kind = domain.VoucherKindBundle
+	}
 	err := tx.QueryRow(ctx, insertVoucher,
 		v.Code, v.ProductID, v.Name, itemsJSON(v.Items), v.PriceKobo, v.Source,
 		v.HolderName, v.HolderEmail, v.HolderUserID, v.PurchasedByUserID, v.IssuedByUserID,
-		v.ValidFrom, v.ValidTo,
+		v.ValidFrom, v.ValidTo, v.Kind, v.Description,
 	).Scan(&v.ID, &v.Status, &v.CreatedAt)
 	if isUniqueViolation(err) {
 		return ErrVoucherCodeTaken

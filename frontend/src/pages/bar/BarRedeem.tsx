@@ -16,10 +16,10 @@ import {
   Field,
   Input,
   QrScanner,
-  VoucherItemsList,
+  VoucherContents,
   VoucherStateBadge,
   formatVoucherRange,
-  summariseItems,
+  summariseVoucher,
 } from "../../components";
 import { barLookupVoucher, barRedeemVoucher } from "../../services";
 import { getApiErrorMessage } from "../../utils";
@@ -179,7 +179,9 @@ export const BarRedeem = () => {
             <VoucherStateBadge state={v.state} />
             <p className="text-sm font-semibold">
               {shown.outcome === "redeemed"
-                ? "Redeemed. Hand over the items below."
+                ? v.kind === "VALUE"
+                  ? "Redeemed. Take the amount below off the bill."
+                  : "Redeemed. Hand over the items below."
                 : shown.outcome === "ready"
                   ? "Valid today. Check the name, then redeem."
                   : v.state_message}
@@ -198,9 +200,9 @@ export const BarRedeem = () => {
 
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
-                {v.name} covers
+                {v.kind === "VALUE" ? `${v.name}, worth` : `${v.name} covers`}
               </p>
-              <VoucherItemsList items={v.items} />
+              <VoucherContents voucher={v} />
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -242,7 +244,7 @@ export const BarRedeem = () => {
             <ConfirmSummary
               rows={[
                 ["For", v.holder_name],
-                ["Items", summariseItems(v.items)],
+                [v.kind === "VALUE" ? "Take off the bill" : "Items", summariseVoucher(v)],
                 ["Code", v.code],
               ]}
             />

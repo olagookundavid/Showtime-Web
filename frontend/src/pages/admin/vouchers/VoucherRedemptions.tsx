@@ -4,7 +4,7 @@ import {
   DataTable,
   formatVoucherDateTime,
   formatVoucherRange,
-  summariseItems,
+  summariseVoucher,
   type Column,
 } from "../../../components";
 import { adminListRedemptions } from "../../../services";
@@ -30,7 +30,7 @@ export const VoucherRedemptions = () => {
         ),
       },
       { header: "For", sortable: true, sortValue: (v) => v.holder_name, cell: (v) => v.holder_name },
-      { header: "Covers", cell: (v) => summariseItems(v.items) },
+      { header: "Covers", cell: (v) => summariseVoucher(v) },
       { header: "Valid", cell: (v) => formatVoucherRange(v.valid_from, v.valid_to) },
       {
         header: "Redeemed",

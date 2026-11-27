@@ -27,8 +27,16 @@ type PurchaseVoucherRequest struct {
 
 // IssueVoucherRequest is an admin giving a voucher away. HolderUserID is optional
 // and links the voucher to an account so it shows in that person's "My vouchers".
+//
+// Kind is "BUNDLE" (the default, which needs ProductID) or "VALUE", a set amount of
+// money that needs Name and AmountKobo; Description is optional text about what it
+// can be used for and has a default.
 type IssueVoucherRequest struct {
+	Kind         string `json:"kind"`
 	ProductID    string `json:"product_id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	AmountKobo   int64  `json:"amount_kobo"`
 	HolderName   string `json:"holder_name"`
 	HolderEmail  string `json:"holder_email"`
 	HolderUserID string `json:"holder_user_id"`
@@ -45,10 +53,14 @@ type VoidVoucherRequest struct {
 // VoucherView is a voucher as the holder and the bar staff see it. It leaves out
 // emails and account ids. State is what it can be used for today.
 type VoucherView struct {
-	ID             string               `json:"id,omitempty"`
-	Code           string               `json:"code"`
-	Name           string               `json:"name"`
-	Items          []domain.VoucherItem `json:"items"`
+	ID          string               `json:"id,omitempty"`
+	Code        string               `json:"code"`
+	Kind        domain.VoucherKind   `json:"kind"`
+	Name        string               `json:"name"`
+	Description string               `json:"description"`
+	Items       []domain.VoucherItem `json:"items"`
+	// PriceKobo is the bundle's price, or the amount of a VALUE voucher.
+	PriceKobo      int64                `json:"price_kobo"`
 	HolderName     string               `json:"holder_name"`
 	ValidFrom      string               `json:"valid_from"`
 	ValidTo        string               `json:"valid_to"`
@@ -65,7 +77,6 @@ type VoucherView struct {
 type AdminVoucherView struct {
 	VoucherView
 	Source            domain.VoucherSource `json:"source"`
-	PriceKobo         int64                `json:"price_kobo"`
 	HolderEmail       *string              `json:"holder_email,omitempty"`
 	HolderUserID      *string              `json:"holder_user_id,omitempty"`
 	PurchasedByUserID *string              `json:"purchased_by_user_id,omitempty"`

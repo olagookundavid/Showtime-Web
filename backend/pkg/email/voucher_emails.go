@@ -22,6 +22,13 @@ type VoucherEmailData struct {
 	VoucherName string
 	Code        string
 	Items       []VoucherEmailItem
+	// PriceKobo is what the bundle costs, or the amount of a price voucher. It is
+	// shown even when the voucher is a free gift, so people can see what it is worth.
+	PriceKobo int64
+	// IsValue marks a price voucher: a set amount taken off the bill, with no items.
+	IsValue bool
+	// Description says what a price voucher can be used for.
+	Description string
 	ValidFrom   string
 	ValidTo     string
 	// Free is true for a voucher an admin issued, so the email doesn't talk about payment.
@@ -48,14 +55,30 @@ func voucherCodeBlock(code string) string {
 </tr>`
 }
 
-// VoucherEmailHTML is the voucher and its receipt: what it covers, who it is for,
-// the dates it works on, and a link to the page with the QR code to show at the bar.
-func VoucherEmailHTML(d VoucherEmailData) string {
+// voucherWhatBlock is the "what this covers" part: a list of items for a bundle,
+// or the amount and its description for a price voucher.
+func voucherWhatBlock(d VoucherEmailData) string {
+	if d.IsValue {
+		desc := ""
+		if strings.TrimSpace(d.Description) != "" {
+			desc = `<p style="color: #334155; font-size: 14px; line-height: 1.5; margin: 6px 0 0;">` + esc(d.Description) + `</p>`
+		}
+		return `<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 8px;">` + esc(d.VoucherName) + `</p>
+<p style="color: #1e293b; font-size: 30px; font-weight: 800; margin: 0;">&#8358;` + formatKobo(d.PriceKobo) + `</p>` + desc
+	}
+
 	var items strings.Builder
 	for _, it := range d.Items {
 		fmt.Fprintf(&items, `<p style="color: #1e293b; font-size: 15px; font-weight: 600; margin: 0 0 6px;">%d &times; %s</p>`, it.Qty, esc(it.Name))
 	}
+	return `<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 8px;">` + esc(d.VoucherName) + ` covers</p>
+` + items.String()
+}
 
+// VoucherEmailHTML is the voucher and its receipt: what it covers and what it is
+// worth, who it is for, the dates it works on, and a link to the page with the QR
+// code to show at the bar.
+func VoucherEmailHTML(d VoucherEmailData) string {
 	dates := d.ValidFrom
 	if d.ValidTo != "" && d.ValidTo != d.ValidFrom {
 		dates = d.ValidFrom + " to " + d.ValidTo
@@ -67,6 +90,16 @@ func VoucherEmailHTML(d VoucherEmailData) string {
 		intro = "You have been given a voucher. It is for <strong>" + esc(d.HolderName) + "</strong>."
 	case d.GiftedBy != "":
 		intro = "<strong>" + esc(d.GiftedBy) + "</strong> bought you a voucher. It is for <strong>" + esc(d.HolderName) + "</strong>."
+	}
+
+	// A bundle shows its price as a row of its own; a price voucher already shows
+	// its amount as the headline.
+	valueRow := ""
+	if !d.IsValue && d.PriceKobo > 0 {
+		valueRow = `<tr><td colspan="2" style="padding-top: 12px;">
+<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 4px;">Value</p>
+<p style="color: #1e293b; font-size: 14px; font-weight: 600; margin: 0;">&#8358;` + formatKobo(d.PriceKobo) + `</p>
+</td></tr>`
 	}
 
 	body := `<tr>
@@ -84,12 +117,12 @@ func VoucherEmailHTML(d VoucherEmailData) string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid ` + sfflRed + `; border-radius: 12px; overflow: hidden;">
 <tr>
 <td style="padding: 24px;">
-<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 8px;">` + esc(d.VoucherName) + ` covers</p>
-` + items.String() + `
+` + voucherWhatBlock(d) + `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 14px;">
 <tr>
 ` + detailRow("For", d.HolderName) + detailRow("Valid", dates) + `
 </tr>
+` + valueRow + `
 </table>
 </td>
 </tr>
