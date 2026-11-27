@@ -518,3 +518,94 @@ func TestVoucher_PriceVoucherRoundTripAndConstraints(t *testing.T) {
 		t.Fatalf("bundle after the change: %+v", gotB)
 	}
 }
+
+// A price voucher is saved in the catalogue like a bundle but is never in the shop
+// list, and the database refuses one with no amount or with items.
+func TestVoucher_PriceVoucherProductStaysOutOfTheShop(t *testing.T) {
+	f := newWalletFixture(t)
+	ctx := context.Background()
+
+	price := &domain.VoucherProduct{Kind: domain.VoucherKindValue, Name: "ZZFIX thank you", Description: "Anything at the bar.", PriceKobo: 1_000_000, Active: true}
+	if err := f.vouchers.CreateProduct(ctx, price); err != nil {
+		t.Fatal(err)
+	}
+	f.product(t, 450_000) // a bundle on sale, for comparison
+
+	has := func(list []domain.VoucherProduct, id string) bool {
+		for _, p := range list {
+			if p.ID == id {
+				return true
+			}
+		}
+		return false
+	}
+	shop, err := f.vouchers.ListProducts(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, _ := f.vouchers.ListProducts(ctx, false)
+	if has(shop, price.ID) {
+		t.Error("a price voucher is in the shop list")
+	}
+	if !has(all, price.ID) {
+		t.Error("the admin list should include the price voucher")
+	}
+	got, _ := f.vouchers.GetProduct(ctx, price.ID)
+	if got.Kind != domain.VoucherKindValue || len(got.Items) != 0 || got.Description != "Anything at the bar." {
+		t.Errorf("stored product: %+v", got)
+	}
+
+	worthless := &domain.VoucherProduct{Kind: domain.VoucherKindValue, Name: "ZZFIX worthless", PriceKobo: 0, Active: true}
+	if err := f.vouchers.CreateProduct(ctx, worthless); err == nil {
+		t.Error("a price voucher worth nothing should be refused by the database")
+	}
+	withItems := &domain.VoucherProduct{
+		Kind: domain.VoucherKindValue, Name: "ZZFIX items", PriceKobo: 100, Active: true,
+		Items: []domain.VoucherItem{{Name: "Burger", Qty: 1}},
+	}
+	if err := f.vouchers.CreateProduct(ctx, withItems); err == nil {
+		t.Error("a price voucher with items should be refused by the database")
+	}
+}
+
+// Giving a bundle to several people is one transaction: if any voucher in the batch
+// cannot be saved, none is.
+func TestVoucher_BatchIssueIsAllOrNothing(t *testing.T) {
+	f := newWalletFixture(t)
+	ctx := context.Background()
+	staff := f.user(t, "ZZFIXbatchstaff")
+	p := f.product(t, 450_000)
+
+	make3 := func(prefix string) []*domain.Voucher {
+		vs := make([]*domain.Voucher, 3)
+		for i := range vs {
+			v := voucherFor(p, fmt.Sprintf("VCH-ZZFIX%s%d", prefix, i), staff, day(0), day(1))
+			v.Source = domain.VoucherAdminIssued
+			v.HolderName = fmt.Sprintf("ZZFIX Person %d", i)
+			vs[i] = v
+		}
+		return vs
+	}
+
+	good := make3("OK")
+	if err := f.vouchers.CreateIssuedBatch(ctx, good); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range good {
+		if got, _ := f.vouchers.GetByCode(ctx, v.Code); got == nil || got.ID == "" {
+			t.Fatalf("voucher %s was not saved", v.Code)
+		}
+	}
+
+	// The last voucher reuses a code that exists, so the first two must be rolled back.
+	bad := make3("NO")
+	bad[2].Code = good[0].Code
+	if err := f.vouchers.CreateIssuedBatch(ctx, bad); !errors.Is(err, ports.ErrVoucherCodeTaken) {
+		t.Fatalf("got %v, want ErrVoucherCodeTaken", err)
+	}
+	for _, v := range bad[:2] {
+		if got, _ := f.vouchers.GetByCode(ctx, v.Code); got != nil {
+			t.Errorf("voucher %s was kept although its batch failed", v.Code)
+		}
+	}
+}

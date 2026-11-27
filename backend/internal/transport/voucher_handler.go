@@ -57,6 +57,8 @@ func respondVoucherError(c *gin.Context, err error) {
 	case errors.Is(err, services.ErrVoucherProductInvalid),
 		errors.Is(err, services.ErrVoucherValueInvalid),
 		errors.Is(err, services.ErrVoucherKind),
+		errors.Is(err, services.ErrVoucherNoRecipients),
+		errors.Is(err, services.ErrVoucherTooMany),
 		errors.Is(err, services.ErrVoucherHolder),
 		errors.Is(err, services.ErrVoucherHolderEmail),
 		errors.Is(err, services.ErrVoucherDates),
@@ -239,7 +241,7 @@ func (h *VoucherHandler) AdminUpdateProduct(c *gin.Context) {
 }
 
 // AdminIssue godoc
-// @Summary Give someone a free voucher (staff)
+// @Summary Give one or more people a free voucher (staff)
 // @Tags vouchers
 // @Security BearerAuth
 // @Router /api/v1/admin/vouchers [post]
@@ -253,12 +255,12 @@ func (h *VoucherHandler) AdminIssue(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	v, err := h.service.AdminIssue(c.Request.Context(), staffID, req)
+	vouchers, err := h.service.AdminIssue(c.Request.Context(), staffID, req)
 	if err != nil {
 		respondVoucherError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": v})
+	c.JSON(http.StatusCreated, gin.H{"data": vouchers})
 }
 
 // AdminList godoc

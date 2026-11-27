@@ -12,9 +12,11 @@ type VoucherItem struct {
 	Qty  int    `json:"qty"`
 }
 
-// VoucherProduct is a bundle admins put on sale.
+// VoucherProduct is a bundle admins put on sale, or a price voucher they keep to
+// give away (Kind VALUE: Price is its amount and it has no items).
 type VoucherProduct struct {
 	ID          string        `json:"id"`
+	Kind        VoucherKind   `json:"kind"`
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
 	PriceKobo   int64         `json:"price_kobo"`

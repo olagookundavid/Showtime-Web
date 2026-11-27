@@ -21,6 +21,8 @@ const (
 	voucherMaxSpanDays = 366
 	voucherMaxItems    = 20
 	voucherCodeTries   = 5
+	// voucherMaxRecipients is how many people one "give this voucher" can reach.
+	voucherMaxRecipients = 50
 	// voucherMaxValueKobo caps a price voucher at ₦1,000,000, the same ceiling as a wallet.
 	voucherMaxValueKobo = 100_000_000
 	// DefaultValueVoucherDescription is used when an admin leaves a price voucher's
@@ -33,6 +35,8 @@ var (
 	ErrVoucherProductInvalid = errors.New("a voucher bundle needs a name, a price above zero and at least one item")
 	ErrVoucherProductGone    = errors.New("that voucher is not on sale")
 	ErrVoucherKind           = errors.New("a voucher is either a bundle or a price voucher")
+	ErrVoucherNoRecipients   = errors.New("add at least one person to give the voucher to")
+	ErrVoucherTooMany        = errors.New("you can give a voucher to at most 50 people at a time")
 	ErrVoucherValueInvalid   = errors.New("a price voucher needs a name and an amount above zero, up to ₦1,000,000")
 	ErrVoucherHolder         = errors.New("say who the voucher is for")
 	ErrVoucherHolderEmail    = errors.New("that email address does not look right")
@@ -67,7 +71,8 @@ type IVoucherService interface {
 	AdminListProducts(ctx context.Context) ([]domain.VoucherProduct, error)
 	AdminCreateProduct(ctx context.Context, req dto.VoucherProductRequest) (*domain.VoucherProduct, error)
 	AdminUpdateProduct(ctx context.Context, id string, req dto.VoucherProductRequest) (*domain.VoucherProduct, error)
-	AdminIssue(ctx context.Context, staffID string, req dto.IssueVoucherRequest) (*dto.AdminVoucherView, error)
+	// AdminIssue gives the same bundle to each recipient, all or nothing.
+	AdminIssue(ctx context.Context, staffID string, req dto.IssueVoucherRequest) ([]dto.AdminVoucherView, error)
 	AdminList(ctx context.Context, f ports.VoucherFilter) (*dto.AdminVoucherList, error)
 	AdminVoid(ctx context.Context, id, staffID string, refund bool) (*dto.AdminVoucherView, error)
 	AdminRedemptions(ctx context.Context) ([]dto.AdminVoucherView, error)
@@ -209,9 +214,23 @@ func (s *VoucherService) adminView(v *domain.Voucher) dto.AdminVoucherView {
 
 // ---- products ----
 
-func cleanProduct(req dto.VoucherProductRequest) (name, description string, items []domain.VoucherItem, err error) {
+// cleanProduct checks a catalogue entry of the given kind. A bundle needs items; a
+// price voucher needs an amount within the cap, has no items, and an empty
+// description gets the default.
+func cleanProduct(kind domain.VoucherKind, req dto.VoucherProductRequest) (name, description string, items []domain.VoucherItem, err error) {
 	name = strings.TrimSpace(req.Name)
 	description = strings.TrimSpace(req.Description)
+
+	if kind == domain.VoucherKindValue {
+		if name == "" || len(name) > 100 || req.PriceKobo <= 0 || req.PriceKobo > voucherMaxValueKobo || len(description) > 300 {
+			return "", "", nil, ErrVoucherValueInvalid
+		}
+		if description == "" {
+			description = DefaultValueVoucherDescription
+		}
+		return name, description, []domain.VoucherItem{}, nil
+	}
+
 	for _, it := range req.Items {
 		n := strings.TrimSpace(it.Name)
 		if n == "" {
@@ -228,6 +247,17 @@ func cleanProduct(req dto.VoucherProductRequest) (name, description string, item
 	return name, description, items, nil
 }
 
+// productKind reads the kind a request asks for. Empty means a bundle.
+func productKind(raw string) (domain.VoucherKind, error) {
+	switch k := domain.VoucherKind(strings.ToUpper(strings.TrimSpace(raw))); k {
+	case "", domain.VoucherKindBundle:
+		return domain.VoucherKindBundle, nil
+	case domain.VoucherKindValue:
+		return k, nil
+	}
+	return "", ErrVoucherKind
+}
+
 func (s *VoucherService) ListProducts(ctx context.Context) ([]domain.VoucherProduct, error) {
 	return s.repo.ListProducts(ctx, true)
 }
@@ -237,11 +267,15 @@ func (s *VoucherService) AdminListProducts(ctx context.Context) ([]domain.Vouche
 }
 
 func (s *VoucherService) AdminCreateProduct(ctx context.Context, req dto.VoucherProductRequest) (*domain.VoucherProduct, error) {
-	name, desc, items, err := cleanProduct(req)
+	kind, err := productKind(req.Kind)
 	if err != nil {
 		return nil, err
 	}
-	p := &domain.VoucherProduct{Name: name, Description: desc, PriceKobo: req.PriceKobo, Items: items, Active: req.Active}
+	name, desc, items, err := cleanProduct(kind, req)
+	if err != nil {
+		return nil, err
+	}
+	p := &domain.VoucherProduct{Kind: kind, Name: name, Description: desc, PriceKobo: req.PriceKobo, Items: items, Active: req.Active}
 	if err := s.repo.CreateProduct(ctx, p); err != nil {
 		return nil, err
 	}
@@ -252,11 +286,19 @@ func (s *VoucherService) AdminUpdateProduct(ctx context.Context, id string, req 
 	if !isUUID(id) {
 		return nil, ErrVoucherProductGone
 	}
-	name, desc, items, err := cleanProduct(req)
+	// A product's kind is fixed when it is created, so check it against what is stored.
+	existing, err := s.repo.GetProduct(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	p := &domain.VoucherProduct{ID: id, Name: name, Description: desc, PriceKobo: req.PriceKobo, Items: items, Active: req.Active}
+	if existing == nil {
+		return nil, ErrVoucherProductGone
+	}
+	name, desc, items, err := cleanProduct(existing.Kind, req)
+	if err != nil {
+		return nil, err
+	}
+	p := &domain.VoucherProduct{ID: id, Kind: existing.Kind, Name: name, Description: desc, PriceKobo: req.PriceKobo, Items: items, Active: req.Active}
 	found, err := s.repo.UpdateProduct(ctx, p)
 	if err != nil {
 		return nil, err
@@ -292,9 +334,13 @@ func snapshot(p *domain.VoucherProduct, h holderInput, from, to time.Time) *doma
 	items := make([]domain.VoucherItem, len(p.Items))
 	copy(items, p.Items)
 	pid := p.ID
+	kind := p.Kind
+	if kind == "" {
+		kind = domain.VoucherKindBundle
+	}
 	v := &domain.Voucher{
 		ProductID:   &pid,
-		Kind:        domain.VoucherKindBundle,
+		Kind:        kind,
 		Name:        p.Name,
 		Description: p.Description,
 		Items:       items,
@@ -313,35 +359,6 @@ func (h holderInput) emailPtr() *string {
 	}
 	e := h.email
 	return &e
-}
-
-// cleanValueVoucher checks the name, amount and description of a price voucher.
-// An empty description gets the default.
-func cleanValueVoucher(req dto.IssueVoucherRequest) (name, description string, err error) {
-	name = strings.TrimSpace(req.Name)
-	description = strings.TrimSpace(req.Description)
-	if name == "" || len(name) > 100 || req.AmountKobo <= 0 || req.AmountKobo > voucherMaxValueKobo || len(description) > 300 {
-		return "", "", ErrVoucherValueInvalid
-	}
-	if description == "" {
-		description = DefaultValueVoucherDescription
-	}
-	return name, description, nil
-}
-
-// valueVoucher is a price voucher: an amount of money, no items, no product.
-func valueVoucher(name, description string, amountKobo int64, h holderInput, from, to time.Time) *domain.Voucher {
-	return &domain.Voucher{
-		Kind:        domain.VoucherKindValue,
-		Name:        name,
-		Description: description,
-		Items:       []domain.VoucherItem{},
-		PriceKobo:   amountKobo,
-		HolderName:  h.name,
-		HolderEmail: h.emailPtr(),
-		ValidFrom:   from,
-		ValidTo:     to,
-	}
 }
 
 // save stores a voucher under a fresh code, trying again if the code is taken.
@@ -364,7 +381,8 @@ func (s *VoucherService) Purchase(ctx context.Context, buyerID string, req dto.P
 	if err != nil {
 		return nil, err
 	}
-	if product == nil || !product.Active {
+	// Price vouchers are for giving away, never for sale.
+	if product == nil || !product.Active || product.Kind == domain.VoucherKindValue {
 		return nil, ErrVoucherProductGone
 	}
 	holder, err := cleanHolder(req.HolderName, req.HolderEmail)
@@ -395,51 +413,66 @@ func (s *VoucherService) Purchase(ctx context.Context, buyerID string, req dto.P
 	return &out, nil
 }
 
-func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto.IssueVoucherRequest) (*dto.AdminVoucherView, error) {
-	kind := domain.VoucherKind(strings.ToUpper(strings.TrimSpace(req.Kind)))
-	if kind == "" {
-		kind = domain.VoucherKindBundle
+func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto.IssueVoucherRequest) ([]dto.AdminVoucherView, error) {
+	// An admin may issue a bundle that is no longer on sale, so only existence is checked.
+	if !isUUID(req.ProductID) {
+		return nil, ErrVoucherProductGone
+	}
+	product, err := s.repo.GetProduct(ctx, req.ProductID)
+	if err != nil {
+		return nil, err
+	}
+	if product == nil {
+		return nil, ErrVoucherProductGone
+	}
+	switch n := len(req.Recipients); {
+	case n == 0:
+		return nil, ErrVoucherNoRecipients
+	case n > voucherMaxRecipients:
+		return nil, ErrVoucherTooMany
+	}
+	from, to, err := parseVoucherDates(req.ValidFrom, req.ValidTo, todayLagos(s.now()))
+	if err != nil {
+		return nil, err
 	}
 
-	var (
-		product           *domain.VoucherProduct
-		valueName, valueD string
-	)
-	switch kind {
-	case domain.VoucherKindBundle:
-		// An admin may issue a bundle that is no longer on sale, so only existence is checked.
-		if !isUUID(req.ProductID) {
-			return nil, ErrVoucherProductGone
-		}
-		var err error
-		product, err = s.repo.GetProduct(ctx, req.ProductID)
+	// Check every recipient before making any voucher, so one mistake in the list
+	// leaves nothing half done.
+	vouchers := make([]*domain.Voucher, 0, len(req.Recipients))
+	for _, r := range req.Recipients {
+		v, err := s.voucherForRecipient(ctx, product, r, staffID, from, to)
 		if err != nil {
 			return nil, err
 		}
-		if product == nil {
-			return nil, ErrVoucherProductGone
-		}
-	case domain.VoucherKindValue:
-		var err error
-		valueName, valueD, err = cleanValueVoucher(req)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, ErrVoucherKind
+		vouchers = append(vouchers, v)
+	}
+	if err := s.saveBatch(ctx, vouchers); err != nil {
+		return nil, err
 	}
 
-	emailAddr := req.HolderEmail
+	out := make([]dto.AdminVoucherView, 0, len(vouchers))
+	for _, v := range vouchers {
+		s.sendEmails(ctx, v)
+		s.notifyReceived(ctx, v, staffID, "Showtime")
+		out = append(out, s.adminView(v))
+	}
+	return out, nil
+}
+
+// voucherForRecipient builds one admin-issued voucher: the holder's name and email,
+// and the account it belongs to when one is linked or matches the email.
+func (s *VoucherService) voucherForRecipient(ctx context.Context, product *domain.VoucherProduct, r dto.IssueRecipient, staffID string, from, to time.Time) (*domain.Voucher, error) {
+	emailAddr := r.HolderEmail
 	var linked *domain.User
-	if id := strings.TrimSpace(req.HolderUserID); id != "" {
+	if id := strings.TrimSpace(r.HolderUserID); id != "" {
 		if !isUUID(id) {
 			return nil, ErrWalletUserNotFound
 		}
-		var err error
-		linked, err = s.users.GetUserByID(ctx, id)
-		if err != nil || linked == nil {
+		u, err := s.users.GetUserByID(ctx, id)
+		if err != nil || u == nil {
 			return nil, ErrWalletUserNotFound
 		}
+		linked = u
 		if strings.TrimSpace(emailAddr) == "" {
 			emailAddr = linked.Email
 		}
@@ -448,35 +481,34 @@ func (s *VoucherService) AdminIssue(ctx context.Context, staffID string, req dto
 			linked = found
 		}
 	}
-	holder, err := cleanHolder(req.HolderName, emailAddr)
-	if err != nil {
-		return nil, err
-	}
-	from, to, err := parseVoucherDates(req.ValidFrom, req.ValidTo, todayLagos(s.now()))
+	holder, err := cleanHolder(r.HolderName, emailAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	var v *domain.Voucher
-	if kind == domain.VoucherKindValue {
-		v = valueVoucher(valueName, valueD, req.AmountKobo, holder, from, to)
-	} else {
-		v = snapshot(product, holder, from, to)
-	}
+	v := snapshot(product, holder, from, to)
 	v.Source = domain.VoucherAdminIssued
 	v.IssuedByUserID = &staffID
 	if linked != nil {
 		uid := linked.ID
 		v.HolderUserID = &uid
 	}
-	if err := s.save(ctx, v, s.repo.CreateIssued); err != nil {
-		return nil, err
-	}
+	return v, nil
+}
 
-	s.sendEmails(ctx, v)
-	s.notifyReceived(ctx, v, staffID, "Showtime")
-	out := s.adminView(v)
-	return &out, nil
+// saveBatch stores the vouchers together under fresh codes, trying again with new
+// codes if any is already taken.
+func (s *VoucherService) saveBatch(ctx context.Context, vs []*domain.Voucher) error {
+	for i := 0; i < voucherCodeTries; i++ {
+		for _, v := range vs {
+			v.Code = generateVoucherCode()
+		}
+		err := s.repo.CreateIssuedBatch(ctx, vs)
+		if !errors.Is(err, ports.ErrVoucherCodeTaken) {
+			return err
+		}
+	}
+	return errors.New("could not make unique voucher codes, please try again")
 }
 
 // buyerName is the name shown to the recipient of a gifted voucher, so they know who

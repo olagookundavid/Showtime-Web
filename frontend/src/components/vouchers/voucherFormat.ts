@@ -25,6 +25,12 @@ export const todayInLagos = (): string =>
 export const summariseItems = (items: VoucherItem[]): string =>
   items.map((i) => `${i.qty} × ${i.name}`).join(", ");
 
+/** What a new price voucher's description starts as. Admins can change it. */
+export const DEFAULT_PRICE_VOUCHER_DESCRIPTION = "Valid for anything at the Showtime bar.";
+
+/** The most a price voucher can be worth in kobo: the server's ceiling, ₦1,000,000. */
+export const MAX_PRICE_VOUCHER_KOBO = 100_000_000;
+
 /** What a voucher is for on one line, for tables: its items, or "₦10,000 off the bill". */
 export const summariseVoucher = (v: Pick<Voucher, "kind" | "items" | "price_kobo">): string =>
   v.kind === "VALUE" ? `${formatKobo(v.price_kobo)} to spend` : summariseItems(v.items);

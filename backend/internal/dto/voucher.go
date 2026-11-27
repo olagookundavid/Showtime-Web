@@ -7,7 +7,11 @@ import (
 )
 
 // VoucherProductRequest creates or edits a bundle on sale. Price is kobo.
+//
+// Kind is "BUNDLE" (the default) or "VALUE", a price voucher: Price is its amount
+// and Items is ignored. Kind is fixed when the product is created.
 type VoucherProductRequest struct {
+	Kind        string               `json:"kind"`
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
 	PriceKobo   int64                `json:"price_kobo"`
@@ -25,23 +29,23 @@ type PurchaseVoucherRequest struct {
 	ValidTo     string `json:"valid_to"`
 }
 
-// IssueVoucherRequest is an admin giving a voucher away. HolderUserID is optional
-// and links the voucher to an account so it shows in that person's "My vouchers".
-//
-// Kind is "BUNDLE" (the default, which needs ProductID) or "VALUE", a set amount of
-// money that needs Name and AmountKobo; Description is optional text about what it
-// can be used for and has a default.
-type IssueVoucherRequest struct {
-	Kind         string `json:"kind"`
-	ProductID    string `json:"product_id"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	AmountKobo   int64  `json:"amount_kobo"`
+// IssueRecipient is one person an admin gives a voucher to. HolderUserID is
+// optional and links the voucher to an account, so it shows in that person's "My
+// vouchers"; the account's email is used when HolderEmail is empty.
+type IssueRecipient struct {
 	HolderName   string `json:"holder_name"`
 	HolderEmail  string `json:"holder_email"`
 	HolderUserID string `json:"holder_user_id"`
-	ValidFrom    string `json:"valid_from"`
-	ValidTo      string `json:"valid_to"`
+}
+
+// IssueVoucherRequest is an admin giving the same bundle (or price voucher) to one
+// or more people, all valid on the same dates. Each recipient gets a voucher of
+// their own. It is all or nothing: if any recipient is invalid, none are made.
+type IssueVoucherRequest struct {
+	ProductID  string           `json:"product_id"`
+	Recipients []IssueRecipient `json:"recipients"`
+	ValidFrom  string           `json:"valid_from"`
+	ValidTo    string           `json:"valid_to"`
 }
 
 type VoidVoucherRequest struct {

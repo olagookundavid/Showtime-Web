@@ -44,6 +44,9 @@ type IVoucherRepository interface {
 	CreatePurchased(ctx context.Context, v *domain.Voucher) error
 	// CreateIssued saves a free, admin-issued voucher.
 	CreateIssued(ctx context.Context, v *domain.Voucher) error
+	// CreateIssuedBatch saves several free vouchers in one transaction: all are
+	// made or none. ErrVoucherCodeTaken means one code already exists.
+	CreateIssuedBatch(ctx context.Context, vs []*domain.Voucher) error
 
 	// GetByCode and GetByID return nil, nil when there is no such voucher.
 	GetByCode(ctx context.Context, code string) (*domain.Voucher, error)
@@ -114,11 +117,11 @@ func scanVouchers(rows pgx.Rows) ([]domain.Voucher, error) {
 
 // ---- products ----
 
-const voucherProductColumns = `id, name, description, price_kobo, items, active, created_at, updated_at`
+const voucherProductColumns = `id, kind, name, description, price_kobo, items, active, created_at, updated_at`
 
 func scanVoucherProduct(row pgx.Row) (*domain.VoucherProduct, error) {
 	var p domain.VoucherProduct
-	err := row.Scan(&p.ID, &p.Name, &p.Description, &p.PriceKobo, &p.Items, &p.Active, &p.CreatedAt, &p.UpdatedAt)
+	err := row.Scan(&p.ID, &p.Kind, &p.Name, &p.Description, &p.PriceKobo, &p.Items, &p.Active, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -137,7 +140,8 @@ func (r *VoucherRepository) ListProducts(ctx context.Context, activeOnly bool) (
 
 	q := `SELECT ` + voucherProductColumns + ` FROM voucher_products`
 	if activeOnly {
-		q += ` WHERE active`
+		// The shop only sells bundles; price vouchers are for giving away.
+		q += ` WHERE active AND kind = 'BUNDLE'`
 	}
 	q += ` ORDER BY active DESC, price_kobo, name`
 	rows, err := r.pool.Query(ctx, q)
@@ -175,11 +179,14 @@ func (r *VoucherRepository) CreateProduct(ctx context.Context, p *domain.Voucher
 	if p.Items == nil {
 		p.Items = []domain.VoucherItem{}
 	}
+	if p.Kind == "" {
+		p.Kind = domain.VoucherKindBundle
+	}
 	return r.pool.QueryRow(ctx, `
-		INSERT INTO voucher_products (name, description, price_kobo, items, active)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO voucher_products (kind, name, description, price_kobo, items, active)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at
-	`, p.Name, p.Description, p.PriceKobo, itemsJSON(p.Items), p.Active).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
+	`, p.Kind, p.Name, p.Description, p.PriceKobo, itemsJSON(p.Items), p.Active).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 }
 
 func (r *VoucherRepository) UpdateProduct(ctx context.Context, p *domain.VoucherProduct) (bool, error) {
@@ -280,6 +287,24 @@ func (r *VoucherRepository) CreateIssued(ctx context.Context, v *domain.Voucher)
 
 	if err := insertVoucherRow(ctx, tx, v); err != nil {
 		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *VoucherRepository) CreateIssuedBatch(ctx context.Context, vs []*domain.Voucher) error {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, v := range vs {
+		if err := insertVoucherRow(ctx, tx, v); err != nil {
+			return err
+		}
 	}
 	return tx.Commit(ctx)
 }
