@@ -20,9 +20,12 @@ import {
   Modal,
   RowActions,
   Select,
+  Textarea,
   VoucherStateBadge,
   formatVoucherRange,
+  nairaTextToKobo,
   summariseItems,
+  summariseVoucher,
   todayInLagos,
   type Column,
 } from "../../../components";
@@ -41,6 +44,12 @@ import type { AdminVoucher, VoucherStatus, WalletUser } from "../../../types";
 const PAGE_SIZE = 20;
 const NO_VOUCHERS: AdminVoucher[] = [];
 const NO_USERS: WalletUser[] = [];
+
+/** A price voucher's name and description start like this, and the admin can change both. */
+const DEFAULT_PRICE_NAME = "Thank you voucher";
+const DEFAULT_PRICE_DESCRIPTION = "Valid for anything at the Showtime bar.";
+/** The most a price voucher can be worth: the server's ceiling, ₦1,000,000. */
+const MAX_PRICE_KOBO = 100_000_000;
 
 const voucherLink = (code: string) => `${window.location.origin}/vouchers/${code}`;
 
@@ -61,6 +70,10 @@ export const VouchersIssued = () => {
   // --- issuing ---
   const [issueOpen, setIssueOpen] = useState(false);
   const [issueConfirm, setIssueConfirm] = useState(false);
+  const [isPrice, setIsPrice] = useState(false);
+  const [priceName, setPriceName] = useState(DEFAULT_PRICE_NAME);
+  const [priceAmount, setPriceAmount] = useState("");
+  const [priceDescription, setPriceDescription] = useState(DEFAULT_PRICE_DESCRIPTION);
   const [productId, setProductId] = useState("");
   const [holderName, setHolderName] = useState("");
   const [holderEmail, setHolderEmail] = useState("");
@@ -78,10 +91,22 @@ export const VouchersIssued = () => {
 
   const today = todayInLagos();
   const chosen = products.data?.find((p) => p.id === productId);
-  const canIssue = !!chosen && holderName.trim().length > 0 && !!from && to >= from && from >= today;
+  const amountKobo = nairaTextToKobo(priceAmount);
+  const whoAndWhenOk = holderName.trim().length > 0 && !!from && to >= from && from >= today;
+  const whatOk = isPrice
+    ? priceName.trim().length > 0 && amountKobo !== null && amountKobo <= MAX_PRICE_KOBO
+    : !!chosen;
+  const canIssue = whatOk && whoAndWhenOk;
+  // The voucher is emailed to the address typed in, and to a linked account.
+  const willEmail = holderEmail.trim().length > 0 || !!linked;
 
   const openIssue = () => {
-    setProductId(products.data?.find((p) => p.active)?.id ?? "");
+    const bundles = products.data?.filter((p) => p.active) ?? [];
+    setIsPrice(bundles.length === 0);
+    setPriceName(DEFAULT_PRICE_NAME);
+    setPriceAmount("");
+    setPriceDescription(DEFAULT_PRICE_DESCRIPTION);
+    setProductId(bundles[0]?.id ?? "");
     setHolderName("");
     setHolderEmail("");
     setFrom(todayInLagos());
@@ -100,7 +125,14 @@ export const VouchersIssued = () => {
     mutationFn: () =>
       adminIssueVoucher(
         {
-          product_id: productId,
+          ...(isPrice
+            ? {
+                kind: "VALUE" as const,
+                name: priceName.trim(),
+                description: priceDescription.trim(),
+                amount_kobo: amountKobo ?? 0,
+              }
+            : { kind: "BUNDLE" as const, product_id: productId }),
           holder_name: holderName.trim(),
           holder_email: holderEmail.trim() || undefined,
           holder_user_id: linked?.id,
@@ -164,7 +196,7 @@ export const VouchersIssued = () => {
           </div>
         ),
       },
-      { header: "Covers", cell: (v) => summariseItems(v.items) },
+      { header: "Covers", cell: (v) => summariseVoucher(v) },
       {
         header: "Valid",
         sortable: true,
@@ -173,7 +205,11 @@ export const VouchersIssued = () => {
       },
       {
         header: "How",
-        cell: (v) => (v.source === "PURCHASED" ? `Bought, ${formatKobo(v.price_kobo)}` : "Given by Showtime"),
+        cell: (v) => {
+          if (v.source === "PURCHASED") return `Bought, ${formatKobo(v.price_kobo)}`;
+          // A given bundle still shows what it is worth; a price voucher's amount is in "Covers".
+          return v.kind === "VALUE" ? "Given by Showtime" : `Given by Showtime, worth ${formatKobo(v.price_kobo)}`;
+        },
       },
       { header: "Status", cell: (v) => <VoucherStateBadge state={v.state} /> },
       {
@@ -252,7 +288,7 @@ export const VouchersIssued = () => {
                 <option value="VOID">Cancelled</option>
               </Select>
             </Field>
-            <Button icon={GiftIcon} disabled={!products.data?.length} onClick={openIssue}>
+            <Button icon={GiftIcon} disabled={products.isLoading} onClick={openIssue}>
               Issue Voucher
             </Button>
           </div>
@@ -263,7 +299,7 @@ export const VouchersIssued = () => {
         open={issueOpen && !issueConfirm}
         onClose={() => !issue.isPending && setIssueOpen(false)}
         title="Issue a voucher"
-        subtitle="Give someone a voucher for free. We email it to them if you add an email."
+        subtitle="Give someone a voucher for free. We email it to them if you add an email or link their account."
         maxWidth="lg"
         footer={
           <>
@@ -284,17 +320,69 @@ export const VouchersIssued = () => {
             if (canIssue) setIssueConfirm(true);
           }}
         >
-          <Field label="Bundle" htmlFor="issue-product">
-            <Select id="issue-product" value={productId} onChange={(e) => setProductId(e.target.value)}>
-              {products.data?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                  {p.active ? "" : " (switched off)"}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {chosen && <p className="text-sm text-gray-600 dark:text-gray-300">Covers {summariseItems(chosen.items)}.</p>}
+          <Checkbox
+            label="This is a price voucher"
+            hint="A set amount to spend, not a bundle. The bar takes it off the bill."
+            checked={isPrice}
+            onChange={(e) => setIsPrice(e.target.checked)}
+          />
+
+          {isPrice ? (
+            <>
+              <Field label="Name" htmlFor="issue-price-name" hint="What the holder sees, for example Thank you voucher.">
+                <Input
+                  id="issue-price-name"
+                  value={priceName}
+                  maxLength={100}
+                  onChange={(e) => setPriceName(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Amount (₦)"
+                htmlFor="issue-price-amount"
+                hint="The most you can give is ₦1,000,000."
+                error={
+                  priceAmount.trim() !== "" && (amountKobo === null || amountKobo > MAX_PRICE_KOBO)
+                    ? "Enter an amount between ₦1 and ₦1,000,000."
+                    : undefined
+                }
+              >
+                <Input
+                  id="issue-price-amount"
+                  inputMode="decimal"
+                  value={priceAmount}
+                  onChange={(e) => setPriceAmount(e.target.value)}
+                  placeholder="10,000"
+                />
+              </Field>
+              <Field label="What it can be used for" htmlFor="issue-price-description">
+                <Textarea
+                  id="issue-price-description"
+                  value={priceDescription}
+                  maxLength={300}
+                  onChange={(e) => setPriceDescription(e.target.value)}
+                />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label="Bundle" htmlFor="issue-product">
+                <Select id="issue-product" value={productId} onChange={(e) => setProductId(e.target.value)}>
+                  {products.data?.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                      {p.active ? "" : " (switched off)"}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {chosen && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Covers {summariseItems(chosen.items)}. Worth {formatKobo(chosen.price_kobo)}.
+                </p>
+              )}
+            </>
+          )}
 
           <Field label="Who is it for?" htmlFor="issue-holder" hint="The bar checks this name when the voucher is used.">
             <Input
@@ -305,7 +393,7 @@ export const VouchersIssued = () => {
               placeholder="Full name"
             />
           </Field>
-          <Field label="Their email (optional)" htmlFor="issue-email" hint="We send the voucher and its QR code here.">
+          <Field label="Their email (optional)" htmlFor="issue-email" hint="We send the voucher and its QR code here. If you link an account below, we email that account too.">
             <Input
               id="issue-email"
               type="email"
@@ -397,19 +485,18 @@ export const VouchersIssued = () => {
       </Modal>
 
       <ConfirmDialog
-        open={issueConfirm && !!chosen}
+        open={issueConfirm && (isPrice || !!chosen)}
         title="Issue this voucher?"
-        description={holderEmail.trim() ? "It will be emailed to them now." : "No email was added, so share the link yourself."}
+        description={willEmail ? "It will be emailed to them now." : "No email was added, so share the link yourself."}
         body={
-          chosen && (
-            <ConfirmSummary
-              rows={[
-                ["Bundle", chosen.name],
-                ["For", holderName.trim()],
-                ["Valid", formatVoucherRange(from, to)],
-              ]}
-            />
-          )
+          <ConfirmSummary
+            rows={[
+              isPrice ? ["Price voucher", priceName.trim()] : ["Bundle", chosen?.name ?? ""],
+              isPrice ? ["Amount", formatKobo(amountKobo ?? 0)] : ["Worth", formatKobo(chosen?.price_kobo ?? 0)],
+              ["For", holderName.trim()],
+              ["Valid", formatVoucherRange(from, to)],
+            ]}
+          />
         }
         confirmLabel="Issue voucher"
         tone="info"
